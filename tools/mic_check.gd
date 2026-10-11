@@ -21,6 +21,11 @@ func _initialize() -> void:
 		quit()
 		return
 	if not args.is_empty():
+		# An unknown name would silently fall back to the Default device.
+		if not AudioServer.get_input_device_list().has(args[0]):
+			print("MIC_ERROR unknown device: ", args[0])
+			quit(1)
+			return
 		AudioServer.input_device = args[0]
 	var err := AudioServer.set_input_device_active(true)
 	if err != OK:

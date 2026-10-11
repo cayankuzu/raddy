@@ -21,7 +21,20 @@ if ($Stop) {
     exit 0
 }
 
-$editorArgs = @("--editor", "--path", "`"$ProjectDir`"")
+# A second editor on this project would move Beckett to another port and rewrite .mcp.json.
+$running = $null
+if (Test-Path $pidFile) {
+    $running = Get-Process -Id ([int](Get-Content $pidFile)) -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -eq $GodotExe }
+}
+$port = if ($env:BECKETT_PORT) { [int]$env:BECKETT_PORT } else { 8770 }
+$listening = Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+if ($running -or $listening) {
+    Write-Host "An editor already serves Beckett on port $port. Close it (or run tools\editor.ps1 -Stop) first." -ForegroundColor Red
+    exit 1
+}
+
+$editorArgs = @("--editor", "--path", "`"$ProjectDir`"") + $GodotWindowArgs
 if ($Headless) {
     New-Item -ItemType Directory -Force (Split-Path $pidFile) | Out-Null
     $log = Join-Path $ProjectDir "logs\editor.log"

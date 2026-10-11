@@ -29,14 +29,18 @@ function Stop-Instances {
 function Start-Instance([int]$index, [string]$role, [string[]]$windowArgs) {
     $log = Join-Path $logDir "instance_$index.log"
     Remove-Item $log -ErrorAction SilentlyContinue
-    $argList = @("--path", "`"$ProjectDir`"") + $windowArgs + @("--log-file", "`"$log`"")
-    if ($Scene) { $argList += $Scene }
-    $argList += @("--", "--instance=$index", "--role=$role") + $ExtraArgs
-    $proc = Start-Process -FilePath $GodotExe -ArgumentList $argList -PassThru
+    $godotArgs = @("--path", $ProjectDir) + $GodotWindowArgs + $windowArgs + @("--log-file", $log)
+    if ($Scene) { $godotArgs += $Scene }
+    $godotArgs += @("--", "--instance=$index", "--role=$role") + $ExtraArgs
+    # ProcessStartInfo.ArgumentList quotes each argument, so spaces in paths or args survive.
+    $psi = [System.Diagnostics.ProcessStartInfo]::new($GodotExe)
+    foreach ($a in $godotArgs) { $psi.ArgumentList.Add($a) }
+    $proc = [System.Diagnostics.Process]::Start($psi)
     [pscustomobject]@{ Instance = $index; Role = $role; Pid = $proc.Id; Log = $log }
 }
 
 if ($Stop) { Stop-Instances; Write-Host "Stopped."; exit 0 }
+Assert-RunnableScene $Scene
 Stop-Instances  # never stack a new session on top of a previous one
 New-Item -ItemType Directory -Force $logDir | Out-Null
 
@@ -44,16 +48,27 @@ $started = @()
 if ($Server) { $started += Start-Instance 0 "server" @("--headless") }
 
 if ($Clients -gt 0) {
+    # Godot places windows in physical pixels from the virtual-desktop origin, so read the
+    # screen DPI-aware and from that origin; tiles then line up at any display scaling.
+    if (-not ("Raddy.Win" -as [type])) {
+        Add-Type -Namespace Raddy -Name Win -MemberDefinition @'
+[DllImport("user32.dll")] public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
+[DllImport("user32.dll")] public static extern int GetSystemMetrics(int index);
+'@
+    }
+    [void][Raddy.Win]::SetThreadDpiAwarenessContext([IntPtr]-4)  # per-monitor v2, like Godot
     Add-Type -AssemblyName System.Windows.Forms
     $area = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+    $origin = [System.Windows.Forms.SystemInformation]::VirtualScreen
+    # SM_CYCAPTION + SM_CYFRAME + SM_CXPADDEDBORDER
+    $titleBar = [Raddy.Win]::GetSystemMetrics(4) + [Raddy.Win]::GetSystemMetrics(33) + [Raddy.Win]::GetSystemMetrics(92)
     $cols = [int][Math]::Ceiling([Math]::Sqrt($Clients))
     $rows = [int][Math]::Ceiling($Clients / $cols)
-    $titleBar = 32
     $w = [int][Math]::Floor($area.Width / $cols)
     $h = [int][Math]::Floor($area.Height / $rows) - $titleBar
     for ($i = 0; $i -lt $Clients; $i++) {
-        $x = $area.X + ($i % $cols) * $w
-        $y = $area.Y + [Math]::Floor($i / $cols) * ($h + $titleBar) + $titleBar
+        $x = $area.X - $origin.X + ($i % $cols) * $w
+        $y = $area.Y - $origin.Y + [Math]::Floor($i / $cols) * ($h + $titleBar) + $titleBar
         $started += Start-Instance ($i + 1) "client" @("--position", "$x,$y", "--resolution", "${w}x${h}")
     }
 }
