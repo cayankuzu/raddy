@@ -26,6 +26,26 @@ The user writes Turkish: answer in Turkish.
 - `tools\editor.ps1 [-Headless | -Stop]`: open the editor (Beckett MCP runs inside it).
 - `tools\mic_check.ps1 [-Device <name>]`: input level per microphone (user speaks while it listens).
 
+## Specs and plan
+- `docs/RADDY_MEGA_MASTER_PROMPT_FINAL.md` is the main spec; `docs/RADDY_SUPPLEMENT_*.md` add art direction,
+  engineering and MCP rules. `docs/DEVELOPMENT_PLAN.md` merges them into phases and tracks status; update it
+  when a feature is verified. `docs/ART_DIRECTION.md` and `docs/REFERENCE_RESEARCH.md` hold the research.
+
+## Vehicle code (scripts/vehicles)
+- `RallyCar` (RigidBody3D) simulates in `_integrate_forces`: ray wheels cast by the car, spring/damper/bump stop,
+  slip-angle tyres with a cornering-priority friction circle, AWD drive, handbrake, anti-roll, drag,
+  oversteer assist, impact and recovery detection. It never reads Input.
+- Whoever owns the car writes `car.controls` (`VehicleControls`) before each tick: `PlayerCarInput` locally,
+  later the network layer, and tests. Tunables live in `VehicleConfig` (`data/vehicles/rally_hatch.tres`).
+- Surfaces: colliders set metadata `surface` (see `Surface`); untagged ground is gravel.
+- Dev scene `scenes/dev/vehicle_test_track.tscn` is the current main scene (`--autodrive` user arg circles).
+
+## Tests
+- Physics tests extend `PhysicsTestCase` and wait with `wait_ticks(n)` (exact ticks; GUT's
+  `wait_physics_frames` overshoots in loops). `tools\test.ps1` runs with `--fixed-fps 120`, so physics
+  runs faster than real time and results are deterministic run to run.
+- Print measured values with `gut.p()` so tuning changes are visible in the output.
+
 ## Beckett MCP (addons/beckett)
 - The editor plugin is the MCP server: `http://127.0.0.1:8770/mcp/<token>`, token auth on. It only runs while an
   editor (GUI, or `tools\editor.ps1 -Headless`) has this project open.

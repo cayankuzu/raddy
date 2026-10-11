@@ -19,7 +19,9 @@ $junit = Join-Path $ProjectDir "reports\junit.xml"
 New-Item -ItemType Directory -Force (Split-Path $junit) | Out-Null
 Remove-Item $junit -ErrorAction SilentlyContinue
 
-$gutArgs = @("--headless", "--path", $ProjectDir, "-s", "res://addons/gut/gut_cmdln.gd", "-gexit")
+# --fixed-fps runs exactly one physics tick per frame as fast as the CPU allows, so physics tests
+# do not wait in real time (keep it equal to physics/common/physics_ticks_per_second).
+$gutArgs = @("--headless", "--fixed-fps", "120", "--path", $ProjectDir, "-s", "res://addons/gut/gut_cmdln.gd", "-gexit")
 if ($Select) { $gutArgs += "-gselect=$Select" }
 
 $out = & $GodotConsole @gutArgs 2>&1
