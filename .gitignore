@@ -1,0 +1,22 @@
+# Godot
+.godot/
+/android/
+*.tmp
+export.cfg
+export_credentials.cfg
+*.translation
+~*.dll
+
+# Beckett MCP: these client configs carry the local auth token in their URL
+.mcp.json
+.cursor/
+.vscode/mcp.json
+.beckett/
+
+# Claude Code personal settings
+.claude/settings.local.json
+
+# Local outputs
+/builds/
+/reports/
+/logs/
