@@ -16,6 +16,8 @@ var input_gain := 1.0
 ## > 0 replaces the microphone with a sine tone of that frequency (tests, no real mic needed).
 var fake_tone_hz := 0.0
 var level := 0.0  ## RMS of the last emitted frame
+## RMS of the latest input whether or not we transmit: voice activity and the mic test read it.
+var monitor_level := 0.0
 
 var _resampler: VoiceCodec.Resampler
 var _pending := PackedFloat32Array()
@@ -42,10 +44,15 @@ func start(device := "") -> Error:
 	return err
 
 
+func is_active() -> bool:
+	return _active
+
+
 func stop() -> void:
 	if _active:
 		AudioServer.set_input_device_active(false)
 	_active = false
+	monitor_level = 0.0
 	transmitting = false
 	set_process(fake_tone_hz > 0.0)
 
@@ -64,6 +71,8 @@ func _process(delta: float) -> void:
 		_watch_silence(samples, delta)
 	else:
 		return
+	if not samples.is_empty():
+		monitor_level = VoiceCodec.rms(samples) * input_gain
 	if not transmitting:
 		_pending.clear()
 		level = 0.0

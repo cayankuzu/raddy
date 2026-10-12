@@ -17,6 +17,8 @@ var push_to_talk := true
 ## Voice-activity mode (push_to_talk = false): transmit while the frame RMS is above this.
 var activity_threshold := 0.02
 var output_volume_db := 0.0
+## Microphone name from the settings ("" = the Windows default).
+var input_device := ""
 var capture := VoiceCapture.new()
 
 var packets_sent := 0
@@ -88,7 +90,7 @@ func _on_session_started(_as_host: bool) -> void:
 	if AudioServer.get_driver_name() == "Dummy":
 		print("VOICE capture off: no audio driver (headless)")
 		return
-	var err := capture.start()
+	var err := capture.start(input_device)
 	if err != OK:
 		mic_problem.emit("Mikrofon açılamadı (%s); sesli sohbet kapalı, oyun devam ediyor" % error_string(err))
 
@@ -113,11 +115,12 @@ func _process(delta: float) -> void:
 	if push_to_talk:
 		capture.transmitting = Input.is_action_pressed(&"voice_talk")
 	else:
-		if capture.level > activity_threshold:
+		# capture.level is 0 while not transmitting, so voice activity listens to the monitor.
+		if capture.monitor_level > activity_threshold:
 			_activity_hang = 0.3
 		else:
 			_activity_hang -= delta
-		capture.transmitting = _activity_hang > 0.0 or capture.level > activity_threshold
+		capture.transmitting = _activity_hang > 0.0 or capture.monitor_level > activity_threshold
 
 
 func _on_frame_ready(samples: PackedFloat32Array) -> void:

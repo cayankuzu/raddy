@@ -45,7 +45,7 @@ static func build(graph: RouteGraph, terrain: TerrainField, palette := {}) -> No
 	pads.name = "Junctions"
 	root.add_child(pads)
 	for node in graph.nodes:
-		if node.kind != RouteGraph.NodeKind.DEAD_END:
+		if node.kind == RouteGraph.NodeKind.JUNCTION:
 			pads.add_child(_build_pad(graph, node))
 	var gates := Node3D.new()
 	gates.name = "Checkpoints"
@@ -148,8 +148,8 @@ static func _build_road(graph: RouteGraph, edge: RouteGraph.RouteEdge) -> Static
 
 ## First polyline index whose arc length from the start node exceeds the junction setback.
 static func ribbon_start(graph: RouteGraph, edge: RouteGraph.RouteEdge) -> int:
-	if graph.nodes[edge.from_node].kind == RouteGraph.NodeKind.DEAD_END:
-		return 0
+	if graph.nodes[edge.from_node].kind != RouteGraph.NodeKind.JUNCTION:
+		return 0  # the start line and dead ends: the ribbons simply meet
 	var travelled := 0.0
 	for i in range(1, edge.points.size() - 1):
 		travelled += edge.points[i].distance_to(edge.points[i - 1])
@@ -160,7 +160,7 @@ static func ribbon_start(graph: RouteGraph, edge: RouteGraph.RouteEdge) -> int:
 
 static func ribbon_end(graph: RouteGraph, edge: RouteGraph.RouteEdge) -> int:
 	var last := edge.points.size() - 1
-	if graph.nodes[edge.to_node].kind == RouteGraph.NodeKind.DEAD_END:
+	if graph.nodes[edge.to_node].kind != RouteGraph.NodeKind.JUNCTION:
 		return last
 	var travelled := 0.0
 	for i in range(last - 1, 0, -1):
@@ -211,9 +211,12 @@ static func _ribbon(edge: RouteGraph.RouteEdge, first: int, last: int, left_offs
 static func _build_pad(graph: RouteGraph, node: RouteGraph.RouteNode) -> StaticBody3D:
 	var corners: Array[Vector3] = []
 	var widest := 0.0
+	var pad_surface := Surface.GRAVEL
 	for edge_id in node.edge_ids:
 		var edge := graph.edges[edge_id]
 		widest = maxf(widest, edge.width)
+		if edge.kind == RouteGraph.EdgeKind.MAIN:
+			pad_surface = edge.surface
 		var index := ribbon_start(graph, edge) if edge.from_node == node.id else ribbon_end(graph, edge)
 		var dir := edge.direction_at(index)
 		var right := Vector3(-dir.y, 0.0, dir.x)
@@ -227,7 +230,7 @@ static func _build_pad(graph: RouteGraph, node: RouteGraph.RouteNode) -> StaticB
 
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	surface.set_material(_material(SURFACE_COLORS[Surface.GRAVEL]))
+	surface.set_material(_material(SURFACE_COLORS.get(pad_surface, SURFACE_COLORS[Surface.GRAVEL])))
 	for i in corners.size():
 		var a := corners[i] + Vector3.UP * PAD_LIFT
 		var b := corners[(i + 1) % corners.size()] + Vector3.UP * PAD_LIFT
@@ -240,7 +243,7 @@ static func _build_pad(graph: RouteGraph, node: RouteGraph.RouteNode) -> StaticB
 	var mesh := surface.commit()
 	var body := StaticBody3D.new()
 	body.name = "Pad%d" % node.id
-	body.set_meta(&"surface", Surface.GRAVEL)
+	body.set_meta(&"surface", pad_surface)
 	var instance := MeshInstance3D.new()
 	instance.mesh = mesh
 	body.add_child(instance)

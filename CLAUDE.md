@@ -25,14 +25,18 @@ No Blender; model in Godot only as a last resort.
   (read with `OS.get_cmdline_user_args()`). From a command line pass -ExtraArgs as ONE comma-joined string
   (pwsh -File binds only the first token). Start it detached (Start-Process) and never redirect its stdout:
   the GUI children inherit the handle and the caller hangs.
-- `tools\nettest.ps1 [-Clients 3] [-Seconds 22]`: automated multiplayer check (headless host + clients run
+- `tools\nettest.ps1 [-Clients 3] [-Seconds 40]`: automated multiplayer check (headless host + clients run
   `scenes/dev/net_test.tscn` with scripted actions, then the `NET ...` log lines are asserted). Exit 0 = pass.
+- `tools\flowtest.ps1 [-Clients 1] [-Seconds 240] [-Seed 1]`: end-to-end check of the real game from the main
+  menu: host creates a room, clients join by room code, seats + ready, start, bots drive a lap, results, back
+  to the room, quit (`--flow-test`, see `scripts/core/flow.gd`). Exit 0 = pass (~2 min for 2 players).
 - `tools\capture_window.ps1 -Instance N -Out reports\screenshots\x.png`: PNG of a windowed instance even when
   covered (PrintWindow); use it for multi-window visual checks since Beckett sees one game only.
 - `tools\screenshot.ps1 -Scene res://x.tscn -Frames 120 -Out reports\screenshots\x.png [-ExtraArgs "--a,--b"]`:
   Movie Maker capture; open the PNG with Read. The PNG has the project viewport size; `-Resolution` only
   sizes the window. 60 movie frames = 1 s of game time.
-- `launch.ps1` and `screenshot.ps1` need `-Scene` until the project has a main scene.
+- The main scene is `scenes/ui/main_menu.tscn`. Screenshots of a running room or race: `screenshot.ps1 -Scene
+  res://scenes/ui/main_menu.tscn -ExtraArgs "--flow-test,--role=server,--players=1,--autodrive"`.
 - `tools\export_windows.ps1 [-Debug]`: `builds\windows\RADDY.exe` via the "Windows Desktop" preset.
 - `tools\editor.ps1 [-Headless | -Stop]`: open the editor (Beckett MCP runs inside it).
 - `tools\mic_check.ps1 [-Device <name>]`: input level per microphone (user speaks while it listens).
@@ -49,7 +53,20 @@ No Blender; model in Godot only as a last resort.
 - Whoever owns the car writes `car.controls` (`VehicleControls`) before each tick: `PlayerCarInput` locally,
   later the network layer, and tests. Tunables live in `VehicleConfig` (`data/vehicles/rally_hatch.tres`).
 - Surfaces: colliders set metadata `surface` (see `Surface`); untagged ground is gravel.
-- Dev scene `scenes/dev/vehicle_test_track.tscn` is the current main scene (`--autodrive` user arg circles).
+- Dev scene `scenes/dev/vehicle_test_track.tscn` (`--autodrive` user arg circles) for car tuning.
+
+## Screens and flow (scripts/core, scripts/ui, scripts/gameplay/race.gd)
+- Autoloads: `Settings` (user://settings.cfg: language, volumes, voice, effects, key bindings; tests set
+  `Settings.save_path`), `Flow` (menu → lobby → race → results → lobby; leaves dev scenes alone).
+- `RoomCode` packs IPv4 + port into a checked `XXXX-XXXX-XXXX` code; `PortOpener` (UPnP, thread) gives the
+  internet code when the router allows it (CGNAT detected). `RaceSettings` resolves Random / Surprise Rally;
+  `BiomeRules` applies biome/weather/difficulty to the graph. UI strings: `data/locale/strings.csv` (TR/EN).
+- Race start: `Net.report_race_loaded()` from every player; the host spawns only when `Net.all_players_loaded()`
+  (scene changes are deferred: spawn RPCs sent earlier are lost), then a 3 s countdown with `car.input_locked`.
+  Results: host clock + recovery penalty, `RaceResults.rows()`, published when all finished/left or 120 s after
+  the first finisher. Host buttons: same route / new route (`Net.start_race(settings, true)`) / back to room.
+- UI is built in code with `UiTheme` (static helpers must use `TranslationServer.translate`, not `tr`).
+  Canvas layers: SeatEffects 5, RaceHud 8, ResultsPanel 12, PauseMenu 15, SettingsMenu 20.
 
 ## Procedural route (scripts/procedural)
 - `RouteGenerator.generate(seed)` → `RouteGraph` (nodes START/JUNCTION/DEAD_END, edges MAIN/SHORTCUT/DETOUR/SPUR
@@ -138,8 +155,15 @@ No Blender; model in Godot only as a last resort.
   "Mikrofon Dizisi (Realtek(R) Audio)" (laptop array) and "Mikrofon (Realtek(R) Audio)" (jack).
 - Stock 4.7.2 cannot step physics manually, so there is no rollback/resimulation of RigidBody vehicles.
 - Godot 4.7.2's AccessKit (accessibility) panics at window creation (exit 0xC0000409, "subclass.rs:109") when the
-  Windows global atom table is full; this PC hit it after ~17 days of uptime and only a reboot clears it. Every
-  windowed tool run and the desktop "RADDY Editör" shortcut pass `--accessibility disabled` (`$GodotWindowArgs`).
+  Windows global atom table is full; this PC hit it after ~17 days of uptime and only a reboot clears it (the
+  2026-10-12 reboot did). Every windowed tool run and the desktop "RADDY Editör" shortcut still pass
+  `--accessibility disabled` (`$GodotWindowArgs`) as a guard.
+- IObit Malware Fighter's anti-ransomware guard (`C:\ProgramData\IObit\IObit Malware Fighter\rsconfig.ini`
+  lists 246 protected extensions, incl. .ps1 .png .csv .txt) denies some processes (Git Bash's grep/head/cp,
+  sometimes pwsh) access to such files under the user folders, and can lock a file for every process. Symptoms:
+  "Access denied" with a normal ACL. Python and Godot usually still read; a locked tracked file can be restored
+  with Python: write `git show HEAD:path` to `path.restore`, then `os.replace` onto the path. Do not change the
+  security software yourself; the user was asked to uninstall it (it also leaked the atom table).
 - If every Godot run suddenly takes 20 s+ to start (nettest timings slip, `--quit-after 5` takes 19 s), check
   for a leftover `chrome-headless-shell.exe` (Playwright, under `%LOCALAPPDATA%\ms-playwright`) rendering WebGL
   in software: a Sketchfab tab left in the built-in browser ate 65% of the CPU once. Kill its process tree.

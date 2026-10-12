@@ -115,3 +115,52 @@ PAUSE_LEAVE,Yarıştan ayrıl,Leave the race
 DISCONNECT_HOST_LOST,Host ile bağlantı koptu.,Lost the connection to the host.
 DISCONNECT_OK,Ana menü,Main menu
 CREDITS_TEXT,RADDY — Çayan Kuzu. Godot Engine (MIT). GUT (MIT). Beckett Lite (MIT). Ücretsiz CC0/CC-BY varlıklar: ASSET_LICENSES.md,RADDY — Çayan Kuzu. Godot Engine (MIT). GUT (MIT). Beckett Lite (MIT). Free CC0/CC-BY assets: ASSET_LICENSES.md
+LOBBY_CANNOT_START_not_everyone_ready,Herkes hazır olmalı.,Everyone must be ready.
+LOBBY_CODE_LOCAL,Bu bilgisayar (test) kodu,This PC (test) code
+LOBBY_UPNP_NO_ROUTER,modem UPnP desteklemiyor,the router has no UPnP
+LOBBY_UPNP_SHARED,internet adresi paylaşımlı (CGNAT),shared internet address (CGNAT)
+LOBBY_VPN_HINT,İnternet kodu yoksa: ücretsiz Radmin VPN ile aynı ağa girip LAN kodunu kullanın.,No internet code? Join the same free Radmin VPN network and use the LAN code.
+LOBBY_COPY,Kopyala,Copy
+LOBBY_YOU,(sen),(you)
+LOBBY_HOST,(host),(host)
+LOBBY_UNSEATED,Takımsız,No team
+LOBBY_PING,Ping: {ms} ms,Ping: {ms} ms
+LOBBY_READY_MARK,hazır,ready
+MENU_JOIN_HELP,"Aynı evdeyseniz LAN kodunu, internetten bağlanıyorsanız internet kodunu girin. Host'un Windows Güvenlik Duvarı izni vermesi gerekir.","Use the LAN code on the same network, the internet code otherwise. The host must allow RADDY through Windows Firewall."
+MENU_NAME_DEFAULT,Oyuncu,Player
+KEY_MOUSE_LEFT,Sol tık,Left click
+KEY_MOUSE_RIGHT,Sağ tık,Right click
+KEY_MOUSE_MIDDLE,Orta tık,Middle click
+SETTINGS_PRESS_KEY,Bir tuşa bas (Esc: vazgeç),Press a key (Esc: cancel)
+SETTINGS_CLOSE,Kapat,Close
+SETTINGS_MIC_DEFAULT,Windows varsayılanı,Windows default
+SETTINGS_MIC_LEVEL,Mikrofon seviyesi,Microphone level
+SETTINGS_MIC_START,Mikrofonu dene,Test microphone
+SETTINGS_MIC_STOP,Denemeyi bitir,Stop test
+ACTION_drive_throttle,Gaz,Throttle
+ACTION_drive_brake,Fren / geri,Brake / reverse
+ACTION_drive_steer_left,Sola dön,Steer left
+ACTION_drive_steer_right,Sağa dön,Steer right
+ACTION_drive_handbrake,El freni,Handbrake
+ACTION_vehicle_recover,Aracı kurtar,Recover the car
+ACTION_cabin_window_left,Sol cam,Left window
+ACTION_cabin_window_right,Sağ cam,Right window
+ACTION_cabin_throw,Kutu at,Throw a can
+ACTION_cabin_kick_windshield,Ön camı tekmele,Kick the windshield out
+ACTION_cabin_wipers,Silecekler,Wipers
+ACTION_map_toggle,Harita,Map
+ACTION_map_reset,Haritayı sıfırla,Reset the map view
+ACTION_voice_talk,Bas-konuş,Push to talk
+ACTION_camera_toggle,Kamera (test),Camera (testing)
+HUD_COUNTDOWN_GO,ÇIK!,GO!
+HUD_TIME,Süre {time},Time {time}
+HUD_NEXT_GATE,Sıradaki kontrol: {gate}/{gates},Next checkpoint: {gate}/{gates}
+HUD_FINISH_LINE,Bitiş çizgisi,Finish line
+HUD_WAITING_PLAYERS,Oyuncular yükleniyor...,Players are loading...
+HUD_TEAM_FINISHED,Takım {team} bitirdi: {time},Team {team} finished: {time}
+HUD_SPECTATING,İzleyici,Spectating
+RESULTS_PENALTY,Ceza,Penalty
+RESULTS_LEFT,Ayrıldı,Left
+RESULTS_WAITING_HOST,Host'un seçimi bekleniyor...,Waiting for the host...
+RESULTS_SUMMARY,Seed {seed} · {settings},Seed {seed} · {settings}
+PAUSE_NOTE,Çok oyunculu yarış durmaz.,A multiplayer race does not stop.

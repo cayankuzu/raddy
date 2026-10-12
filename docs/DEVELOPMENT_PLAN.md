@@ -163,6 +163,22 @@ P5 QA and release
   faints the navigator later in the run. Screenshot `reports/screenshots/cabin_cracked_dirty_seed1.png`.
   Not yet: dirt masked to the windshield area, wind/gravel sounds, crack decals on the 3D glass, navigator
   "take can" step (cans are thrown straight from the glovebox), horn/flash keys.
+- 2026-10-12: P3 six-player MVP flow DONE in code and automated tests: main menu (name, create room, join by
+  room code, settings, credits, quit), room (LAN / this-PC / internet codes via free UPnP with CGNAT detection
+  and a Radmin VPN hint, 3 teams × driver/navigator seat buttons, ready, host race choices difficulty/laps/
+  biome/weather each with Random + Surprise Rally, the same summary on every peer, start with the reason it
+  cannot start), race (loading barrier so no spawn RPC is lost, 3 s countdown with the cars locked, host-clock
+  times with per-difficulty recovery penalty, results when everyone finished/left or 120 s after the first,
+  results screen with same route / new route / back to room), pause menu (Esc, race keeps going), settings
+  (language TR/EN, volumes on Master/Game/Voice buses, voice on/off, push-to-talk, microphone choice + live
+  level test, camera shake, effects, map marker, fullscreen, vsync, key rebinding saved to user://). Biome and
+  weather change surfaces, colours, grip, fog, falling rain/snow/dust and wet glass; difficulty changes road
+  width, pace-note detail and the recovery penalty. Fixed on the way: voice-activity mode could never open
+  (it read the transmit level), a held throttle on the grid offered a recovery. Verified: 135 GUT tests,
+  `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1` (host + client from the main menu through a full lap:
+  1:15.3 / 1:21.6, results, back to the room), screenshots `reports/screenshots/ui_*.png`.
+  Not yet: internet relay for CGNAT homes (noray), reconnect after a drop, host migration, a 6-client load
+  test, HUD/menu art pass, horn/headlight flash.
 - P2 summary (2026-10-12): the playable core exists in code and automated tests: roles, cockpit cameras,
   paper map + pace notes, procedural routes with legal alternatives and checkpoints, glass/wind/faint, damage
   levels, joint recovery, cans. Human play-feel checks are still pending (see "manual steps").
