@@ -177,6 +177,7 @@ func _playback_for(peer_id: int) -> VoicePlayback:
 	var playback := VoicePlayback.new()
 	playback.name = "Voice%d" % peer_id
 	playback.volume_db = output_volume_db
+	playback.bus = &"Voice"
 	playback.speaking_changed.connect(func(speaking: bool) -> void: speaking_changed.emit(peer_id, speaking))
 	_playbacks[peer_id] = playback
 	_attach(peer_id)

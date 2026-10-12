@@ -1,0 +1,117 @@
+keys,tr,en
+GAME_TITLE,RADDY,RADDY
+MENU_PLAY,Oyna,Play
+MENU_CREATE_ROOM,Oda Kur,Create Room
+MENU_JOIN_ROOM,Odaya Katıl,Join Room
+MENU_SETTINGS,Ayarlar,Settings
+MENU_CREDITS,Emeği Geçenler,Credits
+MENU_QUIT,Çıkış,Quit
+MENU_BACK,Geri,Back
+MENU_PLAYER_NAME,Oyuncu adı,Player name
+MENU_ROOM_CODE,Oda kodu,Room code
+MENU_JOIN,Katıl,Join
+MENU_JOINING,Bağlanıyor...,Connecting...
+MENU_BAD_CODE,Oda kodu hatalı. Harfleri kontrol et.,Room code is not valid. Check the letters.
+MENU_JOIN_FAILED,Odaya ulaşılamadı: {reason},Could not reach the room: {reason}
+MENU_HOST_FAILED,Oda kurulamadı: {reason},Could not create the room: {reason}
+LOBBY_TITLE,Oda,Room
+LOBBY_CODE_LAN,Aynı ağ (LAN) kodu,Same network (LAN) code
+LOBBY_CODE_INTERNET,İnternet kodu,Internet code
+LOBBY_CODE_PENDING,İnternet kodu alınıyor...,Fetching the internet code...
+LOBBY_CODE_UNAVAILABLE,İnternet kodu alınamadı; LAN kodunu veya Radmin VPN kullan.,Internet code unavailable; use the LAN code or Radmin VPN.
+LOBBY_PORT_HINT,İnternet için {port} UDP portu yönlendirilmiş olmalı (UPnP: {upnp}).,For internet play UDP port {port} must be forwarded (UPnP: {upnp}).
+LOBBY_UPNP_OK,açık,open
+LOBBY_UPNP_FAILED,başarısız,failed
+LOBBY_UPNP_TRYING,deneniyor,trying
+LOBBY_PLAYERS,Oyuncular,Players
+LOBBY_TEAM,Takım {n},Team {n}
+LOBBY_DRIVER,Sürücü,Driver
+LOBBY_NAVIGATOR,Navigatör,Navigator
+LOBBY_EMPTY_SEAT,boş,empty
+LOBBY_LEAVE_TEAM,Takımdan ayrıl,Leave team
+LOBBY_READY,Hazırım,Ready
+LOBBY_NOT_READY,Hazır değilim,Not ready
+LOBBY_START,Yarışı Başlat,Start Race
+LOBBY_WAITING_HOST,Host'un başlatması bekleniyor,Waiting for the host to start
+LOBBY_LEAVE,Odadan Ayrıl,Leave Room
+LOBBY_SETTINGS,Yarış ayarları,Race settings
+LOBBY_DIFFICULTY,Zorluk,Difficulty
+LOBBY_LAPS,Tur,Laps
+LOBBY_BIOME,Biyom,Biome
+LOBBY_WEATHER,Hava,Weather
+LOBBY_SURPRISE,Sürpriz Ralli,Surprise Rally
+LOBBY_SUMMARY,Özet: {difficulty} · {laps} · {biome} · {weather},Summary: {difficulty} · {laps} · {biome} · {weather}
+LOBBY_CANNOT_START_no_players,Odada oyuncu yok.,No players in the room.
+LOBBY_CANNOT_START_player_without_team,Herkes bir takım seçmeli.,Everyone must pick a team.
+LOBBY_CANNOT_START_team_without_driver,Her takımın bir sürücüsü olmalı.,Every team needs a driver.
+LOBBY_CANNOT_START_not_ready,Herkes hazır olmalı.,Everyone must be ready.
+LOBBY_HOST_LEFT,Host odadan ayrıldı.,The host left the room.
+LOBBY_KICKED,Odaya alınmadın: {reason},Not admitted: {reason}
+CHOICE_RANDOM,Rastgele,Random
+DIFFICULTY_EXPLORE,Keşif,Explore
+DIFFICULTY_RALLY,Ralli,Rally
+DIFFICULTY_REDLINE,Kırmızı Çizgi,Redline
+BIOME_FOREST,Orman,Forest
+BIOME_DESERT,Çöl,Desert
+BIOME_MOUNTAIN,Kayalık Dağ,Rocky Mountain
+WEATHER_CLEAR,Açık,Clear
+WEATHER_RAIN,Yağmur,Rain
+WEATHER_FOG,Sis,Fog
+WEATHER_SNOW,Kar,Snow
+WEATHER_DUST_STORM,Toz Fırtınası,Dust Storm
+LAPS_1,1 tur,1 lap
+LAPS_2,2 tur,2 laps
+LAPS_3,3 tur,3 laps
+SETTINGS_TITLE,Ayarlar,Settings
+SETTINGS_LANGUAGE,Dil,Language
+SETTINGS_MASTER_VOLUME,Genel ses,Master volume
+SETTINGS_GAME_VOLUME,Oyun sesi,Game sound
+SETTINGS_VOICE_VOLUME,Sesli sohbet sesi,Voice chat volume
+SETTINGS_VOICE_ENABLED,Sesli sohbet,Voice chat
+SETTINGS_PUSH_TO_TALK,Bas-konuş (V),Push to talk (V)
+SETTINGS_VOICE_DEVICE,Mikrofon,Microphone
+SETTINGS_MIC_TEST,Mikrofon testi: konuş,Mic test: speak
+SETTINGS_CAMERA_SHAKE,Kamera sarsıntısı,Camera shake
+SETTINGS_EFFECTS,Ekran efektleri (kan, bulanıklık),Screen effects (blood, blur)
+SETTINGS_SHOW_CAR_ON_MAP,Haritada aracı göster,Show the car on the map
+SETTINGS_FULLSCREEN,Tam ekran,Fullscreen
+SETTINGS_VSYNC,Dikey eşitleme,V-Sync
+SETTINGS_CONTROLS,Kontroller,Controls
+SETTINGS_REBIND_HINT,Bir eyleme tıkla ve yeni tuşa bas,Click an action and press the new key
+SETTINGS_DEFAULTS,Varsayılanlar,Defaults
+HUD_SPEED,{speed} km/h,{speed} km/h
+HUD_LAP,Tur {lap}/{laps},Lap {lap}/{laps}
+HUD_GATE,Kontrol {gate}/{gates},Checkpoint {gate}/{gates}
+HUD_DAMAGE_LIGHT,Hasar: hafif,Damage: light
+HUD_DAMAGE_MEDIUM,Hasar: orta,Damage: medium
+HUD_DAMAGE_CRITICAL,Hasar: kritik,Damage: critical
+HUD_RECOVERY,R — Aracı Kurtar ({confirmed}/{seats}),R — Recover the car ({confirmed}/{seats})
+HUD_RECOVERY_HOLD,R basılı tut — Aracı Kurtar,Hold R — Recover the car
+HUD_MAP_GONE,Harita uçtu — yenisi {seconds} s sonra,Map blew away — a new one in {seconds} s
+HUD_MAP_WARNING,Harita uçmak üzere!,The map is about to fly!
+HUD_FAINTED,Baygınsın... {seconds} s,Out cold... {seconds} s
+HUD_SPEAKING,{name} konuşuyor,{name} is talking
+HUD_KEYS_DRIVER,W/S gaz-fren  A/D direksiyon  Boşluk el freni  Q cam  T silecek  V konuş,W/S throttle-brake  A/D steer  Space handbrake  Q window  T wipers  V talk
+HUD_KEYS_NAVIGATOR,M harita  Q/E camlar  Sol tık kutu at  F ön camı tekmele  V konuş,M map  Q/E windows  LMB throw  F kick windshield  V talk
+HUD_WINDSHIELD_CRACKED,Ön cam çatlak,Windshield cracked
+HUD_WINDSHIELD_REMOVED,Ön cam yok,No windshield
+HUD_FINISHED,Bitirdin! Diğerleri bekleniyor...,Finished! Waiting for the others...
+RESULTS_TITLE,Sonuçlar,Results
+RESULTS_PLACE,Sıra,Place
+RESULTS_TEAM,Takım,Team
+RESULTS_TIME,Süre,Time
+RESULTS_LAPS,Tur,Laps
+RESULTS_RECOVERIES,Kurtarma,Recoveries
+RESULTS_STATUS,Durum,Status
+RESULTS_FINISHED,Bitirdi,Finished
+RESULTS_DNF,Bitiremedi,Did not finish
+RESULTS_REMATCH,Aynı rota,Same route
+RESULTS_NEW_ROUTE,Yeni rota,New route
+RESULTS_TO_LOBBY,Odaya dön,Back to room
+PAUSE_TITLE,Duraklatıldı (yarış sürüyor),Paused (the race goes on)
+PAUSE_RESUME,Devam,Resume
+PAUSE_SETTINGS,Ayarlar,Settings
+PAUSE_LEAVE,Yarıştan ayrıl,Leave the race
+DISCONNECT_HOST_LOST,Host ile bağlantı koptu.,Lost the connection to the host.
+DISCONNECT_OK,Ana menü,Main menu
+CREDITS_TEXT,RADDY — Çayan Kuzu. Godot Engine (MIT). GUT (MIT). Beckett Lite (MIT). Ücretsiz CC0/CC-BY varlıklar: ASSET_LICENSES.md,RADDY — Çayan Kuzu. Godot Engine (MIT). GUT (MIT). Beckett Lite (MIT). Free CC0/CC-BY assets: ASSET_LICENSES.md

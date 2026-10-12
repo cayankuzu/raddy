@@ -4,7 +4,6 @@
 *.tmp
 export.cfg
 export_credentials.cfg
-*.translation
 ~*.dll
 
 # Beckett MCP: these client configs (and the .bak/.beckett-tmp/.beckett-old copies Beckett
