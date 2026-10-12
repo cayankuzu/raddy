@@ -39,11 +39,11 @@ func _ready() -> void:
 		"difficulty": int(_args.get("difficulty", "1"))}
 	graph = RouteGenerator.generate(seed)
 	BiomeRules.apply_to_graph(graph, settings)
-	SurfaceMaterials.set_weather(settings.weather)
 	var palette := BiomeRules.palette(settings.biome, settings.weather)
-	var environment: Environment = ($WorldEnvironment as WorldEnvironment).environment
-	environment.fog_light_color = palette.get("fog", environment.fog_light_color)
-	environment.fog_density = RaceSettings.fog_density(settings.weather)
+	# The race's own sky, sun and fog recipe replaces the scene's placeholder ones.
+	$WorldEnvironment.free()
+	$Sun.free()
+	add_child(RaceLook.create(settings.biome, settings.weather))
 	var problems := RouteValidator.validate(graph)
 	print("ROUTE seed %d attempt %d lap %.0f m edges %d checkpoints %d problems %s" % [
 		seed, graph.attempt, graph.main_route_length(), graph.edges.size(), graph.checkpoints.size(), str(problems)])
@@ -103,7 +103,7 @@ func _ready() -> void:
 	if _args.has("chase"):
 		_chase.make_current()
 	if _args.has("overview"):
-		($WorldEnvironment as WorldEnvironment).environment.fog_enabled = false
+		($RaceLook/WorldEnvironment as WorldEnvironment).environment.fog_enabled = false
 		var overview := Camera3D.new()
 		overview.name = "OverviewCamera"
 		overview.projection = Camera3D.PROJECTION_ORTHOGONAL
