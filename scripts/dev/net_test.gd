@@ -39,6 +39,7 @@ func _ready() -> void:
 	Net.join_rejected.connect(func(reason: String) -> void: print("NET join rejected: ", reason))
 	Net.roster_changed.connect(_on_roster_changed)
 	Net.race_started.connect(_on_race_started)
+	Voice.mic_problem.connect(func(message: String) -> void: print("VOICE problem: ", message))
 	if _args.get("role", "client") == "server":
 		var bind_ip := "127.0.0.1" if _args.has("local") else "*"
 		print("NET host err=", error_string(Net.host(_port, _args.has("as-player"), bind_ip)))
@@ -110,6 +111,10 @@ func _on_race_started(settings: Dictionary) -> void:
 
 func _run_test_script() -> void:
 	match _instance:
+		1:  # driver of team 1 talks (a fake tone, no microphone needed) from 8 s to 11 s
+			get_tree().create_timer(8.0).timeout.connect(func() -> void:
+				print("VOICE fake transmit start")
+				Voice.start_fake_transmit(3.0))
 		2:  # navigator of team 1
 			get_tree().create_timer(5.0).timeout.connect(func() -> void: _cabin_action(Cabin.Side.RIGHT, true, false))
 			get_tree().create_timer(6.0).timeout.connect(func() -> void: _cabin_action(Cabin.Side.RIGHT, true, true))
@@ -144,6 +149,12 @@ func _physics_process(delta: float) -> void:
 		var distance: float = car.global_position.distance_to(_spawn_origins[team])
 		print("NET t=%.0f car team %d simulated=%s packets=%d distance=%.1f speed=%.1f" % [
 			_elapsed, team, car.simulated, sync.packets_received, distance, car.forward_speed])
+	for peer_id in Net.roster:
+		if Voice.packets_from(peer_id) > 0:
+			print("VOICE t=%.0f rx from %d packets=%d level=%.3f speaking=%s" % [
+				_elapsed, peer_id, Voice.packets_from(peer_id), Voice.level_from(peer_id), Voice.is_speaking(peer_id)])
+	if Voice.packets_sent > 0 or Voice.relayed_near > 0:
+		print("VOICE t=%.0f tx packets=%d relayed near=%d far=%d" % [_elapsed, Voice.packets_sent, Voice.relayed_near, Voice.relayed_far])
 
 
 func _process(_delta: float) -> void:
@@ -154,7 +165,12 @@ func _process(_delta: float) -> void:
 		"team %s  role %s" % [str(me.get("team", "-")), str(me.get("role", "-"))],
 	])
 	if _session != null and _session.local_car != null:
-		lines.append("%3d km/h   Q/E windows   LMB throw" % roundi(absf(_session.local_car.forward_speed) * 3.6))
+		lines.append("%3d km/h   Q/E windows   LMB throw   V talk" % roundi(absf(_session.local_car.forward_speed) * 3.6))
+	for peer_id in Net.roster:
+		if Voice.is_speaking(peer_id):
+			lines.append("%s konuşuyor" % Net.roster[peer_id].name)
+	if Voice.capture.transmitting:
+		lines.append("mic: %.2f" % Voice.capture.level)
 	_info.text = "\n".join(lines)
 
 

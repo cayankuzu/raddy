@@ -62,6 +62,10 @@ No Blender; model in Godot only as a last resort.
   `Cabin` (authority 1) owns window state and can stock; seat holders ask, host validates against the roster.
 - Dev bootstrap `scenes/dev/net_test.tscn` takes `--role --port --host --players --as-player --local
   --autodrive --test-script --quit-after-seconds`; without `--instance` it takes the first free seat.
+- `Voice` autoload (scripts/audio): `VoiceCapture` (AudioServer input API, 48 kHz → 16 kHz mono) → mu-law
+  20 ms packets → host `_relay` (range check through the world provider: `RaceSession.voice_position/anchor`)
+  → `VoicePlayback` (AudioStreamPlayer3D + AudioStreamGenerator, jitter buffer) parented to the speaker's seat.
+  Headless (Dummy audio driver) never opens the mic; `Voice.start_fake_transmit()` sends a tone for tests.
 - Editor-launched games need `--accessibility disabled` too on this PC: set once via Beckett
   `call_method target=res://tools/editor_run_args.gd method=apply` (editor setting `run/main_run_args`).
 

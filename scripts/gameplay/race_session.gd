@@ -29,8 +29,29 @@ var _autodrive_time := 0.0
 
 func _ready() -> void:
 	Net.player_left.connect(_on_player_left)
+	Voice.set_world(self)
 	if Net.is_host():
 		_spawn_cars_for_roster()
+
+
+func _exit_tree() -> void:
+	Voice.set_world(null)
+
+
+## Voice world provider: where a peer's head is (null when it has no car), for range checks.
+func voice_position(peer_id: int) -> Variant:
+	var anchor := voice_anchor(peer_id)
+	return anchor.global_position if anchor != null else null
+
+
+## Voice world provider: the seat node to hang a peer's voice playback on.
+func voice_anchor(peer_id: int) -> Node3D:
+	var entry: Dictionary = Net.roster.get(peer_id, {})
+	var car: RallyCar = _team_cars.get(entry.get("team", 0))
+	if car == null:
+		return null
+	var seat := "DriverCamera" if entry.role == RosterRules.Role.DRIVER else "NavigatorCamera"
+	return car.get_node(seat) as Node3D
 
 
 func _physics_process(delta: float) -> void:

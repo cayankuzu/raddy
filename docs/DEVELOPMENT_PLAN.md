@@ -92,3 +92,11 @@ P5 QA and release
   DriverCamera/NavigatorCamera inside a placeholder cockpit (dashboard, roof, pillars, wheel).
   Not yet: internet NAT path (netfox/noray), reconnect, host migration, speed-bound validation of snapshots,
   car-vs-car collision fairness.
+- 2026-10-12: P1.3 proximity voice prototype DONE in code and in the automated test: `Voice` autoload
+  (push-to-talk V, voice-activity option, per-peer mute, mic-problem signal, fake-tone test mode), 16 kHz
+  mono mu-law 20 ms packets (320 B, 50/s) client → host, host relays only to seated peers within 40 m of the
+  speaker, receivers play from the speaker's seat through a 3D `VoicePlayback` with a jitter buffer.
+  `tools\nettest.ps1`: driver's 3 s tone reaches its navigator and the other car (149/146 packets, level 0.28),
+  dedicated host relays near=296 far=0, 6 codec unit tests. Still needed from a human: real microphone →
+  headphones audibility, left/right placement and the in-car vs other-car loudness (spec §5.1), then Opus
+  (TwoVoIP 6.5) to cut bandwidth ~10× before internet play.

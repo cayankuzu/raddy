@@ -48,6 +48,18 @@ if ($packets -lt 100) { $failures.Add("instance 2: only $packets snapshots of th
 $distance = LastValue 2 "car team 1 simulated=false packets=\d+ distance=([\d.]+)"
 if ($distance -lt 10) { $failures.Add("instance 2: driver's car moved only $distance m as seen by the navigator") }
 Expect 1 "car team 1 simulated=true" "driver simulates its own car"
+# Voice: instance 1 sends a 3 s fake tone; its teammate (2) and the other car (3, a few metres
+# away) must receive it with a clear level; the host relays and never plays (dedicated).
+$sent = LastValue 1 "VOICE t=\d+ tx packets=(\d+)"
+if ($sent -lt 100) { $failures.Add("instance 1: sent only $sent voice packets (expected ~150 for 3 s)") }
+foreach ($i in 2, 3) {
+    if ($i -gt $Clients) { continue }
+    $rx = LastValue $i "VOICE t=\d+ rx from \d+ packets=(\d+)"
+    if ($rx -lt 100) { $failures.Add("instance ${i}: received only $rx voice packets") }
+    Expect $i "VOICE t=\d+ rx from \d+ packets=\d+ level=0\.[1-9]" "voice level clearly above zero on instance $i"
+}
+Expect 0 "VOICE t=\d+ tx packets=0 relayed near=[1-9]\d* far=0" "host relayed to near peers only"
+foreach ($i in 0..$Clients) { ExpectNot $i "VOICE problem" "no mic problem reported" }
 if ($Clients -ge 3) {
     $other = LastValue 1 "car team 2 simulated=false packets=(\d+)"
     if ($other -lt 50) { $failures.Add("instance 1: only $other snapshots of team 2's car") }
