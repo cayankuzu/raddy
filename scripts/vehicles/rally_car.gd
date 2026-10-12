@@ -14,6 +14,13 @@ const WHEEL_NAMES: Array[StringName] = [&"WheelFL", &"WheelFR", &"WheelRL", &"Wh
 const IMPACT_COOLDOWN := 0.25
 ## Lowest |forward speed| used for slip angles, so lateral grip stays smooth near a standstill.
 const SLIP_SPEED_FLOOR := 2.0
+## Below this speed tyres also cancel gravity along the ground (static friction), so a car can
+## stand on a slope or a cambered road instead of creeping.
+const HOLD_SPEED := 1.0
+## How fast a wheel in the air spins down, in m/s of rim speed per second.
+const AIR_WHEEL_DECEL := 8.0
+## A stuck car must travel this far (or reach recovery_max_speed) before the offer is withdrawn.
+const UNSTUCK_DISTANCE := 2.0
 
 @export var config: VehicleConfig
 
@@ -32,6 +39,8 @@ var _stuck_time := 0.0
 var _previous_velocity := Vector3.ZERO
 var _impact_cooldown := 0.0
 var _pending_reset := false
+var _reset_interpolation := false
+var _stuck_origin := Vector3.ZERO
 var _reset_snaps_to_ground := false
 var _reset_transform := Transform3D.IDENTITY
 
@@ -50,8 +59,7 @@ class CarWheel:
 
 func _ready() -> void:
 	if config == null:
-		push_error("RallyCar '%s' has no VehicleConfig" % name)
-		set_physics_process(false)
+		push_error("RallyCar '%s' has no VehicleConfig; it will not drive" % name)
 		return
 	mass = config.mass
 	center_of_mass_mode = CENTER_OF_MASS_MODE_CUSTOM
@@ -73,6 +81,8 @@ func _ready() -> void:
 
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
+	if config == null:
+		return
 	if _pending_reset:
 		_apply_reset(state)
 		return
@@ -91,7 +101,11 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	_update_recovery(state, dt)
 
 
-func _process(delta: float) -> void:
+## Wheel visuals move on physics ticks so physics interpolation smooths them with the body.
+func _physics_process(delta: float) -> void:
+	if _reset_interpolation:
+		_reset_interpolation = false
+		reset_physics_interpolation()
 	for wheel in _wheels:
 		if wheel.visual == null:
 			continue
@@ -184,6 +198,8 @@ func _simulate_wheel(state: PhysicsDirectBodyState3D, space: PhysicsDirectSpaceS
 	if hit.is_empty():
 		wheel.in_contact = false
 		wheel.compression = 0.0
+		var locked := _brake_input > 0.0 or (controls.handbrake and not wheel.is_front)
+		wheel.rolling_speed = 0.0 if locked else move_toward(wheel.rolling_speed, 0.0, AIR_WHEEL_DECEL * dt)
 		return
 	wheel.in_contact = true
 	wheel.surface = Surface.of(hit.collider)
@@ -196,20 +212,33 @@ func _simulate_wheel(state: PhysicsDirectBodyState3D, space: PhysicsDirectSpaceS
 	var load := maxf(config.spring_stiffness * compression + bump_stop + damping * compression_speed, 0.0)
 	var offset := contact - state.transform.origin
 	state.apply_force(up * load, offset)
-	_apply_tire_force(state, wheel, offset, hit.normal, load, dt)
+	# Standing on another body (a car, a can): slip is relative to it and it feels the reaction.
+	var ground: PhysicsDirectBodyState3D = null
+	if hit.collider is RigidBody3D:
+		ground = PhysicsServer3D.body_get_direct_state(hit.rid)
+	var ground_offset := contact - ground.transform.origin if ground != null else Vector3.ZERO
+	var ground_velocity := ground.get_velocity_at_local_position(ground_offset) if ground != null else Vector3.ZERO
+	var tire_force := _apply_tire_force(state, wheel, offset, hit.normal, load, dt, ground_velocity)
+	if ground != null:
+		PhysicsServer3D.body_apply_force(hit.rid, -(up * load + tire_force), ground_offset)
 
 
-func _apply_tire_force(state: PhysicsDirectBodyState3D, wheel: CarWheel, offset: Vector3, normal: Vector3, load: float, dt: float) -> void:
+## Applies this wheel's tyre force to the car and returns it (world space).
+func _apply_tire_force(state: PhysicsDirectBodyState3D, wheel: CarWheel, offset: Vector3, normal: Vector3,
+		load: float, dt: float, ground_velocity: Vector3) -> Vector3:
 	var body_basis := state.transform.basis
 	var heading := -body_basis.z
 	if wheel.is_front:
 		heading = heading.rotated(body_basis.y, -steer_angle)
 	var forward := (heading - normal * heading.dot(normal)).normalized()
 	var right := forward.cross(normal)
-	var velocity := state.get_velocity_at_local_position(offset)
+	var velocity := state.get_velocity_at_local_position(offset) - ground_velocity
 	var v_long := velocity.dot(forward)
 	var v_lat := velocity.dot(right)
 	wheel.rolling_speed = v_long
+	# Near a standstill tyres also hold against gravity, like static friction.
+	var hold := clampf(1.0 - velocity.length() / HOLD_SPEED, 0.0, 1.0)
+	var gravity := state.total_gravity
 
 	var grip := config.tire_grip * Surface.grip(wheel.surface) * load
 	var lateral_grip := grip
@@ -221,21 +250,26 @@ func _apply_tire_force(state: PhysicsDirectBodyState3D, wheel: CarWheel, offset:
 		brake += config.handbrake_force * 0.5
 		lateral_grip *= config.handbrake_rear_grip
 	if brake > 0.0:
-		# Never more than what stops this wheel's share of the car within one tick.
-		f_long -= clampf(v_long * mass * 0.25 / dt, -brake, brake)
+		# Stop this wheel's share of the car within one tick and, nearly stopped, hold that share
+		# against the slope; never more than the brake can give. The handbrake alone uses two wheels.
+		var share := mass / (4.0 if _brake_input > 0.0 else 2.0)
+		f_long -= clampf(share * (v_long / dt + hold * gravity.dot(forward)), -brake, brake)
 	if is_zero_approx(_drive):
 		f_long -= v_long * config.engine_braking
 	f_long -= v_long * load * Surface.rolling(wheel.surface)
 
 	var slip := atan2(v_lat, maxf(absf(v_long), SLIP_SPEED_FLOOR))
-	var f_lat := -lateral_grip * clampf(slip / config.peak_slip_angle, -1.0, 1.0)
+	var f_lat := -lateral_grip * clampf(slip / config.peak_slip_angle, -1.0, 1.0) - hold * mass * 0.25 * gravity.dot(right)
+	f_lat = clampf(f_lat, -lateral_grip, lateral_grip)
 
 	# Friction circle with cornering priority: drive and brake get the grip the turn leaves over,
 	# so throttle alone does not spin the car; the handbrake is how the rear is let go. A floor
 	# keeps some drive while sliding, so the car can be powered out of a slide.
 	var long_limit := maxf(sqrt(maxf(grip * grip - f_lat * f_lat, 0.0)), grip * config.slide_drive_floor)
 	f_long = clampf(f_long, -long_limit, long_limit)
-	state.apply_force(forward * f_long + right * f_lat, offset + normal * config.tire_force_lift)
+	var force := forward * f_long + right * f_lat
+	state.apply_force(force, offset + normal * config.tire_force_lift)
+	return force
 
 
 func _apply_anti_roll(state: PhysicsDirectBodyState3D) -> void:
@@ -287,20 +321,38 @@ func _detect_impact(state: PhysicsDirectBodyState3D, dt: float) -> void:
 	impact.emit(strength, (state.transform.basis.inverse() * -change).normalized())
 
 
+## Stuck means overturned, hung up with no wheel down, or wedged (asking to drive or reverse but
+## not moving), decided from what the car does. Stopping, braking or holding throttle and brake
+## together never counts. Once offered, the offer stays until the car really moves, so players
+## can let go of the pedals to confirm.
 func _update_recovery(state: PhysicsDirectBodyState3D, dt: float) -> void:
+	var origin := state.transform.origin
+	var moved := state.linear_velocity.length() >= config.recovery_max_speed \
+		or origin.distance_to(_stuck_origin) > UNSTUCK_DISTANCE
+	if moved:
+		_stuck_time = 0.0
+		_stuck_origin = origin
+		_set_needs_recovery(false)
+		return
+	if needs_recovery:
+		return
 	var upright := state.transform.basis.y.dot(Vector3.UP)
-	var slow := state.linear_velocity.length() < config.recovery_max_speed
-	var hung_up := wheels_in_contact() == 0
-	var wedged := controls.throttle > 0.5 and absf(forward_speed) < 0.3
-	var stuck := slow and (upright < config.overturned_upright or hung_up or wedged)
-	_stuck_time = _stuck_time + dt if stuck else 0.0
+	var asks_to_move := (controls.throttle > 0.5 and controls.brake < 0.1) \
+		or (controls.throttle <= 0.0 and controls.brake > 0.5)
+	var wedged := asks_to_move and absf(forward_speed) < 0.3
+	if upright < config.overturned_upright or wheels_in_contact() == 0 or wedged:
+		_stuck_time += dt
+	else:
+		_stuck_time = 0.0
+		_stuck_origin = origin
 	_set_needs_recovery(_stuck_time >= config.recovery_delay)
 
 
 func _apply_reset(state: PhysicsDirectBodyState3D) -> void:
 	var target := _reset_transform
 	if _reset_snaps_to_ground:
-		var query := PhysicsRayQueryParameters3D.create(target.origin + Vector3.UP * 4.0,
+		# Start just above the car's roof, so a bridge deck or overhang above is not picked.
+		var query := PhysicsRayQueryParameters3D.create(target.origin + Vector3.UP * 1.0,
 			target.origin + Vector3.DOWN * 20.0, collision_mask, [get_rid()])
 		var hit := state.get_space_state().intersect_ray(query)
 		if not hit.is_empty():
@@ -313,9 +365,12 @@ func _apply_reset(state: PhysicsDirectBodyState3D) -> void:
 	for wheel in _wheels:
 		wheel.compression = 0.0
 		wheel.in_contact = false
+		wheel.rolling_speed = 0.0
 	steer_angle = 0.0
 	_stuck_time = 0.0
+	_stuck_origin = target.origin
 	_pending_reset = false
+	_reset_interpolation = true
 	_set_needs_recovery(false)
 
 

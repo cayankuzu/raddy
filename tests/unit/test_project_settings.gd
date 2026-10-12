@@ -24,5 +24,15 @@ func test_blender_import_is_off() -> void:
 	assert_false(ProjectSettings.get_setting("filesystem/import/blender/enabled", true))
 
 
+func test_physics_interpolation_is_on() -> void:
+	# Cars move on 120 Hz ticks; without interpolation they judder on 144/165 Hz screens.
+	assert_true(ProjectSettings.get_setting("physics/common/physics_interpolation", false))
+
+
+func test_unfocused_windows_ignore_the_gamepad() -> void:
+	# Several local test instances must not all be driven by one pad.
+	assert_true(ProjectSettings.get_setting("input_devices/joypads/ignore_joypad_on_unfocused_application", false))
+
+
 func test_fbx2gltf_import_is_off() -> void:
 	assert_false(ProjectSettings.get_setting("filesystem/import/fbx2gltf/enabled", true))

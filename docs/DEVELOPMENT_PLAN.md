@@ -75,3 +75,9 @@ P5 QA and release
     frontal impact event, chase camera + driver camera, dev HUD.
   - Not yet: real car model (art phase), cockpit interior, damage states (P2), team recovery confirm (P2),
     feel check with a gamepad by a human.
+- 2026-10-12: independent review of the prototype (17 confirmed findings) fixed: engine braking no longer
+  brakes like the pedal, static friction holds the car on slopes and camber, stuck detection ignores
+  braking and keeps the offer until the car moves, recovery snaps from just above the car (not onto a bridge
+  above), wheels on other bodies push back on them, airborne wheels spin down, physics interpolation on
+  with an interpolated chase camera, camera stays behind when reversing, unfocused windows ignore the
+  gamepad, dev track has a fall guard and a debug restart. Tests now 22 driving + 8 settings, all passing.

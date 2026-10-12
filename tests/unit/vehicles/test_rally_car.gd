@@ -1,10 +1,14 @@
 extends PhysicsTestCase
-## Drives RallyCar on flat ground and checks each driving behaviour on its own (spec §5, §22.2).
-## Physics runs in real time at 120 Hz, so a second of driving costs a second of test time.
+## Drives RallyCar on test ground and checks each driving behaviour on its own (spec §5, §7,
+## §16.1, §22.2). tools/test.ps1 runs with --fixed-fps 120, so physics runs faster than real
+## time and every number printed with gut.p() is the same run to run.
 
 const CAR_SCENE := preload("res://scenes/vehicles/rally_car.tscn")
 const TICKS := 120
 const START := Vector3(0.0, 1.0, 0.0)
+const GRAVITY := 9.81
+## Spec §16.1: the car must be stuck for at least 3 s before recovery is offered.
+const SPEC_RECOVERY_DELAY := 3.0
 
 var _world: Node3D
 var _car: RallyCar
@@ -43,10 +47,20 @@ func test_brakes_to_a_stop_in_a_straight_line() -> void:
 	await _drive(3.0, 1.0)
 	var start_speed := _car.forward_speed
 	var distance := await _brake_to_stop()
-	gut.p("braking: %.1f m from %.1f m/s" % [distance, start_speed])
+	var mean_decel_g := start_speed * start_speed / (2.0 * distance) / GRAVITY
+	gut.p("braking: %.1f m from %.1f m/s (%.2f g)" % [distance, start_speed, mean_decel_g])
 	assert_gt(start_speed, 12.0)
-	assert_lt(distance, 25.0, "stopping distance from %.1f m/s" % start_speed)
+	assert_gt(mean_decel_g, 0.75, "mean braking deceleration on gravel")
 	assert_lt(absf(_heading_degrees()), 3.0, "stays straight under braking")
+
+
+func test_lifting_off_keeps_momentum_compared_to_braking() -> void:
+	var coast := await _speed_lost_in_half_a_second(25.0, 0.0)
+	_car.reset_to(Transform3D(Basis(), START))
+	await _hold(1.5)
+	var braking := await _speed_lost_in_half_a_second(25.0, 1.0)
+	gut.p("from 25 m/s in 0.5 s: coasting loses %.1f m/s, braking %.1f m/s" % [coast, braking])
+	assert_lt(coast, braking * 0.5, "lifting off is much gentler than the brake")
 
 
 func test_reverses_when_brake_is_held_at_a_standstill() -> void:
@@ -142,20 +156,60 @@ func test_suspension_absorbs_a_bump_without_bottoming_out() -> void:
 	assert_gt(_car.global_basis.y.dot(Vector3.UP), 0.95, "still upright")
 
 
-func test_full_lock_on_flat_gravel_does_not_roll_the_car() -> void:
+func test_full_lock_at_speed_keeps_all_wheels_down_and_uses_less_lock() -> void:
 	await _drive(3.0, 1.0)
-	await _drive(2.5, 0.6, 0.0, 1.0)
-	gut.p("full lock: upright %.2f, slip %.1f deg" % [_car.global_basis.y.dot(Vector3.UP), rad_to_deg(_car.body_slip_angle())])
-	assert_gt(_car.global_basis.y.dot(Vector3.UP), 0.7, "wheels stay down")
-	assert_lt(absf(rad_to_deg(_car.body_slip_angle())), 30.0, "throttle alone does not spin the car")
+	_car.controls.throttle = 0.6
+	_car.controls.steer = 1.0
+	var fewest_wheels := 4
+	var lowest_upright := 1.0
+	var peak_slip := 0.0
+	for i in int(TICKS * 2.5):
+		await wait_ticks(1)
+		fewest_wheels = mini(fewest_wheels, _car.wheels_in_contact())
+		lowest_upright = minf(lowest_upright, _car.global_basis.y.dot(Vector3.UP))
+		peak_slip = maxf(peak_slip, absf(_car.body_slip_angle()))
+	gut.p("full lock: fewest wheels %d, lowest upright %.3f, peak slip %.1f deg, lock %.1f deg at %.1f m/s"
+		% [fewest_wheels, lowest_upright, rad_to_deg(peak_slip), rad_to_deg(_car.steer_angle), _car.forward_speed])
+	assert_eq(fewest_wheels, 4, "wheels stay down")
+	assert_gt(lowest_upright, 0.95, "never tips")
+	assert_lt(rad_to_deg(peak_slip), 20.0, "throttle alone does not spin the car")
+	assert_almost_eq(_car.steer_angle, _car.max_steer_angle_at(_car.forward_speed), deg_to_rad(1.0),
+		"steered wheels follow the speed-sensitive lock")
+	assert_lt(_car.steer_angle, _car.config.max_steer_angle * 0.75, "less lock than at a standstill")
 
 
-func test_overturned_car_offers_recovery_after_three_seconds() -> void:
+func test_handbrake_holds_the_car_on_a_15_degree_slope() -> void:
+	var slope := Basis(Vector3.RIGHT, deg_to_rad(15.0))  # nose up the hill
+	_add_box(Vector3(-60.0, 1.0, -20.0), Vector3(20.0, 1.0, 40.0), Surface.GRAVEL, slope)
+	_car.reset_to(Transform3D(slope, Vector3(-60.0, 3.0, -20.0)))
+	await _drive(2.5, 0.0, 0.0, 0.0, true)
+	var start := _car.global_position
+	await _drive(5.0, 0.0, 0.0, 0.0, true)
+	var moved := start.distance_to(_car.global_position)
+	gut.p("15 deg slope, handbrake: moved %.3f m in 5 s" % moved)
+	assert_lt(moved, 0.05, "parked on the handbrake")
+	assert_false(_car.needs_recovery, "stopping on a slope is not being stuck")
+
+
+func test_a_car_stands_still_on_a_cambered_road() -> void:
+	var camber := Basis(Vector3.BACK, deg_to_rad(8.0))
+	_add_box(Vector3(-100.0, 1.0, -20.0), Vector3(20.0, 1.0, 40.0), Surface.GRAVEL, camber)
+	_car.reset_to(Transform3D(camber, Vector3(-100.0, 3.0, -20.0)))
+	await _hold(2.5)
+	var start := _car.global_position
+	await _hold(5.0)
+	var moved := start.distance_to(_car.global_position)
+	gut.p("8 deg camber, no input: moved %.3f m in 5 s" % moved)
+	assert_lt(moved, 0.05, "does not slide sideways down the camber")
+
+
+func test_car_on_its_roof_offers_recovery_and_recover_puts_it_back_on_its_wheels() -> void:
 	_car.reset_to(Transform3D(Basis(Vector3.FORWARD, PI), Vector3(0.0, 2.0, 0.0)))
 	await _hold(2.0)
+	assert_eq(_car.wheels_in_contact(), 0, "on its roof the wheels touch nothing")
 	assert_false(_car.needs_recovery, "not before the delay")
 	await _hold(2.0)
-	assert_true(_car.needs_recovery, "offered after 3 s upside down")
+	assert_true(_car.needs_recovery, "offered while on its roof")
 	_car.recover_upright()
 	await _hold(1.5)
 	assert_false(_car.needs_recovery)
@@ -163,9 +217,48 @@ func test_overturned_car_offers_recovery_after_three_seconds() -> void:
 	assert_eq(_car.wheels_in_contact(), 4)
 
 
+func test_car_on_its_side_offers_recovery() -> void:
+	# Leaning on a wall, two wheel rays still touch the ground: only the overturn check applies.
+	_add_box(Vector3(-2.5, 2.0, 0.0), Vector3(1.0, 4.0, 20.0), Surface.GRAVEL)
+	_car.reset_to(Transform3D(Basis(Vector3.FORWARD, -PI * 0.5), Vector3(-1.5, 0.9, 0.0)))
+	await _hold(2.0)
+	assert_gt(_car.wheels_in_contact(), 0, "some wheels touch the ground")
+	assert_lt(_car.global_basis.y.dot(Vector3.UP), _car.config.overturned_upright, "on its side")
+	assert_false(_car.needs_recovery)
+	await _hold(2.0)
+	assert_true(_car.needs_recovery, "offered after 3 s on its side")
+
+
+func test_recovery_waits_at_least_three_seconds_of_being_stuck() -> void:
+	_car.reset_to(Transform3D(Basis(Vector3.FORWARD, PI), Vector3(0.0, 2.0, 0.0)))
+	var stuck_since := -1
+	var offered_at := -1
+	for tick in TICKS * 5:
+		await wait_ticks(1)
+		var stuck := _car.linear_velocity.length() < _car.config.recovery_max_speed \
+			and _car.global_basis.y.dot(Vector3.UP) < _car.config.overturned_upright
+		if not stuck:
+			stuck_since = -1
+		elif stuck_since < 0:
+			stuck_since = tick
+		if _car.needs_recovery:
+			offered_at = tick
+			break
+	assert_gt(offered_at, 0, "offered while upside down")
+	var waited := float(offered_at - stuck_since + 1) / TICKS
+	gut.p("recovery offered after %.2f s of being stuck" % waited)
+	assert_gte(waited, SPEC_RECOVERY_DELAY - 0.01, "at least the spec's 3 s")
+	assert_lt(waited, SPEC_RECOVERY_DELAY + 0.5, "and not much later")
+
+
 func test_a_parked_car_never_asks_for_recovery() -> void:
 	await _hold(4.0)
 	assert_false(_car.needs_recovery)
+
+
+func test_holding_throttle_and_brake_never_asks_for_recovery() -> void:
+	await _drive(4.0, 1.0, 1.0)
+	assert_false(_car.needs_recovery, "held on the brakes with the throttle down")
 
 
 func test_hitting_a_wall_reports_a_frontal_impact_and_wedging_offers_recovery() -> void:
@@ -183,18 +276,32 @@ func test_hitting_a_wall_reports_a_frontal_impact_and_wedging_offers_recovery() 
 	assert_lt(direction.z, -0.7, "hit with the nose (local dir %s)" % direction)
 	await _drive(3.5, 1.0)
 	assert_true(_car.needs_recovery, "pinned against the wall with the throttle down")
+	await _hold(1.0)
+	assert_true(_car.needs_recovery, "the offer stays after letting go of the pedals")
+
+
+func test_chase_camera_stays_behind_a_reversing_car() -> void:
+	var camera := ChaseCamera.new()
+	camera.target = _car
+	_world.add_child(camera)
+	await _drive(3.0, 0.0, 1.0)
+	var local := _car.global_transform.affine_inverse() * camera.global_position
+	gut.p("reversing at %.1f m/s: camera at %s in car space" % [_car.forward_speed, local])
+	assert_lt(_car.forward_speed, -3.0, "reversing fast enough to matter")
+	assert_gt(local.z, 3.0, "camera behind the car")
+	assert_lt(absf(local.x), 1.5, "not swung to the side")
 
 
 # --- helpers ---
 
-func _add_box(center: Vector3, size: Vector3, surface: StringName) -> StaticBody3D:
+func _add_box(center: Vector3, size: Vector3, surface: StringName, orientation := Basis()) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = size
 	shape.shape = box
 	body.add_child(shape)
-	body.position = center
+	body.transform = Transform3D(orientation, center)
 	body.set_meta(&"surface", surface)
 	_world.add_child(body)
 	return body
@@ -244,6 +351,14 @@ func _launch_and_brake(speed: float) -> float:
 	_car.linear_velocity = -_car.global_basis.z * speed
 	await wait_ticks(2)
 	return await _brake_to_stop()
+
+
+func _speed_lost_in_half_a_second(speed: float, brake: float) -> float:
+	_car.linear_velocity = -_car.global_basis.z * speed
+	await wait_ticks(2)
+	var start := _car.forward_speed
+	await _drive(0.5, 0.0, brake)
+	return start - _car.forward_speed
 
 
 func _peak_slip_in_turn(handbrake: bool) -> float:

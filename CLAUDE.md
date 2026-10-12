@@ -44,6 +44,10 @@ The user writes Turkish: answer in Turkish.
 - Physics tests extend `PhysicsTestCase` and wait with `wait_ticks(n)` (exact ticks; GUT's
   `wait_physics_frames` overshoots in loops). `tools\test.ps1` runs with `--fixed-fps 120`, so physics
   runs faster than real time and results are deterministic run to run.
+- GUT ignores errors raised in `before_each`; `PhysicsTestCase.after_each` fails the test on them.
+  Subclasses that override `after_each` must call `super()`.
+- Spec numbers (3 s recovery delay, etc.) are asserted against the spec value, not the config value,
+  so a tuning change cannot silently break the spec.
 - Print measured values with `gut.p()` so tuning changes are visible in the output.
 
 ## Beckett MCP (addons/beckett)

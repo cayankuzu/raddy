@@ -31,8 +31,9 @@ extends Resource
 @export var brake_force := 13000.0
 @export_range(0.0, 1.0) var front_brake_share := 0.6
 @export var handbrake_force := 5000.0
-## Drag from the drivetrain when coasting, in N per m/s per driven wheel.
-@export var engine_braking := 90.0
+## Drag from the drivetrain when coasting, in N per m/s per driven wheel. Kept low: lifting off
+## must not slow the car like the brake pedal does (momentum, spec 7.1 and 9.4).
+@export var engine_braking := 15.0
 
 @export_group("Tyres")
 ## Multiplied by the surface grip (see Surface).

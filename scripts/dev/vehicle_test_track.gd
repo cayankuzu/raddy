@@ -15,7 +15,13 @@ const LANES := [
 const FEATURE_COLOR := Color("6f6a5f")
 const WALL_COLOR := Color("9a3b2a")
 
+## Below this height the car has left the track; it is put back at the start.
+const FALL_LIMIT := -5.0
+## Autodrive holds this speed so the circle keeps a steady radius instead of spiralling outwards.
+const AUTODRIVE_SPEED := 12.0
+
 var _autodrive := false
+var _spawn := Transform3D.IDENTITY
 
 @onready var _car: RallyCar = $RallyCar
 @onready var _chase: ChaseCamera = $ChaseCamera
@@ -26,19 +32,24 @@ var _autodrive := false
 
 func _ready() -> void:
 	_build_track()
+	_spawn = _car.global_transform
 	_autodrive = OS.get_cmdline_user_args().has("--autodrive")
 	if _autodrive:
 		_player_input.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 func _physics_process(_delta: float) -> void:
+	if _car.global_position.y < FALL_LIMIT:
+		_car.reset_to(_spawn)
 	if _autodrive:
-		_car.controls.throttle = 0.7
+		_car.controls.throttle = 0.7 if _car.forward_speed < AUTODRIVE_SPEED else 0.0
 		_car.controls.steer = 0.35
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed(&"camera_toggle"):
+	if OS.is_debug_build() and event.is_action_pressed(&"debug_restart"):
+		_car.reset_to(_spawn)
+	elif event.is_action_pressed(&"camera_toggle"):
 		if _chase.current:
 			_driver_camera.make_current()
 		else:
@@ -49,7 +60,7 @@ func _process(_delta: float) -> void:
 	var lines := PackedStringArray([
 		"%3d km/h   surface: %s   wheels: %d/4" % [roundi(absf(_car.forward_speed) * 3.6), _car.wheel_surface(0), _car.wheels_in_contact()],
 		"steer %+.0f°   slip %+.0f°" % [rad_to_deg(_car.steer_angle), rad_to_deg(_car.body_slip_angle())],
-		"W/S throttle/brake-reverse   A/D steer   Space handbrake   C camera",
+		"W/S throttle/brake-reverse   A/D steer   Space handbrake   C camera   Backspace restart",
 	])
 	if _car.needs_recovery:
 		lines.append("R: recover the car")
