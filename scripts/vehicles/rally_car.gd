@@ -31,6 +31,8 @@ var steer_angle := 0.0
 var forward_speed := 0.0
 ## True once the car has been overturned, hung up or wedged for config.recovery_delay seconds.
 var needs_recovery := false
+## Distance between the front and rear axles, from the wheel mounts.
+var wheelbase := 2.5
 ## False on peers that only play back the driver's snapshots (see BodyNetSync): the body is a
 ## frozen kinematic copy and no forces run.
 var simulated := true
@@ -81,6 +83,7 @@ func _ready() -> void:
 		wheel.is_front = wheel.mount.position.z < 0.0
 		wheel.query.exclude = [get_rid()]
 		_wheels.append(wheel)
+	wheelbase = absf(_wheels[0].mount.position.z - _wheels[2].mount.position.z)
 
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:

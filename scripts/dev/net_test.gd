@@ -103,7 +103,10 @@ func _on_race_started(settings: Dictionary) -> void:
 	print("NET race started: ", settings)
 	_session = SESSION_SCENE.instantiate()
 	_session.name = "RaceSession"
+	_session.settings = settings
 	_session.autodrive = _args.has("autodrive")
+	if settings.has("seed"):
+		_world.get_node(^"Track").free()  # the session builds the procedural route instead
 	_world.add_child(_session)  # synchronously: the host's spawn RPCs follow on the same channel
 	if _args.has("test-script"):
 		_run_test_script()
@@ -147,8 +150,8 @@ func _physics_process(delta: float) -> void:
 			_spawn_origins[team] = car.global_position
 		var sync: BodyNetSync = car.get_node(NodePath(RaceSession.SYNC_NODE))
 		var distance: float = car.global_position.distance_to(_spawn_origins[team])
-		print("NET t=%.0f car team %d simulated=%s packets=%d distance=%.1f speed=%.1f" % [
-			_elapsed, team, car.simulated, sync.packets_received, distance, car.forward_speed])
+		print("NET t=%.0f wall=%.1f car team %d simulated=%s packets=%d distance=%.1f speed=%.1f" % [
+			_elapsed, Time.get_ticks_msec() / 1000.0, team, car.simulated, sync.packets_received, distance, car.forward_speed])
 	for peer_id in Net.roster:
 		if Voice.packets_from(peer_id) > 0:
 			print("VOICE t=%.0f rx from %d packets=%d level=%.3f speaking=%s" % [
@@ -166,6 +169,7 @@ func _process(_delta: float) -> void:
 	])
 	if _session != null and _session.local_car != null:
 		lines.append("%3d km/h   Q/E windows   LMB throw   V talk" % roundi(absf(_session.local_car.forward_speed) * 3.6))
+		lines.append("seed %s   laps %d" % [str(_session.settings.get("seed", "-")), int(_session.settings.get("laps", 1))])
 	for peer_id in Net.roster:
 		if Voice.is_speaking(peer_id):
 			lines.append("%s konuşuyor" % Net.roster[peer_id].name)

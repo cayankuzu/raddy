@@ -26,8 +26,8 @@ P1 Technical prototypes (highest risk first)
 3. Proximity voice: real mic on client A heard on client B, distance attenuation + pan, push-to-talk, mute,
    device select, mic-denied message, no crash on disconnect. Fake-mic mode for automated tests.
 4. Route graph: seeded deterministic graph, one road segment + one 3-way junction generated from the graph;
-   the same data drives road mesh, collision, map and pace notes.
-5. Physics object + cabin state: one thrown can and one window state synced over the network.
+   the same data drives road mesh, collision, map and pace notes. — DONE (road mesh + collision + gates)
+5. Physics object + cabin state: one thrown can and one window state synced over the network. — DONE (P1.2)
 6. Debug and release Windows builds start (done for an empty project; redo with gameplay).
 
 P2 Playable core
@@ -100,3 +100,17 @@ P5 QA and release
   dedicated host relays near=296 far=0, 6 codec unit tests. Still needed from a human: real microphone →
   headphones audibility, left/right placement and the in-car vs other-car loudness (spec §5.1), then Opus
   (TwoVoIP 6.5) to cut bandwidth ~10× before internet play.
+- 2026-10-12: P1.4 procedural route graph DONE (and P1.5 can/window sync was already covered by P1.2):
+  `RouteGenerator` builds a seeded lap (jittered loop that bulges where a shortcut cuts across and dents where
+  a detour goes around) with 2-3 alternatives (mud shortcut / wide gravel detour, each leaving and rejoining
+  the lap at ≥34°) and an optional dead-end spur with a turnaround; `RouteValidator` checks lap length, turn
+  radii, junction angles, grades, crossings, reachability and checkpoint order; `TerrainField` gives seeded
+  noise terrain flattened into a shallow trench under every road; `RoadBuilder` turns the graph into
+  trimesh road ribbons with verges, junction pads, a HeightMapShape3D terrain and `Checkpoint` gates.
+  Verified: 40 seeds valid, 0 fallbacks, 0.5 mean retries (8 generator tests); the `RouteFollower` bot
+  drives the seed-1 lap (1517 m) in 62 s on the real geometry passing gates 1-2-3-0 in order with no
+  recovery (2 drive tests); `RaceProgress` lap accounting (5 tests); `tools\nettest.ps1` passes with the
+  route built from the race seed on every peer, cars on a grid at the start gate, bots driving the lap and
+  the host broadcasting gate/lap progress. Screenshots: `reports/screenshots/route_overview_seed{1,7}.png`,
+  `route_chase_seed1.png`, `route_driver_seed1.png`. Not yet: junction pad art, roadside props, biome
+  surfaces per edge, hairpins/crests by design, map and pace notes (P2).

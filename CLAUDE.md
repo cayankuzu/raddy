@@ -29,8 +29,9 @@ No Blender; model in Godot only as a last resort.
   `scenes/dev/net_test.tscn` with scripted actions, then the `NET ...` log lines are asserted). Exit 0 = pass.
 - `tools\capture_window.ps1 -Instance N -Out reports\screenshots\x.png`: PNG of a windowed instance even when
   covered (PrintWindow); use it for multi-window visual checks since Beckett sees one game only.
-- `tools\screenshot.ps1 -Scene res://x.tscn -Frames 120 -Out reports\screenshots\x.png`: Movie Maker capture;
-  open the PNG with Read. The PNG has the project viewport size; `-Resolution` only sizes the window.
+- `tools\screenshot.ps1 -Scene res://x.tscn -Frames 120 -Out reports\screenshots\x.png [-ExtraArgs "--a,--b"]`:
+  Movie Maker capture; open the PNG with Read. The PNG has the project viewport size; `-Resolution` only
+  sizes the window. 60 movie frames = 1 s of game time.
 - `launch.ps1` and `screenshot.ps1` need `-Scene` until the project has a main scene.
 - `tools\export_windows.ps1 [-Debug]`: `builds\windows\RADDY.exe` via the "Windows Desktop" preset.
 - `tools\editor.ps1 [-Headless | -Stop]`: open the editor (Beckett MCP runs inside it).
@@ -49,6 +50,19 @@ No Blender; model in Godot only as a last resort.
   later the network layer, and tests. Tunables live in `VehicleConfig` (`data/vehicles/rally_hatch.tres`).
 - Surfaces: colliders set metadata `surface` (see `Surface`); untagged ground is gravel.
 - Dev scene `scenes/dev/vehicle_test_track.tscn` is the current main scene (`--autodrive` user arg circles).
+
+## Procedural route (scripts/procedural)
+- `RouteGenerator.generate(seed)` → `RouteGraph` (nodes START/JUNCTION/DEAD_END, edges MAIN/SHORTCUT/DETOUR/SPUR
+  as XZ polylines + heights, `main_route`, `checkpoints`); deterministic per seed, retries with jitter until
+  `RouteValidator.validate()` returns no problems. `TerrainField(seed).set_roads(graph)` gives ground height
+  flattened into a 12 cm trench under roads; `RoadBuilder.build(graph, terrain)` returns the `Track` node
+  (Terrain HeightMapShape3D, Roads/Road<n> trimesh ribbons + verges with `surface` metadata, Junctions pads,
+  Checkpoints/`Checkpoint` areas). Face winding for anything that must be hit from above: origin → +X → +Z
+  (trimesh collision is one-sided; the wrong order is invisible from above and lets cars fall through).
+- `RouteFollower` (pure pursuit + corner speed planner) drives a `RallyCar` round `graph.main_route_points()`:
+  dev scenes `--autodrive`, tests, later respawn references. `RaceProgress` is the host's lap accounting.
+- Dev scene `scenes/dev/route_test.tscn`: `--seed=N --autodrive --chase --overview --quit-after-seconds=N`.
+  `RaceSession.settings.seed` builds the same track on every peer; cars spawn on a grid behind gate 0.
 
 ## Multiplayer (scripts/network, scripts/gameplay)
 - `Net` autoload: ENet session + roster `{peer: {name, team, role, ready}}` owned by the host (peer 1).
@@ -107,6 +121,12 @@ No Blender; model in Godot only as a last resort.
 - Godot 4.7.2's AccessKit (accessibility) panics at window creation (exit 0xC0000409, "subclass.rs:109") when the
   Windows global atom table is full; this PC hit it after ~17 days of uptime and only a reboot clears it. Every
   windowed tool run and the desktop "RADDY Editör" shortcut pass `--accessibility disabled` (`$GodotWindowArgs`).
+- If every Godot run suddenly takes 20 s+ to start (nettest timings slip, `--quit-after 5` takes 19 s), check
+  for a leftover `chrome-headless-shell.exe` (Playwright, under `%LOCALAPPDATA%\ms-playwright`) rendering WebGL
+  in software: a Sketchfab tab left in the built-in browser ate 65% of the CPU once. Kill its process tree.
+- With the editor open, games launched by `tools\launch.ps1` make Beckett log "rejected a peer with a
+  missing/invalid handshake token" once per connection attempt (the stub dials the editor's runtime port).
+  Harmless; clear the editor Output panel when it gets slow.
 
 ## Third-party (pinned)
 - `addons/beckett`: Beckett Lite v1.16.0, MIT, GitHub release zip (sha256 35b1274d…20ac). The Asset Library copy is older.

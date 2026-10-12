@@ -62,17 +62,17 @@ func is_peer_muted(peer_id: int) -> bool:
 
 func is_speaking(peer_id: int) -> bool:
 	var playback: VoicePlayback = _playbacks.get(peer_id)
-	return playback != null and playback.speaking
+	return is_instance_valid(playback) and playback.speaking
 
 
 func packets_from(peer_id: int) -> int:
 	var playback: VoicePlayback = _playbacks.get(peer_id)
-	return playback.packets_received if playback != null else 0
+	return playback.packets_received if is_instance_valid(playback) else 0
 
 
 func level_from(peer_id: int) -> float:
 	var playback: VoicePlayback = _playbacks.get(peer_id)
-	return playback.last_level if playback != null else 0.0
+	return playback.last_level if is_instance_valid(playback) else 0.0
 
 
 ## Tests: send a tone for `seconds` without a microphone.
@@ -96,7 +96,9 @@ func _on_session_started(_as_host: bool) -> void:
 func _teardown() -> void:
 	capture.stop()
 	for playback in _playbacks.values():
-		playback.queue_free()
+		# A playback parented to a car dies with that car (despawn, scene change, quit).
+		if is_instance_valid(playback):
+			playback.queue_free()
 	_playbacks.clear()
 
 
@@ -170,7 +172,7 @@ func _rpc_voice_from(speaker: int, seq: int, packet: PackedByteArray) -> void:
 
 
 func _playback_for(peer_id: int) -> VoicePlayback:
-	if _playbacks.has(peer_id):
+	if _playbacks.has(peer_id) and is_instance_valid(_playbacks[peer_id]):
 		return _playbacks[peer_id]
 	var playback := VoicePlayback.new()
 	playback.name = "Voice%d" % peer_id
@@ -184,6 +186,9 @@ func _playback_for(peer_id: int) -> VoicePlayback:
 ## Puts the playback at the speaker's seat; with no world it hangs off this autoload (non-spatial).
 func _attach(peer_id: int) -> void:
 	var playback: VoicePlayback = _playbacks[peer_id]
+	if not is_instance_valid(playback):
+		_playbacks.erase(peer_id)  # went down with its car; recreated on the next packet
+		return
 	var anchor: Node3D = _world.voice_anchor(peer_id) if _world != null else null
 	var parent: Node = anchor if anchor != null else self
 	if playback.get_parent() == parent:

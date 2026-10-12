@@ -11,6 +11,9 @@ param(
     [string]$Resolution = "1152x648",
     [string[]]$ExtraArgs = @()
 )
+# From a command line (pwsh -File ...) only the first token after -ExtraArgs binds, so callers
+# pass one comma- or space-joined string; split it here. Arrays from PowerShell callers also work.
+$ExtraArgs = @($ExtraArgs | ForEach-Object { $_ -split '[ ,]+' } | Where-Object { $_ })
 . "$PSScriptRoot\godot.ps1"
 Assert-RunnableScene $Scene
 
