@@ -49,18 +49,19 @@ P4 Art and content (stylized realism, Half Grip used only as a mood reference)
 
 P5 QA and release
 - Performance measurements (FPS, memory, network, voice latency), crash/network logs, README, TEST_PLAN,
-  CHANGELOG, ITCH_IO_RELEASE_CHECKLIST, clean-folder build check, friend test, code-signing decision.
+  CHANGELOG, ITCH_IO_RELEASE_CHECKLIST, clean-folder build check, friend test, unsigned-build instructions for
+  players (zero-cost rule: no paid code signing).
 
 ## 3. Technical risks
 | # | Risk | Impact | Mitigation |
 |---|------|--------|------------|
 | 1 | Stock Godot 4.7.2 cannot step physics manually: no rollback/re-simulation of RigidBody cars | Laggy or jittery remote cars, unfair collisions | Owner simulates its car, host validates race-critical events; snapshot interpolation at 20-30 Hz; car-to-car contact resolved by the host |
 | 2 | Mic API is experimental (4.6+); no echo cancellation; raw PCM is heavy | Voice may drift, echo, or flood bandwidth | 16 kHz mono int16/µ-law + host forwards only in range; Opus via TwoVoIP 6.5 later; headphones; fake-mic test mode |
-| 3 | NAT: friends at home cannot reach an ENet host without port forwarding | Online play fails | netfox.noray punch-through/relay (free test instance, self-host later); UPnP; Tailscale/Radmin fallback |
+| 3 | NAT: friends at home cannot reach an ENet host without port forwarding | Online play fails | Player-hosted ENet; netfox.noray punch-through/relay on the free public instance; UPnP; Radmin VPN (free) fallback. No paid servers (zero-cost rule) |
 | 4 | Procedural road meshes, junction blending and collision quality | Holes, seams, cars catching edges | Few hand-tuned modules joined by spline segments; geometric validation tests per seed |
 | 5 | Scope of the MVP list for a solo developer | Nothing finished | Strict phase order; each feature verified before the next |
 | 6 | Asset consistency/licensing without 3D modelling | Mismatched look, licence risk | CC0 sources (Kenney, Quaternius, Poly Haven, ambientCG), one material/lighting pass, manifest per asset |
-| 7 | This PC: atom-table leak, Smart App Control, muted mic | Godot windows crash, unsigned builds blocked, silent voice tests | `--accessibility disabled` in tools; reboot; signing decision before release; user fixes mic |
+| 7 | This PC: atom-table leak, Smart App Control, muted mic | Godot windows crash, unsigned builds blocked, silent voice tests | `--accessibility disabled` in tools; reboot; no paid signing, itch page explains "Run anyway"; mic fixed by user (verified) |
 | 8 | Headless tests do not prove feel, visuals or voice | False confidence | Windowed runs + screenshots + manual play checklist for each feature |
 
 ## 4. Status log

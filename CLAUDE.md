@@ -2,6 +2,9 @@
 
 Online 3-team co-op rally game. Godot 4.7.2, GDScript only, Windows x64 desktop, itch.io.
 The user writes Turkish: answer in Turkish.
+Zero cost: everything must be free (CC0/CC-BY assets, free tools, player-hosted networking with a free relay,
+no paid servers or code signing). If something has no free path, say so and offer the best free alternative.
+No Blender; model in Godot only as a last resort.
 
 ## Engine
 - Godot lives in `C:\Tools\Godot\4.7.2\` (override with `GODOT_DIR`). Use `Godot_v4.7.2-stable_win64_console.exe`
@@ -66,7 +69,8 @@ The user writes Turkish: answer in Turkish.
 - Official export templates (debug and release) refuse a scene path or `--path` on the command line, so exported
   builds always start at the main scene. Run a single scene with the editor binary (`tools\launch.ps1 -Scene`).
 - Smart App Control is ON on this PC. It blocked the unsigned exported console wrapper (the preset exports none);
-  the exported `RADDY.exe` itself ran. Players may hit the same block: plan code signing before a public release.
+  the exported `RADDY.exe` itself ran. No paid code signing (zero-cost rule): the itch.io page must tell players
+  how to get past the SmartScreen warning ("More info" → "Run anyway").
 - All instances share `user://` (Godot has no user-data-dir flag): namespace per-instance files by `--instance`.
 - Local multiplayer tests: bind the ENet host to `127.0.0.1` (verified: host + 2 clients, RPCs both ways, no
   firewall prompt). Binding `*` for internet play triggers the Windows Firewall prompt.
