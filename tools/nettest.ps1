@@ -77,6 +77,8 @@ Expect 0 "NET recovery team 1 offered 1/2" "first confirmation counted"
 foreach ($i in 1, 2) { Expect $i "NET confirming recovery" "seat on instance $i confirmed" }
 foreach ($i in 0..$Clients) { if ($i -ne 3) { Expect $i "NET recovered car team 1 to .* \(recovery 1\)" "recovery applied on instance $i" } }
 Expect 1 "NET recovery team 1 closed" "offer closed after the recovery"
+# Damage (spec 8): the rollover lands hard enough for the host to judge it from the snapshots.
+Expect 0 "NET damage team 1 (light|medium|critical)" "host judged damage from the driver's snapshots"
 
 if ($failures.Count -eq 0) {
     Write-Host "NET TEST PASSED ($Clients clients, $Seconds s)" -ForegroundColor Green

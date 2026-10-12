@@ -138,4 +138,16 @@ ettest.ps1` still passes; screenshot `reports/screenshots/map_navigator_seed1.pn
   3 s, anchors) and `tools
 ettest.ps1` (instance 1 rolls its car at 13 s, both seats confirm, host places it
   back on the road, team continues to the next gate). Not yet: recovery sound/animation + short control lock,
-  HUD prompt in the real HUD (dev HUD only), critical-damage trigger (needs P2.5), debug key in dev builds.
+  HUD prompt in the real HUD (dev HUD only), debug key in dev builds.
+- 2026-10-12: P2.5 damage levels DONE: `VehicleDamage` (pure, 6 tests) turns each impact (speed lost in one
+  hit, direction in car space → front/rear/left/right/bottom zone) into points; scrapes under 3.5 m/s are free,
+  side hits ×1.2, rear ×0.75; light ≥ 12, medium ≥ 40, critical ≥ 80. The host judges impacts from the
+  driver's own snapshots (velocity change between consecutive packets, direction from the snapshot rotation;
+  listen-server host uses its own car's impact signal) so clients never author damage; it broadcasts the zone
+  array and every peer applies it: paint darkens, dent blocks per zone (placeholder art), medium damage costs
+  ~7 % speed and pulls the wheel toward the damaged side (1.6 m drift over 3 s), critical halves the power
+  (7.7 vs 16.1 m/s after 3 s, physics test) and counts as stuck so the recovery offer opens; a recovery
+  repairs the car down to light damage. Dev HUD shows Hasar: hafif/orta/kritik. `tools
+ettest.ps1` checks
+  the host judges the rollover landing. Not yet: damage sounds/vibration, car-vs-car fairness tuning, real
+  dented body variants (P4).

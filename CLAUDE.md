@@ -85,6 +85,9 @@ No Blender; model in Godot only as a last resort.
   per team (3 s stuck → offer, confirmations with an 8 s window, 1 seat = hold R), picks the spot with
   `RecoveryAnchor.find(graph, position, next_gate)` and sends `_rpc_recover_car`; the simulating peer applies
   `reset_to`. `PlayerCarInput.local_recovery` and `RouteFollower.self_recover` are false inside a session.
+- Damage (spec §8): the host judges impacts from `BodyNetSync.snapshot_received` velocity jumps (or its own
+  car's `impact`), keeps a `VehicleDamage` per team and broadcasts `_rpc_set_damage`; every peer calls
+  `RallyCar.apply_damage` (effects + placeholder dents). Critical damage sets `needs_recovery` on the host.
 - Dev bootstrap `scenes/dev/net_test.tscn` takes `--role --port --host --players --as-player --local
   --autodrive --test-script --quit-after-seconds`; without `--instance` it takes the first free seat.
 - `Voice` autoload (scripts/audio): `VoiceCapture` (AudioServer input API, 48 kHz → 16 kHz mono) → mu-law

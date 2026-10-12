@@ -10,6 +10,8 @@ signal progress_changed(team: int, laps: int, next_gate: int)
 signal race_finished(order: Array)
 ## The host opened/updated/closed a team's recovery offer (every peer).
 signal recovery_changed(team: int, offered: bool, confirmed: int, seats: int)
+## A team's damage changed level (every peer).
+signal damage_changed(team: int, level: int)
 
 const CAR_SCENE := preload("res://scenes/vehicles/rally_car.tscn")
 const CAN_SCENE := preload("res://scenes/props/energy_can.tscn")
@@ -37,6 +39,11 @@ var _team_cars: Dictionary = {}  # team -> RallyCar
 var _recovery_rules: Dictionary = {}  # host: team -> RecoveryRules
 var _recovery_offers: Dictionary = {}  # team -> {offered, confirmed, seats, peers}
 var _recovery_counts: Dictionary = {}  # team -> recoveries used (host)
+var _damage: Dictionary = {}  # team -> VehicleDamage (host judges; every peer mirrors)
+var _last_snapshot_velocity: Dictionary = {}  # host: team -> [sent_ms, Vector3]
+var _damage_ignore_until: Dictionary = {}  # host: team -> ms; a recovery teleport is not a crash
+## Velocity jumps within this long after a recovery are the teleport, not an impact.
+const RECOVERY_DAMAGE_GRACE_MS := 400
 var _next_can_id := 1
 var _autodrive_time := 0.0
 
@@ -97,6 +104,12 @@ func _physics_process(delta: float) -> void:
 		local_car.controls.steer = 0.15 * sin(_autodrive_time)
 	if Net.is_host():
 		_judge_recoveries(delta)
+		# Critical damage counts as stuck (spec §8.1): the recovery offer is how the team goes on.
+		for team in _team_cars:
+			if damage_of(team).level() == VehicleDamage.Level.CRITICAL:
+				var car: RallyCar = _team_cars[team]
+				if not car.needs_recovery:
+					car.needs_recovery = true
 
 
 # --- recovery (spec §16): the host judges "stuck", counts confirmations and places the car ---
@@ -119,6 +132,56 @@ func recovery_confirmed_by_me(team: int) -> bool:
 
 func recoveries_used(team: int) -> int:
 	return _recovery_counts.get(team, 0)
+
+
+func damage_of(team: int) -> VehicleDamage:
+	if not _damage.has(team):
+		_damage[team] = VehicleDamage.new()
+	return _damage[team]
+
+
+# --- damage (spec §8): judged on the host from what the car's snapshots show ---
+
+## Bound arguments come after the signal's own, so `team` is last.
+func _on_snapshot(sent_ms: int, lin: Vector3, rotation: Quaternion, team: int) -> void:
+	var previous: Array = _last_snapshot_velocity.get(team, [])
+	_last_snapshot_velocity[team] = [sent_ms, lin]
+	if previous.is_empty() or sent_ms - previous[0] > 120:
+		return  # first packet or a gap: no judgement across a hole
+	if Time.get_ticks_msec() < _damage_ignore_until.get(team, 0):
+		return
+	var change: Vector3 = lin - previous[1]
+	if change.length() < VehicleDamage.SCRAPE_SPEED:
+		return
+	var local_direction := (Basis(rotation).inverse() * -change).normalized()
+	_judge_impact(team, change.length(), local_direction)
+
+
+func _on_own_impact(strength: float, local_direction: Vector3, team: int) -> void:
+	_judge_impact(team, strength, local_direction)
+
+
+func _judge_impact(team: int, strength: float, local_direction: Vector3) -> void:
+	var damage := damage_of(team)
+	var before := damage.level()
+	if damage.hit(strength, local_direction) <= 0.0:
+		return
+	_rpc_set_damage.rpc(team, damage.to_array())
+	if damage.level() != before:
+		print("NET damage team %d %s (%.0f points, %.1f m/s %s)" % [team, VehicleDamage.Level.keys()[damage.level()].to_lower(),
+			damage.total(), strength, VehicleDamage.Zone.keys()[VehicleDamage.zone_of(local_direction)].to_lower()])
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_set_damage(team: int, values: PackedFloat32Array) -> void:
+	var damage := damage_of(team)
+	var before := damage.level()
+	damage.from_array(values)
+	var car: RallyCar = _team_cars.get(team)
+	if car != null:
+		car.apply_damage(damage)
+	if damage.level() != before:
+		damage_changed.emit(team, damage.level())
 
 
 ## The local seat confirms (true) or withdraws (false) the team's recovery.
@@ -183,6 +246,10 @@ func _perform_recovery(team: int, rules: RecoveryRules) -> void:
 			heading = Vector3.FORWARD
 		target = Transform3D(Basis.looking_at(heading.normalized(), Vector3.UP), car.global_position + Vector3.UP * 1.0)
 	_recovery_counts[team] = recoveries_used(team) + 1
+	_damage_ignore_until[team] = Time.get_ticks_msec() + RECOVERY_DAMAGE_GRACE_MS + Net.rtt_ms()
+	var damage := damage_of(team)
+	damage.repair_after_recovery()
+	_rpc_set_damage.rpc(team, damage.to_array())
 	_rpc_recover_car.rpc(team, target, _recovery_counts[team])
 	_rpc_recovery_offer.rpc(team, false, 0, rules.seats, [])
 	get_tree().create_timer(1.0).timeout.connect(func() -> void:
@@ -307,6 +374,11 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	sync.set_multiplayer_authority(driver_peer)
 	car.add_child(sync)
 	_cars.add_child(car)
+	if Net.is_host():
+		if driver_peer == Net.local_id():
+			car.impact.connect(_on_own_impact.bind(team))
+		else:
+			sync.snapshot_received.connect(_on_snapshot.bind(team))
 	var cabin: Cabin = car.get_node(^"Cabin")
 	cabin.set_multiplayer_authority(1)
 	cabin.team = team

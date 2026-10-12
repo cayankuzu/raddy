@@ -192,6 +192,9 @@ func _process(_delta: float) -> void:
 		lines.append("%3d km/h   Q/E windows   LMB throw   V talk" % roundi(absf(_session.local_car.forward_speed) * 3.6))
 		lines.append("seed %s   laps %d" % [str(_session.settings.get("seed", "-")), int(_session.settings.get("laps", 1))])
 		var team: int = me.get("team", 0)
+		var level: int = _session.damage_of(team).level()
+		if level > 0:
+			lines.append("Hasar: %s" % ["-", "hafif", "orta", "kritik"][level])
 		if _session.recovery_offered(team):
 			lines.append("R — Aracı Kurtar   %d/%d onaylandı" % [_session.recovery_confirmed(team), _session.recovery_seats(team)])
 	for peer_id in Net.roster:

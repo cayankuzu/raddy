@@ -31,6 +31,10 @@ var steer_angle := 0.0
 var forward_speed := 0.0
 ## True once the car has been overturned, hung up or wedged for config.recovery_delay seconds.
 var needs_recovery := false
+## Damage effects (spec §8), set by the race layer from the host's VehicleDamage:
+## engine_scale, top_speed_scale, steer_pull (-1..1 of steer, toward the damaged side).
+var damage_effects: Dictionary = {"engine_scale": 1.0, "top_speed_scale": 1.0, "steer_pull": 0.0}
+var damage_level := 0
 ## Distance between the front and rear axles, from the wheel mounts.
 var wheelbase := 2.5
 ## False on peers that only play back the driver's snapshots (see BodyNetSync): the body is a
@@ -182,6 +186,55 @@ func wheels_in_contact() -> int:
 	return _wheels.filter(func(w: CarWheel) -> bool: return w.in_contact).size()
 
 
+## The race layer applies the host's damage state here: effects for the simulation and a
+## readable look for everyone (paint darkens, dents appear per zone; the art pass replaces the dents).
+func apply_damage(damage: VehicleDamage) -> void:
+	damage_effects = damage.effects()
+	damage_level = damage.level()
+	var body := get_node_or_null(^"Body") as MeshInstance3D
+	if body == null:
+		return
+	var tint: float = [1.0, 0.92, 0.8, 0.62][damage_level]
+	var material := body.get_active_material(0) as StandardMaterial3D
+	if material != null:
+		if body.material_override == null:
+			body.material_override = material.duplicate()
+		(body.material_override as StandardMaterial3D).albedo_color = material.albedo_color * tint
+		(body.material_override as StandardMaterial3D).albedo_color.a = 1.0
+	_update_dents(damage)
+
+
+func _update_dents(damage: VehicleDamage) -> void:
+	var dents := get_node_or_null(^"Dents") as Node3D
+	if dents == null:
+		dents = Node3D.new()
+		dents.name = "Dents"
+		add_child(dents)
+	for child in dents.get_children():
+		child.queue_free()
+	var places := {
+		VehicleDamage.Zone.FRONT: Transform3D(Basis(), Vector3(0.0, 0.25, -1.85)),
+		VehicleDamage.Zone.REAR: Transform3D(Basis(), Vector3(0.0, 0.25, 1.85)),
+		VehicleDamage.Zone.LEFT: Transform3D(Basis(), Vector3(-0.78, 0.2, -0.6)),
+		VehicleDamage.Zone.RIGHT: Transform3D(Basis(), Vector3(0.78, 0.2, -0.6)),
+	}
+	for zone in places:
+		var points: float = damage.zones[zone]
+		if points < 6.0:
+			continue
+		var dent := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		var size := clampf(0.25 + points / 100.0, 0.25, 0.9)
+		mesh.size = Vector3(size, size * 0.5, 0.2) if zone in [VehicleDamage.Zone.FRONT, VehicleDamage.Zone.REAR] else Vector3(0.2, size * 0.5, size)
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color(0.2, 0.17, 0.15)
+		material.roughness = 0.9
+		mesh.material = material
+		dent.mesh = mesh
+		dent.transform = places[zone]
+		dents.add_child(dent)
+
+
 ## Teleports the car (velocities cleared) on the next physics tick.
 func reset_to(target: Transform3D) -> void:
 	_reset_transform = target
@@ -205,7 +258,8 @@ func recover_upright() -> void:
 
 
 func _update_steering(dt: float) -> void:
-	var target := clampf(controls.steer, -1.0, 1.0) * max_steer_angle_at(forward_speed)
+	var pull: float = damage_effects.get("steer_pull", 0.0) if absf(forward_speed) > 2.0 else 0.0
+	var target := clampf(controls.steer + pull, -1.0, 1.0) * max_steer_angle_at(forward_speed)
 	var returning := absf(target) < absf(steer_angle) or target * steer_angle < 0.0
 	var rate := config.steer_return_rate if returning else config.steer_rate
 	steer_angle = move_toward(steer_angle, target, rate * dt)
@@ -215,8 +269,9 @@ func _update_drivetrain() -> void:
 	_brake_input = clampf(controls.brake, 0.0, 1.0)
 	var throttle := clampf(controls.throttle, 0.0, 1.0)
 	if throttle > 0.0:
-		var t := maxf(forward_speed, 0.0) / config.top_speed
-		_drive = config.engine_force * throttle * maxf(1.0 - t * t, 0.0)
+		var top_speed: float = config.top_speed * damage_effects.get("top_speed_scale", 1.0)
+		var t := maxf(forward_speed, 0.0) / top_speed
+		_drive = config.engine_force * damage_effects.get("engine_scale", 1.0) * throttle * maxf(1.0 - t * t, 0.0)
 	elif _brake_input > 0.0 and forward_speed < 1.0:
 		# Brake held at (or near) a standstill means reverse.
 		var t := maxf(-forward_speed, 0.0) / config.reverse_top_speed

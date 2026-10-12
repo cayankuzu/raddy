@@ -7,6 +7,9 @@ extends Node
 ## A body may implement set_simulated(bool), get_net_extra() -> PackedFloat32Array and
 ## apply_net_extra(extra, velocity) to carry extra state (RallyCar: steering and wheels).
 
+## Raw snapshot velocity as it arrives (before interpolation): the host judges impacts from it.
+signal snapshot_received(sent_ms: int, lin: Vector3, rotation: Quaternion)
+
 const SEND_RATE := 30.0
 const INTERPOLATION_DELAY_MS := 100.0
 
@@ -53,3 +56,4 @@ func _physics_process(delta: float) -> void:
 func _rpc_snapshot(sent_ms: int, origin: Vector3, rotation: Quaternion, lin: Vector3, ang: Vector3, extra: PackedFloat32Array) -> void:
 	packets_received += 1
 	_buffer.push(sent_ms, Time.get_ticks_msec(), {"origin": origin, "rotation": rotation, "lin": lin, "ang": ang, "extra": extra})
+	snapshot_received.emit(sent_ms, lin, rotation)
