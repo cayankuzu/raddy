@@ -24,6 +24,8 @@ const AUTODRIVE_SPEED := 10.0
 var settings: Dictionary = {}
 var graph: RouteGraph
 var progress: RaceProgress
+var notes: Array[Dictionary] = []
+var _contour: Image
 ## Dev only: drive the local car without a human (bot on the route, or a weave on a flat track).
 var autodrive := false
 var local_car: RallyCar
@@ -54,6 +56,8 @@ func _build_route(seed: int) -> void:
 	terrain.set_roads(graph)
 	var track := RoadBuilder.build(graph, terrain)
 	add_child(track)
+	notes = PaceNotes.build(graph)
+	_contour = MapCanvas.contour_for(graph, terrain)
 	if Net.is_host():
 		progress = RaceProgress.new(graph.checkpoints.size(), int(settings.get("laps", 1)))
 		for gate in track.get_node(^"Checkpoints").get_children():
@@ -183,6 +187,8 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	var cabin: Cabin = car.get_node(^"Cabin")
 	cabin.set_multiplayer_authority(1)
 	cabin.team = team
+	if graph != null:
+		cabin.setup_map(graph, notes, _contour)
 	if Net.is_host():
 		cabin.throw_approved.connect(_on_throw_approved.bind(team))
 	_team_cars[team] = car
@@ -250,6 +256,7 @@ func _bind_local_seat(car: RallyCar, role: int) -> void:
 	var cabin_input := CabinInput.new()
 	cabin_input.name = "CabinInput"
 	cabin_input.cabin = car.get_node(^"Cabin")
+	cabin_input.cabin.local_role = role
 	cabin_input.role = role
 	add_child(cabin_input)
 	local_seat_bound.emit(car, role)

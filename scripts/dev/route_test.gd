@@ -5,6 +5,8 @@ extends Node3D
 ##   --autodrive     a RouteFollower bot drives the lap
 ##   --overview      look down on the whole network from above (layout checks)
 ##   --chase         start on the chase camera instead of the driver's seat
+##   --navigator     sit in the navigator's seat (M map, Q/E windows); pair with --autodrive
+##   --map-open      open the map right away (screenshots)
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (checkpoints, laps) that tools and tests can read.
 
@@ -46,18 +48,24 @@ func _ready() -> void:
 	_car.name = "RallyCar"
 	_car.transform = graph.start_pose().translated(Vector3.UP * 0.8)
 	add_child(_car)
-	_driver_camera = _car.get_node(^"DriverCamera")
+	var navigator := _args.has("navigator")
+	_driver_camera = _car.get_node(^"NavigatorCamera" if navigator else ^"DriverCamera")
 	_driver_camera.make_current()
 
 	_player_input = PlayerCarInput.new()
 	_player_input.name = "PlayerCarInput"
 	_player_input.car = _car
 	add_child(_player_input)
+	var cabin: Cabin = _car.get_node(^"Cabin")
+	cabin.local_role = RosterRules.Role.NAVIGATOR if navigator else RosterRules.Role.DRIVER
+	cabin.setup_map(graph, PaceNotes.build(graph), MapCanvas.contour_for(graph, terrain))
 	var cabin_input := CabinInput.new()
 	cabin_input.name = "CabinInput"
-	cabin_input.cabin = _car.get_node(^"Cabin")
-	cabin_input.role = RosterRules.Role.DRIVER
+	cabin_input.cabin = cabin
+	cabin_input.role = cabin.local_role
 	add_child(cabin_input)
+	if _args.has("map-open"):
+		cabin.request_map(true)
 	_chase = ChaseCamera.new()
 	_chase.name = "ChaseCamera"
 	_chase.target = _car
@@ -131,6 +139,15 @@ func _process(_delta: float) -> void:
 	])
 	if _follower != null:
 		lines.append("bot: progress %.0f m   laps %d   recoveries %d" % [_follower.progress, _follower.laps, _follower.recoveries])
+	var cabin: Cabin = _car.get_node(^"Cabin")
+	match cabin.map_state:
+		Cabin.MapState.OPEN:
+			lines.append("M/Esc close map   wheel zoom   drag pan   Home reset   zoom %.1fx%s" % [
+				cabin.paper_map.canvas.zoom_level(), "   HARİTA UÇMAK ÜZERE!" if cabin.map_warning_active else ""])
+		Cabin.MapState.GONE:
+			lines.append("harita uçtu: yenisi %.0f s sonra" % ceil(cabin.map_cooldown_left))
+		_:
+			lines.append("M map   Q/E windows")
 	if _car.needs_recovery:
 		lines.append("R: recover the car")
 	_info.text = "\n".join(lines)

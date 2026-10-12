@@ -64,6 +64,13 @@ No Blender; model in Godot only as a last resort.
 - Dev scene `scenes/dev/route_test.tscn`: `--seed=N --autodrive --chase --overview --quit-after-seconds=N`.
   `RaceSession.settings.seed` builds the same track on every peer; cars spawn on a grid behind gate 0.
 
+## Paper map and pace notes (scripts/map)
+- `PaceNotes.build(graph)` → numbered notes per junction in lap order (TR/EN text, side, turn, branch kind).
+  `MapCanvas` (SubViewport, 1792×1152) draws the network + notes column from the graph; `MapCanvas.contour_for`
+  is computed once per race and shared. `PaperMap` (created by `Cabin._ready`) is the 3D sheet; `Cabin` holds
+  `map_state` (CLOSED/OPEN/GONE), the host-side wind risk, the 6 s replacement and the map RPCs.
+  Dev: `route_test.tscn --navigator --map-open --autodrive`; input actions `map_toggle` (M), `map_reset` (Home).
+
 ## Multiplayer (scripts/network, scripts/gameplay)
 - `Net` autoload: ENet session + roster `{peer: {name, team, role, ready}}` owned by the host (peer 1).
   Clients send requests (`request_seat`, `set_ready`); the host validates with `RosterRules` (pure, tested)

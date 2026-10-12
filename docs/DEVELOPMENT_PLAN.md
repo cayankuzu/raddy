@@ -114,3 +114,17 @@ P5 QA and release
   the host broadcasting gate/lap progress. Screenshots: `reports/screenshots/route_overview_seed{1,7}.png`,
   `route_chase_seed1.png`, `route_driver_seed1.png`. Not yet: junction pad art, roadside props, biome
   surfaces per edge, hairpins/crests by design, map and pace notes (P2).
+- 2026-10-12: P2.1 paper map + P2.2 pace notes DONE in code and tests: `MapCanvas` (SubViewport) draws the
+  whole network of the race from the same RouteGraph (contour-shaded paper, main/shortcut/detour/spur line
+  styles, numbered junctions, CP flags, S/F, fold creases, optional car marker) with a pace-notes column
+  (`PaceNotes.build`: one numbered note per junction in lap order, TR + EN, side/turn from geometry, branch
+  kind). `PaperMap` is a real sheet in the cabin: M unfolds it from the lap up in front of the navigator
+  (0.45 s tween), wheel zooms 1-4.5×, drag pans, Home resets, Esc/M folds it; the driver's view is untouched.
+  `Cabin` owns the state (host authority): navigator only (a solo driver may hold it), wind risk grows with
+  speed over 50 km/h while a side window is open, the paper flutters as a warning, then flies out of the open
+  window (visible tumbling sheet on every peer) or drops on a hard impact; the replacement is ready after
+  exactly 6 s and cannot be opened before. 15 new tests (pace notes, canvas, cabin map rules incl. the spec's
+  6 s), 82 total passing; `tools
+ettest.ps1` still passes; screenshot `reports/screenshots/map_navigator_seed1.png`
+  (`route_test.tscn --navigator --map-open --autodrive`). Not yet: paper/ink art pass, biome palettes for the
+  map, wind sound, the navigator's hands, difficulty-dependent note detail.
