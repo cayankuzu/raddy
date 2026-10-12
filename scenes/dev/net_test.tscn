@@ -1,0 +1,46 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/dev/net_test.gd" id="1_net_test"]
+[ext_resource type="PackedScene" path="res://scenes/dev/test_track_geometry.tscn" id="2_geometry"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
+sky_top_color = Color(0.36, 0.52, 0.72, 1)
+sky_horizon_color = Color(0.72, 0.74, 0.72, 1)
+ground_horizon_color = Color(0.72, 0.74, 0.72, 1)
+
+[sub_resource type="Sky" id="Sky_main"]
+sky_material = SubResource("ProceduralSkyMaterial_sky")
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 2
+sky = SubResource("Sky_main")
+tonemap_mode = 3
+ambient_light_source = 3
+fog_enabled = true
+fog_light_color = Color(0.68, 0.72, 0.74, 1)
+fog_density = 0.004
+
+[node name="NetTest" type="Node3D"]
+script = ExtResource("1_net_test")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 20, 0)
+shadow_enabled = true
+
+[node name="World" type="Node3D" parent="."]
+
+[node name="Track" parent="World" instance=ExtResource("2_geometry")]
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="Info" type="Label" parent="HUD"]
+offset_left = 16.0
+offset_top = 12.0
+offset_right = 900.0
+offset_bottom = 120.0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 20

@@ -19,9 +19,16 @@ No Blender; model in Godot only as a last resort.
   1 a test failed or a test file did not load, 2 GUT did not run (import failed, Godot missing, 0 tests).
   `-Select` matches the file name only (case-sensitive). Tests live in `tests/`, files `test_*.gd`,
   `extends GutTest`. JUnit: `reports/junit.xml`.
-- `tools\launch.ps1 -Clients N [-Server] [-Scene res://x.tscn] [-ExtraArgs ...]` / `tools\launch.ps1 -Stop`:
-  multi-instance run, tiled windows, headless host as instance 0. Logs: `logs\instance_<n>.log`.
-  User args: `--instance=<n> --role=server|client` (read with `OS.get_cmdline_user_args()`).
+- `tools\launch.ps1 -Clients N [-Server] [-Headless | -HeadlessClients K] [-Scene res://x.tscn] [-ExtraArgs "a,b"]`
+  / `tools\launch.ps1 -Stop`: multi-instance run, tiled windows, headless host as instance 0. Logs:
+  `logs\instance_<n>.log`; pids in `logs\instances.json`. User args: `--instance=<n> --role=server|client`
+  (read with `OS.get_cmdline_user_args()`). From a command line pass -ExtraArgs as ONE comma-joined string
+  (pwsh -File binds only the first token). Start it detached (Start-Process) and never redirect its stdout:
+  the GUI children inherit the handle and the caller hangs.
+- `tools\nettest.ps1 [-Clients 3] [-Seconds 22]`: automated multiplayer check (headless host + clients run
+  `scenes/dev/net_test.tscn` with scripted actions, then the `NET ...` log lines are asserted). Exit 0 = pass.
+- `tools\capture_window.ps1 -Instance N -Out reports\screenshots\x.png`: PNG of a windowed instance even when
+  covered (PrintWindow); use it for multi-window visual checks since Beckett sees one game only.
 - `tools\screenshot.ps1 -Scene res://x.tscn -Frames 120 -Out reports\screenshots\x.png`: Movie Maker capture;
   open the PNG with Read. The PNG has the project viewport size; `-Resolution` only sizes the window.
 - `launch.ps1` and `screenshot.ps1` need `-Scene` until the project has a main scene.
@@ -42,6 +49,21 @@ No Blender; model in Godot only as a last resort.
   later the network layer, and tests. Tunables live in `VehicleConfig` (`data/vehicles/rally_hatch.tres`).
 - Surfaces: colliders set metadata `surface` (see `Surface`); untagged ground is gravel.
 - Dev scene `scenes/dev/vehicle_test_track.tscn` is the current main scene (`--autodrive` user arg circles).
+
+## Multiplayer (scripts/network, scripts/gameplay)
+- `Net` autoload: ENet session + roster `{peer: {name, team, role, ready}}` owned by the host (peer 1).
+  Clients send requests (`request_seat`, `set_ready`); the host validates with `RosterRules` (pure, tested)
+  and broadcasts. `Net.start_race()` refuses new connections and emits `race_started` on every peer.
+- Car physics is driver-authoritative: `BodyNetSync` (child of the body, authority = driver peer) sends
+  30 Hz snapshots; other peers freeze the body kinematic and play back 100 ms behind via `SnapshotBuffer`.
+  Cans are host-simulated (authority 1). `RallyCar.simulated == false` skips all forces.
+- `RaceSession` (node path must match on all peers): host spawns `Cars/Car<team>` and `Props/Can<id>` via
+  `authority call_local reliable` RPCs; each peer binds its own seat (camera + `PlayerCarInput`/`CabinInput`).
+  `Cabin` (authority 1) owns window state and can stock; seat holders ask, host validates against the roster.
+- Dev bootstrap `scenes/dev/net_test.tscn` takes `--role --port --host --players --as-player --local
+  --autodrive --test-script --quit-after-seconds`; without `--instance` it takes the first free seat.
+- Editor-launched games need `--accessibility disabled` too on this PC: set once via Beckett
+  `call_method target=res://tools/editor_run_args.gd method=apply` (editor setting `run/main_run_args`).
 
 ## Tests
 - Physics tests extend `PhysicsTestCase` and wait with `wait_ticks(n)` (exact ticks; GUT's

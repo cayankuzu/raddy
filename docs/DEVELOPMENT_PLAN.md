@@ -82,3 +82,13 @@ P5 QA and release
   above), wheels on other bodies push back on them, airborne wheels spin down, physics interpolation on
   with an interpolated chase camera, camera stays behind when reversing, unfocused windows ignore the
   gamepad, dev track has a fall guard and a debug restart. Tests now 22 driving + 8 settings, all passing.
+- 2026-10-12: P1.2 network prototype DONE (verified by `tools\nettest.ps1`: headless host + 3 clients, and a
+  windowed 3-client run captured with `tools\capture_window.ps1`): room join/reject, 3 teams × driver/navigator
+  seats validated on the host, ready + race start, driver-authoritative car snapshots at 30 Hz with 100 ms
+  interpolation on every other peer (remote copy within ~1 m of the driver's car at 12 m/s), host-owned cabin
+  window state and glovebox cans (spawn, host physics, despawn) reaching every peer, driver leaving removes the
+  team's car, host quitting ends client sessions without a freeze. Decision: car physics on the driver's peer
+  (no rollback in stock Godot; zero input lag), race-critical events on the host. First-person seats:
+  DriverCamera/NavigatorCamera inside a placeholder cockpit (dashboard, roof, pillars, wheel).
+  Not yet: internet NAT path (netfox/noray), reconnect, host migration, speed-bound validation of snapshots,
+  car-vs-car collision fairness.

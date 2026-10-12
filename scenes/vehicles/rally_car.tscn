@@ -1,7 +1,8 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=24 format=3]
 
 [ext_resource type="Script" path="res://scripts/vehicles/rally_car.gd" id="1_car"]
 [ext_resource type="Resource" path="res://data/vehicles/rally_hatch.tres" id="2_config"]
+[ext_resource type="Script" path="res://scripts/gameplay/cabin.gd" id="3_cabin"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_body"]
 size = Vector3(1.6, 0.62, 3.9)
@@ -14,10 +15,16 @@ albedo_color = Color(0.86, 0.3, 0.1, 1)
 metallic = 0.35
 roughness = 0.4
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_glass"]
-albedo_color = Color(0.07, 0.09, 0.11, 1)
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_roof"]
+albedo_color = Color(0.16, 0.17, 0.19, 1)
 metallic = 0.2
-roughness = 0.1
+roughness = 0.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_glass"]
+transparency = 1
+albedo_color = Color(0.55, 0.7, 0.8, 0.35)
+metallic = 0.3
+roughness = 0.05
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_tire"]
 albedo_color = Color(0.08, 0.08, 0.08, 1)
@@ -28,8 +35,47 @@ material = SubResource("StandardMaterial3D_paint")
 size = Vector3(1.6, 0.62, 3.9)
 
 [sub_resource type="BoxMesh" id="BoxMesh_cabin"]
-material = SubResource("StandardMaterial3D_glass")
+material = SubResource("StandardMaterial3D_roof")
 size = Vector3(1.5, 0.45, 2.0)
+
+[sub_resource type="BoxMesh" id="BoxMesh_side_window"]
+material = SubResource("StandardMaterial3D_glass")
+size = Vector3(0.02, 0.3, 0.9)
+
+[sub_resource type="BoxMesh" id="BoxMesh_windshield"]
+material = SubResource("StandardMaterial3D_glass")
+size = Vector3(1.4, 0.35, 0.02)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_interior"]
+albedo_color = Color(0.13, 0.12, 0.12, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="BoxMesh_dashboard"]
+material = SubResource("StandardMaterial3D_interior")
+size = Vector3(1.46, 0.25, 0.5)
+
+[sub_resource type="BoxMesh" id="BoxMesh_roof"]
+material = SubResource("StandardMaterial3D_interior")
+size = Vector3(1.46, 0.02, 1.96)
+
+[sub_resource type="BoxMesh" id="BoxMesh_rear_wall"]
+material = SubResource("StandardMaterial3D_interior")
+size = Vector3(1.46, 0.43, 0.02)
+
+[sub_resource type="BoxMesh" id="BoxMesh_door"]
+material = SubResource("StandardMaterial3D_interior")
+size = Vector3(0.02, 0.14, 1.96)
+
+[sub_resource type="BoxMesh" id="BoxMesh_pillar"]
+material = SubResource("StandardMaterial3D_interior")
+size = Vector3(0.06, 0.4, 0.06)
+
+[sub_resource type="TorusMesh" id="TorusMesh_wheel"]
+material = SubResource("StandardMaterial3D_interior")
+inner_radius = 0.15
+outer_radius = 0.18
+rings = 24
+ring_segments = 12
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_wheel"]
 material = SubResource("StandardMaterial3D_tire")
@@ -54,12 +100,65 @@ shape = SubResource("BoxShape3D_cabin")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
 mesh = SubResource("BoxMesh_body")
 
-[node name="Cabin" type="MeshInstance3D" parent="."]
+[node name="CabinShell" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.62, 0.2)
 mesh = SubResource("BoxMesh_cabin")
 
+[node name="Cabin" type="Node3D" parent="."]
+script = ExtResource("3_cabin")
+
+[node name="WindowLeft" type="MeshInstance3D" parent="Cabin"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.76, 0.68, 0.1)
+mesh = SubResource("BoxMesh_side_window")
+
+[node name="WindowRight" type="MeshInstance3D" parent="Cabin"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.76, 0.68, 0.1)
+mesh = SubResource("BoxMesh_side_window")
+
+[node name="Windshield" type="MeshInstance3D" parent="Cabin"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, -0.95)
+mesh = SubResource("BoxMesh_windshield")
+
+[node name="Interior" type="Node3D" parent="."]
+
+[node name="Dashboard" type="MeshInstance3D" parent="Interior"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -0.72)
+mesh = SubResource("BoxMesh_dashboard")
+
+[node name="Roof" type="MeshInstance3D" parent="Interior"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.84, 0.2)
+mesh = SubResource("BoxMesh_roof")
+
+[node name="RearWall" type="MeshInstance3D" parent="Interior"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.62, 1.18)
+mesh = SubResource("BoxMesh_rear_wall")
+
+[node name="DoorLeft" type="MeshInstance3D" parent="Interior"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.73, 0.46, 0.2)
+mesh = SubResource("BoxMesh_door")
+
+[node name="DoorRight" type="MeshInstance3D" parent="Interior"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.73, 0.46, 0.2)
+mesh = SubResource("BoxMesh_door")
+
+[node name="PillarLeft" type="MeshInstance3D" parent="Interior"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.72, 0.67, -0.94)
+mesh = SubResource("BoxMesh_pillar")
+
+[node name="PillarRight" type="MeshInstance3D" parent="Interior"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.72, 0.67, -0.94)
+mesh = SubResource("BoxMesh_pillar")
+
+[node name="SteeringWheel" type="MeshInstance3D" parent="Interior"]
+transform = Transform3D(1, 0, 0, 0, 0.5, 0.866025, 0, -0.866025, 0.5, -0.38, 0.58, -0.45)
+mesh = SubResource("TorusMesh_wheel")
+
 [node name="DriverCamera" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.38, 0.72, 0.05)
+fov = 70.0
+
+[node name="NavigatorCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.38, 0.72, 0.05)
 fov = 70.0
 
 [node name="WheelFL" type="Node3D" parent="."]

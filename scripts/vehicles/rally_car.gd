@@ -31,6 +31,9 @@ var steer_angle := 0.0
 var forward_speed := 0.0
 ## True once the car has been overturned, hung up or wedged for config.recovery_delay seconds.
 var needs_recovery := false
+## False on peers that only play back the driver's snapshots (see BodyNetSync): the body is a
+## frozen kinematic copy and no forces run.
+var simulated := true
 
 var _wheels: Array[CarWheel] = []
 var _drive := 0.0
@@ -81,7 +84,7 @@ func _ready() -> void:
 
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
-	if config == null:
+	if config == null or not simulated:
 		return
 	if _pending_reset:
 		_apply_reset(state)
@@ -113,6 +116,33 @@ func _physics_process(delta: float) -> void:
 		wheel.visual.position = Vector3(0.0, -extension, 0.0)
 		wheel.spin = wrapf(wheel.spin - wheel.rolling_speed / config.wheel_radius * delta, -PI, PI)
 		wheel.visual.rotation = Vector3(wheel.spin, -steer_angle if wheel.is_front else 0.0, 0.0)
+
+
+func set_simulated(value: bool) -> void:
+	simulated = value
+	freeze_mode = FREEZE_MODE_KINEMATIC
+	freeze = not value
+
+
+## Steering and wheel compressions, sent with each network snapshot so remote copies show them.
+func get_net_extra() -> PackedFloat32Array:
+	var extra := PackedFloat32Array([steer_angle])
+	for wheel in _wheels:
+		extra.append(wheel.compression if wheel.in_contact else 0.0)
+	return extra
+
+
+## Applies a snapshot's extras on a remote copy; `velocity` is the sender's linear velocity.
+func apply_net_extra(extra: PackedFloat32Array, velocity: Vector3) -> void:
+	forward_speed = velocity.dot(-global_basis.z)
+	if extra.size() < 1 + _wheels.size():
+		return
+	steer_angle = extra[0]
+	for i in _wheels.size():
+		var wheel := _wheels[i]
+		wheel.compression = extra[1 + i]
+		wheel.in_contact = wheel.compression > 0.001
+		wheel.rolling_speed = forward_speed
 
 
 ## Largest front wheel angle allowed at `speed` m/s: full lock when slow, a few degrees when fast.
