@@ -9,7 +9,7 @@ var role := RosterRules.Role.NONE
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if cabin == null or role == RosterRules.Role.NONE:
+	if cabin == null or role == RosterRules.Role.NONE or cabin.is_fainted(role):
 		return
 	if event.is_action_pressed(&"map_toggle") and cabin.local_may_hold_map():
 		cabin.request_map(cabin.map_state != Cabin.MapState.OPEN)
@@ -26,3 +26,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		cabin.request_window(Cabin.Side.RIGHT, not cabin.window_open[Cabin.Side.RIGHT])
 	elif role == RosterRules.Role.NAVIGATOR and event.is_action_pressed(&"cabin_throw"):
 		cabin.request_throw(Cabin.Side.RIGHT)
+	elif role == RosterRules.Role.NAVIGATOR and event.is_action_pressed(&"cabin_kick_windshield"):
+		cabin.request_kick_windshield()
+	elif role == RosterRules.Role.DRIVER and event.is_action_pressed(&"cabin_wipers"):
+		cabin.request_wipers(not cabin.wipers_on)

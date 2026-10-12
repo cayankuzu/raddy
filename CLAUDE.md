@@ -85,6 +85,11 @@ No Blender; model in Godot only as a last resort.
   per team (3 s stuck → offer, confirmations with an 8 s window, 1 seat = hold R), picks the spot with
   `RecoveryAnchor.find(graph, position, next_gate)` and sends `_rpc_recover_car`; the simulating peer applies
   `reset_to`. `PlayerCarInput.local_recovery` and `RouteFollower.self_recover` are false inside a session.
+- Cabin (spec §9-10): `Cabin` is the one state system for windows (state + cracked), windshield, dirt,
+  wipers, per-seat exposure and faints, the map and the cans; host authority, `_broadcast(rpc, args)` runs
+  the RPC everywhere or just locally offline. `SeatEffects` (CanvasLayer) shows the local seat's view of it.
+  Input: Q/E windows, F kick windshield (navigator), T wipers (driver), M map, LMB throw. Fainted seats are
+  checked by `PlayerCarInput`, `RouteFollower` and `CabinInput` via `cabin.is_fainted(role)`.
 - Damage (spec §8): the host judges impacts from `BodyNetSync.snapshot_received` velocity jumps (or its own
   car's `impact`), keeps a `VehicleDamage` per team and broadcasts `_rpc_set_damage`; every peer calls
   `RallyCar.apply_damage` (effects + placeholder dents). Critical damage sets `needs_recovery` on the host.

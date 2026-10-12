@@ -116,6 +116,7 @@ func _physics_process(delta: float) -> void:
 	if _reset_interpolation:
 		_reset_interpolation = false
 		reset_physics_interpolation()
+	_update_dust()
 	for wheel in _wheels:
 		if wheel.visual == null:
 			continue
@@ -138,6 +139,7 @@ func get_net_extra() -> PackedFloat32Array:
 	for wheel in _wheels:
 		extra.append(wheel.compression if wheel.in_contact else 0.0)
 	extra.append(1.0 if needs_recovery else 0.0)
+	extra.append(float(Surface.index_of(_wheels[0].surface)))
 	return extra
 
 
@@ -154,6 +156,10 @@ func apply_net_extra(extra: PackedFloat32Array, velocity: Vector3) -> void:
 		wheel.rolling_speed = forward_speed
 	if extra.size() > 1 + _wheels.size():
 		_set_needs_recovery(extra[1 + _wheels.size()] > 0.5)
+	if extra.size() > 2 + _wheels.size():
+		var surface := Surface.from_index(int(extra[2 + _wheels.size()]))
+		for wheel in _wheels:
+			wheel.surface = surface
 
 
 ## Largest front wheel angle allowed at `speed` m/s: full lock when slow, a few degrees when fast.
@@ -184,6 +190,57 @@ func wheel_surface(index: int) -> StringName:
 
 func wheels_in_contact() -> int:
 	return _wheels.filter(func(w: CarWheel) -> bool: return w.in_contact).size()
+
+
+## Dust, mud or sand thrown up behind the car, by speed and surface (spec §9.3). Placeholder
+## look until the art pass; GPU particles do nothing headless, which is fine.
+func _update_dust() -> void:
+	var dust := get_node_or_null(^"Dust") as GPUParticles3D
+	if dust == null:
+		dust = GPUParticles3D.new()
+		dust.name = "Dust"
+		dust.position = Vector3(0.0, 0.0, 1.5)
+		dust.amount = 64
+		dust.lifetime = 1.4
+		dust.local_coords = false
+		var material := ParticleProcessMaterial.new()
+		material.direction = Vector3(0.0, 0.6, 1.0)
+		material.spread = 35.0
+		material.initial_velocity_min = 1.0
+		material.initial_velocity_max = 3.0
+		material.gravity = Vector3(0.0, -0.4, 0.0)
+		material.scale_min = 0.4
+		material.scale_max = 1.2
+		material.color = Color(0.75, 0.68, 0.55, 0.45)
+		dust.process_material = material
+		var mesh := QuadMesh.new()
+		mesh.size = Vector2(0.9, 0.9)
+		var sprite := StandardMaterial3D.new()
+		sprite.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		sprite.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		sprite.vertex_color_use_as_albedo = true
+		sprite.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		sprite.albedo_color = Color(1, 1, 1, 0.5)
+		mesh.material = sprite
+		dust.draw_pass_1 = mesh
+		add_child(dust)
+	var speed := absf(forward_speed)
+	var on_ground := wheels_in_contact() > 0
+	var surface := _wheels[0].surface if not _wheels.is_empty() else Surface.GRAVEL
+	dust.emitting = on_ground and speed > 4.0
+	dust.amount_ratio = clampf((speed - 4.0) / 20.0, 0.0, 1.0) * clampf(Surface.grit(surface), 0.0, 1.0)
+	var material := dust.process_material as ParticleProcessMaterial
+	match surface:
+		Surface.MUD:
+			material.color = Color(0.3, 0.22, 0.14, 0.6)
+		Surface.SAND:
+			material.color = Color(0.85, 0.75, 0.5, 0.5)
+		Surface.SNOW:
+			material.color = Color(0.95, 0.97, 1.0, 0.45)
+		Surface.WET:
+			material.color = Color(0.45, 0.45, 0.42, 0.4)
+		_:
+			material.color = Color(0.75, 0.68, 0.55, 0.45)
 
 
 ## The race layer applies the host's damage state here: effects for the simulation and a

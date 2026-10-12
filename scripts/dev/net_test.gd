@@ -9,7 +9,8 @@ extends Node3D
 ##   --autodrive   the local driver drives a circle
 ##   --test-script scripted actions: instance 2 opens a window and throws at 5-6 s,
 ##                 instance 3 leaves at 12 s, instance 1 rolls its car at 13 s and both team-1
-##                 seats confirm the recovery 1 s after the host offers it
+##                 seats confirm the recovery 1 s after the host offers it, instance 2 kicks the
+##                 windshield out at 24 s (exposure then rises for both seats)
 ##   --quit-after-seconds=N
 
 const SESSION_SCENE := preload("res://scenes/game/race_session.tscn")
@@ -130,6 +131,10 @@ func _run_test_script() -> void:
 		2:  # navigator of team 1
 			get_tree().create_timer(5.0).timeout.connect(func() -> void: _cabin_action(Cabin.Side.RIGHT, true, false))
 			get_tree().create_timer(6.0).timeout.connect(func() -> void: _cabin_action(Cabin.Side.RIGHT, true, true))
+			get_tree().create_timer(24.0).timeout.connect(func() -> void:
+				if _session != null and _session.local_car != null:
+					print("NET kicking the windshield out")
+					(_session.local_car.get_node(^"Cabin") as Cabin).request_kick_windshield())
 		3:  # driver of team 2 leaves mid-race
 			get_tree().create_timer(12.0).timeout.connect(func() -> void:
 				print("NET leaving on purpose")
@@ -195,6 +200,10 @@ func _process(_delta: float) -> void:
 		var level: int = _session.damage_of(team).level()
 		if level > 0:
 			lines.append("Hasar: %s" % ["-", "hafif", "orta", "kritik"][level])
+		var cabin: Cabin = _session.local_car.get_node(^"Cabin")
+		lines.append("windshield %s   dirt %.0f%%   exposure %.2f%s" % [Cabin.Windshield.keys()[cabin.windshield].to_lower(),
+			cabin.dirt * 100.0, cabin.exposure.get(me.get("role", 0), 0.0),
+			"   BAYGIN" if cabin.is_fainted(me.get("role", 0)) else ""])
 		if _session.recovery_offered(team):
 			lines.append("R — Aracı Kurtar   %d/%d onaylandı" % [_session.recovery_confirmed(team), _session.recovery_seats(team)])
 	for peer_id in Net.roster:

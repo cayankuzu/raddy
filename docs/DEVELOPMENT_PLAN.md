@@ -151,3 +151,22 @@ ettest.ps1` (instance 1 rolls its car at 13 s, both seats confirm, host places i
 ettest.ps1` checks
   the host judges the rollover landing. Not yet: damage sounds/vibration, car-vs-car fairness tuning, real
   dented body variants (P4).
+- 2026-10-12: P2.3 glass + P2.4 exposure/faint DONE in one cabin state system (`Cabin`, host authority):
+  side windows closed/open/broken + cracked flag (a can at ≥ 8 m/s relative cracks, ≥ 13 m/s or a second hit
+  breaks; broken stays open; `EnergyCan` reports hits on the host from the contact position), windshield
+  intact/cracked/removed (stone chips on loose surfaces at speed; navigator or solo driver kicks it out with F,
+  mesh disappears), windshield dirt by surface and speed (mud fastest) with wipers (T, driver) clearing it,
+  per-seat exposure from the openings × surface grit × speed with random face hits, faint at 1.0 for exactly
+  6 s (fainted driver's input node clears the controls and the car coasts; fainted navigator loses the map
+  and cabin keys; bot drivers coast too), wake-up with residual exposure. `SeatEffects` draws the local
+  seat's dirt tint, crack star, wiper sweep, face flash and faint fade (intensity setting). Dust/mud/sand
+  particles behind the car by speed and surface (`RallyCar.Dust`, GPU particles; surface now rides in the
+  snapshot). 5 physics tests (incl. the spec's 6 s and "no windshield at 90 km/h on gravel faints both seats
+  after ~9 s"); `tools
+ettest.ps1`: navigator kicks the windshield at 24 s, every peer sees it, the host
+  faints the navigator later in the run. Screenshot `reports/screenshots/cabin_cracked_dirty_seed1.png`.
+  Not yet: dirt masked to the windshield area, wind/gravel sounds, crack decals on the 3D glass, navigator
+  "take can" step (cans are thrown straight from the glovebox), horn/flash keys.
+- P2 summary (2026-10-12): the playable core exists in code and automated tests: roles, cockpit cameras,
+  paper map + pace notes, procedural routes with legal alternatives and checkpoints, glass/wind/faint, damage
+  levels, joint recovery, cans. Human play-feel checks are still pending (see "manual steps").

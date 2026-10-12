@@ -450,6 +450,11 @@ func _bind_local_seat(car: RallyCar, role: int) -> void:
 			bot.top_speed = 22.0 - 2.0 * (_team_cars.size() - 1)
 			bot.set_path(graph.main_route_points())
 			add_child(bot)
+	var effects := SeatEffects.new()
+	effects.name = "SeatEffects"
+	effects.cabin = car.get_node(^"Cabin")
+	effects.role = role
+	add_child(effects)
 	var recovery := RecoveryInput.new()
 	recovery.name = "RecoveryInput"
 	recovery.session = self

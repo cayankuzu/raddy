@@ -13,6 +13,10 @@ func _physics_process(_delta: float) -> void:
 	if car == null:
 		return
 	var controls := car.controls
+	var cabin := car.get_node_or_null(^"Cabin") as Cabin
+	if cabin != null and cabin.is_fainted(RosterRules.Role.DRIVER):
+		controls.clear()  # out cold: the car coasts on its momentum
+		return
 	controls.throttle = Input.get_action_strength(&"drive_throttle")
 	controls.brake = Input.get_action_strength(&"drive_brake")
 	controls.steer = Input.get_axis(&"drive_steer_left", &"drive_steer_right")

@@ -14,9 +14,37 @@ signal map_changed(state: int)
 signal map_warning(active: bool)
 ## The map flew out of the window on `side`; a new one comes after MAP_COOLDOWN.
 signal map_lost(side: int)
+signal window_state_changed(side: int, state: int, cracked: bool)
+signal windshield_changed(state: int)
+signal dirt_changed(level: float)
+signal wipers_changed(on: bool)
+## Gravel hit a seat's face (short flash on that player's screen).
+signal face_hit(role: int)
+signal faint_changed(role: int, fainted: bool)
 
 enum Side { LEFT, RIGHT }
 enum MapState { CLOSED, OPEN, GONE }
+enum WindowState { CLOSED, OPEN, BROKEN }
+enum Windshield { INTACT, CRACKED, REMOVED }
+## Spec §9.4: a faint lasts this long.
+const FAINT_SECONDS := 6.0
+const FAINT_THRESHOLD := 1.0
+## Exposure left after waking up: not straight back into the next faint.
+const FAINT_RESIDUE := 0.35
+## Exposure per second with the cabin fully open, on dry gravel, at 25 m/s.
+const EXPOSURE_RATE := 0.09
+const EXPOSURE_DECAY := 0.08
+const EXPOSURE_SPEED_FLOOR := 8.0
+const EXPOSURE_SPEED_FULL := 25.0
+## Chance per second of a stone in the face at full exposure rate.
+const FACE_HIT_CHANCE := 0.3
+const FACE_HIT_EXPOSURE := 0.12
+## Chance per second of a stone chip cracking an intact windshield at 20 m/s on gravel.
+const STONE_CHIP_CHANCE := 0.012
+const WIPER_CLEAR_RATE := 0.22
+## Can speeds (relative, m/s) that crack and break a side window (spec §9.2, §10.3).
+const WINDOW_CRACK_SPEED := 8.0
+const WINDOW_BREAK_SPEED := 13.0
 const CAN_STOCK := 3
 ## Spec §11.3: a lost map is replaced after this many seconds.
 const MAP_COOLDOWN := 6.0
@@ -33,8 +61,21 @@ const MAP_IMPACT_LOSS := 8.0
 var team := 0
 ## The local player's seat in this cabin (NONE when watching another team's car).
 var local_role := RosterRules.Role.NONE
+## Derived from window_state for the older callers: open or broken lets the wind in.
 var window_open: Array[bool] = [false, false]
+var window_state: Array[int] = [WindowState.CLOSED, WindowState.CLOSED]
+var window_cracked: Array[bool] = [false, false]
+var windshield := Windshield.INTACT
+var dirt := 0.0
+var wipers_on := false
+## Per seat (RosterRules.Role): how much wind, dust and grit it has taken; 1 = faint.
+var exposure: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIGATOR: 0.0}
+var fainted: Dictionary = {RosterRules.Role.DRIVER: false, RosterRules.Role.NAVIGATOR: false}
+var faint_left: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIGATOR: 0.0}
 var cans_left := CAN_STOCK
+var _rng := RandomNumberGenerator.new()
+var _dirt_sent := 0.0
+var _exposure_sent: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIGATOR: 0.0}
 var map_state := MapState.CLOSED
 var map_risk := 0.0
 var map_warning_active := false
@@ -43,6 +84,7 @@ var map_cooldown_left := 0.0
 var paper_map: PaperMap
 
 @onready var _window_meshes: Array[MeshInstance3D] = [$WindowLeft, $WindowRight]
+@onready var _windshield_mesh: MeshInstance3D = $Windshield
 
 
 func _ready() -> void:
@@ -76,6 +118,38 @@ func local_may_hold_map() -> bool:
 	return local_role != RosterRules.Role.NONE and may_hold_map(Net.local_id())
 
 
+func is_fainted(role: int) -> bool:
+	return fainted.get(role, false)
+
+
+func request_kick_windshield() -> void:
+	if not Net.is_active():
+		_handle_kick_request(0)
+	elif multiplayer.is_server():
+		_handle_kick_request(multiplayer.get_unique_id())
+	else:
+		_rpc_request_kick.rpc_id(1)
+
+
+func request_wipers(on: bool) -> void:
+	if not Net.is_active():
+		_handle_wipers_request(0, on)
+	elif multiplayer.is_server():
+		_handle_wipers_request(multiplayer.get_unique_id(), on)
+	else:
+		_rpc_request_wipers.rpc_id(1, on)
+
+
+## Host: a can (or stone) hit a side window at `relative_speed`.
+func window_hit(side: int, relative_speed: float) -> void:
+	if not _is_authority_here() or window_state[side] == WindowState.BROKEN:
+		return
+	if relative_speed >= WINDOW_BREAK_SPEED or (window_cracked[side] and relative_speed >= WINDOW_CRACK_SPEED):
+		_broadcast(_rpc_set_window_state, [side, WindowState.BROKEN, true])
+	elif relative_speed >= WINDOW_CRACK_SPEED and not window_cracked[side]:
+		_broadcast(_rpc_set_window_state, [side, window_state[side], true])
+
+
 func request_map(open: bool) -> void:
 	if not Net.is_active():
 		_handle_map_request(0, open)
@@ -87,7 +161,7 @@ func request_map(open: bool) -> void:
 
 func request_window(side: int, open: bool) -> void:
 	if not Net.is_active():
-		_rpc_set_window(side, open)
+		_handle_window_request(0, side, open)
 	elif multiplayer.is_server():
 		_handle_window_request(multiplayer.get_unique_id(), side, open)
 	else:
@@ -121,6 +195,122 @@ func _rpc_request_map(open: bool) -> void:
 		_handle_map_request(multiplayer.get_remote_sender_id(), open)
 
 
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_request_kick() -> void:
+	if multiplayer.is_server():
+		_handle_kick_request(multiplayer.get_remote_sender_id())
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_request_wipers(on: bool) -> void:
+	if multiplayer.is_server():
+		_handle_wipers_request(multiplayer.get_remote_sender_id(), on)
+
+
+## Only the navigator kicks the windshield out (spec §9.1); a solo driver may too.
+func _handle_kick_request(peer_id: int) -> void:
+	if Net.is_active() and not may_hold_map(peer_id):
+		return
+	if windshield == Windshield.REMOVED:
+		return
+	_broadcast(_rpc_set_windshield, [Windshield.REMOVED])
+
+
+func _handle_wipers_request(peer_id: int, on: bool) -> void:
+	if Net.is_active() and not _may_touch(peer_id):
+		return
+	if wipers_on == on:
+		return
+	_broadcast(_rpc_set_wipers, [on])
+
+
+## Host (or offline): dirt, stone chips, exposure and faints follow the car's speed and surface.
+func _update_cabin_weather(delta: float) -> void:
+	var car := get_parent() as RallyCar
+	if car == null:
+		return
+	var speed := absf(car.forward_speed)
+	var surface := car.wheel_surface(0)
+	# Dirt builds up on the glass by surface and speed; wipers clear it (spec §9.1).
+	if windshield != Windshield.REMOVED:
+		dirt += Surface.dirt_rate(surface) * (speed / 20.0) * delta
+	if wipers_on:
+		dirt -= WIPER_CLEAR_RATE * delta
+	dirt = clampf(dirt, 0.0, 1.0)
+	if absf(dirt - _dirt_sent) >= 0.04 or (dirt == 0.0 and _dirt_sent > 0.0):
+		_dirt_sent = dirt
+		_broadcast(_rpc_set_dirt, [dirt])
+	# Stone chips on loose surfaces.
+	if windshield == Windshield.INTACT and speed > 12.0 and Surface.grit(surface) >= 0.8:
+		if _rng.randf() < STONE_CHIP_CHANCE * (speed / 20.0) * delta:
+			_broadcast(_rpc_set_windshield, [Windshield.CRACKED])
+	# Exposure per seat (spec §9.3-9.4).
+	var wind := clampf((speed - EXPOSURE_SPEED_FLOOR) / (EXPOSURE_SPEED_FULL - EXPOSURE_SPEED_FLOOR), 0.0, 1.3)
+	for role in [RosterRules.Role.DRIVER, RosterRules.Role.NAVIGATOR]:
+		var rate := _opening_for(role) * Surface.grit(surface) * wind * EXPOSURE_RATE
+		if fainted[role]:
+			faint_left[role] -= delta
+			if faint_left[role] <= 0.0:
+				_broadcast(_rpc_set_faint, [role, false, FAINT_RESIDUE])
+			continue
+		if rate > 0.0:
+			exposure[role] += rate * delta
+			if _rng.randf() < FACE_HIT_CHANCE * (rate / EXPOSURE_RATE) * delta:
+				exposure[role] += FACE_HIT_EXPOSURE
+				_broadcast(_rpc_face_hit, [role])
+		else:
+			exposure[role] = maxf(exposure[role] - EXPOSURE_DECAY * delta, 0.0)
+		if exposure[role] >= FAINT_THRESHOLD:
+			_broadcast(_rpc_set_faint, [role, true, FAINT_THRESHOLD])
+		elif absf(exposure[role] - _exposure_sent[role]) >= 0.05:
+			_exposure_sent[role] = exposure[role]
+			if Net.is_active():
+				_rpc_set_exposure.rpc(role, exposure[role])
+
+
+## How open the cabin is for a seat: 1 = no windshield, part for an open or broken window.
+func _opening_for(role: int) -> float:
+	var own := Side.LEFT if role == RosterRules.Role.DRIVER else Side.RIGHT
+	var other := Side.RIGHT if own == Side.LEFT else Side.LEFT
+	var opening := 0.0
+	match windshield:
+		Windshield.REMOVED:
+			opening = 1.0
+		Windshield.CRACKED:
+			opening = 0.1
+	match window_state[own]:
+		WindowState.OPEN:
+			opening += 0.45
+		WindowState.BROKEN:
+			opening += 0.6
+	if window_state[other] != WindowState.CLOSED:
+		opening += 0.15
+	return minf(opening, 1.3)
+
+
+## Runs an authority RPC on every peer, or just here when offline.
+func _broadcast(method: Callable, args: Array) -> void:
+	if Net.is_active():
+		_rpc_dispatch(method, args)
+	else:
+		method.callv(args)
+
+
+func _rpc_dispatch(method: Callable, args: Array) -> void:
+	# Callable.rpc() takes the arguments directly; spread them by arity.
+	match args.size():
+		0:
+			method.rpc()
+		1:
+			method.rpc(args[0])
+		2:
+			method.rpc(args[0], args[1])
+		3:
+			method.rpc(args[0], args[1], args[2])
+		_:
+			push_error("Cabin._broadcast: too many arguments")
+
+
 func _handle_map_request(peer_id: int, open: bool) -> void:
 	if not may_hold_map(peer_id):
 		return
@@ -131,12 +321,19 @@ func _handle_map_request(peer_id: int, open: bool) -> void:
 	_broadcast_map(MapState.OPEN if open else MapState.CLOSED)
 
 
-## Host (or offline): the wind risk while the map is held up with a window open.
+## Host (or offline): the wind risk while the map is held up with a window open, plus dirt,
+## stone chips, exposure and faints.
 func _physics_process(delta: float) -> void:
 	if map_cooldown_left > 0.0:
 		map_cooldown_left = maxf(map_cooldown_left - delta, 0.0)
+	for role in faint_left:
+		if faint_left[role] > 0.0 and not _is_authority_here():
+			faint_left[role] = maxf(faint_left[role] - delta, 0.0)
 	if not _is_authority_here():
 		return
+	_update_cabin_weather(delta)
+	if fainted[RosterRules.Role.NAVIGATOR] and map_state == MapState.OPEN and RosterRules.navigator_of(Net.roster, team) != 0:
+		_broadcast_map(MapState.CLOSED)  # the map slips out of unconscious hands
 	if map_state == MapState.GONE:
 		if map_cooldown_left <= 0.0:
 			_broadcast_map(MapState.CLOSED)
@@ -187,7 +384,9 @@ func _is_authority_here() -> bool:
 func _handle_window_request(peer_id: int, side: int, open: bool) -> void:
 	if not _may_touch(peer_id) or side < 0 or side > 1 or window_open[side] == open:
 		return
-	_rpc_set_window.rpc(side, open)
+	if window_state[side] == WindowState.BROKEN:
+		return  # nothing left to close
+	_broadcast(_rpc_set_window_state, [side, WindowState.OPEN if open else WindowState.CLOSED, window_cracked[side]])
 
 
 func _handle_throw_request(peer_id: int, side: int) -> void:
@@ -200,15 +399,75 @@ func _handle_throw_request(peer_id: int, side: int) -> void:
 
 
 func _may_touch(peer_id: int) -> bool:
-	return Net.is_active() and Net.is_in_team(peer_id, team)
+	if not Net.is_active():
+		return true
+	return Net.is_in_team(peer_id, team)
 
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_set_window(side: int, open: bool) -> void:
-	window_open[side] = open
-	_window_meshes[side].visible = not open
-	window_changed.emit(side, open)
-	print("NET window %d %s team %d" % [side, "open" if open else "closed", team])
+	_rpc_set_window_state(side, WindowState.OPEN if open else WindowState.CLOSED, window_cracked[side])
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_set_window_state(side: int, state: int, cracked: bool) -> void:
+	var was_open := window_open[side]
+	window_state[side] = state
+	window_cracked[side] = cracked
+	window_open[side] = state != WindowState.CLOSED
+	_window_meshes[side].visible = state == WindowState.CLOSED
+	if cracked and _window_meshes[side].material_override == null:
+		# Placeholder look for a cracked pane: whiter, less see-through (the art pass adds cracks).
+		var glass := (_window_meshes[side].mesh.surface_get_material(0) as StandardMaterial3D).duplicate() as StandardMaterial3D
+		glass.albedo_color = Color(0.85, 0.9, 0.95, 0.7)
+		_window_meshes[side].material_override = glass
+	window_state_changed.emit(side, state, cracked)
+	if window_open[side] != was_open:
+		window_changed.emit(side, window_open[side])
+	print("NET window %d %s%s team %d" % [side, WindowState.keys()[state].to_lower(), " cracked" if cracked else "", team])
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_set_windshield(state: int) -> void:
+	windshield = state
+	_windshield_mesh.visible = state != Windshield.REMOVED
+	if state == Windshield.REMOVED:
+		dirt = 0.0
+		dirt_changed.emit(dirt)
+	windshield_changed.emit(state)
+	print("NET windshield %s team %d" % [Windshield.keys()[state].to_lower(), team])
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_set_wipers(on: bool) -> void:
+	wipers_on = on
+	wipers_changed.emit(on)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_set_dirt(level: float) -> void:
+	dirt = level
+	dirt_changed.emit(level)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_set_exposure(role: int, value: float) -> void:
+	exposure[role] = value
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_face_hit(role: int) -> void:
+	face_hit.emit(role)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_set_faint(role: int, is_fainted: bool, exposure_after: float) -> void:
+	fainted[role] = is_fainted
+	faint_left[role] = FAINT_SECONDS if is_fainted else 0.0
+	exposure[role] = exposure_after
+	_exposure_sent[role] = exposure_after
+	faint_changed.emit(role, is_fainted)
+	print("NET %s %s team %d" % ["driver" if role == RosterRules.Role.DRIVER else "navigator", "fainted" if is_fainted else "woke up", team])
 
 
 @rpc("authority", "call_local", "reliable")

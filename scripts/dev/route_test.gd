@@ -7,6 +7,7 @@ extends Node3D
 ##   --chase         start on the chase camera instead of the driver's seat
 ##   --navigator     sit in the navigator's seat (M map, Q/E windows); pair with --autodrive
 ##   --map-open      open the map right away (screenshots)
+##   --windshield=cracked|removed  --dirt=0.4   start with that glass state (screenshots)
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (checkpoints, laps) that tools and tests can read.
 
@@ -64,8 +65,20 @@ func _ready() -> void:
 	cabin_input.cabin = cabin
 	cabin_input.role = cabin.local_role
 	add_child(cabin_input)
+	var effects := SeatEffects.new()
+	effects.name = "SeatEffects"
+	effects.cabin = cabin
+	effects.role = cabin.local_role
+	add_child(effects)
 	if _args.has("map-open"):
 		cabin.request_map(true)
+	match _args.get("windshield", ""):
+		"cracked":
+			cabin._rpc_set_windshield(Cabin.Windshield.CRACKED)
+		"removed":
+			cabin._rpc_set_windshield(Cabin.Windshield.REMOVED)
+	if _args.has("dirt"):
+		cabin._rpc_set_dirt(float(_args["dirt"]))
 	_chase = ChaseCamera.new()
 	_chase.name = "ChaseCamera"
 	_chase.target = _car
@@ -147,7 +160,11 @@ func _process(_delta: float) -> void:
 		Cabin.MapState.GONE:
 			lines.append("harita uçtu: yenisi %.0f s sonra" % ceil(cabin.map_cooldown_left))
 		_:
-			lines.append("M map   Q/E windows")
+			lines.append("M map   Q/E windows   F kick windshield   T wipers")
+	lines.append("windshield %s   dirt %.0f%%   exposure D %.2f N %.2f%s" % [
+		Cabin.Windshield.keys()[cabin.windshield].to_lower(), cabin.dirt * 100.0,
+		cabin.exposure[RosterRules.Role.DRIVER], cabin.exposure[RosterRules.Role.NAVIGATOR],
+		"   BAYGIN %.0f s" % ceil(cabin.faint_left[cabin.local_role]) if cabin.is_fainted(cabin.local_role) else ""])
 	if _car.needs_recovery:
 		lines.append("R: recover the car")
 	_info.text = "\n".join(lines)

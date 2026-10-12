@@ -61,6 +61,10 @@ func _physics_process(delta: float) -> void:
 	if car == null or _path.size() < 3 or not car.simulated:
 		return
 	var controls := car.controls
+	var cabin := car.get_node_or_null(^"Cabin") as Cabin
+	if cabin != null and cabin.is_fainted(RosterRules.Role.DRIVER):
+		controls.clear()
+		return
 	var position := car.global_position
 	_advance_index(position)
 	var speed := car.forward_speed

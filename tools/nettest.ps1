@@ -79,6 +79,9 @@ foreach ($i in 0..$Clients) { if ($i -ne 3) { Expect $i "NET recovered car team 
 Expect 1 "NET recovery team 1 closed" "offer closed after the recovery"
 # Damage (spec 8): the rollover lands hard enough for the host to judge it from the snapshots.
 Expect 0 "NET damage team 1 (light|medium|critical)" "host judged damage from the driver's snapshots"
+# Cabin glass (spec 9): the navigator kicks the windshield out at 24 s and every peer sees it.
+Expect 2 "NET kicking the windshield out" "navigator kicked"
+foreach ($i in 0..$Clients) { if ($i -ne 3) { Expect $i "NET windshield removed team 1" "windshield state reached instance $i" } }
 
 if ($failures.Count -eq 0) {
     Write-Host "NET TEST PASSED ($Clients clients, $Seconds s)" -ForegroundColor Green
