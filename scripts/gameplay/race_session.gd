@@ -7,7 +7,14 @@ extends Node3D
 signal local_seat_bound(car: RallyCar, role: int)
 ## Host-validated lap progress of a team (every peer).
 signal progress_changed(team: int, laps: int, next_gate: int)
-signal race_finished(order: Array)
+## The start countdown began (every peer); `seconds` until the cars are released.
+signal countdown_started(seconds: float)
+## The cars were released (every peer).
+signal race_go
+## A team crossed the line for the last time (every peer); `time_ms` is the host's, penalties in.
+signal team_finished(team: int, time_ms: int)
+## The host closed the race: rows from RaceResults.rows() (every peer).
+signal results_ready(rows: Array)
 ## The host opened/updated/closed a team's recovery offer (every peer).
 signal recovery_changed(team: int, offered: bool, confirmed: int, seats: int)
 ## A team's damage changed level (every peer).
@@ -21,6 +28,10 @@ const GRID_ROW := 7.0
 const GRID_LATERAL := 1.6
 const CAN_LIFETIME := 8.0
 const SYNC_NODE := &"NetSync"
+## Spec 3: a short start. The cars hold on the grid while it counts down.
+const COUNTDOWN_SECONDS := 3.0
+## Host: how long to wait for slow loaders before starting without them.
+const LOAD_TIMEOUT := 20.0
 ## Dev: the local driver weaves down the lane at this speed when autodrive is on.
 const AUTODRIVE_SPEED := 10.0
 
@@ -30,6 +41,13 @@ var graph: RouteGraph
 var progress: RaceProgress
 var notes: Array[Dictionary] = []
 var _contour: Image
+## Host: who finished, in what time, with how many recoveries (RaceResults).
+var results := RaceResults.new()
+## Every peer's copy of the final rows once the host publishes them.
+var final_rows: Array = []
+var finished_teams: Dictionary = {}  # team -> time_ms (every peer)
+var countdown_left := 0.0
+var racing := false
 ## Dev only: drive the local car without a human (bot on the route, or a weave on a flat track).
 var autodrive := false
 var local_car: RallyCar
@@ -46,6 +64,10 @@ var _damage_ignore_until: Dictionary = {}  # host: team -> ms; a recovery telepo
 const RECOVERY_DAMAGE_GRACE_MS := 400
 var _next_can_id := 1
 var _autodrive_time := 0.0
+var _begun := false
+var _start_ms := 0  # local clock when the cars were released
+var _results_sent := false
+var _grace_timer: SceneTreeTimer
 
 @onready var _cars: Node3D = $Cars
 @onready var _props: Node3D = $Props
@@ -56,19 +78,63 @@ func _ready() -> void:
 	Voice.set_world(self)
 	if settings.has("seed"):
 		_build_route(int(settings.seed))
+	# Spawn RPCs may only go out once every player has this node (scene changes are deferred, and
+	# building the route takes a moment), so the host waits for everyone to report in.
 	if Net.is_host():
-		_spawn_cars_for_roster()
+		Net.peer_loaded.connect(func(_peer_id: int) -> void: _try_begin())
+		get_tree().create_timer(LOAD_TIMEOUT).timeout.connect(func() -> void:
+			if is_inside_tree() and not _begun:
+				print("NET starting without slow loaders")
+				_begin())
+	Net.report_race_loaded()
+	if Net.is_host():
+		_try_begin()
 
 
-## Builds the same road network on every peer from the seed (the graph is deterministic).
+func difficulty() -> int:
+	return int(settings.get("difficulty", RaceSettings.Difficulty.RALLY))
+
+
+func weather() -> int:
+	return int(settings.get("weather", RaceSettings.Weather.CLEAR))
+
+
+func biome() -> int:
+	return int(settings.get("biome", RaceSettings.Biome.FOREST))
+
+
+func laps_to_finish() -> int:
+	return int(settings.get("laps", 1))
+
+
+## Race time on this peer's clock (the host's is the one that counts for the results).
+func race_time_ms() -> int:
+	return Time.get_ticks_msec() - _start_ms if _start_ms > 0 else 0
+
+
+func _try_begin() -> void:
+	if not _begun and Net.all_players_loaded():
+		_begin()
+
+
+## Host: everyone is here; put the cars on the grid and count down.
+func _begin() -> void:
+	_begun = true
+	_spawn_cars_for_roster()
+	_rpc_countdown.rpc(COUNTDOWN_SECONDS)
+
+
+## Builds the same road network on every peer from the seed (the graph is deterministic), with the
+## room's difficulty, biome and weather applied the same way everywhere.
 func _build_route(seed: int) -> void:
 	var started := Time.get_ticks_msec()
 	graph = RouteGenerator.generate(seed)
+	BiomeRules.apply_to_graph(graph, settings)
 	var terrain := TerrainField.new(seed)
 	terrain.set_roads(graph)
-	var track := RoadBuilder.build(graph, terrain)
+	var track := RoadBuilder.build(graph, terrain, BiomeRules.palette(biome(), weather()))
 	add_child(track)
-	notes = PaceNotes.build(graph)
+	notes = PaceNotes.build(graph, RaceSettings.note_detail(difficulty()))
 	_contour = MapCanvas.contour_for(graph, terrain)
 	if Net.is_host():
 		progress = RaceProgress.new(graph.checkpoints.size(), int(settings.get("laps", 1)))
@@ -98,6 +164,10 @@ func voice_anchor(peer_id: int) -> Node3D:
 
 
 func _physics_process(delta: float) -> void:
+	if countdown_left > 0.0:
+		countdown_left -= delta
+		if countdown_left <= 0.0:
+			_go()
 	if autodrive and graph == null and local_car != null and local_role == RosterRules.Role.DRIVER and local_car.simulated:
 		_autodrive_time += delta
 		local_car.controls.throttle = 0.7 if local_car.forward_speed < AUTODRIVE_SPEED else 0.0
@@ -246,6 +316,7 @@ func _perform_recovery(team: int, rules: RecoveryRules) -> void:
 			heading = Vector3.FORWARD
 		target = Transform3D(Basis.looking_at(heading.normalized(), Vector3.UP), car.global_position + Vector3.UP * 1.0)
 	_recovery_counts[team] = recoveries_used(team) + 1
+	results.add_recovery(team)
 	_damage_ignore_until[team] = Time.get_ticks_msec() + RECOVERY_DAMAGE_GRACE_MS + Net.rtt_ms()
 	var damage := damage_of(team)
 	damage.repair_after_recovery()
@@ -298,6 +369,11 @@ func _spawn_cars_for_roster() -> void:
 		var team := team_list[i]
 		if progress != null:
 			progress.add_team(team)
+		var names: Array = []
+		for peer_id in Net.roster:
+			if Net.roster[peer_id].team == team:
+				names.append(Net.roster[peer_id].name)
+		results.add_team(team, names)
 		_rpc_spawn_car.rpc(team, RosterRules.driver_of(Net.roster, team), _grid_slot(i, team_list.size()))
 
 
@@ -311,14 +387,38 @@ func _grid_slot(row: int, count: int) -> Transform3D:
 
 
 func _on_gate_passed(gate: int, car: RallyCar) -> void:
+	if not racing:
+		return
 	for team in _team_cars:
 		if _team_cars[team] == car:
 			var result := progress.record(team, gate)
 			if result.counted:
+				results.set_progress(team, progress.laps(team), progress.next_gate(team))
 				_rpc_progress.rpc(team, progress.laps(team), progress.next_gate(team))
-			if result.finished and progress.all_finished():
-				_rpc_race_finished.rpc(progress.finish_order())
+			if result.finished:
+				var time_ms := Time.get_ticks_msec() - _start_ms \
+					+ recoveries_used(team) * RaceSettings.recovery_penalty_ms(difficulty())
+				results.finish(team, time_ms)
+				_rpc_team_finished.rpc(team, time_ms)
+				if _grace_timer == null:
+					# The others get a fair while to finish, then the race closes (spec 15).
+					_grace_timer = get_tree().create_timer(RaceResults.GRACE_SECONDS)
+					_grace_timer.timeout.connect(_publish_results)
+				_check_race_over()
 			return
+
+
+## Host: everyone finished or left (or the grace period ran out): publish the results.
+func _check_race_over() -> void:
+	if results.all_done():
+		_publish_results()
+
+
+func _publish_results() -> void:
+	if _results_sent or not is_inside_tree():
+		return
+	_results_sent = true
+	_rpc_results.rpc(results.rows())
 
 
 func _on_player_left(peer_id: int) -> void:
@@ -329,6 +429,9 @@ func _on_player_left(peer_id: int) -> void:
 		if sync.get_multiplayer_authority() == peer_id:
 			# MVP: a team without its driver is out (spec 4.2); the navigator keeps watching.
 			_rpc_despawn_car.rpc(team)
+			results.mark_left(team)
+			if results.finished_count() > 0 or racing:
+				_check_race_over()
 
 
 func _on_throw_approved(side: int, team: int) -> void:
@@ -356,9 +459,43 @@ func _rpc_progress(team: int, laps: int, next_gate: int) -> void:
 
 
 @rpc("authority", "call_local", "reliable")
-func _rpc_race_finished(order: Array) -> void:
+func _rpc_countdown(seconds: float) -> void:
+	countdown_left = seconds
+	for car in _team_cars.values():
+		car.input_locked = true
+	print("NET countdown %.0f s" % seconds)
+	countdown_started.emit(seconds)
+
+
+## Every peer releases the cars when its own countdown ends (same moment within the ping).
+func _go() -> void:
+	countdown_left = 0.0
+	racing = true
+	_start_ms = Time.get_ticks_msec()
+	for team in _team_cars:
+		if not finished_teams.has(team):
+			_team_cars[team].input_locked = false
+	print("NET go")
+	race_go.emit()
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_team_finished(team: int, time_ms: int) -> void:
+	finished_teams[team] = time_ms
+	var car: RallyCar = _team_cars.get(team)
+	if car != null:
+		car.input_locked = true  # rolls to a stop past the line
+	print("NET team %d finished in %s" % [team, RaceResults.format_time(time_ms)])
+	team_finished.emit(team, time_ms)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_results(rows: Array) -> void:
+	final_rows = rows
+	racing = false
+	var order := rows.map(func(row: Dictionary) -> int: return row.team)
 	print("NET race finished, order ", order)
-	race_finished.emit(order)
+	results_ready.emit(rows)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -368,6 +505,8 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	var car: RallyCar = CAR_SCENE.instantiate()
 	car.name = "Car%d" % team
 	car.transform = grid
+	car.input_locked = not racing
+	car.grip_scale = RaceSettings.grip_scale(weather())
 	car.set_multiplayer_authority(driver_peer)
 	var sync := BodyNetSync.new()
 	sync.name = SYNC_NODE
@@ -382,6 +521,7 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	var cabin: Cabin = car.get_node(^"Cabin")
 	cabin.set_multiplayer_authority(1)
 	cabin.team = team
+	cabin.weather_dirt_rate = BiomeRules.weather_dirt_rate(weather())
 	if graph != null:
 		cabin.setup_map(graph, notes, _contour)
 	if Net.is_host():

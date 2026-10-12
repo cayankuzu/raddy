@@ -26,11 +26,15 @@ const SURFACE_COLORS := {
 const VERGE_COLOR := Color("5c6b3c")
 const GROUND_COLOR := Color("4f6136")
 
+static var _palette: Dictionary = {}
+
 
 ## Builds the whole track under one node. `terrain` must be the field for graph.seed.
-static func build(graph: RouteGraph, terrain: TerrainField) -> Node3D:
+## `palette` (optional, from BiomeRules.palette) colours the ground and verges for the biome.
+static func build(graph: RouteGraph, terrain: TerrainField, palette := {}) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Track"
+	_palette = palette
 	root.add_child(_build_terrain(graph, terrain))
 	var roads := Node3D.new()
 	roads.name = "Roads"
@@ -92,7 +96,7 @@ static func _build_terrain(graph: RouteGraph, terrain: TerrainField) -> StaticBo
 
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	surface.set_material(_material(GROUND_COLOR))
+	surface.set_material(_material(_palette.get("ground", GROUND_COLOR)))
 	for z in width:
 		for x in width:
 			var h := heights[z * width + x]
@@ -130,8 +134,8 @@ static func _build_road(graph: RouteGraph, edge: RouteGraph.RouteEdge) -> Static
 	var last := ribbon_end(graph, edge)
 	var road := _ribbon(edge, first, last, -edge.width * 0.5, edge.width * 0.5, ROAD_LIFT, ROAD_LIFT,
 		_material(SURFACE_COLORS.get(edge.surface, SURFACE_COLORS[Surface.GRAVEL])))
-	var verge_left := _ribbon(edge, first, last, -edge.width * 0.5 - VERGE, -edge.width * 0.5, -TerrainField.TRENCH, ROAD_LIFT, _material(VERGE_COLOR))
-	var verge_right := _ribbon(edge, first, last, edge.width * 0.5, edge.width * 0.5 + VERGE, ROAD_LIFT, -TerrainField.TRENCH, _material(VERGE_COLOR))
+	var verge_left := _ribbon(edge, first, last, -edge.width * 0.5 - VERGE, -edge.width * 0.5, -TerrainField.TRENCH, ROAD_LIFT, _material(_palette.get("verge", VERGE_COLOR)))
+	var verge_right := _ribbon(edge, first, last, edge.width * 0.5, edge.width * 0.5 + VERGE, ROAD_LIFT, -TerrainField.TRENCH, _material(_palette.get("verge", VERGE_COLOR)))
 	for mesh in [road, verge_left, verge_right]:
 		var instance := MeshInstance3D.new()
 		instance.mesh = mesh

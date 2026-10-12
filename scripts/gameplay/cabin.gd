@@ -73,6 +73,8 @@ var exposure: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIG
 var fainted: Dictionary = {RosterRules.Role.DRIVER: false, RosterRules.Role.NAVIGATOR: false}
 var faint_left: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIGATOR: 0.0}
 var cans_left := CAN_STOCK
+## Dirt per second from the sky (rain drops, snow), set by the race layer from the weather.
+var weather_dirt_rate := 0.0
 var _rng := RandomNumberGenerator.new()
 var _dirt_sent := 0.0
 var _exposure_sent: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIGATOR: 0.0}
@@ -233,7 +235,7 @@ func _update_cabin_weather(delta: float) -> void:
 	var surface := car.wheel_surface(0)
 	# Dirt builds up on the glass by surface and speed; wipers clear it (spec §9.1).
 	if windshield != Windshield.REMOVED:
-		dirt += Surface.dirt_rate(surface) * (speed / 20.0) * delta
+		dirt += (Surface.dirt_rate(surface) * (speed / 20.0) + weather_dirt_rate) * delta
 	if wipers_on:
 		dirt -= WIPER_CLEAR_RATE * delta
 	dirt = clampf(dirt, 0.0, 1.0)

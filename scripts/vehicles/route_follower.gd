@@ -65,6 +65,12 @@ func _physics_process(delta: float) -> void:
 	if cabin != null and cabin.is_fainted(RosterRules.Role.DRIVER):
 		controls.clear()
 		return
+	if car.input_locked:
+		_stuck_time = 0.0
+		_reverse_left = 0.0
+		controls.throttle = 1.0  # revving on the grid; the car holds still until it is released
+		controls.brake = 0.0
+		return
 	var position := car.global_position
 	_advance_index(position)
 	var speed := car.forward_speed

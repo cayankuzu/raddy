@@ -21,6 +21,11 @@ const GRIP_SCALE := {Weather.CLEAR: 1.0, Weather.RAIN: 0.8, Weather.FOG: 1.0, We
 ## Fog density for the environment: how far you see.
 const FOG_DENSITY := {Weather.CLEAR: 0.0015, Weather.RAIN: 0.004, Weather.FOG: 0.02, Weather.SNOW: 0.008, Weather.DUST_STORM: 0.014}
 
+## Road width multiplier: Explore is wider, Redline narrower and more technical.
+const WIDTH_SCALE := {Difficulty.EXPLORE: 1.2, Difficulty.RALLY: 1.0, Difficulty.REDLINE: 0.85}
+## Time added to a team's result per recovery (spec 16.3: small, testable, not punishing).
+const RECOVERY_PENALTY_MS := {Difficulty.EXPLORE: 0, Difficulty.RALLY: 3000, Difficulty.REDLINE: 6000}
+
 const DIFFICULTY_KEYS := ["DIFFICULTY_EXPLORE", "DIFFICULTY_RALLY", "DIFFICULTY_REDLINE"]
 const BIOME_KEYS := ["BIOME_FOREST", "BIOME_DESERT", "BIOME_MOUNTAIN"]
 const WEATHER_KEYS := ["WEATHER_CLEAR", "WEATHER_RAIN", "WEATHER_FOG", "WEATHER_SNOW", "WEATHER_DUST_STORM"]
@@ -63,6 +68,23 @@ static func is_resolved(settings: Dictionary) -> bool:
 		if int(settings.get(key, RANDOM)) == RANDOM:
 			return false
 	return true
+
+
+static func width_scale(difficulty: int) -> float:
+	return WIDTH_SCALE.get(difficulty, 1.0)
+
+
+static func recovery_penalty_ms(difficulty: int) -> int:
+	return RECOVERY_PENALTY_MS.get(difficulty, 3000)
+
+
+static func note_detail(difficulty: int) -> int:
+	match difficulty:
+		Difficulty.EXPLORE:
+			return PaceNotes.DETAIL_FULL
+		Difficulty.REDLINE:
+			return PaceNotes.DETAIL_SUMMARY
+	return PaceNotes.DETAIL_STANDARD
 
 
 static func grip_scale(weather: int) -> float:

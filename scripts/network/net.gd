@@ -9,6 +9,12 @@ signal join_rejected(reason: String)
 signal roster_changed
 signal player_left(peer_id: int)
 signal race_started(settings: Dictionary)
+## The host ended the race; everyone goes back to the room.
+signal race_ended
+## The host changed the race choices in the room (every peer).
+signal lobby_settings_changed
+## Host: a player finished loading the race scene (see report_race_loaded).
+signal peer_loaded(peer_id: int)
 
 const PROTOCOL_VERSION := 1
 const DEFAULT_PORT := 7777
@@ -20,6 +26,13 @@ var roster: Dictionary = {}
 var local_name := "Player"
 var race_settings: Dictionary = {}
 var race_running := false
+## The host's choices in the room, Random allowed (RaceSettings); resolved at the start.
+var lobby_settings: Dictionary = RaceSettings.defaults()
+## Host: players whose race scene is ready for the spawn RPCs (peer id -> true).
+var loaded_peers: Dictionary = {}
+## Host: UPnP port mapping for internet play (null for local-only hosts).
+var port_opener: PortOpener
+var host_port := DEFAULT_PORT
 
 var _peer: ENetMultiplayerPeer
 var _active := false
@@ -79,10 +92,15 @@ func host(port := DEFAULT_PORT, as_player := true, bind_ip := "*") -> Error:
 	_active = true
 	_as_host = true
 	_joined = true
+	host_port = port
 	roster.clear()
 	race_running = false
+	lobby_settings = RaceSettings.defaults()
 	if as_player:
 		roster[1] = _new_entry(local_name)
+	if bind_ip != "127.0.0.1":
+		port_opener = PortOpener.new()
+		port_opener.start(port)
 	session_started.emit(true)
 	roster_changed.emit()
 	return OK
@@ -127,11 +145,12 @@ func set_ready(ready: bool) -> void:
 		_rpc_set_ready.rpc_id(1, ready)
 
 
-## Host only. Empty string on success, otherwise why the race cannot start.
-func start_race(settings: Dictionary) -> String:
+## Host only. Empty string on success, otherwise why the race cannot start. `restart` starts
+## a new race straight from a finished one (rematch / new route) without the room in between.
+func start_race(settings: Dictionary, restart := false) -> String:
 	if not is_host():
 		return "not_host"
-	if race_running:
+	if race_running and not restart:
 		return "already_running"
 	var reason := RosterRules.can_start(roster)
 	if reason != "":
@@ -139,6 +158,42 @@ func start_race(settings: Dictionary) -> String:
 	_peer.refuse_new_connections = true
 	_rpc_race_started.rpc(settings)
 	return ""
+
+
+## Host only: back to the room (players unready, new players may join again).
+func end_race() -> void:
+	if not is_host() or not race_running:
+		return
+	for peer_id in roster:
+		roster[peer_id].ready = false
+	_peer.refuse_new_connections = false
+	_rpc_race_ended.rpc()
+	_broadcast_roster()
+
+
+## Host only: the room's race choices; every peer gets them (and late joiners on joining).
+func set_lobby_settings(choices: Dictionary) -> void:
+	if not is_host() or race_running:
+		return
+	_rpc_lobby_settings.rpc(choices)
+
+
+## Every player calls this once its race scene can receive the spawn RPCs.
+func report_race_loaded() -> void:
+	if not _active:
+		return
+	if _as_host:
+		_mark_loaded(1)
+	else:
+		_rpc_race_loaded.rpc_id(1)
+
+
+## Host: true when every seated player has loaded the race scene.
+func all_players_loaded() -> bool:
+	for peer_id in roster:
+		if not loaded_peers.has(peer_id):
+			return false
+	return true
 
 
 # --- host side ---
@@ -177,6 +232,7 @@ func _rpc_request_join(player_name: String, version: int) -> void:
 		return
 	roster[id] = _new_entry(player_name)
 	_broadcast_roster()
+	_rpc_lobby_settings.rpc_id(id, lobby_settings)
 
 
 func _kick(id: int) -> void:
@@ -194,6 +250,19 @@ func _rpc_request_seat(team: int, role: int) -> void:
 func _rpc_set_ready(ready: bool) -> void:
 	if multiplayer.is_server():
 		_apply_ready(multiplayer.get_remote_sender_id(), ready)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_race_loaded() -> void:
+	if multiplayer.is_server():
+		_mark_loaded(multiplayer.get_remote_sender_id())
+
+
+func _mark_loaded(peer_id: int) -> void:
+	if not race_running or loaded_peers.has(peer_id):
+		return
+	loaded_peers[peer_id] = true
+	peer_loaded.emit(peer_id)
 
 
 func _apply_seat(peer_id: int, team: int, role: int) -> void:
@@ -244,7 +313,21 @@ func _rpc_join_rejected(reason: String) -> void:
 func _rpc_race_started(settings: Dictionary) -> void:
 	race_settings = settings
 	race_running = true
+	loaded_peers.clear()
 	race_started.emit(settings)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_race_ended() -> void:
+	race_running = false
+	loaded_peers.clear()
+	race_ended.emit()
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_lobby_settings(choices: Dictionary) -> void:
+	lobby_settings = choices
+	lobby_settings_changed.emit()
 
 
 func _end_session(reason: String) -> void:
@@ -254,6 +337,10 @@ func _end_session(reason: String) -> void:
 	_as_host = false
 	_joined = false
 	race_running = false
+	loaded_peers.clear()
+	if port_opener != null:
+		port_opener.close()
+		port_opener = null
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	if _peer != null:
 		_peer.close()

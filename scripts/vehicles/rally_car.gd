@@ -35,6 +35,10 @@ var needs_recovery := false
 ## engine_scale, top_speed_scale, steer_pull (-1..1 of steer, toward the damaged side).
 var damage_effects: Dictionary = {"engine_scale": 1.0, "top_speed_scale": 1.0, "steer_pull": 0.0}
 var damage_level := 0
+## Weather grip multiplier on every surface (RaceSettings.grip_scale), set by the race layer.
+var grip_scale := 1.0
+## True on the grid and after finishing: the car holds still whatever the controls say.
+var input_locked := false
 ## Distance between the front and rear axles, from the wheel mounts.
 var wheelbase := 2.5
 ## False on peers that only play back the driver's snapshots (see BodyNetSync): the body is a
@@ -323,6 +327,10 @@ func _update_steering(dt: float) -> void:
 
 
 func _update_drivetrain() -> void:
+	if input_locked:
+		_brake_input = 1.0
+		_drive = 0.0
+		return
 	_brake_input = clampf(controls.brake, 0.0, 1.0)
 	var throttle := clampf(controls.throttle, 0.0, 1.0)
 	if throttle > 0.0:
@@ -389,7 +397,7 @@ func _apply_tire_force(state: PhysicsDirectBodyState3D, wheel: CarWheel, offset:
 	var hold := clampf(1.0 - velocity.length() / HOLD_SPEED, 0.0, 1.0)
 	var gravity := state.total_gravity
 
-	var grip := config.tire_grip * Surface.grip(wheel.surface) * load
+	var grip := config.tire_grip * Surface.grip(wheel.surface) * grip_scale * load
 	var lateral_grip := grip
 	var front_share := config.front_drive_share if wheel.is_front else 1.0 - config.front_drive_share
 	var f_long := _drive * front_share * 0.5
@@ -476,6 +484,12 @@ func _detect_impact(state: PhysicsDirectBodyState3D, dt: float) -> void:
 ## can let go of the pedals to confirm.
 func _update_recovery(state: PhysicsDirectBodyState3D, dt: float) -> void:
 	var origin := state.transform.origin
+	if input_locked:
+		# Held on the grid (or past the finish): pressing the pedals there is not being stuck.
+		_stuck_time = 0.0
+		_stuck_origin = origin
+		_set_needs_recovery(false)
+		return
 	var moved := state.linear_velocity.length() >= config.recovery_max_speed \
 		or origin.distance_to(_stuck_origin) > UNSTUCK_DISTANCE
 	if moved:

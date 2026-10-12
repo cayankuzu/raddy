@@ -6,16 +6,24 @@ class_name PaceNotes
 ## Each note: {"node": id, "number": n, "position": Vector2, "lap_fraction": 0..1,
 ##   "exit": "left"|"right"|"straight", "turn": "slight"|"medium"|"sharp",
 ##   "branch": {"side": "left"|"right", "kind": EdgeKind, "joins": bool} or {},
-##   "tr": "...", "en": "..."}
+##   "gap": metres from the previous junction (or the start), "tr": "...", "en": "..."}
+##
+## `detail` follows the difficulty (spec 14.4): 2 = Explore (adds how far the junction is),
+## 1 = Rally (side, turn and what the branch is), 0 = Redline (only where the main road goes and
+## on which side a road branches off). Never wrong, only less said.
 
 const SLIGHT := deg_to_rad(22.0)
 const SHARP := deg_to_rad(58.0)
+const DETAIL_SUMMARY := 0
+const DETAIL_STANDARD := 1
+const DETAIL_FULL := 2
 
 
-static func build(graph: RouteGraph) -> Array[Dictionary]:
+static func build(graph: RouteGraph, detail := DETAIL_STANDARD) -> Array[Dictionary]:
 	var notes: Array[Dictionary] = []
 	var lap := graph.main_route_length()
 	var travelled := 0.0
+	var last_junction_at := 0.0
 	for i in graph.main_route.size():
 		var edge := graph.edges[graph.main_route[i]]
 		travelled += edge.length
@@ -33,15 +41,17 @@ static func build(graph: RouteGraph) -> Array[Dictionary]:
 			"exit": _side(arrival, main_exit),
 			"turn": _turn(arrival, main_exit),
 			"branch": {},
+			"gap": travelled - last_junction_at,
 		}
+		last_junction_at = travelled
 		for edge_id in node.edge_ids:
 			var other := graph.edges[edge_id]
 			if other.id == edge.id or other.id == next_edge.id:
 				continue
 			var away := _direction_away(other, node.id)
 			note.branch = {"side": _side(arrival, away), "kind": other.kind, "joins": other.to_node == node.id}
-		note.tr = _text(note, "tr")
-		note.en = _text(note, "en")
+		note.tr = _text(note, "tr", detail)
+		note.en = _text(note, "en", detail)
 		notes.append(note)
 	return notes
 
@@ -78,7 +88,25 @@ static func _turn(arrival: Vector2, exit: Vector2) -> String:
 	return "sharp" if angle > SHARP else "medium"
 
 
-static func _text(note: Dictionary, lang: String) -> String:
+static func _text(note: Dictionary, lang: String, detail := DETAIL_STANDARD) -> String:
+	var text := _standard_text(note, lang)
+	var tr_mode := lang == "tr"
+	if detail == DETAIL_SUMMARY:
+		var cut := text.find(";")
+		var head := text.substr(0, cut) if cut >= 0 else text
+		var branch: Dictionary = note.branch
+		if branch.is_empty():
+			return head
+		if tr_mode:
+			return head + "; %s yan yol" % ("solda" if branch.side == "left" else ("sağda" if branch.side == "right" else "düzde"))
+		return head + "; side road %s" % ("on the left" if branch.side == "left" else ("on the right" if branch.side == "right" else "ahead"))
+	if detail == DETAIL_FULL:
+		var metres := int(roundf(float(note.get("gap", 0.0)) / 10.0) * 10.0)
+		return text + (" (%d m sonra)" % metres if tr_mode else " (in %d m)" % metres)
+	return text
+
+
+static func _standard_text(note: Dictionary, lang: String) -> String:
 	var tr_mode := lang == "tr"
 	var head := "K%d: " % note.number if tr_mode else "J%d: " % note.number
 	var main := ""
