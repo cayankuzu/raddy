@@ -71,5 +71,17 @@ func height(p: Vector2) -> float:
 	return lerpf(best_height - TRENCH, natural, smoothstep(0.0, 1.0, t))
 
 
+## Distance from `p` to the nearest road edge (negative on a road), or INF when no road is within
+## about 20 m. Used to keep roadside props off every road, not just the one they line.
+func distance_to_road(p: Vector2) -> float:
+	var best := INF
+	var cell := _cell(p)
+	for dx in range(-2, 3):
+		for dz in range(-2, 3):
+			for sample in _road_cells.get(Vector2i(cell.x + dx, cell.y + dz), []):
+				best = minf(best, (sample[0] as Vector2).distance_to(p) - sample[2])
+	return best
+
+
 func _cell(p: Vector2) -> Vector2i:
 	return Vector2i(floori(p.x / HASH_CELL), floori(p.y / HASH_CELL))

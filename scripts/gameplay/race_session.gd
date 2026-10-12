@@ -133,6 +133,7 @@ func _build_route(seed: int) -> void:
 	var terrain := TerrainField.new(seed)
 	terrain.set_roads(graph)
 	var track := RoadBuilder.build(graph, terrain, BiomeRules.palette(biome(), weather()))
+	track.add_child(RoadsideDresser.dress(graph, terrain, biome()))
 	add_child(track)
 	notes = PaceNotes.build(graph, RaceSettings.note_detail(difficulty()))
 	_contour = MapCanvas.contour_for(graph, terrain)

@@ -50,6 +50,7 @@ func _ready() -> void:
 	var terrain := TerrainField.new(seed)
 	terrain.set_roads(graph)
 	var track := RoadBuilder.build(graph, terrain, palette)
+	track.add_child(RoadsideDresser.dress(graph, terrain, settings.biome))
 	add_child(track)
 	for gate in track.get_node(^"Checkpoints").get_children():
 		(gate as Checkpoint).passed.connect(_on_checkpoint_passed)
