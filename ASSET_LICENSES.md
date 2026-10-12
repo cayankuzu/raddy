@@ -14,7 +14,7 @@ in step with `assets/`: add a row when an asset is added, remove it when the ass
 ## Textures (Poly Haven, CC0 1.0)
 Poly Haven assets are CC0 (public domain dedication, https://polyhaven.com/license); no credit
 is required, it is given anyway. Files: `assets/textures/<id>/<id>_{diff,nor_gl,arm}_1k.jpg`
-(diffuse, OpenGL normal, AO/roughness/metal), downloaded through the official API.
+(diffuse, OpenGL normal, AO/roughness/metal), downloaded with `tools/fetch_polyhaven.py`.
 
 | Asset | Author(s) | Used for | Page |
 |---|---|---|---|
@@ -30,6 +30,37 @@ is required, it is given anyway. Files: `assets/textures/<id>/<id>_{diff,nor_gl,
 | Rocky Terrain 02 | Amal Kumar | mountain ground | https://polyhaven.com/a/rocky_terrain_02 |
 | Gravel Ground 01 | Rob Tuytel | mountain ground (second layer) | https://polyhaven.com/a/gravel_ground_01 |
 | Rock Face 03 | Dario Barresi, Rico Cilliers | rock on steep slopes | https://polyhaven.com/a/rock_face_03 |
+
+## Models (Poly Haven, CC0 1.0)
+glTF with 1k textures in `assets/models/<id>/`, downloaded with `tools/fetch_polyhaven.py`.
+
+| Asset | Author(s) | Used for | Page |
+|---|---|---|---|
+| Shrub 03 | Rico Cilliers | forest/mountain bushes | https://polyhaven.com/a/shrub_03 |
+| Fern 02 | Rob Tuytel, Rico Cilliers | forest ferns | https://polyhaven.com/a/fern_02 |
+| Dry Branches Medium 01 | Rico Cilliers | fallen branches | https://polyhaven.com/a/dry_branches_medium_01 |
+| Tree Stump 01 | Rob Tuytel | forest stumps (collide) | https://polyhaven.com/a/tree_stump_01 |
+| Boulder 01 | Rico Cilliers | boulders (collide) | https://polyhaven.com/a/boulder_01 |
+| Namaqualand Boulder 04 | Jenelle van Heerden | desert boulders (collide) | https://polyhaven.com/a/namaqualand_boulder_04 |
+| Namaqualand Boulders 01 | Greg Zaal, Jenelle van Heerden | stone scatter | https://polyhaven.com/a/namaqualand_boulders_01 |
+| Rock 07 | Jenelle van Heerden | pebbles | https://polyhaven.com/a/rock_07 |
+| Rock Face 01 | Dario Barresi | rock outcrops (collide) | https://polyhaven.com/a/rock_face_01 |
+| Dead Quiver Trunk | James Ray Cock, Dario Barresi, Rico Cilliers | desert dead trees (collide) | https://polyhaven.com/a/dead_quiver_trunk |
+| Crystalline Iceplant | James Ray Cock, Jenelle van Heerden | desert ground plants | https://polyhaven.com/a/crystalline_iceplant |
+| Wild Rooibos Bush | James Ray Cock, Jenelle van Heerden | desert bushes | https://polyhaven.com/a/wild_rooibos_bush |
+| Old Tyre | MP | race furniture (tyre stacks) | https://polyhaven.com/a/old_tyre |
+| Concrete Road Barrier 02 | Amal Kumar | race furniture (barriers) | https://polyhaven.com/a/concrete_road_barrier_02 |
+| Wooden Picnic Table | Ulan Cabanilla | spectator areas | https://polyhaven.com/a/wooden_picnic_table |
+| Painted Wooden Bench | Kirill Sannikov | spectator areas | https://polyhaven.com/a/painted_wooden_bench |
+
+## Foliage atlases (ambientCG, CC0 1.0)
+ambientCG assets are CC0 (https://ambientcg.com/license). Colour and opacity are merged into
+`<id>_albedo.png`; downloaded with `tools/fetch_ambientcg.py`.
+
+| Asset | Used for | Page |
+|---|---|---|
+| Foliage 008 (grass blades) | grass clumps | https://ambientcg.com/view?id=Foliage008 |
+| Foliage 002 (dry grass) | dry grass in desert and mountains | https://ambientcg.com/view?id=Foliage002 |
 
 ## Generated in the project
 Terrain, road ribbons, junction pads, the paper map drawing, particle puffs and the noise used for

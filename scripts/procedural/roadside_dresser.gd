@@ -33,8 +33,11 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 	# (the dummy renderer stores no instance buffers), and gameplay may want them later.
 	var placements: Dictionary = {}
 
+	var expanded: Array = []
 	for entry in entries:
-		var parts := _parts_of(entry)
+		expanded.append_array(_expand_variants(entry))
+	for entry in expanded:
+		var parts: Array = entry.get("_parts", [])
 		if parts.is_empty():
 			continue
 		var chunks: Dictionary = {}  # Vector2i -> Array[Transform3D]
@@ -95,6 +98,30 @@ static func _try_place(entry: Dictionary, graph: RouteGraph, terrain: TerrainFie
 	if tilt > 0.0:
 		basis = Basis(Vector3(rng.randf() - 0.5, 0.0, rng.randf() - 0.5).normalized(), rng.randf() * deg_to_rad(tilt)) * basis
 	return Transform3D(basis, Vector3(p.x, y, p.y))
+
+
+## Scan files often hold several variants side by side (four ferns, five bushes). With
+## "variants": true every mesh becomes its own entry, re-centred so its footprint centre sits on
+## the origin and its lowest point on the ground; the density is shared between them.
+static func _expand_variants(entry: Dictionary) -> Array:
+	var parts := _parts_of(entry)
+	if parts.is_empty():
+		return []
+	if not entry.get("variants", false) or parts.size() < 2:
+		var whole := entry.duplicate()
+		whole._parts = parts
+		return [whole]
+	var out: Array = []
+	for n in parts.size():
+		var part: Dictionary = parts[n]
+		var box: AABB = part.transform * (part.mesh as Mesh).get_aabb()
+		var recentre := Transform3D(Basis.IDENTITY, -Vector3(box.get_center().x, box.position.y, box.get_center().z))
+		var variant := entry.duplicate()
+		variant.id = "%s_v%d" % [entry.id, n]
+		variant.density = float(entry.get("density", 1.0)) / parts.size()
+		variant._parts = [{"mesh": part.mesh, "transform": recentre * part.transform, "material": part.material}]
+		out.append(variant)
+	return out
 
 
 ## The meshes of an entry with their local transforms and materials: from a scene file (every
