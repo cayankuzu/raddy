@@ -8,7 +8,8 @@ extends Node3D
 ##   --local       bind the host to 127.0.0.1 (no firewall prompt)
 ##   --autodrive   the local driver drives a circle
 ##   --test-script scripted actions: instance 2 opens a window and throws at 5-6 s,
-##                 instance 3 leaves at 12 s
+##                 instance 3 leaves at 12 s, instance 1 rolls its car at 13 s and both team-1
+##                 seats confirm the recovery 1 s after the host offers it
 ##   --quit-after-seconds=N
 
 const SESSION_SCENE := preload("res://scenes/game/race_session.tscn")
@@ -32,6 +33,7 @@ var _elapsed := 0.0
 func _ready() -> void:
 	_args = _parse_args(OS.get_cmdline_user_args())
 	_instance = int(_args.get("instance", "0"))
+	print("NET boot wall=%.1f" % (Time.get_ticks_msec() / 1000.0))
 	_port = int(_args.get("port", str(Net.DEFAULT_PORT)))
 	Net.local_name = _args.get("name", "P%d" % _instance)
 	Net.session_started.connect(_on_session_started)
@@ -100,10 +102,11 @@ func _on_roster_changed() -> void:
 
 
 func _on_race_started(settings: Dictionary) -> void:
-	print("NET race started: ", settings)
+	print("NET race started: %s wall=%.1f" % [settings, Time.get_ticks_msec() / 1000.0])
 	_session = SESSION_SCENE.instantiate()
 	_session.name = "RaceSession"
 	_session.settings = settings
+	_session.recovery_changed.connect(_on_recovery_changed)
 	_session.autodrive = _args.has("autodrive")
 	if settings.has("seed"):
 		_world.get_node(^"Track").free()  # the session builds the procedural route instead
@@ -114,10 +117,16 @@ func _on_race_started(settings: Dictionary) -> void:
 
 func _run_test_script() -> void:
 	match _instance:
-		1:  # driver of team 1 talks (a fake tone, no microphone needed) from 8 s to 11 s
+		1:  # driver of team 1 talks (a fake tone, no microphone needed) from 8 s to 11 s,
+			# then rolls the car onto its roof at 13 s so the team has to recover it
 			get_tree().create_timer(8.0).timeout.connect(func() -> void:
 				print("VOICE fake transmit start")
 				Voice.start_fake_transmit(3.0))
+			get_tree().create_timer(13.0).timeout.connect(func() -> void:
+				if _session != null and _session.local_car != null:
+					var car := _session.local_car
+					print("NET rolling the car over on purpose")
+					car.reset_to(Transform3D(car.global_basis.rotated(car.global_basis.z, PI), car.global_position + Vector3.UP * 1.2)))
 		2:  # navigator of team 1
 			get_tree().create_timer(5.0).timeout.connect(func() -> void: _cabin_action(Cabin.Side.RIGHT, true, false))
 			get_tree().create_timer(6.0).timeout.connect(func() -> void: _cabin_action(Cabin.Side.RIGHT, true, true))
@@ -126,6 +135,18 @@ func _run_test_script() -> void:
 				print("NET leaving on purpose")
 				Net.leave()
 				_quit())
+
+
+func _on_recovery_changed(team: int, offered: bool, _confirmed: int, _seats: int) -> void:
+	if not _args.has("test-script") or not offered or _session == null:
+		return
+	var me := Net.local_entry()
+	if me.get("team", 0) != team or me.get("role", RosterRules.Role.NONE) == RosterRules.Role.NONE:
+		return
+	get_tree().create_timer(1.0).timeout.connect(func() -> void:
+		if _session != null and _session.recovery_offered(team):
+			print("NET confirming recovery")
+			_session.request_recovery(true))
 
 
 func _cabin_action(side: int, open: bool, throw: bool) -> void:
@@ -170,6 +191,9 @@ func _process(_delta: float) -> void:
 	if _session != null and _session.local_car != null:
 		lines.append("%3d km/h   Q/E windows   LMB throw   V talk" % roundi(absf(_session.local_car.forward_speed) * 3.6))
 		lines.append("seed %s   laps %d" % [str(_session.settings.get("seed", "-")), int(_session.settings.get("laps", 1))])
+		var team: int = me.get("team", 0)
+		if _session.recovery_offered(team):
+			lines.append("R — Aracı Kurtar   %d/%d onaylandı" % [_session.recovery_confirmed(team), _session.recovery_seats(team)])
 	for peer_id in Net.roster:
 		if Voice.is_speaking(peer_id):
 			lines.append("%s konuşuyor" % Net.roster[peer_id].name)

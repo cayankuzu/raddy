@@ -81,6 +81,10 @@ No Blender; model in Godot only as a last resort.
 - `RaceSession` (node path must match on all peers): host spawns `Cars/Car<team>` and `Props/Can<id>` via
   `authority call_local reliable` RPCs; each peer binds its own seat (camera + `PlayerCarInput`/`CabinInput`).
   `Cabin` (authority 1) owns window state and can stock; seat holders ask, host validates against the roster.
+- Recovery (spec §16): `RallyCar.needs_recovery` rides in the snapshot extras; the host runs `RecoveryRules`
+  per team (3 s stuck → offer, confirmations with an 8 s window, 1 seat = hold R), picks the spot with
+  `RecoveryAnchor.find(graph, position, next_gate)` and sends `_rpc_recover_car`; the simulating peer applies
+  `reset_to`. `PlayerCarInput.local_recovery` and `RouteFollower.self_recover` are false inside a session.
 - Dev bootstrap `scenes/dev/net_test.tscn` takes `--role --port --host --players --as-player --local
   --autodrive --test-script --quit-after-seconds`; without `--instance` it takes the first free seat.
 - `Voice` autoload (scripts/audio): `VoiceCapture` (AudioServer input API, 48 kHz → 16 kHz mono) → mu-law
@@ -131,6 +135,10 @@ No Blender; model in Godot only as a last resort.
 - If every Godot run suddenly takes 20 s+ to start (nettest timings slip, `--quit-after 5` takes 19 s), check
   for a leftover `chrome-headless-shell.exe` (Playwright, under `%LOCALAPPDATA%\ms-playwright`) rendering WebGL
   in software: a Sketchfab tab left in the built-in browser ate 65% of the CPU once. Kill its process tree.
+- Game start is dominated by GDScript compilation (~35 scripts, 3-10 s on this laptop while other apps
+  load the CPU; `net_test.tscn` prints `NET boot wall=`). Four instances booting at once take 20-30 s, so
+  `tools
+ettest.ps1` budgets 40 s and times its scripted actions from race start, not from launch.
 - With the editor open, games launched by `tools\launch.ps1` make Beckett log "rejected a peer with a
   missing/invalid handshake token" once per connection attempt (the stub dials the editor's runtime port).
   Harmless; clear the editor Output panel when it gets slow.

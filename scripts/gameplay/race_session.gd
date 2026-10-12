@@ -8,6 +8,8 @@ signal local_seat_bound(car: RallyCar, role: int)
 ## Host-validated lap progress of a team (every peer).
 signal progress_changed(team: int, laps: int, next_gate: int)
 signal race_finished(order: Array)
+## The host opened/updated/closed a team's recovery offer (every peer).
+signal recovery_changed(team: int, offered: bool, confirmed: int, seats: int)
 
 const CAR_SCENE := preload("res://scenes/vehicles/rally_car.tscn")
 const CAN_SCENE := preload("res://scenes/props/energy_can.tscn")
@@ -32,6 +34,9 @@ var local_car: RallyCar
 var local_role := RosterRules.Role.NONE
 
 var _team_cars: Dictionary = {}  # team -> RallyCar
+var _recovery_rules: Dictionary = {}  # host: team -> RecoveryRules
+var _recovery_offers: Dictionary = {}  # team -> {offered, confirmed, seats, peers}
+var _recovery_counts: Dictionary = {}  # team -> recoveries used (host)
 var _next_can_id := 1
 var _autodrive_time := 0.0
 
@@ -90,6 +95,124 @@ func _physics_process(delta: float) -> void:
 		_autodrive_time += delta
 		local_car.controls.throttle = 0.7 if local_car.forward_speed < AUTODRIVE_SPEED else 0.0
 		local_car.controls.steer = 0.15 * sin(_autodrive_time)
+	if Net.is_host():
+		_judge_recoveries(delta)
+
+
+# --- recovery (spec §16): the host judges "stuck", counts confirmations and places the car ---
+
+func recovery_offered(team: int) -> bool:
+	return _recovery_offers.get(team, {}).get("offered", false)
+
+
+func recovery_confirmed(team: int) -> int:
+	return _recovery_offers.get(team, {}).get("confirmed", 0)
+
+
+func recovery_seats(team: int) -> int:
+	return _recovery_offers.get(team, {}).get("seats", 1)
+
+
+func recovery_confirmed_by_me(team: int) -> bool:
+	return _recovery_offers.get(team, {}).get("peers", []).has(Net.local_id())
+
+
+func recoveries_used(team: int) -> int:
+	return _recovery_counts.get(team, 0)
+
+
+## The local seat confirms (true) or withdraws (false) the team's recovery.
+func request_recovery(confirm: bool) -> void:
+	if Net.is_host():
+		_handle_recovery_request(Net.local_id(), confirm)
+	else:
+		_rpc_request_recovery.rpc_id(1, confirm)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_request_recovery(confirm: bool) -> void:
+	if Net.is_host():
+		_handle_recovery_request(multiplayer.get_remote_sender_id(), confirm)
+
+
+func _handle_recovery_request(peer_id: int, confirm: bool) -> void:
+	var team: int = Net.roster.get(peer_id, {}).get("team", 0)
+	var rules: RecoveryRules = _recovery_rules.get(team)
+	if rules == null or rules.state != RecoveryRules.State.OFFERED:
+		return
+	if confirm:
+		if rules.confirm(peer_id):
+			_perform_recovery(team, rules)
+			return
+	else:
+		rules.withdraw(peer_id)
+	_broadcast_recovery(team, rules)
+
+
+func _judge_recoveries(delta: float) -> void:
+	for team in _team_cars:
+		var car: RallyCar = _team_cars[team]
+		if not _recovery_rules.has(team):
+			_recovery_rules[team] = RecoveryRules.new()
+		var rules: RecoveryRules = _recovery_rules[team]
+		rules.seats = _team_seats(team)
+		if rules.step(delta, car.needs_recovery, car.global_position):
+			_broadcast_recovery(team, rules)
+
+
+func _team_seats(team: int) -> int:
+	var seats := 0
+	if RosterRules.driver_of(Net.roster, team) != 0:
+		seats += 1
+	if RosterRules.navigator_of(Net.roster, team) != 0:
+		seats += 1
+	return maxi(seats, 1)
+
+
+func _perform_recovery(team: int, rules: RecoveryRules) -> void:
+	rules.begin_recovery()
+	var car: RallyCar = _team_cars[team]
+	var target: Transform3D
+	if graph != null:
+		var spot := RecoveryAnchor.find(graph, car.global_position, progress.next_gate(team) if progress != null else 0)
+		target = spot.transform.translated(Vector3.UP * 0.6)
+	else:
+		var heading := -car.global_basis.z
+		heading.y = 0.0
+		if heading.length_squared() < 0.01:
+			heading = Vector3.FORWARD
+		target = Transform3D(Basis.looking_at(heading.normalized(), Vector3.UP), car.global_position + Vector3.UP * 1.0)
+	_recovery_counts[team] = recoveries_used(team) + 1
+	_rpc_recover_car.rpc(team, target, _recovery_counts[team])
+	_rpc_recovery_offer.rpc(team, false, 0, rules.seats, [])
+	get_tree().create_timer(1.0).timeout.connect(func() -> void:
+		if is_inside_tree() and _recovery_rules.get(team) == rules:
+			rules.finish())
+
+
+func _broadcast_recovery(team: int, rules: RecoveryRules) -> void:
+	var peers: Array = rules.confirmations.keys()
+	_rpc_recovery_offer.rpc(team, rules.state == RecoveryRules.State.OFFERED, rules.confirmed_count(), rules.seats, peers)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_recovery_offer(team: int, offered: bool, confirmed: int, seats: int, peers: Array) -> void:
+	_recovery_offers[team] = {"offered": offered, "confirmed": confirmed, "seats": seats, "peers": peers}
+	print("NET recovery team %d %s %d/%d" % [team, "offered" if offered else "closed", confirmed, seats])
+	recovery_changed.emit(team, offered, confirmed, seats)
+
+
+## Every peer learns the new pose; only the car's simulating peer applies it (the snapshots carry
+## it to the rest), so the whole room sees the same recovery.
+@rpc("authority", "call_local", "reliable")
+func _rpc_recover_car(team: int, target: Transform3D, count: int) -> void:
+	_recovery_counts[team] = count
+	var car: RallyCar = _team_cars.get(team)
+	if car == null:
+		return
+	if car.simulated:
+		car.reset_to(target)
+	print("NET recovered car team %d to %s (recovery %d)" % [team, target.origin.round(), count])
 
 
 func car_of_team(team: int) -> RallyCar:
@@ -243,16 +366,23 @@ func _bind_local_seat(car: RallyCar, role: int) -> void:
 		var driving := PlayerCarInput.new()
 		driving.name = "DriverInput"
 		driving.car = car
+		driving.local_recovery = false
 		driving.process_mode = Node.PROCESS_MODE_DISABLED if autodrive else Node.PROCESS_MODE_INHERIT
 		add_child(driving)
 		if autodrive and graph != null:
 			var bot := RouteFollower.new()
 			bot.name = "RouteFollower"
 			bot.car = car
+			bot.self_recover = false
 			# Teams spread out along the road instead of queueing: the front row is the fastest.
 			bot.top_speed = 22.0 - 2.0 * (_team_cars.size() - 1)
 			bot.set_path(graph.main_route_points())
 			add_child(bot)
+	var recovery := RecoveryInput.new()
+	recovery.name = "RecoveryInput"
+	recovery.session = self
+	recovery.team = Net.local_entry().get("team", 0)
+	add_child(recovery)
 	var cabin_input := CabinInput.new()
 	cabin_input.name = "CabinInput"
 	cabin_input.cabin = car.get_node(^"Cabin")

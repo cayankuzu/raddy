@@ -1,16 +1,18 @@
 # Automated multiplayer check on one PC: a headless host plus N headless clients run
 # scenes/dev/net_test.tscn with scripted actions, then the "NET ..." log lines are checked.
-#   tools\nettest.ps1 [-Clients 3] [-Seconds 22]
+#   tools\nettest.ps1 [-Clients 3] [-Seconds 40]
 # Exit 0 when every check passes, 1 otherwise. Logs: logs\instance_<n>.log.
 param(
     [ValidateRange(2, 6)][int]$Clients = 3,
-    [int]$Seconds = 22
+    [int]$Seconds = 40
 )
 . "$PSScriptRoot\godot.ps1"
 
 $launch = Join-Path $PSScriptRoot "launch.ps1"
 & $launch -Server -Clients $Clients -Headless -Scene "res://scenes/dev/net_test.tscn" `
     -ExtraArgs "--players=$Clients,--autodrive,--local,--test-script,--quit-after-seconds=$Seconds"
+# Four instances compiling their scripts at once can take 20-30 s to boot on this laptop (see
+# CLAUDE.md gotchas); the scripted actions are timed from race start, so only the total must be generous.
 Start-Sleep -Seconds ($Seconds + 8)
 & $launch -Stop | Out-Null
 
@@ -67,6 +69,14 @@ if ($Clients -ge 3) {
     Expect 1 "NET car team 2 removed" "team 2 car removed on instance 1 after its driver left"
     Expect 2 "NET car team 2 removed" "team 2 car removed on instance 2 after its driver left"
 }
+
+# Recovery (spec 16): instance 1 rolls its car at 13 s; the host must offer after 3 s stuck, both
+# team-1 seats confirm (2/2), the host places the car back on the road and everyone applies it.
+Expect 0 "NET recovery team 1 offered 0/2" "host offered the recovery to team 1"
+Expect 0 "NET recovery team 1 offered 1/2" "first confirmation counted"
+foreach ($i in 1, 2) { Expect $i "NET confirming recovery" "seat on instance $i confirmed" }
+foreach ($i in 0..$Clients) { if ($i -ne 3) { Expect $i "NET recovered car team 1 to .* \(recovery 1\)" "recovery applied on instance $i" } }
+Expect 1 "NET recovery team 1 closed" "offer closed after the recovery"
 
 if ($failures.Count -eq 0) {
     Write-Host "NET TEST PASSED ($Clients clients, $Seconds s)" -ForegroundColor Green

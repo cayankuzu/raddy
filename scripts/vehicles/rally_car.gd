@@ -127,11 +127,13 @@ func set_simulated(value: bool) -> void:
 	freeze = not value
 
 
-## Steering and wheel compressions, sent with each network snapshot so remote copies show them.
+## Steering, wheel compressions and the stuck flag, sent with each network snapshot so remote
+## copies show the wheels and the host can judge a recovery request.
 func get_net_extra() -> PackedFloat32Array:
 	var extra := PackedFloat32Array([steer_angle])
 	for wheel in _wheels:
 		extra.append(wheel.compression if wheel.in_contact else 0.0)
+	extra.append(1.0 if needs_recovery else 0.0)
 	return extra
 
 
@@ -146,6 +148,8 @@ func apply_net_extra(extra: PackedFloat32Array, velocity: Vector3) -> void:
 		wheel.compression = extra[1 + i]
 		wheel.in_contact = wheel.compression > 0.001
 		wheel.rolling_speed = forward_speed
+	if extra.size() > 1 + _wheels.size():
+		_set_needs_recovery(extra[1 + _wheels.size()] > 0.5)
 
 
 ## Largest front wheel angle allowed at `speed` m/s: full lock when slow, a few degrees when fast.

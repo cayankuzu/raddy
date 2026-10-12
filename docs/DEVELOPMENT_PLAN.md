@@ -128,3 +128,14 @@ P5 QA and release
 ettest.ps1` still passes; screenshot `reports/screenshots/map_navigator_seed1.png`
   (`route_test.tscn --navigator --map-open --autodrive`). Not yet: paper/ink art pass, biome palettes for the
   map, wind sound, the navigator's hands, difficulty-dependent note detail.
+- 2026-10-12: P2.6 joint R recovery DONE: the driver's car reports "stuck" in its snapshots, the host's
+  `RecoveryRules` confirms it lasted 3 s without the car moving 1.5 m, then opens the offer to the team
+  (`NET recovery team N offered 0/2`); each seat presses R (`RecoveryInput`; a solo driver holds it 0.6 s),
+  a lone confirmation expires after 8 s, moving again closes the offer; at 2/2 the host picks the spot with
+  `RecoveryAnchor` (nearest road point incl. legal alternatives, facing the road's flow, never on or past the
+  next gate, start line as the last resort) and broadcasts it; only the simulating peer teleports, everyone
+  sees the same car. Recoveries per team are counted for the results. 10 unit tests (rules incl. the spec's
+  3 s, anchors) and `tools
+ettest.ps1` (instance 1 rolls its car at 13 s, both seats confirm, host places it
+  back on the road, team continues to the next gate). Not yet: recovery sound/animation + short control lock,
+  HUD prompt in the real HUD (dev HUD only), critical-damage trigger (needs P2.5), debug key in dev builds.

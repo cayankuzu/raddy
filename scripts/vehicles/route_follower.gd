@@ -22,6 +22,8 @@ const STUCK_TIME := 2.0
 
 @export var car: RallyCar
 @export var top_speed := 30.0
+## Off in a race session: the host recovers the car through the team flow.
+@export var self_recover := true
 
 ## Path progress in metres along the loop (wraps every lap) and laps completed.
 var progress := 0.0
@@ -72,9 +74,11 @@ func _physics_process(delta: float) -> void:
 		controls.handbrake = false
 		return
 	if car.needs_recovery:
-		recoveries += 1
-		car.recover_upright()
+		if self_recover:
+			recoveries += 1
+			car.recover_upright()
 		_stuck_time = 0.0
+		controls.clear()
 		return
 	if absf(speed) < STUCK_SPEED:
 		_stuck_time += delta
