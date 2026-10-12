@@ -60,7 +60,7 @@ func _ready() -> void:
 		column.add_child(UiTheme.label(tr("RESULTS_WAITING_HOST"), 18, UiTheme.MUTED))
 	buttons.add_child(UiTheme.button("PAUSE_LEAVE", func() -> void: Net.leave()))
 	print("FLOW results %s" % str(rows.map(func(r: Dictionary) -> String: return "%d:%s" % [r.team, RaceResults.format_time(r.time_ms)])))
-	if Flow.is_flow_test() and Net.is_host():
+	if Flow.is_flow_test() and Net.is_host() and not Flow.args.has("hold-results"):
 		get_tree().create_timer(3.0).timeout.connect(func() -> void: Net.end_race())
 
 

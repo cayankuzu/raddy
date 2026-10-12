@@ -66,6 +66,7 @@ static func apply_to_graph(graph: RouteGraph, settings: Dictionary) -> void:
 
 static func palette(biome: int, weather: int) -> Dictionary:
 	var out: Dictionary = PALETTES.get(biome, PALETTES[RaceSettings.Biome.FOREST]).duplicate()
+	out.biome = biome
 	if weather == RaceSettings.Weather.SNOW:
 		out.merge(SNOW_PALETTE, true)
 	elif weather == RaceSettings.Weather.DUST_STORM:

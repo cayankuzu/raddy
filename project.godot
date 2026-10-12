@@ -164,3 +164,15 @@ common/physics_interpolation=true
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+
+[shader_globals]
+
+wetness={
+"type": "float",
+"value": 0.0
+}
+snow_cover={
+"type": "float",
+"value": 0.0
+}
+

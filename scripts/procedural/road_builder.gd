@@ -1,7 +1,8 @@
 class_name RoadBuilder
 ## Turns a RouteGraph into drivable geometry: a height-map terrain flattened under the roads,
 ## one road ribbon (with verges) per edge, a pad at every junction, and checkpoint gates.
-## Visual assets (trees, rocks, signs) are added on top in the art phase; this is the blocking.
+## Surfaces use the CC0 PBR texture sets through SurfaceMaterials (terrain, road and verge
+## shaders); roadside props are placed by RoadsideDresser.
 ## Winding: a face that points up (seen by cameras above it, hit by wheel rays) goes
 ## origin -> +X -> +Z; trimesh collision is one-sided, so every face here keeps that order.
 
@@ -27,6 +28,7 @@ const VERGE_COLOR := Color("5c6b3c")
 const GROUND_COLOR := Color("4f6136")
 
 static var _palette: Dictionary = {}
+static var _biome := 0
 
 
 ## Builds the whole track under one node. `terrain` must be the field for graph.seed.
@@ -35,6 +37,7 @@ static func build(graph: RouteGraph, terrain: TerrainField, palette := {}) -> No
 	var root := Node3D.new()
 	root.name = "Track"
 	_palette = palette
+	_biome = int(palette.get("biome", RaceSettings.Biome.FOREST))
 	root.add_child(_build_terrain(graph, terrain))
 	var roads := Node3D.new()
 	roads.name = "Roads"
@@ -96,7 +99,7 @@ static func _build_terrain(graph: RouteGraph, terrain: TerrainField) -> StaticBo
 
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	surface.set_material(_material(_palette.get("ground", GROUND_COLOR)))
+	surface.set_material(SurfaceMaterials.terrain(_biome))
 	for z in width:
 		for x in width:
 			var h := heights[z * width + x]
@@ -132,10 +135,13 @@ static func _build_road(graph: RouteGraph, edge: RouteGraph.RouteEdge) -> Static
 	body.set_meta(&"edge_id", edge.id)
 	var first := ribbon_start(graph, edge)
 	var last := ribbon_end(graph, edge)
-	var road := _ribbon(edge, first, last, -edge.width * 0.5, edge.width * 0.5, ROAD_LIFT, ROAD_LIFT,
-		_material(SURFACE_COLORS.get(edge.surface, SURFACE_COLORS[Surface.GRAVEL])))
-	var verge_left := _ribbon(edge, first, last, -edge.width * 0.5 - VERGE, -edge.width * 0.5, -TerrainField.TRENCH, ROAD_LIFT, _material(_palette.get("verge", VERGE_COLOR)))
-	var verge_right := _ribbon(edge, first, last, edge.width * 0.5, edge.width * 0.5 + VERGE, ROAD_LIFT, -TerrainField.TRENCH, _material(_palette.get("verge", VERGE_COLOR)))
+	var half := edge.width * 0.5
+	var road := _ribbon(edge, first, last, -half, half, ROAD_LIFT, ROAD_LIFT,
+		SurfaceMaterials.road(edge.surface), -half, half, true)
+	# Verge UVs count metres outward from the road edge.
+	var verge_material := SurfaceMaterials.verge(edge.surface, _biome)
+	var verge_left := _ribbon(edge, first, last, -half - VERGE, -half, -TerrainField.TRENCH, ROAD_LIFT, verge_material, VERGE, 0.0, false)
+	var verge_right := _ribbon(edge, first, last, half, half + VERGE, ROAD_LIFT, -TerrainField.TRENCH, verge_material, 0.0, VERGE, false)
 	for mesh in [road, verge_left, verge_right]:
 		var instance := MeshInstance3D.new()
 		instance.mesh = mesh
@@ -171,13 +177,15 @@ static func ribbon_end(graph: RouteGraph, edge: RouteGraph.RouteEdge) -> int:
 
 
 ## A strip between two lateral offsets of the edge, from polyline index `first` to `last`,
-## as a triangle list (collision shapes are built from the same mesh).
+## as a triangle list (collision shapes are built from the same mesh). UV is in metres:
+## x = `u_left`..`u_right` across, y = distance along; UV2 = (half road width, ruts on/off).
 static func _ribbon(edge: RouteGraph.RouteEdge, first: int, last: int, left_offset: float, right_offset: float,
-		left_lift: float, right_lift: float, material: Material) -> ArrayMesh:
+		left_lift: float, right_lift: float, material: Material, u_left := 0.0, u_right := 1.0, ruts := false) -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	surface.set_material(material)
 	var along := 0.0
+	var uv2 := Vector2(edge.width * 0.5, 1.0 if ruts else 0.0)
 	for i in range(first, last + 1):
 		if i > first:
 			along += edge.points[i].distance_to(edge.points[i - 1])
@@ -185,10 +193,12 @@ static func _ribbon(edge: RouteGraph.RouteEdge, first: int, last: int, left_offs
 		var right := Vector3(-dir.y, 0.0, dir.x)
 		var center := edge.point_3d(i)
 		surface.set_normal(Vector3.UP)
-		surface.set_uv(Vector2(0.0, along * 0.1))
+		surface.set_uv(Vector2(u_left, along))
+		surface.set_uv2(uv2)
 		surface.add_vertex(center + right * left_offset + Vector3.UP * left_lift)
 		surface.set_normal(Vector3.UP)
-		surface.set_uv(Vector2(1.0, along * 0.1))
+		surface.set_uv(Vector2(u_right, along))
+		surface.set_uv2(uv2)
 		surface.add_vertex(center + right * right_offset + Vector3.UP * right_lift)
 	for section in range(last - first):
 		var l0 := section * 2
@@ -201,6 +211,7 @@ static func _ribbon(edge: RouteGraph.RouteEdge, first: int, last: int, left_offs
 		surface.add_index(r0)
 		surface.add_index(l1)
 		surface.add_index(r1)
+	surface.generate_tangents()
 	return surface.commit()
 
 
@@ -230,16 +241,18 @@ static func _build_pad(graph: RouteGraph, node: RouteGraph.RouteNode) -> StaticB
 
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	surface.set_material(_material(SURFACE_COLORS.get(pad_surface, SURFACE_COLORS[Surface.GRAVEL])))
+	surface.set_material(SurfaceMaterials.road(pad_surface))
+	# Pads use world-space metres for UV and no ruts (cars cross them in every direction).
+	var no_ruts := Vector2(widest * 4.0, 0.0)
 	for i in corners.size():
 		var a := corners[i] + Vector3.UP * PAD_LIFT
 		var b := corners[(i + 1) % corners.size()] + Vector3.UP * PAD_LIFT
-		surface.set_normal(Vector3.UP)
-		surface.add_vertex(middle + Vector3.UP * PAD_LIFT)
-		surface.set_normal(Vector3.UP)
-		surface.add_vertex(a)
-		surface.set_normal(Vector3.UP)
-		surface.add_vertex(b)
+		for vertex in [middle + Vector3.UP * PAD_LIFT, a, b]:
+			surface.set_normal(Vector3.UP)
+			surface.set_uv(Vector2(vertex.x, vertex.z))
+			surface.set_uv2(no_ruts)
+			surface.add_vertex(vertex)
+	surface.generate_tangents()
 	var mesh := surface.commit()
 	var body := StaticBody3D.new()
 	body.name = "Pad%d" % node.id

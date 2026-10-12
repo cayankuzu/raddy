@@ -18,6 +18,7 @@ func _ready() -> void:
 	var biome := int(settings.get("biome", RaceSettings.Biome.FOREST))
 	var weather := int(settings.get("weather", RaceSettings.Weather.CLEAR))
 	_build_environment(BiomeRules.palette(biome, weather), weather)
+	SurfaceMaterials.set_weather(weather)
 
 	session = SESSION_SCENE.instantiate()
 	session.name = "RaceSession"

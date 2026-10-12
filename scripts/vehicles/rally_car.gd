@@ -213,18 +213,35 @@ func _update_dust() -> void:
 		material.initial_velocity_min = 1.0
 		material.initial_velocity_max = 3.0
 		material.gravity = Vector3(0.0, -0.4, 0.0)
-		material.scale_min = 0.4
-		material.scale_max = 1.2
+		material.scale_min = 0.6
+		material.scale_max = 1.4
 		material.color = Color(0.75, 0.68, 0.55, 0.45)
+		# Puffs grow and fade out over their life.
+		var grow := Curve.new()
+		grow.add_point(Vector2(0.0, 0.35))
+		grow.add_point(Vector2(1.0, 1.0))
+		var grow_texture := CurveTexture.new()
+		grow_texture.curve = grow
+		material.scale_curve = grow_texture
+		var fade := Gradient.new()
+		fade.set_color(0, Color(1, 1, 1, 0.0))
+		fade.set_color(1, Color(1, 1, 1, 0.0))
+		fade.add_point(0.12, Color(1, 1, 1, 1.0))
+		var fade_texture := GradientTexture1D.new()
+		fade_texture.gradient = fade
+		material.color_ramp = fade_texture
 		dust.process_material = material
 		var mesh := QuadMesh.new()
-		mesh.size = Vector2(0.9, 0.9)
+		mesh.size = Vector2(1.6, 1.6)
 		var sprite := StandardMaterial3D.new()
-		sprite.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		sprite.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 		sprite.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		sprite.vertex_color_use_as_albedo = true
-		sprite.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		sprite.albedo_color = Color(1, 1, 1, 0.5)
+		sprite.albedo_texture = _soft_puff()
+		sprite.albedo_color = Color(1, 1, 1, 0.55)
+		# Lit, so dust is darker in shade and in bad weather; soft so it does not cut the ground.
+		sprite.proximity_fade_enabled = true
+		sprite.proximity_fade_distance = 0.8
 		mesh.material = sprite
 		dust.draw_pass_1 = mesh
 		add_child(dust)
@@ -245,6 +262,27 @@ func _update_dust() -> void:
 			material.color = Color(0.45, 0.45, 0.42, 0.4)
 		_:
 			material.color = Color(0.75, 0.68, 0.55, 0.45)
+
+
+## A round, soft-edged puff for dust particles, made once.
+static var _puff: Texture2D
+
+
+static func _soft_puff() -> Texture2D:
+	if _puff == null:
+		var gradient := Gradient.new()
+		gradient.set_color(0, Color(1, 1, 1, 1))
+		gradient.set_color(1, Color(1, 1, 1, 0))
+		gradient.add_point(0.45, Color(1, 1, 1, 0.55))
+		var texture := GradientTexture2D.new()
+		texture.gradient = gradient
+		texture.fill = GradientTexture2D.FILL_RADIAL
+		texture.fill_from = Vector2(0.5, 0.5)
+		texture.fill_to = Vector2(1.0, 0.5)
+		texture.width = 64
+		texture.height = 64
+		_puff = texture
+	return _puff
 
 
 ## The race layer applies the host's damage state here: effects for the simulation and a

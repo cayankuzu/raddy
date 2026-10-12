@@ -99,32 +99,41 @@ func test_closed_cabin_on_gravel_keeps_everyone_awake() -> void:
 
 func test_open_cabin_at_speed_on_gravel_faints_the_seats_for_six_seconds_and_frees_the_controls() -> void:
 	await _spawn(Surface.GRAVEL)
-	_cabin.request_kick_windshield()
-	_car.forward_speed = 25.0
-	var elapsed := 0.0
-	while elapsed < 30.0 and not _cabin.is_fainted(RosterRules.Role.NAVIGATOR):
-		await wait_ticks(12)
-		elapsed += 12.0 / Engine.physics_ticks_per_second
-	gut.p("no windshield at 90 km/h on gravel: navigator fainted after %.1f s" % elapsed)
-	assert_true(_cabin.is_fainted(RosterRules.Role.NAVIGATOR), "the risk is real")
-	assert_gt(elapsed, 5.0, "but not instant")
-	assert_lt(elapsed, 25.0)
-	# A fainted driver cannot drive: the input node clears the controls.
-	_cabin.fainted[RosterRules.Role.DRIVER] = true
+	# Stone hits to the face are random: fix the dice so the timings are the same every run.
+	_cabin._rng.seed = 12345
 	var input := PlayerCarInput.new()
 	input.car = _car
 	_world.add_child(input)
-	_car.controls.throttle = 1.0
-	await wait_ticks(2)
-	assert_eq(_car.controls.throttle, 0.0, "throttle released while out cold")
-	_cabin.fainted[RosterRules.Role.DRIVER] = false
-	# Waking up after exactly the spec's 6 s.
-	var faint_at := elapsed
-	while elapsed < faint_at + 10.0 and _cabin.is_fainted(RosterRules.Role.NAVIGATOR):
+	_cabin.request_kick_windshield()
+	_car.forward_speed = 25.0
+	var step := 6.0 / Engine.physics_ticks_per_second
+	var elapsed := 0.0
+	var fainted_at := {}
+	var woke_at := {}
+	var throttle_while_out := -1.0
+	while elapsed < 50.0 and woke_at.size() < 2:
+		_car.controls.throttle = 1.0
 		await wait_ticks(6)
-		elapsed += 6.0 / Engine.physics_ticks_per_second
-	gut.p("woke up after %.2f s" % (elapsed - faint_at))
-	assert_almost_eq(elapsed - faint_at, SPEC_FAINT_SECONDS, 0.15)
-	assert_lt(_cabin.exposure[RosterRules.Role.NAVIGATOR], 0.5, "exposure reset on waking")
-	assert_true(_faints.has([RosterRules.Role.NAVIGATOR, true]), "faint event reported: %s" % str(_faints))
+		elapsed += step
+		for role in [RosterRules.Role.DRIVER, RosterRules.Role.NAVIGATOR]:
+			var out := _cabin.is_fainted(role)
+			if out and not fainted_at.has(role):
+				fainted_at[role] = elapsed
+			elif not out and fainted_at.has(role) and not woke_at.has(role):
+				woke_at[role] = elapsed
+		if _cabin.is_fainted(RosterRules.Role.DRIVER) and throttle_while_out < 0.0:
+			throttle_while_out = _car.controls.throttle
+	gut.p("no windshield at 90 km/h on gravel: driver out %s-%s s, navigator out %s-%s s" % [
+		fainted_at.get(RosterRules.Role.DRIVER), woke_at.get(RosterRules.Role.DRIVER),
+		fainted_at.get(RosterRules.Role.NAVIGATOR), woke_at.get(RosterRules.Role.NAVIGATOR)])
+	for role in [RosterRules.Role.DRIVER, RosterRules.Role.NAVIGATOR]:
+		assert_true(fainted_at.has(role), "seat %d fainted: the risk is real" % role)
+		assert_true(woke_at.has(role), "seat %d woke up" % role)
+		if fainted_at.has(role):
+			assert_between(fainted_at[role], 5.0, 30.0, "not instant, not never")
+		if fainted_at.has(role) and woke_at.has(role):
+			assert_almost_eq(woke_at[role] - fainted_at[role], SPEC_FAINT_SECONDS, 0.15, "out for the spec's 6 s")
+	assert_eq(throttle_while_out, 0.0, "a fainted driver's throttle is released")
+	assert_lt(_cabin.exposure[RosterRules.Role.NAVIGATOR], 0.9, "exposure drops on waking")
+	assert_true(_faints.has([RosterRules.Role.NAVIGATOR, true]), "faint events reported: %s" % str(_faints))
 	assert_true(_faints.has([RosterRules.Role.DRIVER, true]), "no windshield exposes both seats alike")

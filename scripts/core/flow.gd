@@ -11,6 +11,7 @@ extends Node
 ##   --players=N       the host starts once N players are seated and ready
 ##   --seed=N --laps=N --difficulty=0..2 --biome=0..2 --weather=0..4   room choices (host)
 ##   --autodrive       bots drive the local car
+##   --hold-results    stay on the results screen (screenshots)
 ##   --name=X  --port=N  --quit-after-seconds=N
 
 const MAIN_MENU := "res://scenes/ui/main_menu.tscn"

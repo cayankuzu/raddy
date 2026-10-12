@@ -8,6 +8,7 @@ extends Node3D
 ##   --navigator     sit in the navigator's seat (M map, Q/E windows); pair with --autodrive
 ##   --map-open      open the map right away (screenshots)
 ##   --windshield=cracked|removed  --dirt=0.4   start with that glass state (screenshots)
+##   --biome=0..2 --weather=0..4 --difficulty=0..2   race settings (default forest, clear, rally)
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (checkpoints, laps) that tools and tests can read.
 
@@ -34,13 +35,21 @@ var _driver_camera: Camera3D
 func _ready() -> void:
 	_args = _parse_args(OS.get_cmdline_user_args())
 	seed = int(_args.get("seed", "1"))
+	var settings := {"seed": seed, "biome": int(_args.get("biome", "0")), "weather": int(_args.get("weather", "0")),
+		"difficulty": int(_args.get("difficulty", "1"))}
 	graph = RouteGenerator.generate(seed)
+	BiomeRules.apply_to_graph(graph, settings)
+	SurfaceMaterials.set_weather(settings.weather)
+	var palette := BiomeRules.palette(settings.biome, settings.weather)
+	var environment: Environment = ($WorldEnvironment as WorldEnvironment).environment
+	environment.fog_light_color = palette.get("fog", environment.fog_light_color)
+	environment.fog_density = RaceSettings.fog_density(settings.weather)
 	var problems := RouteValidator.validate(graph)
 	print("ROUTE seed %d attempt %d lap %.0f m edges %d checkpoints %d problems %s" % [
 		seed, graph.attempt, graph.main_route_length(), graph.edges.size(), graph.checkpoints.size(), str(problems)])
 	var terrain := TerrainField.new(seed)
 	terrain.set_roads(graph)
-	var track := RoadBuilder.build(graph, terrain)
+	var track := RoadBuilder.build(graph, terrain, palette)
 	add_child(track)
 	for gate in track.get_node(^"Checkpoints").get_children():
 		(gate as Checkpoint).passed.connect(_on_checkpoint_passed)
