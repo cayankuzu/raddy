@@ -124,8 +124,7 @@ P5 QA and release
   speed over 50 km/h while a side window is open, the paper flutters as a warning, then flies out of the open
   window (visible tumbling sheet on every peer) or drops on a hard impact; the replacement is ready after
   exactly 6 s and cannot be opened before. 15 new tests (pace notes, canvas, cabin map rules incl. the spec's
-  6 s), 82 total passing; `tools
-ettest.ps1` still passes; screenshot `reports/screenshots/map_navigator_seed1.png`
+  6 s), 82 total passing; `tools\nettest.ps1` still passes; screenshot `reports/screenshots/map_navigator_seed1.png`
   (`route_test.tscn --navigator --map-open --autodrive`). Not yet: paper/ink art pass, biome palettes for the
   map, wind sound, the navigator's hands, difficulty-dependent note detail.
 - 2026-10-12: P2.6 joint R recovery DONE: the driver's car reports "stuck" in its snapshots, the host's
@@ -135,8 +134,7 @@ ettest.ps1` still passes; screenshot `reports/screenshots/map_navigator_seed1.pn
   `RecoveryAnchor` (nearest road point incl. legal alternatives, facing the road's flow, never on or past the
   next gate, start line as the last resort) and broadcasts it; only the simulating peer teleports, everyone
   sees the same car. Recoveries per team are counted for the results. 10 unit tests (rules incl. the spec's
-  3 s, anchors) and `tools
-ettest.ps1` (instance 1 rolls its car at 13 s, both seats confirm, host places it
+  3 s, anchors) and `tools\nettest.ps1` (instance 1 rolls its car at 13 s, both seats confirm, host places it
   back on the road, team continues to the next gate). Not yet: recovery sound/animation + short control lock,
   HUD prompt in the real HUD (dev HUD only), debug key in dev builds.
 - 2026-10-12: P2.5 damage levels DONE: `VehicleDamage` (pure, 6 tests) turns each impact (speed lost in one
@@ -147,8 +145,7 @@ ettest.ps1` (instance 1 rolls its car at 13 s, both seats confirm, host places i
   array and every peer applies it: paint darkens, dent blocks per zone (placeholder art), medium damage costs
   ~7 % speed and pulls the wheel toward the damaged side (1.6 m drift over 3 s), critical halves the power
   (7.7 vs 16.1 m/s after 3 s, physics test) and counts as stuck so the recovery offer opens; a recovery
-  repairs the car down to light damage. Dev HUD shows Hasar: hafif/orta/kritik. `tools
-ettest.ps1` checks
+  repairs the car down to light damage. Dev HUD shows Hasar: hafif/orta/kritik. `tools\nettest.ps1` checks
   the host judges the rollover landing. Not yet: damage sounds/vibration, car-vs-car fairness tuning, real
   dented body variants (P4).
 - 2026-10-12: P2.3 glass + P2.4 exposure/faint DONE in one cabin state system (`Cabin`, host authority):
@@ -162,8 +159,7 @@ ettest.ps1` checks
   seat's dirt tint, crack star, wiper sweep, face flash and faint fade (intensity setting). Dust/mud/sand
   particles behind the car by speed and surface (`RallyCar.Dust`, GPU particles; surface now rides in the
   snapshot). 5 physics tests (incl. the spec's 6 s and "no windshield at 90 km/h on gravel faints both seats
-  after ~9 s"); `tools
-ettest.ps1`: navigator kicks the windshield at 24 s, every peer sees it, the host
+  after ~9 s"); `tools\nettest.ps1`: navigator kicks the windshield at 24 s, every peer sees it, the host
   faints the navigator later in the run. Screenshot `reports/screenshots/cabin_cracked_dirty_seed1.png`.
   Not yet: dirt masked to the windshield area, wind/gravel sounds, crack decals on the 3D glass, navigator
   "take can" step (cans are thrown straight from the glovebox), horn/flash keys.

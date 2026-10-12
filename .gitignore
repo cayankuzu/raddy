@@ -10,6 +10,9 @@ export_credentials.cfg
 # leaves next to them) carry the local auth token in their URL
 .mcp.json*
 .cursor/
+.codex/
+# Beckett also mirrors CLAUDE.md for Codex; CLAUDE.md is the source of truth
+AGENTS.md
 .vscode/mcp.json*
 .beckett/
 

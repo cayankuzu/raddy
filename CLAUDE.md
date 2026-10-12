@@ -115,8 +115,8 @@ No Blender; model in Godot only as a last resort.
 ## Beckett MCP (addons/beckett)
 - The editor plugin is the MCP server: `http://127.0.0.1:8770/mcp/<token>`, token auth on. It only runs while an
   editor (GUI, or `tools\editor.ps1 -Headless`) has this project open.
-- The token is in `.mcp.json` (and Beckett's `.mcp.json.*` backups), `.cursor/`, `.beckett/` and
-  `logs\editor.log`; all gitignored. Never commit or print them. Mask it when showing editor logs:
+- The token is in `.mcp.json` (and Beckett's `.mcp.json.*` backups), `.cursor/`, `.codex/config.toml`,
+  `.beckett/` and `logs\editor.log`; all gitignored (so is `AGENTS.md`, Beckett's copy of this file). Never commit or print them. Mask it when showing editor logs:
   `-replace '/mcp/[0-9a-f]{32}', '/mcp/<token>'`.
 - Lite edition: no input simulation, no export, watches one game instance at a time. Use the CLI tools above for
   multi-client runs, tests and exports.
@@ -145,8 +145,7 @@ No Blender; model in Godot only as a last resort.
   in software: a Sketchfab tab left in the built-in browser ate 65% of the CPU once. Kill its process tree.
 - Game start is dominated by GDScript compilation (~35 scripts, 3-10 s on this laptop while other apps
   load the CPU; `net_test.tscn` prints `NET boot wall=`). Four instances booting at once take 20-30 s, so
-  `tools
-ettest.ps1` budgets 40 s and times its scripted actions from race start, not from launch.
+  `tools\nettest.ps1` budgets 40 s and times its scripted actions from race start, not from launch.
 - With the editor open, games launched by `tools\launch.ps1` make Beckett log "rejected a peer with a
   missing/invalid handshake token" once per connection attempt (the stub dials the editor's runtime port).
   Harmless; clear the editor Output panel when it gets slow.
