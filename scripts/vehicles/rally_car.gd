@@ -591,6 +591,12 @@ func _detect_impact(state: PhysicsDirectBodyState3D, dt: float) -> void:
 	_previous_velocity = state.linear_velocity
 	if _impact_cooldown > 0.0 or state.get_contact_count() == 0:
 		return
+	# A hard landing on the wheels stops the car along its own up axis (the body may touch down
+	# too): the suspension takes that, only the rest of the change is a crash. On its side or
+	# roof the whole change counts.
+	var up := state.transform.basis.y
+	if up.y > 0.5:
+		change -= up * change.dot(up)
 	var strength := change.length()
 	if strength < config.impact_min_speed:
 		return

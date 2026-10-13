@@ -78,7 +78,7 @@ foreach ($i in 1, 2) { Expect $i "NET confirming recovery" "seat on instance $i 
 foreach ($i in 0..$Clients) { if ($i -ne 3) { Expect $i "NET recovered car team 1 to .* \(recovery 1\)" "recovery applied on instance $i" } }
 Expect 1 "NET recovery team 1 closed" "offer closed after the recovery"
 # Damage (spec 8): the rollover lands hard enough for the host to judge it from the snapshots.
-Expect 0 "NET damage team 1 (light|medium|critical)" "host judged damage from the driver's snapshots"
+Expect 0 "NET damage team 1 (light|medium|critical)" "host judged damage from the driver's impact report"
 # Cabin glass (spec 9): the navigator kicks the windshield out at 24 s and every peer sees it.
 Expect 2 "NET kicking the windshield out" "navigator kicked"
 foreach ($i in 0..$Clients) { if ($i -ne 3) { Expect $i "NET windshield removed team 1" "windshield state reached instance $i" } }

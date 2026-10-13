@@ -24,6 +24,9 @@ const STUCK_TIME := 2.0
 @export var top_speed := 30.0
 ## Off in a race session: the host recovers the car through the team flow.
 @export var self_recover := true
+## Seconds to wait after the car is released before driving off (bots on one grid leave in turn
+## instead of nose to tail).
+@export var start_delay := 0.0
 
 ## Path progress in metres (wraps every lap on a closed path), laps completed (closed paths) and
 ## whether the end of an open path was reached.
@@ -79,6 +82,11 @@ func _physics_process(delta: float) -> void:
 		_reverse_left = 0.0
 		controls.throttle = 1.0  # revving on the grid; the car holds still until it is released
 		controls.brake = 0.0
+		return
+	if start_delay > 0.0:
+		start_delay -= delta
+		controls.throttle = 0.0
+		controls.brake = 1.0
 		return
 	var position := car.global_position
 	if not _located:

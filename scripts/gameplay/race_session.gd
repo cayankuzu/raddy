@@ -60,7 +60,6 @@ var _recovery_rules: Dictionary = {}  # host: team -> RecoveryRules
 var _recovery_offers: Dictionary = {}  # team -> {offered, confirmed, seats, peers}
 var _recovery_counts: Dictionary = {}  # team -> recoveries used (host)
 var _damage: Dictionary = {}  # team -> VehicleDamage (host judges; every peer mirrors)
-var _last_snapshot_velocity: Dictionary = {}  # host: team -> [sent_ms, Vector3]
 var _damage_ignore_until: Dictionary = {}  # host: team -> ms; a recovery teleport is not a crash
 ## Velocity jumps within this long after a recovery are the teleport, not an impact.
 const RECOVERY_DAMAGE_GRACE_MS := 400
@@ -244,25 +243,28 @@ func damage_of(team: int) -> VehicleDamage:
 # --- damage (spec §8): judged on the host from what the car's snapshots show ---
 
 ## Bound arguments come after the signal's own, so `team` is last.
-func _on_snapshot(sent_ms: int, lin: Vector3, rotation: Quaternion, team: int) -> void:
-	var previous: Array = _last_snapshot_velocity.get(team, [])
-	_last_snapshot_velocity[team] = [sent_ms, lin]
-	if previous.is_empty() or sent_ms - previous[0] > 120:
-		return  # first packet or a gap: no judgement across a hole
-	if Time.get_ticks_msec() < _damage_ignore_until.get(team, 0):
-		return
-	var change: Vector3 = lin - previous[1]
-	if change.length() < VehicleDamage.SCRAPE_SPEED:
-		return
-	var local_direction := (Basis(rotation).inverse() * -change).normalized()
-	_judge_impact(team, change.length(), local_direction)
+## The driver's own car felt a crash (RallyCar.impact: a body contact, landings excluded). The
+## driver simulates the car, so the driver reports it; the host judges the damage.
+func _on_driver_impact(strength: float, local_direction: Vector3, team: int) -> void:
+	if Net.is_host():
+		_judge_impact(team, strength, local_direction)
+	else:
+		_rpc_report_impact.rpc_id(1, team, strength, local_direction)
 
 
-func _on_own_impact(strength: float, local_direction: Vector3, team: int) -> void:
-	_judge_impact(team, strength, local_direction)
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_report_impact(team: int, strength: float, local_direction: Vector3) -> void:
+	if not Net.is_host():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if RosterRules.driver_of(Net.roster, team) != sender:
+		return  # only the team's own driver speaks for its car
+	_judge_impact(team, clampf(strength, 0.0, 60.0), local_direction.normalized())
 
 
 func _judge_impact(team: int, strength: float, local_direction: Vector3) -> void:
+	if Time.get_ticks_msec() < _damage_ignore_until.get(team, 0):
+		return  # the recovery teleport, not a crash
 	var damage := damage_of(team)
 	var before := damage.level()
 	if damage.hit(strength, local_direction) <= 0.0:
@@ -553,11 +555,8 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	sync.set_multiplayer_authority(driver_peer)
 	car.add_child(sync)
 	_cars.add_child(car)
-	if Net.is_host():
-		if driver_peer == Net.local_id():
-			car.impact.connect(_on_own_impact.bind(team))
-		else:
-			sync.snapshot_received.connect(_on_snapshot.bind(team))
+	if driver_peer == Net.local_id():
+		car.impact.connect(_on_driver_impact.bind(team))
 	var cabin: Cabin = car.get_node(^"Cabin")
 	cabin.set_multiplayer_authority(1)
 	cabin.team = team
@@ -629,8 +628,9 @@ func _bind_local_seat(car: RallyCar, role: int) -> void:
 			bot.name = "RouteFollower"
 			bot.car = car
 			bot.self_recover = false
-			# Teams spread out along the road instead of queueing: the front row is the fastest.
+			# Teams leave the grid in turn and spread out along the road instead of queueing.
 			bot.top_speed = 22.0 - 2.0 * (_team_cars.size() - 1)
+			bot.start_delay = 1.5 * (_team_cars.size() - 1)
 			bot.set_path(graph.main_route_points())
 			add_child(bot)
 	var effects := SeatEffects.new()

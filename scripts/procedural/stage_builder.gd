@@ -19,8 +19,9 @@ const BUMP_AMPLITUDE := 0.16
 const BUMP_FREQUENCY := 1.0 / 14.0
 ## No bumps this close to the start and finish lines, nor on a feature (it keeps its shape).
 const QUIET_ENDS := 60.0
-## Start gate distance from the road's start, finish gate distance from its end (the run-off).
-const START_GATE := 4.0
+## Start line distance from the road's start (the grid of up to three cars waits behind it), finish
+## line distance from the road's end (the run-off).
+const START_GATE := 40.0
 const FINISH_RUNOFF := 70.0
 const SPLITS := 2
 const DEFAULT_DROP := 16.0

@@ -118,16 +118,18 @@ func _on_race_started(settings: Dictionary) -> void:
 
 func _run_test_script() -> void:
 	match _instance:
-		1:  # driver of team 1 talks (a fake tone, no microphone needed) from 8 s to 11 s,
-			# then rolls the car onto its roof at 13 s so the team has to recover it
-			get_tree().create_timer(8.0).timeout.connect(func() -> void:
-				print("VOICE fake transmit start")
-				Voice.start_fake_transmit(3.0))
+		1:  # driver of team 1 talks (a fake tone, no microphone needed) for 3 s right after the
+			# start, while the cars are still close, then drops the car onto its roof at 13 s so the
+			# team has to recover it (and the crash is judged as damage)
+			_session.race_go.connect(func() -> void:
+				get_tree().create_timer(0.3).timeout.connect(func() -> void:
+					print("VOICE fake transmit start")
+					Voice.start_fake_transmit(3.0)))
 			get_tree().create_timer(13.0).timeout.connect(func() -> void:
 				if _session != null and _session.local_car != null:
 					var car := _session.local_car
 					print("NET rolling the car over on purpose")
-					car.reset_to(Transform3D(car.global_basis.rotated(car.global_basis.z, PI), car.global_position + Vector3.UP * 1.2)))
+					car.reset_to(Transform3D(car.global_basis.rotated(car.global_basis.z, PI), car.global_position + Vector3.UP * 10.0)))
 		2:  # navigator of team 1
 			get_tree().create_timer(5.0).timeout.connect(func() -> void: _cabin_action(Cabin.Side.RIGHT, true, false))
 			get_tree().create_timer(6.0).timeout.connect(func() -> void: _cabin_action(Cabin.Side.RIGHT, true, true))
