@@ -154,6 +154,13 @@ func _move_glass(model: Node3D) -> void:
 		for s in clear_mesh.get_surface_count():
 			clear_mesh.surface_set_material(s, _clear_glass())
 		glass.mesh = clear_mesh
+		if GLASS[model_name] == "Windshield":
+			# Dirt, cracks and wipers live on the real windshield.
+			var windshield := WindshieldGlass.new()
+			windshield.name = "WindshieldGlass"
+			windshield.cabin = cabin as Cabin
+			windshield.glass = glass
+			add_child(windshield)
 
 
 static var _glass: StandardMaterial3D
