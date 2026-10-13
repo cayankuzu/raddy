@@ -182,3 +182,26 @@ P5 QA and release
 - P2 summary (2026-10-12): the playable core exists in code and automated tests: roles, cockpit cameras,
   paper map + pace notes, procedural routes with legal alternatives and checkpoints, glass/wind/faint, damage
   levels, joint recovery, cans. Human play-feel checks are still pending (see "manual steps").
+- 2026-10-13: direction update from the user: a mix of "Left! Left! LEFT!" (asymmetric co-op, chaos in the
+  cabin) and "Half Grip" (feel), realistic-leaning PBR look (not low-poly), named fixed stages instead of
+  branching networks, AAA-feeling HUD/sound/camera. Done and verified the same day:
+  - Real car (Sketchfab "Milano '95", CC BY): body, cockpit, glass wired to the Cabin, turning steering wheel,
+    team paint; brake/reverse lamps and weather headlights. Forest: Sketchfab conifer and birch packs (CC BY)
+    per tree with trunk collision, a thick edge band and a backdrop.
+  - Six named point-to-point stages (Kara Çam Geçidi, Sisli Dere, Kızıl Kanyon, Akrep Tepeleri, Kartal
+    Yuvası, Buzul Sırtı; 1.85-2.3 km): crests, jumps, dips, water splashes (slow the car, soak the glass and
+    open-window seats), cliffs with steel rails (one gap each), canyon walls, switchbacks; terrain follows the
+    road; invisible walls 36 m out keep cars on the stage; real rally pace notes; the paper map turns long
+    stages and marks hazards; start line / splits / finish, places by distance; recoveries never gain ground.
+  - Sound: engine loops from a real Toyota Corolla rally car recording pitched to a 5-speed sound gearbox,
+    gravel/rumble/squeal by surface, water, wind, crashes, horn (H), rain and thunder, map rustle, UI clicks.
+  - Broadcast-style HUD (stage bar with every car, split gaps, rev counter/gear/speed), mouse free look in
+    the cockpit (driver looks into corners, recentres), dirt/cracks/wipers on the real windshield.
+  - Fixed on the way: the grid sat behind the stage's start wall; jump landings counted as crashes (drivers
+    now report body impacts); the model's 80 % dark glass; numpy FFT blocked by Smart App Control.
+  Verified: 160 GUT tests, `tools
+ettest.ps1` (3 clients), `toolslowtest.ps1` (both bots finish Kara Çam
+  Geçidi: 2:08.4 / 2:18.6), screenshots `reports/screenshots/stage_*.png`, `hud_race.png`, `glass_*.png`.
+  Not yet: crew bodies/hands (needs a free rigged character; a download needs the user's OK), more chaos
+  events, lighting/time-of-day pass per biome, distant mountain backdrop, human play-feel test with friends.
+

@@ -27,9 +27,9 @@ No Blender; model in Godot only as a last resort.
   the GUI children inherit the handle and the caller hangs.
 - `tools\nettest.ps1 [-Clients 3] [-Seconds 40]`: automated multiplayer check (headless host + clients run
   `scenes/dev/net_test.tscn` with scripted actions, then the `NET ...` log lines are asserted). Exit 0 = pass.
-- `tools\flowtest.ps1 [-Clients 1] [-Seconds 240] [-Seed 1]`: end-to-end check of the real game from the main
-  menu: host creates a room, clients join by room code, seats + ready, start, bots drive a lap, results, back
-  to the room, quit (`--flow-test`, see `scripts/core/flow.gd`). Exit 0 = pass (~2 min for 2 players).
+- `tools\flowtest.ps1 [-Clients 1] [-Seconds 300] [-Stage 0]`: end-to-end check of the real game from the main
+  menu: host creates a room, clients join by room code, seats + ready, start, bots drive the whole stage,
+  results, back to the room, quit (`--flow-test`, see `scripts/core/flow.gd`). Exit 0 = pass (~3.5 min).
 - `tools\capture_window.ps1 -Instance N -Out reports\screenshots\x.png`: PNG of a windowed instance even when
   covered (PrintWindow); use it for multi-window visual checks since Beckett sees one game only.
 - `tools\screenshot.ps1 -Scene res://x.tscn -Frames 120 -Out reports\screenshots\x.png [-ExtraArgs "--a,--b"]`:
@@ -59,32 +59,50 @@ No Blender; model in Godot only as a last resort.
 - Autoloads: `Settings` (user://settings.cfg: language, volumes, voice, effects, key bindings; tests set
   `Settings.save_path`), `Flow` (menu → lobby → race → results → lobby; leaves dev scenes alone).
 - `RoomCode` packs IPv4 + port into a checked `XXXX-XXXX-XXXX` code; `PortOpener` (UPnP, thread) gives the
-  internet code when the router allows it (CGNAT detected). `RaceSettings` resolves Random / Surprise Rally;
-  `BiomeRules` applies biome/weather/difficulty to the graph. UI strings: `data/locale/strings.csv` (TR/EN).
+  internet code when the router allows it (CGNAT detected). `RaceSettings` resolves Random / Surprise Rally
+  (keys `stage`, `difficulty`, `weather`; the stage gives `biome` and `seed`); `BiomeRules` applies
+  weather/difficulty to the stage. UI strings: `data/locale/strings.csv` (TR/EN).
 - Race start: `Net.report_race_loaded()` from every player; the host spawns only when `Net.all_players_loaded()`
   (scene changes are deferred: spawn RPCs sent earlier are lost), then a 3 s countdown with `car.input_locked`.
   Results: host clock + recovery penalty, `RaceResults.rows()`, published when all finished/left or 120 s after
-  the first finisher. Host buttons: same route / new route (`Net.start_race(settings, true)`) / back to room.
+  the first finisher. Host buttons: same stage / next stage (`Net.start_race(settings, true)`) / back to room.
 - UI is built in code with `UiTheme` (static helpers must use `TranslationServer.translate`, not `tr`).
   Canvas layers: SeatEffects 5, RaceHud 8, ResultsPanel 12, PauseMenu 15, SettingsMenu 20.
+- `RaceHud` is drawn in code (`HudStageBar`, `HudCluster` rev counter/gear/speed) in `UiTheme.hud_font()`
+  (Windows' Bahnschrift via SystemFont, nothing shipped). The race captures the mouse for free look
+  (`CockpitCamera.look`) unless a menu is open or it is a flow test.
 
-## Procedural route (scripts/procedural)
-- `RouteGenerator.generate(seed)` → `RouteGraph` (nodes START/JUNCTION/DEAD_END, edges MAIN/SHORTCUT/DETOUR/SPUR
-  as XZ polylines + heights, `main_route`, `checkpoints`); deterministic per seed, retries with jitter until
-  `RouteValidator.validate()` returns no problems. `TerrainField(seed).set_roads(graph)` gives ground height
-  flattened into a 12 cm trench under roads; `RoadBuilder.build(graph, terrain)` returns the `Track` node
-  (Terrain HeightMapShape3D, Roads/Road<n> trimesh ribbons + verges with `surface` metadata, Junctions pads,
-  Checkpoints/`Checkpoint` areas). Face winding for anything that must be hit from above: origin → +X → +Z
-  (trimesh collision is one-sided; the wrong order is invisible from above and lets cars fall through).
-- `RouteFollower` (pure pursuit + corner speed planner) drives a `RallyCar` round `graph.main_route_points()`:
-  dev scenes `--autodrive`, tests, later respawn references. `RaceProgress` is the host's lap accounting.
-- Dev scene `scenes/dev/route_test.tscn`: `--seed=N --autodrive --chase --overview --quit-after-seconds=N`.
-  `RaceSession.settings.seed` builds the same track on every peer; cars spawn on a grid behind gate 0.
+## Stages (scripts/procedural)
+- Six named point-to-point stages in `StageCatalog` (two per biome; names `STAGE_<ID>` in strings.csv). A recipe
+  is segments (`len`, `turn`, `rise`, `crest`/`jump`/`dip`, `water`, `cliff`/`bank` left|right|both, `surface`,
+  `width`, `caution`); `StageBuilder.build(stage)` → `RouteGraph` (START → WAYPOINT(s) where surface/width change →
+  FINISH, 2 m polylines + heights, `features` by distance, gates: start line at 40 m, two splits, finish 70 m
+  before the end). `graph.sample(distance)`, `route_distances()`, `RouteIndex` (nearest road point + distance
+  along) and `RouteTracker` (follows a car along the stage) work in metres along the road.
+  `RouteValidator.validate()` (length, radius >= 11 m, grade <= 30 %, no crossing, stretches >= 30 m apart) must
+  stay empty for every stage (tests/unit/procedural/test_stage_builder.gd). Preview layouts with a script that
+  draws `graph.main_route_points()` into an Image.
+- `TerrainField(seed, relief).set_roads(graph)`: IDW surface through the road heights + hills growing away from
+  the road + cliff drops / bank walls from the features, pressed into a 12 cm trench under the road.
+  `RoadBuilder.build(graph, terrain, palette)` → `Track` (rectangular HeightMapShape3D terrain, Roads/Road<n>
+  ribbons + verges with `surface` metadata, Checkpoints spanning the corridor without reaching another
+  stretch, `TrackFeatures`: water pools + `WaterSplash` areas, steel rails with one gap on cliffs, start/finish
+  arches, invisible walls 36 m out and end caps). Face winding for anything hit from above: origin → +X → +Z.
+- On a switchback the next leg is uphill on the side the hairpin turns to: bank on that side, cliff on the
+  other (the terrain test probes only open ground).
+- `RoadsideDresser` (+ `RoadsideCatalog`): Poly Haven scans and the Sketchfab conifer/birch packs (`node` picks
+  one tree from a pack, `unit` 0.01 for the centimetre birches, `foliage` = alpha scissor), a thick edge band
+  before the walls and a backdrop beyond; nothing on a cliff's lip.
+- `RouteFollower` (pure pursuit + corner speed planner, `start_delay`, stops at the end of an open path) drives
+  a `RallyCar`: `--autodrive`, tests, flow-test bots. `RaceProgress` is the host's gate accounting.
+- Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N`
+  `--quit-after-seconds=N`. `RaceSession.settings.stage` builds the same stage on every peer.
 
 ## Paper map and pace notes (scripts/map)
-- `PaceNotes.build(graph)` → numbered notes per junction in lap order (TR/EN text, side, turn, branch kind).
-  `MapCanvas` (SubViewport, 1792×1152) draws the network + notes column from the graph; `MapCanvas.contour_for`
-  is computed once per race and shared. `PaperMap` (created by `Cabin._ready`) is the 3D sheet; `Cabin` holds
+- `PaceNotes.build(graph, detail)` → numbered rally calls in stage order ("Sol 3", "Saç tokası sağ", "Kör tepe!",
+  "Atlama!", "Su geçişi!", "Uçurum solda!", cautions; Explore adds distances, Redline only the dangers).
+  `MapCanvas` (SubViewport, 1792×1152) draws the stage (turned sideways when it runs north-south), hazards,
+  numbered rings beside the road and the notes column; `MapCanvas.contour_for` is computed once per race. `PaperMap` (created by `Cabin._ready`) is the 3D sheet; `Cabin` holds
   `map_state` (CLOSED/OPEN/GONE), the host-side wind risk, the 6 s replacement and the map RPCs.
   Dev: `route_test.tscn --navigator --map-open --autodrive`; input actions `map_toggle` (M), `map_reset` (Home).
 
@@ -107,15 +125,23 @@ No Blender; model in Godot only as a last resort.
   the RPC everywhere or just locally offline. `SeatEffects` (CanvasLayer) shows the local seat's view of it.
   Input: Q/E windows, F kick windshield (navigator), T wipers (driver), M map, LMB throw. Fainted seats are
   checked by `PlayerCarInput`, `RouteFollower` and `CabinInput` via `cabin.is_fainted(role)`.
-- Damage (spec §8): the host judges impacts from `BodyNetSync.snapshot_received` velocity jumps (or its own
-  car's `impact`), keeps a `VehicleDamage` per team and broadcasts `_rpc_set_damage`; every peer calls
-  `RallyCar.apply_damage` (effects + placeholder dents). Critical damage sets `needs_recovery` on the host.
+- Damage (spec §8): the driver's `RallyCar.impact` (body contact; a landing on the wheels does not count) is
+  judged by the host (`_rpc_report_impact` from a client driver), which keeps a `VehicleDamage` per team, sends
+  crash sounds (`_rpc_crash_fx`) and `_rpc_set_damage`; every peer calls `RallyCar.apply_damage`. Critical
+  damage sets `needs_recovery` on the host. Snapshot extras carry steer, compressions, stuck flag, surface,
+  throttle, horn and brake (remote cars' sound and lamps).
 - Dev bootstrap `scenes/dev/net_test.tscn` takes `--role --port --host --players --as-player --local
   --autodrive --test-script --quit-after-seconds`; without `--instance` it takes the first free seat.
 - `Voice` autoload (scripts/audio): `VoiceCapture` (AudioServer input API, 48 kHz → 16 kHz mono) → mu-law
   20 ms packets → host `_relay` (range check through the world provider: `RaceSession.voice_position/anchor`)
   → `VoicePlayback` (AudioStreamPlayer3D + AudioStreamGenerator, jitter buffer) parented to the speaker's seat.
   Headless (Dummy audio driver) never opens the mic; `Voice.start_fake_transmit()` sends a tone for tests.
+- Car sound: `CarAudio` (child of every `RallyCar`) cross-fades three engine loops by `Gearbox` rpm (pure, tested),
+  plus gravel crunch / rumble / squeal by surface and slide, water, wind for the crew, crashes and the horn (H).
+  Assets come from `tools/cut_audio.py` (raw files in git-ignored `raw_assets/audio/`, fetched by
+  `tools/fetch_audio.py`); loops carry a smpl chunk. Players do not play headless.
+- Glass: `WindshieldGlass` puts the Cabin's dirt, crack and wipers on the windshield mesh (its own plane is
+  measured from the triangles); `SeatEffects` keeps only the face-hit flash and the faint.
 - Editor-launched games need `--accessibility disabled` too on this PC: set once via Beckett
   `call_method target=res://tools/editor_run_args.gd method=apply` (editor setting `run/main_run_args`).
 
@@ -164,6 +190,7 @@ No Blender; model in Godot only as a last resort.
   "Access denied" with a normal ACL. Python and Godot usually still read; a locked tracked file can be restored
   with Python: write `git show HEAD:path` to `path.restore`, then `os.replace` onto the path. Do not change the
   security software yourself; the user was asked to uninstall it (it also leaked the atom table).
+- Smart App Control also blocks numpy's FFT DLL (`numpy.fft` import fails): tools use autocorrelation instead.
 - If every Godot run suddenly takes 20 s+ to start (nettest timings slip, `--quit-after 5` takes 19 s), check
   for a leftover `chrome-headless-shell.exe` (Playwright, under `%LOCALAPPDATA%\ms-playwright`) rendering WebGL
   in software: a Sketchfab tab left in the built-in browser ate 65% of the CPU once. Kill its process tree.
