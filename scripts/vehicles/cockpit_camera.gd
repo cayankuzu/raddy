@@ -39,6 +39,8 @@ func _ready() -> void:
 	_rest = transform
 	top_level = true
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	# Moves in _process: passing cars bend in pitch (their players track physics steps).
+	doppler_tracking = Camera3D.DOPPLER_TRACKING_IDLE_STEP
 	fov = BASE_FOV
 	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_noise.frequency = 1.0

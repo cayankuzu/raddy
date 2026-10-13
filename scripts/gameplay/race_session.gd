@@ -265,6 +265,8 @@ func _rpc_report_impact(team: int, strength: float, local_direction: Vector3) ->
 func _judge_impact(team: int, strength: float, local_direction: Vector3) -> void:
 	if Time.get_ticks_msec() < _damage_ignore_until.get(team, 0):
 		return  # the recovery teleport, not a crash
+	if strength >= CarAudio.CRASH_LIGHT_AT:
+		_rpc_crash_fx.rpc(team, strength)
 	var damage := damage_of(team)
 	var before := damage.level()
 	if damage.hit(strength, local_direction) <= 0.0:
@@ -273,6 +275,17 @@ func _judge_impact(team: int, strength: float, local_direction: Vector3) -> void
 	if damage.level() != before:
 		print("NET damage team %d %s (%.0f points, %.1f m/s %s)" % [team, VehicleDamage.Level.keys()[damage.level()].to_lower(),
 			damage.total(), strength, VehicleDamage.Zone.keys()[VehicleDamage.zone_of(local_direction)].to_lower()])
+
+
+## Everyone but the driver (who heard it the moment it happened) hears another car's crash.
+@rpc("authority", "call_local", "unreliable")
+func _rpc_crash_fx(team: int, strength: float) -> void:
+	var car: RallyCar = _team_cars.get(team)
+	if car == null or car.simulated:
+		return
+	var audio := car.get_node_or_null(^"Audio") as CarAudio
+	if audio != null:
+		audio.play_crash(strength)
 
 
 @rpc("authority", "call_local", "reliable")

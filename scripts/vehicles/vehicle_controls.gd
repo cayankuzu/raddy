@@ -6,6 +6,7 @@ var throttle := 0.0  ## 0..1
 var brake := 0.0  ## 0..1; reverses when held at a standstill
 var steer := 0.0  ## -1 (left) .. 1 (right)
 var handbrake := false
+var horn := false
 
 
 func clear() -> void:
@@ -13,3 +14,4 @@ func clear() -> void:
 	brake = 0.0
 	steer = 0.0
 	handbrake = false
+	horn = false

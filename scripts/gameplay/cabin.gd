@@ -42,6 +42,7 @@ const FACE_HIT_EXPOSURE := 0.12
 ## Chance per second of a stone chip cracking an intact windshield at 20 m/s on gravel.
 const STONE_CHIP_CHANCE := 0.012
 const WIPER_CLEAR_RATE := 0.22
+const RUSTLE: Array[AudioStream] = [preload("res://assets/audio/car/map_rustle_0.ogg"), preload("res://assets/audio/car/map_rustle_1.ogg")]
 ## Glass dirt per second while driving through a water splash (at 15 m/s), and how often an open
 ## window lets a wave hit the seat beside it (per second).
 const WATER_DIRT_RATE := 1.4
@@ -491,12 +492,21 @@ func _rpc_set_cans(count: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_set_map(state: int) -> void:
+	if state != map_state:
+		_rustle()
 	map_state = state
 	map_risk = 0.0
 	if map_warning_active:
 		_apply_map_warning(false)
 	map_changed.emit(state)
 	print("NET map %s team %d" % [MapState.keys()[state].to_lower(), team])
+
+
+## Paper noise from the navigator's seat.
+func _rustle() -> void:
+	var audio := get_parent().get_node_or_null(^"Audio") as CarAudio
+	if audio != null:
+		audio.play_one_shot(RUSTLE[randi() % RUSTLE.size()], 0.8, Vector3(0.35, 0.55, 0.0), randf_range(0.95, 1.08))
 
 
 @rpc("authority", "call_local", "reliable")

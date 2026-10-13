@@ -101,8 +101,29 @@ static func button(text_key: String, on_pressed: Callable) -> Button:
 	var b := Button.new()
 	b.text = TranslationServer.translate(text_key)
 	b.custom_minimum_size = Vector2(0, 48)
+	b.pressed.connect(func() -> void: click(b))
 	b.pressed.connect(on_pressed)
+	b.mouse_entered.connect(func() -> void: click(b, HOVER, -18.0))
 	return b
+
+
+const CLICK := preload("res://assets/audio/ui/click_003.ogg")
+const HOVER := preload("res://assets/audio/ui/tick_002.ogg")
+static var _ui_player: AudioStreamPlayer
+
+
+## A short UI sound, played on one shared player so menus never stack clicks.
+static func click(from: Node, stream: AudioStream = CLICK, volume_db := -8.0) -> void:
+	if from == null or not from.is_inside_tree():
+		return
+	if _ui_player == null or not is_instance_valid(_ui_player):
+		_ui_player = AudioStreamPlayer.new()
+		_ui_player.name = "UiSound"
+		_ui_player.bus = &"Game"
+		from.get_tree().root.add_child(_ui_player)
+	_ui_player.stream = stream
+	_ui_player.volume_db = volume_db
+	_ui_player.play()
 
 
 static func label(text: String, size := 20, color := PAPER) -> Label:

@@ -100,6 +100,9 @@ func _ready() -> void:
 		_wheels.append(wheel)
 	wheelbase = absf(_wheels[0].mount.position.z - _wheels[2].mount.position.z)
 	_apply_paint()
+	var audio := CarAudio.new()
+	audio.name = "Audio"
+	add_child(audio)
 
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
@@ -150,14 +153,17 @@ func set_simulated(value: bool) -> void:
 	freeze = not value
 
 
-## Steering, wheel compressions and the stuck flag, sent with each network snapshot so remote
-## copies show the wheels and the host can judge a recovery request.
+## Steering, wheel compressions, the stuck flag, the surface, throttle and horn, sent with each
+## network snapshot so remote copies show the wheels and sound right, and the host can judge a
+## recovery request.
 func get_net_extra() -> PackedFloat32Array:
 	var extra := PackedFloat32Array([steer_angle])
 	for wheel in _wheels:
 		extra.append(wheel.compression if wheel.in_contact else 0.0)
 	extra.append(1.0 if needs_recovery else 0.0)
 	extra.append(float(Surface.index_of(_wheels[0].surface)))
+	extra.append(controls.throttle)
+	extra.append(1.0 if controls.horn else 0.0)
 	return extra
 
 
@@ -178,6 +184,10 @@ func apply_net_extra(extra: PackedFloat32Array, velocity: Vector3) -> void:
 		var surface := Surface.from_index(int(extra[2 + _wheels.size()]))
 		for wheel in _wheels:
 			wheel.surface = surface
+	if extra.size() > 4 + _wheels.size():
+		# The driver's pedals and horn, for this copy's sound (it is not simulated here).
+		controls.throttle = extra[3 + _wheels.size()]
+		controls.horn = extra[4 + _wheels.size()] > 0.5
 
 
 ## Largest front wheel angle allowed at `speed` m/s: full lock when slow, a few degrees when fast.

@@ -14,6 +14,8 @@ extends Camera3D
 func _ready() -> void:
 	top_level = true
 	physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	# Moves in _process: passing cars bend in pitch (their players track physics steps).
+	doppler_tracking = Camera3D.DOPPLER_TRACKING_IDLE_STEP
 
 
 func _process(delta: float) -> void:

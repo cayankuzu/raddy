@@ -1,15 +1,26 @@
 class_name WeatherFx
 extends Node3D
-## Falling rain, snow or blowing dust around whatever camera is active (spec §14.2). One particle
-## box follows the camera, so the cost does not grow with the size of the map. Placeholder look
-## until the art pass; the gameplay effects (grip, fog, wet glass) live in the race rules.
+## Falling rain, snow or blowing dust around whatever camera is active (spec §14.2), with rain
+## drumming on the roof and thunder rolling in now and then. One particle box follows the camera,
+## so the cost does not grow with the size of the map. The gameplay effects (grip, fog, wet glass)
+## live in the race rules.
+
+const RAIN_ON_ROOF := preload("res://assets/audio/ambience/rain_on_roof.ogg")
+const THUNDER := preload("res://assets/audio/ambience/thunder.ogg")
+## Seconds between thunder claps in the rain.
+const THUNDER_GAP := Vector2(18.0, 50.0)
 
 var weather := RaceSettings.Weather.CLEAR
 
 var _particles: GPUParticles3D
+var _rain: AudioStreamPlayer
+var _thunder: AudioStreamPlayer
+var _thunder_in := 0.0
 
 
 func _ready() -> void:
+	if weather == RaceSettings.Weather.RAIN:
+		_start_rain_sound()
 	if weather in [RaceSettings.Weather.CLEAR, RaceSettings.Weather.FOG]:
 		return
 	_particles = GPUParticles3D.new()
@@ -64,7 +75,30 @@ func _ready() -> void:
 	add_child(_particles)
 
 
-func _process(_delta: float) -> void:
+func _start_rain_sound() -> void:
+	var loop := RAIN_ON_ROOF.duplicate() as AudioStreamOggVorbis
+	loop.loop = true
+	_rain = AudioStreamPlayer.new()
+	_rain.stream = loop
+	_rain.bus = &"Game"
+	_rain.volume_db = -7.0
+	add_child(_rain)
+	_rain.play()
+	_thunder = AudioStreamPlayer.new()
+	_thunder.stream = THUNDER
+	_thunder.bus = &"Game"
+	add_child(_thunder)
+	_thunder_in = randf_range(6.0, THUNDER_GAP.x)
+
+
+func _process(delta: float) -> void:
+	if _thunder != null:
+		_thunder_in -= delta
+		if _thunder_in <= 0.0:
+			_thunder_in = randf_range(THUNDER_GAP.x, THUNDER_GAP.y)
+			_thunder.volume_db = randf_range(-12.0, -3.0)
+			_thunder.pitch_scale = randf_range(0.85, 1.05)
+			_thunder.play()
 	if _particles == null:
 		return
 	var camera := get_viewport().get_camera_3d()
