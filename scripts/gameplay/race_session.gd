@@ -508,6 +508,7 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	car.transform = grid
 	car.input_locked = not racing
 	car.grip_scale = RaceSettings.grip_scale(weather())
+	car.set_paint(TeamColors.paint(team))
 	car.set_multiplayer_authority(driver_peer)
 	var sync := BodyNetSync.new()
 	sync.name = SYNC_NODE

@@ -53,6 +53,21 @@ glTF with 1k textures in `assets/models/<id>/`, downloaded with `tools/fetch_pol
 | Wooden Picnic Table | Ulan Cabanilla | spectator areas | https://polyhaven.com/a/wooden_picnic_table |
 | Painted Wooden Bench | Kirill Sannikov | spectator areas | https://polyhaven.com/a/painted_wooden_bench |
 
+## Sketchfab models (CC BY 4.0, credit required)
+Downloaded 2026-10-13 with the user's approval from their logged-in Sketchfab session; licence and
+author confirmed on api.sketchfab.com. CC BY 4.0: https://creativecommons.org/licenses/by/4.0/ —
+the same credit lines are shown in the game's Credits screen.
+
+| Asset | Credit line | Used for | File |
+|---|---|---|---|
+| Milano '95 - Low poly model | "Milano '95 - Low poly model" by Daniel Zhabotinsky (https://sketchfab.com/DanielZhabotinsky), CC BY 4.0, https://sketchfab.com/3d-models/milano-95-low-poly-model-122a22d210234596ad23623588d0d166 | the rally car (body, interior, glass, wheels) | `assets/vehicles/milano95/milano95.glb` |
+| Coniferous Forest Assets Pack | "Coniferous Forest Assets Pack" by Dari (https://sketchfab.com/dariiiii), CC BY 4.0, https://sketchfab.com/3d-models/coniferous-forest-assets-pack-240ce9cf0ad3474f809a59f9446e63cd | firs, pines, saplings, dead trees, logs | `assets/models/sketchfab/conifer_pack.glb` |
+| Birch trees | "Birch trees" by Igor_K. (https://sketchfab.com/Igor_K.), CC BY 4.0, https://sketchfab.com/3d-models/birch-trees-de6263e5400b4a52a795decf84f06575 | birches | `assets/models/sketchfab/birch_set.glb` |
+| Birch tree | "Birch tree" by evolveduk (https://sketchfab.com/evolveduk), CC BY 4.0, https://sketchfab.com/3d-models/birch-tree-aa842dffd9654d33b8b91170ce83c172 | large birch | `assets/models/sketchfab/birch_treeit.glb` |
+
+Changes made in RADDY: the car is re-oriented, its axles centred, its paint recoloured per team,
+its glass wired to the cabin systems and its wheels/steering animated; trees are instanced and scaled.
+
 ## Foliage atlases (ambientCG, CC0 1.0)
 ambientCG assets are CC0 (https://ambientcg.com/license). Colour and opacity are merged into
 `<id>_albedo.png`; downloaded with `tools/fetch_ambientcg.py`.

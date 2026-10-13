@@ -35,6 +35,8 @@ var needs_recovery := false
 ## engine_scale, top_speed_scale, steer_pull (-1..1 of steer, toward the damaged side).
 var damage_effects: Dictionary = {"engine_scale": 1.0, "top_speed_scale": 1.0, "steer_pull": 0.0}
 var damage_level := 0
+## Body paint (the team colour); damage darkens from it.
+var paint_color := Color(0.86, 0.3, 0.1)
 ## Weather grip multiplier on every surface (RaceSettings.grip_scale), set by the race layer.
 var grip_scale := 1.0
 ## True on the grid and after finishing: the car holds still whatever the controls say.
@@ -92,6 +94,7 @@ func _ready() -> void:
 		wheel.query.exclude = [get_rid()]
 		_wheels.append(wheel)
 	wheelbase = absf(_wheels[0].mount.position.z - _wheels[2].mount.position.z)
+	_apply_paint()
 
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
@@ -293,14 +296,33 @@ func apply_damage(damage: VehicleDamage) -> void:
 	var body := get_node_or_null(^"Body") as MeshInstance3D
 	if body == null:
 		return
-	var tint: float = [1.0, 0.92, 0.8, 0.62][damage_level]
-	var material := body.get_active_material(0) as StandardMaterial3D
-	if material != null:
-		if body.material_override == null:
-			body.material_override = material.duplicate()
-		(body.material_override as StandardMaterial3D).albedo_color = material.albedo_color * tint
-		(body.material_override as StandardMaterial3D).albedo_color.a = 1.0
+	_apply_paint()
 	_update_dents(damage)
+
+
+## Paints the body in `color` (team colour), keeping the current damage tint.
+func set_paint(color: Color) -> void:
+	paint_color = color
+	_apply_paint()
+
+
+func _apply_paint() -> void:
+	var tint: float = [1.0, 0.92, 0.8, 0.62][clampi(damage_level, 0, 3)]
+	var model := get_node_or_null(^"Model") as CarModel
+	if model != null and model.paint_material != null:
+		var model_paint := paint_color * tint
+		model_paint.a = 1.0
+		model.set_paint(model_paint)
+		return
+	var body := get_node_or_null(^"Body") as MeshInstance3D
+	if body == null:
+		return
+	if body.material_override == null:
+		var base := body.get_active_material(0) as StandardMaterial3D
+		body.material_override = base.duplicate() if base != null else StandardMaterial3D.new()
+	var paint := paint_color * tint
+	paint.a = 1.0
+	(body.material_override as StandardMaterial3D).albedo_color = paint
 
 
 func _update_dents(damage: VehicleDamage) -> void:

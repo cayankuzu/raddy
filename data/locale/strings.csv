@@ -73,7 +73,6 @@ SETTINGS_VOICE_DEVICE,Mikrofon,Microphone
 SETTINGS_MIC_TEST,Mikrofon testi: konuş,Mic test: speak
 SETTINGS_CAMERA_SHAKE,Kamera sarsıntısı,Camera shake
 SETTINGS_EFFECTS,Ekran efektleri (kan, bulanıklık),Screen effects (blood, blur)
-SETTINGS_SHOW_CAR_ON_MAP,Haritada aracı göster,Show the car on the map
 SETTINGS_FULLSCREEN,Tam ekran,Fullscreen
 SETTINGS_VSYNC,Dikey eşitleme,V-Sync
 SETTINGS_CONTROLS,Kontroller,Controls
@@ -114,7 +113,15 @@ PAUSE_SETTINGS,Ayarlar,Settings
 PAUSE_LEAVE,Yarıştan ayrıl,Leave the race
 DISCONNECT_HOST_LOST,Host ile bağlantı koptu.,Lost the connection to the host.
 DISCONNECT_OK,Ana menü,Main menu
-CREDITS_TEXT,RADDY — Çayan Kuzu. Godot Engine (MIT). GUT (MIT). Beckett Lite (MIT). Ücretsiz CC0/CC-BY varlıklar: ASSET_LICENSES.md,RADDY — Çayan Kuzu. Godot Engine (MIT). GUT (MIT). Beckett Lite (MIT). Free CC0/CC-BY assets: ASSET_LICENSES.md
+CREDITS_TEXT,"RADDY — Çayan Kuzu. Godot Engine (MIT).
+Araç: ""Milano '95 - Low poly model"" — Daniel Zhabotinsky (CC BY 4.0).
+Ağaçlar: ""Coniferous Forest Assets Pack"" — Dari; ""Birch trees"" — Igor_K.; ""Birch tree"" — evolveduk (CC BY 4.0).
+Dokular ve modeller: Poly Haven, ambientCG (CC0). Sesler: Sonniss #GameAudioGDC, Kenney, BigSoundBank.
+Tam liste: ASSET_LICENSES.md","RADDY — Çayan Kuzu. Godot Engine (MIT).
+Car: ""Milano '95 - Low poly model"" by Daniel Zhabotinsky (CC BY 4.0).
+Trees: ""Coniferous Forest Assets Pack"" by Dari; ""Birch trees"" by Igor_K.; ""Birch tree"" by evolveduk (CC BY 4.0).
+Textures and models: Poly Haven, ambientCG (CC0). Sounds: Sonniss #GameAudioGDC, Kenney, BigSoundBank.
+Full list: ASSET_LICENSES.md"
 LOBBY_CANNOT_START_not_everyone_ready,Herkes hazır olmalı.,Everyone must be ready.
 LOBBY_CODE_LOCAL,Bu bilgisayar (test) kodu,This PC (test) code
 LOBBY_UPNP_NO_ROUTER,modem UPnP desteklemiyor,the router has no UPnP
@@ -164,3 +171,6 @@ RESULTS_LEFT,Ayrıldı,Left
 RESULTS_WAITING_HOST,Host'un seçimi bekleniyor...,Waiting for the host...
 RESULTS_SUMMARY,Seed {seed} · {settings},Seed {seed} · {settings}
 PAUSE_NOTE,Çok oyunculu yarış durmaz.,A multiplayer race does not stop.
+TEAM_COLOR_RED,Kırmızı araç,Red car
+TEAM_COLOR_BLUE,Mavi araç,Blue car
+TEAM_COLOR_YELLOW,Sarı araç,Yellow car

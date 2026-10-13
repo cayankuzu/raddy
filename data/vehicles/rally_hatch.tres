@@ -4,3 +4,4 @@
 
 [resource]
 script = ExtResource("1_config")
+wheel_radius = 0.28

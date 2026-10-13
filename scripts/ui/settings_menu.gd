@@ -83,7 +83,6 @@ func _ready() -> void:
 
 	_slider(column, "SETTINGS_CAMERA_SHAKE", "camera_shake")
 	_slider(column, "SETTINGS_EFFECTS", "effects_intensity")
-	_check(column, "SETTINGS_SHOW_CAR_ON_MAP", "show_car_on_map")
 	_check(column, "SETTINGS_FULLSCREEN", "fullscreen")
 	_check(column, "SETTINGS_VSYNC", "vsync")
 

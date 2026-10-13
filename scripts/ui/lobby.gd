@@ -123,7 +123,9 @@ func _refresh() -> void:
 	var me := Net.local_id()
 	for team in range(1, RosterRules.MAX_TEAMS + 1):
 		var row := HBoxContainer.new()
-		var title := UiTheme.label(tr("LOBBY_TEAM").format({"n": team}), 20)
+		var title := UiTheme.label("%s
+%s" % [tr("LOBBY_TEAM").format({"n": team}), tr(TeamColors.name_key(team))], 18,
+			TeamColors.paint(team).lightened(0.25))
 		title.custom_minimum_size = Vector2(120, 0)
 		row.add_child(title)
 		for role in [RosterRules.Role.DRIVER, RosterRules.Role.NAVIGATOR]:

@@ -21,7 +21,7 @@ const DRAG_SPEED := 2.2
 
 var cabin: Cabin
 var canvas: MapCanvas
-## Player setting: show the team's car on the map (spec §11.2 makes this optional).
+## The navigator always sees the car's live position (user requirement 2026-10-13).
 var show_car_marker := true
 
 var _sheet: MeshInstance3D
@@ -57,6 +57,8 @@ func _ready() -> void:
 ## Draws the race's network on the sheet. `contour` is the shared terrain shading image.
 func setup(graph: RouteGraph, notes: Array[Dictionary], contour: Image) -> void:
 	canvas.build(graph, notes, contour)
+	if cabin != null:
+		canvas.set_car_color(TeamColors.paint(cabin.team) if cabin.team > 0 else TeamColors.paint(1))
 
 
 func is_open() -> bool:

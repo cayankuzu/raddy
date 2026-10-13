@@ -218,8 +218,11 @@ func test_car_on_its_roof_offers_recovery_and_recover_puts_it_back_on_its_wheels
 
 
 func test_car_on_its_side_offers_recovery() -> void:
-	# Leaning on a wall, two wheel rays still touch the ground: only the overturn check applies.
+	# On its side in a narrow ditch: the roof against one bank, the wheel rays against the other, so
+	# some wheels "touch" and only the overturn check applies. (On open ground the narrow hatchback
+	# tips back onto its wheels by itself.)
 	_add_box(Vector3(-2.5, 2.0, 0.0), Vector3(1.0, 4.0, 20.0), Surface.GRAVEL)
+	_add_box(Vector3(-0.5, 2.0, 0.0), Vector3(1.0, 4.0, 20.0), Surface.GRAVEL)
 	_car.reset_to(Transform3D(Basis(Vector3.FORWARD, -PI * 0.5), Vector3(-1.5, 0.9, 0.0)))
 	await _hold(2.0)
 	assert_gt(_car.wheels_in_contact(), 0, "some wheels touch the ground")

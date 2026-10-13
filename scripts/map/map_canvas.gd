@@ -125,6 +125,12 @@ func view_rect() -> Rect2:
 	return Rect2(_camera.position - half, half * 2.0)
 
 
+## The marker takes the team's car colour.
+func set_car_color(color: Color) -> void:
+	if _car_marker != null:
+		_car_marker.color = color.darkened(0.15)
+
+
 func set_car(world_xz: Vector2, heading_xz: Vector2, shown: bool) -> void:
 	if _car_marker == null:
 		return

@@ -59,6 +59,12 @@ func _ready() -> void:
 	_car.name = "RallyCar"
 	_car.transform = graph.start_pose().translated(Vector3.UP * 0.8)
 	add_child(_car)
+	_car.set_paint(TeamColors.paint(int(_args.get("team", "1"))))
+	# Debug: --hide=a+b hides every car node whose name contains a or b (finding stray meshes).
+	if _args.has("hide"):
+		for part in String(_args["hide"]).split("+"):
+			for node in _car.find_children("*" + part + "*", "Node3D", true, false):
+				(node as Node3D).visible = false
 	var navigator := _args.has("navigator")
 	_driver_camera = _car.get_node(^"NavigatorCamera" if navigator else ^"DriverCamera")
 	_driver_camera.make_current()

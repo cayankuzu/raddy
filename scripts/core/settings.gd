@@ -16,7 +16,6 @@ const DEFAULTS := {
 	"voice_threshold": 0.02,
 	"camera_shake": 1.0,
 	"effects_intensity": 1.0,
-	"show_car_on_map": true,
 	"fullscreen": false,
 	"vsync": true,
 	"player_name": "",
