@@ -82,6 +82,9 @@ func _ready() -> void:
 	UiTheme.row(column, "SETTINGS_MIC_LEVEL", mic_row)
 
 	_slider(column, "SETTINGS_CAMERA_SHAKE", "camera_shake")
+	_slider(column, "SETTINGS_MOUSE_SENSITIVITY", "mouse_sensitivity")
+	_check(column, "SETTINGS_INVERT_MOUSE", "invert_mouse")
+	_check(column, "SETTINGS_LOOK_RECENTRE", "look_recentre")
 	_slider(column, "SETTINGS_EFFECTS", "effects_intensity")
 	_check(column, "SETTINGS_FULLSCREEN", "fullscreen")
 	_check(column, "SETTINGS_VSYNC", "vsync")

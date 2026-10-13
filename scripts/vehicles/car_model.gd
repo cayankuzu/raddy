@@ -4,7 +4,9 @@ extends Node3D
 ## ASSET_LICENSES.md): the body, interior and glass replace the placeholder boxes, the tyres move
 ## into the car's wheel nodes (so suspension and spin animate them), the side and front glass become
 ## the Cabin's windows (opening, breaking and kicking out work on the real glass), the steering wheel
-## turns with the steering, and the body paint takes the team colour.
+## turns with the steering, the body paint takes the team colour, the brake and reverse lights
+## glow with the pedals (remote cars too: the pedals come with the snapshots) and the headlights
+## come on in bad weather.
 ## Must sit before the Cabin node in the scene: it swaps the glass in before Cabin._ready runs.
 
 const MODEL := preload("res://assets/vehicles/milano95/milano95.glb")
@@ -33,6 +35,13 @@ var paint_material: StandardMaterial3D
 
 var _steering: Node3D
 var _steering_axis := Vector3.FORWARD
+## Headlights on (bad weather); set before or after the car enters the tree.
+var headlights := false
+var _brake_material: StandardMaterial3D
+var _reverse_material: StandardMaterial3D
+var _head_material: StandardMaterial3D
+var _brake_glow: OmniLight3D
+var _beams: Array[SpotLight3D] = []
 
 
 func _ready() -> void:
@@ -52,6 +61,7 @@ func _ready() -> void:
 	_move_glass(model)
 	_setup_steering(model)
 	_add_cabin_light()
+	_setup_lights(model)
 
 
 ## A soft, shadowless fill inside the cabin so the dashboard and the hands read in daylight
@@ -192,7 +202,70 @@ func _setup_steering(model: Node3D) -> void:
 		old_wheel.visible = false
 
 
+## Emissive copies of the lamp materials, a red glow behind the car and two headlight beams.
+func _setup_lights(model: Node3D) -> void:
+	_brake_material = _lamp(model, "Milano95_Brakelights", Color(1.0, 0.05, 0.03))
+	_reverse_material = _lamp(model, "Milano95_Reverse", Color(1.0, 0.97, 0.9))
+	_head_material = _lamp(model, "Milano95_Headlights", Color(1.0, 0.95, 0.82))
+	_brake_glow = OmniLight3D.new()
+	_brake_glow.name = "BrakeGlow"
+	_brake_glow.light_color = Color(1.0, 0.1, 0.05)
+	_brake_glow.omni_range = 3.5
+	_brake_glow.light_energy = 0.0
+	_brake_glow.shadow_enabled = false
+	_brake_glow.position = Vector3(0.0, 0.0, 2.3)
+	add_child(_brake_glow)
+	for side in [-0.55, 0.55]:
+		var beam := SpotLight3D.new()
+		beam.name = "Headlight"
+		beam.light_color = Color(1.0, 0.95, 0.85)
+		beam.light_energy = 4.0
+		beam.spot_range = 45.0
+		beam.spot_angle = 28.0
+		beam.spot_attenuation = 0.7
+		beam.shadow_enabled = false
+		beam.position = Vector3(side, -0.05, -2.0)
+		beam.rotation_degrees = Vector3(-4.0, 0.0, 0.0)
+		add_child(beam)
+		_beams.append(beam)
+	set_headlights(headlights)
+
+
+func _lamp(model: Node3D, node_name: String, color: Color) -> StandardMaterial3D:
+	var holder := model.find_child(node_name, true, false)
+	if holder == null:
+		return null
+	var meshes := holder.find_children("*", "MeshInstance3D", true, false)
+	if meshes.is_empty() and holder is MeshInstance3D:
+		meshes = [holder]
+	var material: StandardMaterial3D
+	for mi in meshes:
+		var mesh_instance := mi as MeshInstance3D
+		var base := mesh_instance.mesh.surface_get_material(0) as StandardMaterial3D
+		if material == null:
+			material = (base.duplicate() if base != null else StandardMaterial3D.new()) as StandardMaterial3D
+			material.emission_enabled = true
+			material.emission = color
+			material.emission_energy_multiplier = 0.0
+		mesh_instance.material_override = material
+	return material
+
+
+func set_headlights(on: bool) -> void:
+	headlights = on
+	for beam in _beams:
+		beam.visible = on
+	if _head_material != null:
+		_head_material.emission_energy_multiplier = 3.0 if on else 0.0
+
+
 func _process(_delta: float) -> void:
+	if car != null and _brake_material != null:
+		var braking := car.controls.brake > 0.1 and car.forward_speed > -0.5
+		_brake_material.emission_energy_multiplier = 4.0 if braking else 0.4
+		_brake_glow.light_energy = 1.2 if braking else 0.0
+	if car != null and _reverse_material != null:
+		_reverse_material.emission_energy_multiplier = 3.0 if car.forward_speed < -0.5 else 0.0
 	if _steering == null or car == null or car.config == null:
 		return
 	var steer := car.steer_angle / maxf(car.config.max_steer_angle, 0.001)

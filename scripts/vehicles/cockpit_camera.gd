@@ -1,9 +1,11 @@
 class_name CockpitCamera
 extends Camera3D
 ## A seat's first-person camera (spec §7.3): the head rides the car, leans with the G-forces,
-## shakes with the road surface and with impacts, and the field of view opens with speed. It
-## follows the car's interpolated transform every frame, so it is smooth at any refresh rate.
-## Shake strength follows the player's "camera_shake" setting (spec §17.4).
+## shakes with the road surface and with impacts, and the field of view opens with speed. The
+## mouse turns the head (free look, out of the side windows and back over the shoulder); the
+## driver's head also turns a little into corners and drifts back to the road when the mouse
+## rests. It follows the car's interpolated transform every frame, so it is smooth at any refresh
+## rate. Shake, mouse sensitivity, inverted Y and the recentring follow the player's settings.
 
 const BASE_FOV := 72.0
 const SPEED_FOV := 11.0
@@ -19,6 +21,17 @@ const TRAUMA_DECAY := 1.6
 const ROUGH_FULL := 2.4
 ## Impact strength (m/s of velocity lost) that gives full trauma.
 const IMPACT_FULL := 14.0
+## How far the head turns (degrees): left/right and down/up.
+const LOOK_YAW := 120.0
+const LOOK_PITCH_DOWN := 55.0
+const LOOK_PITCH_UP := 30.0
+## Degrees per mouse pixel at sensitivity 0 and 1.
+const LOOK_RATE := Vector2(0.03, 0.32)
+## The driver's head drifts back to the road this long after the mouse rests, at this rate (1/s).
+const RECENTRE_AFTER := 1.1
+const RECENTRE_RATE := 3.5
+## The driver looks into a corner by this much of the front wheels' angle.
+const CORNER_LOOK := 0.55
 
 var car: RallyCar
 ## 0..1 user setting (Settings "camera_shake").
@@ -32,6 +45,13 @@ var _previous_compression := PackedFloat32Array()
 var _noise := FastNoiseLite.new()
 var _time := 0.0
 var _roughness := 0.0
+## Free-look angles in degrees (x = yaw, + left; y = pitch, + up).
+var look := Vector2.ZERO
+var _since_look := 10.0
+var _corner_yaw := 0.0
+var _sensitivity := 0.35
+var _invert := false
+var _recentre := true
 
 
 func _ready() -> void:
@@ -53,9 +73,43 @@ func _ready() -> void:
 		blur.car = car
 		add_child(blur)
 	if has_node("/root/Settings"):
-		shake_scale = float(get_node("/root/Settings").get_value("camera_shake"))
-		get_node("/root/Settings").changed.connect(func() -> void:
-			shake_scale = float(get_node("/root/Settings").get_value("camera_shake")))
+		_read_settings()
+		get_node("/root/Settings").changed.connect(_read_settings)
+
+
+func _read_settings() -> void:
+	var settings := get_node("/root/Settings")
+	shake_scale = float(settings.get_value("camera_shake"))
+	_sensitivity = float(settings.get_value("mouse_sensitivity"))
+	_invert = bool(settings.get_value("invert_mouse"))
+	_recentre = bool(settings.get_value("look_recentre"))
+
+
+## The mouse turns the head while this seat's view is on screen and the mouse is captured; a
+## navigator holding the map uses the mouse for the map instead.
+func _unhandled_input(event: InputEvent) -> void:
+	if not current or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or not event is InputEventMouseMotion:
+		return
+	if _map_in_hands():
+		return
+	var rate := lerpf(LOOK_RATE.x, LOOK_RATE.y, clampf(_sensitivity, 0.0, 1.0))
+	# Capturing the mouse can report one huge jump as the cursor is centred: never turn the head
+	# more than a hand's flick per event.
+	var motion := (event as InputEventMouseMotion).relative.limit_length(120.0)
+	look.x = clampf(look.x - motion.x * rate, -LOOK_YAW, LOOK_YAW)
+	look.y = clampf(look.y - motion.y * rate * (-1.0 if _invert else 1.0), -LOOK_PITCH_DOWN, LOOK_PITCH_UP)
+	_since_look = 0.0
+
+
+func _map_in_hands() -> bool:
+	if car == null:
+		return false
+	var cabin := car.get_node_or_null(^"Cabin") as Cabin
+	return cabin != null and cabin.map_state == Cabin.MapState.OPEN and cabin.local_may_hold_map()
+
+
+func _is_driver_seat() -> bool:
+	return name == "DriverCamera"
 
 
 func add_trauma(amount: float) -> void:
@@ -93,6 +147,14 @@ func _process(delta: float) -> void:
 	if car == null:
 		return
 	_time += delta
+	_since_look += delta
+	if _is_driver_seat():
+		# Into the corner a little, and back to the road once the mouse rests.
+		_corner_yaw = lerpf(_corner_yaw, -rad_to_deg(car.steer_angle) * CORNER_LOOK, 1.0 - exp(-4.0 * delta))
+		if _recentre and _since_look > RECENTRE_AFTER:
+			look = look.lerp(Vector2.ZERO, 1.0 - exp(-RECENTRE_RATE * delta))
+	else:
+		_corner_yaw = 0.0
 	var speed := absf(car.forward_speed)
 	var target_fov := BASE_FOV + SPEED_FOV * clampf(speed / FOV_SPEED, 0.0, 1.0)
 	fov = lerpf(fov, target_fov, 1.0 - exp(-3.0 * delta))
@@ -107,5 +169,6 @@ func _process(delta: float) -> void:
 		deg_to_rad(jitter.y * 1.2 + _lean.z * PITCH_PER_G * 20.0),
 		deg_to_rad(jitter.x * 0.8),
 		deg_to_rad(-_lean.y * ROLL_PER_G + jitter.z * 1.0)))
-	var local := Transform3D(_rest.basis * rotation_offset, _rest.origin + offset)
+	var head := Basis.from_euler(Vector3(deg_to_rad(look.y), deg_to_rad(look.x + _corner_yaw), 0.0), EULER_ORDER_YXZ)
+	var local := Transform3D(_rest.basis * head * rotation_offset, _rest.origin + offset)
 	global_transform = car.get_global_transform_interpolated() * local

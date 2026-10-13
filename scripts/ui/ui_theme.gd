@@ -11,6 +11,7 @@ const PANEL_LIGHT := Color(0.93, 0.89, 0.8, 0.95)
 const MUTED := Color("8f8475")
 
 static var _theme: Theme
+static var _hud_fonts: Dictionary = {}
 
 
 static func theme() -> Theme:
@@ -43,6 +44,23 @@ static func theme() -> Theme:
 	t.set_constant(&"separation", &"HBoxContainer", 12)
 	_theme = t
 	return t
+
+
+## The race HUD's type: Windows' own Bahnschrift (a DIN-style variable font every Windows 10/11
+## PC has; nothing to ship), condensed and bold, with tabular figures so timers do not jitter.
+## Falls back to Segoe UI / Arial, then the engine font.
+static func hud_font(weight := 600, width := 80) -> Font:
+	var key := Vector2i(weight, width)
+	if not _hud_fonts.has(key):
+		var system := SystemFont.new()
+		system.font_names = PackedStringArray(["Bahnschrift", "Segoe UI", "Arial"])
+		system.font_weight = weight
+		var variation := FontVariation.new()
+		variation.base_font = system
+		variation.variation_opentype = {"wght": weight, "wdth": width}
+		variation.opentype_features = {"tnum": 1}
+		_hud_fonts[key] = variation
+	return _hud_fonts[key]
 
 
 static func _box(color: Color, radius: int, border := Color.TRANSPARENT) -> StyleBoxFlat:

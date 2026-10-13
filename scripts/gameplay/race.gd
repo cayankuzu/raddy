@@ -52,6 +52,19 @@ func _add_grid_camera() -> void:
 	_grid_camera.make_current()
 
 
+## The mouse is the crew's head while racing: captured unless a menu or the results are up.
+func _process(_delta: float) -> void:
+	# Unattended runs (flow tests, Movie Maker captures) leave the mouse alone.
+	var racing_view := session != null and session.local_car != null and _pause == null and _results == null 		and not Flow.is_flow_test()
+	var wanted := Input.MOUSE_MODE_CAPTURED if racing_view and DisplayServer.window_is_focused() else Input.MOUSE_MODE_VISIBLE
+	if Input.mouse_mode != wanted:
+		Input.mouse_mode = wanted
+
+
+func _exit_tree() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed(&"ui_cancel") or _results != null:
 		return
