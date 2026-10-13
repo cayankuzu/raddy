@@ -1,39 +1,37 @@
 class_name RaceProgress
 extends RefCounted
-## Host-side lap accounting (spec §15): a team's next gate is the one after the last it passed,
-## gates passed out of order are ignored (so alternatives stay legal and a wrong turn costs time,
-## not a disqualification), and a lap closes when the start gate is crossed again after the rest.
-## Pure data, no nodes: the race layer feeds it gate crossings and broadcasts the results.
+## Host-side stage accounting (spec §15): the gates are the start line (0), the splits and the
+## finish line (the last). A team's next gate is the one after the last it passed; gates crossed
+## out of order are ignored (a wrong way costs time, not a disqualification), and crossing the
+## finish line after the rest finishes the stage. Pure data, no nodes: the race layer feeds it
+## gate crossings and broadcasts the results.
 
 var checkpoint_count := 0
-var laps_to_finish := 1
 
 var _next: Dictionary = {}  # team -> next gate index
-var _laps: Dictionary = {}  # team -> laps completed
 var _finish_order: Array[int] = []
 
 
-func _init(gates: int, laps: int) -> void:
+func _init(gates: int) -> void:
 	checkpoint_count = gates
-	laps_to_finish = laps
 
 
-## Cars start on the grid just past gate 0, so their first gate is 1.
+## Cars start on the grid behind the start line, so their first gate is 0.
 func add_team(team: int) -> void:
-	_next[team] = 1 % maxi(checkpoint_count, 1)
-	_laps[team] = 0
+	_next[team] = 0
 
 
 func next_gate(team: int) -> int:
-	return _next.get(team, 1)
+	return _next.get(team, 0)
 
 
-func laps(team: int) -> int:
-	return _laps.get(team, 0)
+## Gates a team has passed (the start line counts).
+func gates_passed(team: int) -> int:
+	return next_gate(team)
 
 
 func finished(team: int) -> bool:
-	return laps(team) >= laps_to_finish
+	return _next.has(team) and _next[team] >= checkpoint_count
 
 
 func finish_order() -> Array[int]:
@@ -47,17 +45,14 @@ func all_finished() -> bool:
 	return not _next.is_empty()
 
 
-## Records a gate crossing. Returns {"counted": bool, "lap_completed": bool, "finished": bool}.
+## Records a gate crossing. Returns {"counted": bool, "finished": bool}.
 func record(team: int, gate: int) -> Dictionary:
-	var result := {"counted": false, "lap_completed": false, "finished": false}
+	var result := {"counted": false, "finished": false}
 	if not _next.has(team) or finished(team) or gate != _next[team]:
 		return result
 	result.counted = true
-	_next[team] = (gate + 1) % checkpoint_count
-	if gate == 0:
-		_laps[team] += 1
-		result.lap_completed = true
-		if finished(team):
-			result.finished = true
-			_finish_order.append(team)
+	_next[team] = gate + 1
+	if finished(team):
+		result.finished = true
+		_finish_order.append(team)
 	return result

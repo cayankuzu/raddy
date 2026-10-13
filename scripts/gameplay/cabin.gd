@@ -42,6 +42,10 @@ const FACE_HIT_EXPOSURE := 0.12
 ## Chance per second of a stone chip cracking an intact windshield at 20 m/s on gravel.
 const STONE_CHIP_CHANCE := 0.012
 const WIPER_CLEAR_RATE := 0.22
+## Glass dirt per second while driving through a water splash (at 15 m/s), and how often an open
+## window lets a wave hit the seat beside it (per second).
+const WATER_DIRT_RATE := 1.4
+const WATER_SOAK_CHANCE := 2.5
 ## Can speeds (relative, m/s) that crack and break a side window (spec §9.2, §10.3).
 const WINDOW_CRACK_SPEED := 8.0
 const WINDOW_BREAK_SPEED := 13.0
@@ -236,6 +240,9 @@ func _update_cabin_weather(delta: float) -> void:
 	# Dirt builds up on the glass by surface and speed; wipers clear it (spec §9.1).
 	if windshield != Windshield.REMOVED:
 		dirt += (Surface.dirt_rate(surface) * (speed / 20.0) + weather_dirt_rate) * delta
+		# A water splash throws a sheet of muddy water over the glass.
+		if car.water_contacts > 0:
+			dirt += WATER_DIRT_RATE * clampf(speed / 15.0, 0.2, 1.5) * delta
 	if wipers_on:
 		dirt -= WIPER_CLEAR_RATE * delta
 	dirt = clampf(dirt, 0.0, 1.0)
@@ -255,6 +262,10 @@ func _update_cabin_weather(delta: float) -> void:
 			if faint_left[role] <= 0.0:
 				_broadcast(_rpc_set_faint, [role, false, FAINT_RESIDUE])
 			continue
+		# Through a splash with the window open: a face full of muddy water.
+		if car.water_contacts > 0 and speed > 6.0 and _opening_for(role) > 0.0 and _rng.randf() < WATER_SOAK_CHANCE * delta:
+			exposure[role] += FACE_HIT_EXPOSURE
+			_broadcast(_rpc_face_hit, [role])
 		if rate > 0.0:
 			exposure[role] += rate * delta
 			if _rng.randf() < FACE_HIT_CHANCE * (rate / EXPOSURE_RATE) * delta:

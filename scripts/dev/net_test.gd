@@ -99,7 +99,7 @@ func _on_roster_changed() -> void:
 		return
 	var needed := int(_args.get("players", "0"))
 	if needed > 0 and Net.roster.size() >= needed and RosterRules.can_start(Net.roster) == "":
-		print("NET starting race: ", Net.start_race({"seed": 1234, "laps": 1}))
+		print("NET starting race: ", Net.start_race(RaceSettings.resolve({"stage": 0, "difficulty": RaceSettings.Difficulty.RALLY, "weather": RaceSettings.Weather.CLEAR}, 1)))
 
 
 func _on_race_started(settings: Dictionary) -> void:
@@ -109,8 +109,8 @@ func _on_race_started(settings: Dictionary) -> void:
 	_session.settings = settings
 	_session.recovery_changed.connect(_on_recovery_changed)
 	_session.autodrive = _args.has("autodrive")
-	if settings.has("seed"):
-		_world.get_node(^"Track").free()  # the session builds the procedural route instead
+	if settings.has("stage"):
+		_world.get_node(^"Track").free()  # the session builds the stage instead
 	_world.add_child(_session)  # synchronously: the host's spawn RPCs follow on the same channel
 	if _args.has("test-script"):
 		_run_test_script()
@@ -195,7 +195,7 @@ func _process(_delta: float) -> void:
 	])
 	if _session != null and _session.local_car != null:
 		lines.append("%3d km/h   Q/E windows   LMB throw   V talk" % roundi(absf(_session.local_car.forward_speed) * 3.6))
-		lines.append("seed %s   laps %d" % [str(_session.settings.get("seed", "-")), int(_session.settings.get("laps", 1))])
+		lines.append("stage %s" % str(_session.settings.get("stage", "-")))
 		var team: int = me.get("team", 0)
 		var level: int = _session.damage_of(team).level()
 		if level > 0:

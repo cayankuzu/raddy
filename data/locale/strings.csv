@@ -36,11 +36,9 @@ LOBBY_WAITING_HOST,Host'un başlatması bekleniyor,Waiting for the host to start
 LOBBY_LEAVE,Odadan Ayrıl,Leave Room
 LOBBY_SETTINGS,Yarış ayarları,Race settings
 LOBBY_DIFFICULTY,Zorluk,Difficulty
-LOBBY_LAPS,Tur,Laps
-LOBBY_BIOME,Biyom,Biome
 LOBBY_WEATHER,Hava,Weather
 LOBBY_SURPRISE,Sürpriz Ralli,Surprise Rally
-LOBBY_SUMMARY,Özet: {difficulty} · {laps} · {biome} · {weather},Summary: {difficulty} · {laps} · {biome} · {weather}
+LOBBY_SUMMARY,Özet: {stage} · {difficulty} · {weather},Summary: {stage} · {difficulty} · {weather}
 LOBBY_CANNOT_START_no_players,Odada oyuncu yok.,No players in the room.
 LOBBY_CANNOT_START_player_without_team,Herkes bir takım seçmeli.,Everyone must pick a team.
 LOBBY_CANNOT_START_team_without_driver,Her takımın bir sürücüsü olmalı.,Every team needs a driver.
@@ -59,9 +57,6 @@ WEATHER_RAIN,Yağmur,Rain
 WEATHER_FOG,Sis,Fog
 WEATHER_SNOW,Kar,Snow
 WEATHER_DUST_STORM,Toz Fırtınası,Dust Storm
-LAPS_1,1 tur,1 lap
-LAPS_2,2 tur,2 laps
-LAPS_3,3 tur,3 laps
 SETTINGS_TITLE,Ayarlar,Settings
 SETTINGS_LANGUAGE,Dil,Language
 SETTINGS_MASTER_VOLUME,Genel ses,Master volume
@@ -79,7 +74,6 @@ SETTINGS_CONTROLS,Kontroller,Controls
 SETTINGS_REBIND_HINT,Bir eyleme tıkla ve yeni tuşa bas,Click an action and press the new key
 SETTINGS_DEFAULTS,Varsayılanlar,Defaults
 HUD_SPEED,{speed} km/h,{speed} km/h
-HUD_LAP,Tur {lap}/{laps},Lap {lap}/{laps}
 HUD_GATE,Kontrol {gate}/{gates},Checkpoint {gate}/{gates}
 HUD_DAMAGE_LIGHT,Hasar: hafif,Damage: light
 HUD_DAMAGE_MEDIUM,Hasar: orta,Damage: medium
@@ -99,13 +93,11 @@ RESULTS_TITLE,Sonuçlar,Results
 RESULTS_PLACE,Sıra,Place
 RESULTS_TEAM,Takım,Team
 RESULTS_TIME,Süre,Time
-RESULTS_LAPS,Tur,Laps
 RESULTS_RECOVERIES,Kurtarma,Recoveries
 RESULTS_STATUS,Durum,Status
 RESULTS_FINISHED,Bitirdi,Finished
 RESULTS_DNF,Bitiremedi,Did not finish
-RESULTS_REMATCH,Aynı rota,Same route
-RESULTS_NEW_ROUTE,Yeni rota,New route
+RESULTS_REMATCH,Aynı etap,Same stage
 RESULTS_TO_LOBBY,Odaya dön,Back to room
 PAUSE_TITLE,Duraklatıldı (yarış sürüyor),Paused (the race goes on)
 PAUSE_RESUME,Devam,Resume
@@ -161,7 +153,6 @@ ACTION_voice_talk,Bas-konuş,Push to talk
 ACTION_camera_toggle,Kamera (test),Camera (testing)
 HUD_COUNTDOWN_GO,ÇIK!,GO!
 HUD_TIME,Süre {time},Time {time}
-HUD_NEXT_GATE,Sıradaki kontrol: {gate}/{gates},Next checkpoint: {gate}/{gates}
 HUD_FINISH_LINE,Bitiş çizgisi,Finish line
 HUD_WAITING_PLAYERS,Oyuncular yükleniyor...,Players are loading...
 HUD_TEAM_FINISHED,Takım {team} bitirdi: {time},Team {team} finished: {time}
@@ -169,8 +160,26 @@ HUD_SPECTATING,İzleyici,Spectating
 RESULTS_PENALTY,Ceza,Penalty
 RESULTS_LEFT,Ayrıldı,Left
 RESULTS_WAITING_HOST,Host'un seçimi bekleniyor...,Waiting for the host...
-RESULTS_SUMMARY,Seed {seed} · {settings},Seed {seed} · {settings}
 PAUSE_NOTE,Çok oyunculu yarış durmaz.,A multiplayer race does not stop.
 TEAM_COLOR_RED,Kırmızı araç,Red car
 TEAM_COLOR_BLUE,Mavi araç,Blue car
 TEAM_COLOR_YELLOW,Sarı araç,Yellow car
+LOBBY_STAGE,Etap,Stage
+LOBBY_STAGE_RANDOM,Başlarken altı etaptan biri seçilir.,One of the six stages is picked at the start.
+HUD_POSITION,Sıra {place}/{teams},Place {place}/{teams}
+HUD_NEXT_SPLIT,Ara nokta {split}/{splits},Split {split}/{splits}
+HUD_TO_FINISH,Bitişe {km} km,{km} km to go
+RESULTS_SPLITS,Kapı,Gates
+RESULTS_NEXT_STAGE,Sonraki etap,Next stage
+STAGE_BLACK_PINE,Kara Çam Geçidi,Black Pine Pass
+STAGE_BLACK_PINE_DESC,"Hızlı orman çakılı: göremediğin tepeler, iki atlama, bir su geçişi ve ortada çamurlu bir saç tokası.","Fast forest gravel: crests you cannot see over, two jumps, a water splash and a muddy hairpin in the middle."
+STAGE_MISTY_CREEK,Sisli Dere,Misty Creek
+STAGE_MISTY_CREEK_DESC,"Dar ve kaygan dere yolu: dört su geçişi, sıkı virajlar ve bol çamur. Silecekleri hazır tut.","A narrow, slippery creek road: four water crossings, tight corners and plenty of mud. Keep the wipers ready."
+STAGE_RED_CANYON,Kızıl Kanyon,Red Canyon
+STAGE_RED_CANYON_DESC,"Kızıl bir kanyonda geniş çakıl: uzun hızlı düzlükler, iki yanda kaya duvarları, uçurum kenarları ve oyunun en büyük atlaması.","Wide gravel through a red canyon: long fast straights, rock walls on both sides, cliff edges and the biggest jump in the game."
+STAGE_SCORPION_HILLS,Akrep Tepeleri,Scorpion Hills
+STAGE_SCORPION_HILLS_DESC,"Dalgalı kum tepeleri: art arda tepeler, üç atlama ve zirvede bir saç tokası.","Rolling sand hills: chains of crests, three jumps and a hairpin at the top."
+STAGE_EAGLE_NEST,Kartal Yuvası,Eagle's Nest
+STAGE_EAGLE_NEST_DESC,"Uçurum yüzüne tırmanan dar dağ yolu: dışında boşluk, içinde kaya duvarı olan saç tokaları, sonra atlamalı hızlı bir iniş.","A narrow road climbing a cliff face: hairpins with a sheer drop outside and a rock wall inside, then a fast descent with a jump."
+STAGE_GLACIER_RIDGE,Buzul Sırtı,Glacier Ridge
+STAGE_GLACIER_RIDGE_DESC,"Bulutların üstünde bir sırt: iki yanda sırayla uçurumlar, hızlı tepeler ve inişler.","A ridge above the clouds: drops on both sides in turn, fast crests and descents."

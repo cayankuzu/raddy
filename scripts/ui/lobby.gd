@@ -1,14 +1,19 @@
 extends Control
 ## The room (spec §6.1): room codes for friends, three teams with a driver and a navigator seat,
-## ready flags, the host's race choices (each may be Random, or Surprise Rally for all) that every
-## player sees, and the start button with the reason it cannot start yet.
+## ready flags, the host's race choices (the stage, difficulty and weather; each may be Random, or
+## Surprise Rally for all) that every player sees, and the start button with the reason it cannot
+## start yet.
 
-const CHOICES := [
-	["difficulty", "LOBBY_DIFFICULTY", RaceSettings.DIFFICULTY_KEYS],
-	["laps", "LOBBY_LAPS", ["LAPS_1", "LAPS_2", "LAPS_3"]],
-	["biome", "LOBBY_BIOME", RaceSettings.BIOME_KEYS],
-	["weather", "LOBBY_WEATHER", RaceSettings.WEATHER_KEYS],
-]
+## [settings key, title key, item keys]; the stage list comes from StageCatalog.
+static func choices() -> Array:
+	var stage_keys: Array = []
+	for i in StageCatalog.count():
+		stage_keys.append(StageCatalog.name_key(i))
+	return [
+		["stage", "LOBBY_STAGE", stage_keys],
+		["difficulty", "LOBBY_DIFFICULTY", RaceSettings.DIFFICULTY_KEYS],
+		["weather", "LOBBY_WEATHER", RaceSettings.WEATHER_KEYS],
+	]
 
 ## OptionButton id for "Random" (Godot treats id -1 as "use the index").
 const RANDOM_ID := 99
@@ -17,6 +22,7 @@ var _codes: Label
 var _teams_box: VBoxContainer
 var _options: Dictionary = {}  # key -> OptionButton
 var _summary: Label
+var _stage_info: Label
 var _ready_button: Button
 var _start_button: Button
 var _start_reason: Label
@@ -40,20 +46,23 @@ func _ready() -> void:
 	column.add_child(UiTheme.label(tr("LOBBY_SETTINGS"), 24))
 	var settings_row := HBoxContainer.new()
 	column.add_child(settings_row)
-	for choice in CHOICES:
+	for choice in choices():
 		var box := VBoxContainer.new()
 		box.add_child(UiTheme.label(tr(choice[1]), 16, UiTheme.MUTED))
 		var option := OptionButton.new()
 		option.add_item(tr("CHOICE_RANDOM"), RANDOM_ID)
 		var keys: Array = choice[2]
 		for i in keys.size():
-			option.add_item(tr(keys[i]), i + 1 if choice[0] == "laps" else i)
+			option.add_item(tr(keys[i]), i)
 		option.item_selected.connect(_on_choice_changed.bind(choice[0]))
 		box.add_child(option)
 		settings_row.add_child(box)
 		_options[choice[0]] = option
 	_surprise = UiTheme.button("LOBBY_SURPRISE", _on_surprise)
 	settings_row.add_child(_surprise)
+	_stage_info = UiTheme.label("", 16, UiTheme.MUTED)
+	_stage_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(_stage_info)
 	_summary = UiTheme.label("", 18)
 	column.add_child(_summary)
 
@@ -80,7 +89,7 @@ func _ready() -> void:
 ## The flow test passes the room choices on the command line.
 func _apply_cli_choices() -> void:
 	var choices: Dictionary = Net.lobby_settings.duplicate()
-	for key in ["seed", "laps", "difficulty", "biome", "weather"]:
+	for key in ["stage", "difficulty", "weather"]:
 		if Flow.args.has(key):
 			choices[key] = int(Flow.args[key])
 	Net.set_lobby_settings(choices)
@@ -189,7 +198,15 @@ func _refresh_settings() -> void:
 		option.disabled = not Net.is_host()
 	_surprise.disabled = not Net.is_host()
 	var keys := RaceSettings.summary_keys(choices)
-	_summary.text = tr("LOBBY_SUMMARY").format({"difficulty": tr(keys[0]), "laps": tr(keys[1]), "biome": tr(keys[2]), "weather": tr(keys[3])})
+	_summary.text = tr("LOBBY_SUMMARY").format({"stage": tr(keys[0]), "difficulty": tr(keys[1]), "weather": tr(keys[2])})
+	var stage := int(choices.get("stage", RaceSettings.RANDOM))
+	if stage == RaceSettings.RANDOM:
+		_stage_info.text = tr("LOBBY_STAGE_RANDOM")
+	else:
+		var info := StageCatalog.get_stage(stage)
+		_stage_info.text = "%s · %s · %.1f km
+%s" % [tr(StageCatalog.name_key(stage)), tr(RaceSettings.BIOME_KEYS[info.biome]),
+			StageCatalog.length_of(stage) / 1000.0, tr(StageCatalog.description_key(stage))]
 
 
 func _on_choice_changed(index: int, key: String) -> void:
@@ -202,9 +219,7 @@ func _on_choice_changed(index: int, key: String) -> void:
 
 
 func _on_surprise() -> void:
-	var choices := RaceSettings.surprise()
-	choices.seed = int(Net.lobby_settings.get("seed", RaceSettings.RANDOM))
-	Net.set_lobby_settings(choices)
+	Net.set_lobby_settings(RaceSettings.surprise())
 
 
 func _on_ready_pressed() -> void:

@@ -1,73 +1,75 @@
 extends GutTest
-## Pace notes (spec §11.4): one numbered note per junction in lap order, the same on every peer,
-## saying where the main road goes and what the other branch is.
+## Pace notes (spec §11.4): every corner called by direction and severity in stage order, the
+## hazards called (crests, jumps, water, cliffs), the same notes on every peer, numbered for the
+## paper map, in Turkish and English.
 
 
-func test_every_junction_gets_one_note_in_lap_order() -> void:
-	for seed in range(1, 13):
-		var graph := RouteGenerator.generate(seed)
+func _graph(id: StringName) -> RouteGraph:
+	return StageBuilder.build(StageCatalog.get_stage(StageCatalog.index_of(id)))
+
+
+func test_numbered_in_stage_order_and_deterministic() -> void:
+	for i in StageCatalog.count():
+		var graph := StageBuilder.build(StageCatalog.get_stage(i))
 		var notes := PaceNotes.build(graph)
-		var junctions := 0
-		for node in graph.nodes:
-			if node.kind == RouteGraph.NodeKind.JUNCTION:
-				junctions += 1
-		assert_eq(notes.size(), junctions, "seed %d: a note per junction" % seed)
-		for i in notes.size():
-			assert_eq(notes[i].number, i + 1, "numbered in lap order")
-			if i > 0:
-				assert_gt(notes[i].lap_fraction, notes[i - 1].lap_fraction, "later along the lap")
-			assert_ne(notes[i].tr, "")
-			assert_ne(notes[i].en, "")
-			assert_true(notes[i].tr.begins_with("K%d:" % (i + 1)))
-			assert_true(notes[i].en.begins_with("J%d:" % (i + 1)))
+		var again := PaceNotes.build(graph)
+		assert_eq(notes.size(), again.size())
+		assert_gt(notes.size(), 15, "%s: a stage is full of calls" % graph.stage_id)
+		var previous := -1.0
+		for n in notes.size():
+			assert_eq(notes[n].number, n + 1)
+			assert_gte(notes[n].distance, previous)
+			previous = notes[n].distance
+			assert_eq(notes[n].tr, again[n].tr)
+			assert_ne(notes[n].tr, "")
+			assert_ne(notes[n].en, "")
+		gut.p("%s (%d): %s" % [graph.stage_id, notes.size(), " | ".join(notes.slice(0, 12).map(func(note: Dictionary) -> String: return note.tr))])
 
 
-func test_notes_are_deterministic() -> void:
-	var a := PaceNotes.build(RouteGenerator.generate(5))
-	var b := PaceNotes.build(RouteGenerator.generate(5))
-	assert_eq(a.size(), b.size())
-	for i in a.size():
-		assert_eq(a[i].tr, b[i].tr)
-		assert_eq(a[i].en, b[i].en)
+func test_a_known_corner_is_called_with_the_right_side_and_severity() -> void:
+	# Black Pine's 4th segment turns 80 deg left over 48 m: radius 34 m, a "left 3".
+	var graph := _graph(&"black_pine")
+	var stage := StageCatalog.get_stage(StageCatalog.index_of(&"black_pine"))
+	var start := 0.0
+	for k in 3:
+		start += float(stage.segments[k].len)
+	var found := false
+	for note in PaceNotes.build(graph):
+		if note.kind == &"corner" and absf(note.distance - start) < 12.0:
+			found = true
+			assert_eq(note.side, "left")
+			assert_eq(note.severity, 3)
+			assert_eq(note.tr, "Sol 3")
+			assert_eq(note.en, "Left 3")
+	assert_true(found, "the corner at %.0f m is called" % start)
 
 
-func test_branch_side_matches_the_geometry() -> void:
-	var graph := RouteGenerator.generate(7)
-	var notes := PaceNotes.build(graph)
-	var leaves := 0
-	var joins := 0
+func test_hairpins_and_hazards_are_called() -> void:
+	var notes := PaceNotes.build(_graph(&"eagle_nest"))
+	var hairpins := notes.filter(func(note: Dictionary) -> bool: return note.hairpin)
+	assert_eq(hairpins.size(), 3, "three switchbacks")
+	assert_true((hairpins[0].tr as String).begins_with("Saç tokası"))
+	var kinds := {}
 	for note in notes:
-		var branch: Dictionary = note.branch
-		assert_false(branch.is_empty(), "three-way junctions always have a branch")
-		var node := graph.nodes[note.node]
-		# Recompute the side from scratch: the arriving main edge's heading and the branch's heading.
-		var arriving: RouteGraph.RouteEdge
-		for edge_id in graph.main_route:
-			if graph.edges[edge_id].to_node == node.id:
-				arriving = graph.edges[edge_id]
-		var arrival := arriving.direction_at(arriving.points.size() - 1)
-		var right := Vector2(-arrival.y, arrival.x)
-		for edge_id in node.edge_ids:
-			var edge := graph.edges[edge_id]
-			if edge.kind == RouteGraph.EdgeKind.MAIN:
-				continue
-			var away := (edge.points[4] - edge.points[0]) if edge.from_node == node.id else (edge.points[-5] - edge.points[-1])
-			assert_eq(branch.side, "right" if away.dot(right) > 0.0 else "left", "junction %d" % note.number)
-			assert_eq(branch.joins, edge.to_node == node.id)
-			assert_eq(branch.kind, edge.kind)
-		if branch.joins:
-			joins += 1
-			assert_string_contains(note.tr, "geri döner")
-		else:
-			leaves += 1
-			assert_string_contains(note.tr, "ayrılan yol")
-	assert_gt(leaves, 0)
-	assert_gt(joins, 0)
-	gut.p("seed 7 notes:\n  " + "\n  ".join(notes.map(func(n: Dictionary) -> String: return n.tr)))
+		kinds[note.kind] = true
+	for kind in [&"jump", &"cliff", &"crest"]:
+		assert_true(kinds.has(kind), "%s called" % kind)
+	var graph := _graph(&"misty_creek")
+	var water := PaceNotes.build(graph).filter(func(note: Dictionary) -> bool: return note.kind == &"water")
+	assert_eq(water.size(), graph.features_of(&"water").size(), "every splash called")
+	assert_true((water[0].tr as String).begins_with("Su geçişi!"))
 
 
-func test_number_lookup() -> void:
-	var graph := RouteGenerator.generate(2)
-	var notes := PaceNotes.build(graph)
-	assert_eq(PaceNotes.number_of(notes, notes[1].node), 2)
-	assert_eq(PaceNotes.number_of(notes, 0), 0, "the start node has no junction number")
+func test_cautions_mark_their_call() -> void:
+	var notes := PaceNotes.build(_graph(&"black_pine"))
+	var cautions := notes.filter(func(note: Dictionary) -> bool: return note.caution)
+	assert_gt(cautions.size(), 0)
+	for note in cautions:
+		assert_string_contains(note.tr, "Dikkat")
+		assert_string_contains(note.en, "Caution")
+
+
+func test_number_at_finds_the_nearest_call() -> void:
+	var notes := PaceNotes.build(_graph(&"red_canyon"))
+	var third: Dictionary = notes[2]
+	assert_eq(PaceNotes.number_at(notes, third.distance + 1.0), third.number)

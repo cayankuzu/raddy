@@ -1,9 +1,10 @@
 class_name RoadsideDresser
-## Dresses a generated route with trees, bushes, rocks and ground cover from RoadsideCatalog
-## (spec §13): deterministic per seed so every peer gets the same world, never on or beside any road
-## (the verge and a margin stay clear), denser near the road where it gives the sense of speed,
-## sparser further out. Visuals are MultiMeshes split into 64 m chunks with a visibility range;
-## trees and rocks get real collision so hitting one hurts (spec §8.2).
+## Dresses a stage with trees, bushes, rocks and ground cover from RoadsideCatalog (spec §13):
+## deterministic per seed so every peer gets the same world, never on or beside the road (the
+## verge and a margin stay clear) nor on the lip of a cliff, denser near the road where it gives
+## the sense of speed, a thick band where the stage ends and a backdrop beyond it. Visuals are
+## MultiMeshes split into 64 m chunks with a visibility range; trees and rocks get real collision
+## so hitting one hurts (spec §8.2).
 
 const CHUNK := 64.0
 ## Distance along the road between placement tries, per side.
@@ -12,6 +13,8 @@ const STEP := 4.0
 const CLEARANCE := 4.0
 ## No dressing near the start grid, where spectators and the start arch go.
 const START_CLEAR := 30.0
+## Nothing on a cliff's lip: the drop stays in view.
+const CLIFF_LIP := 12.0
 
 enum Kind { TREE, BUSH, ROCK, GROUND }
 
@@ -22,7 +25,7 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 	var root := Node3D.new()
 	root.name = "Dressing"
 	var entries: Array = catalog if not catalog.is_empty() else RoadsideCatalog.for_biome(biome)
-	var start := graph.start_pose().origin
+	var start := graph.start_pose(graph.checkpoints[0].distance if not graph.checkpoints.is_empty() else 12.0).origin
 	var start_xz := Vector2(start.x, start.z)
 	var collisions := StaticBody3D.new()
 	collisions.name = "Obstacles"
@@ -90,6 +93,9 @@ static func _try_place(entry: Dictionary, graph: RouteGraph, terrain: TerrainFie
 		return null
 	if p.distance_to(start_xz) < START_CLEAR:
 		return null
+	var cliff := terrain.cliff_at(p)
+	if not cliff.is_empty() and float(cliff.lateral) < float(cliff.half_width) + TerrainField.SHOULDER + CLIFF_LIP:
+		return null
 	var scale_range: Array = entry.get("scale", [1.0, 1.0])
 	var s := rng.randf_range(scale_range[0], scale_range[1])
 	var y := terrain.height(p) - float(entry.get("sink", 0.15)) * s
@@ -125,7 +131,11 @@ static func _expand_variants(entry: Dictionary) -> Array:
 
 
 ## The meshes of an entry with their local transforms and materials: from a scene file (every
-## MeshInstance3D in it) or a bare "mesh" (tests). Missing files are skipped with a note.
+## MeshInstance3D in it, or only those under the node named "node"), or a bare "mesh" (tests).
+## "unit" scales a model made in other units (centimetres: 0.01); a "node" entry is re-centred on
+## its first mesh's footprint (the trunk) with its lowest point on the ground; "foliage" turns
+## blended leaf materials into alpha-scissor ones (cheap, sorted right, cast shadows).
+## Missing files are skipped with a note.
 static func _parts_of(entry: Dictionary) -> Array:
 	if entry.has("mesh"):
 		return [{"mesh": entry.mesh, "transform": Transform3D.IDENTITY, "material": null}]
@@ -133,19 +143,65 @@ static func _parts_of(entry: Dictionary) -> Array:
 	if path == "" or not ResourceLoader.exists(path):
 		print("DRESS skipping %s: %s not found" % [entry.get("id", "?"), path])
 		return []
+	var cache_key := "%s|%s|%s" % [path, entry.get("node", ""), entry.get("unit", 1.0)]
+	if _part_cache.has(cache_key):
+		return _part_cache[cache_key]
 	var scene: PackedScene = load(path)
 	var instance := scene.instantiate()
 	var parts: Array = []
-	_collect_meshes(instance, Transform3D.IDENTITY, parts)
+	var only: String = entry.get("node", "")
+	_collect_meshes(instance, Transform3D.IDENTITY, parts, only, only == "")
 	instance.free()
+	var unit: float = entry.get("unit", 1.0)
+	if unit != 1.0:
+		for part in parts:
+			part.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * unit), Vector3.ZERO) * part.transform
+	if only != "" and not parts.is_empty():
+		var trunk: AABB = parts[0].transform * (parts[0].mesh as Mesh).get_aabb()
+		var bottom := INF
+		for part in parts:
+			bottom = minf(bottom, (part.transform * (part.mesh as Mesh).get_aabb()).position.y)
+		var recentre := Transform3D(Basis.IDENTITY, -Vector3(trunk.get_center().x, bottom, trunk.get_center().z))
+		for part in parts:
+			part.transform = recentre * part.transform
+	if entry.get("foliage", false):
+		for part in parts:
+			part.mesh = _scissored(part.mesh)
+	_part_cache[cache_key] = parts
 	return parts
 
 
-static func _collect_meshes(node: Node, parent: Transform3D, parts: Array) -> void:
+## Parts per (path, node, unit), so the many entries made from one pack load it once per stage.
+static var _part_cache: Dictionary = {}
+
+
+static func clear_cache() -> void:
+	_part_cache.clear()
+
+
+## A copy of `mesh` whose blended (leaf) materials use alpha scissor instead.
+static func _scissored(mesh: Mesh) -> Mesh:
+	var copy := mesh.duplicate() as Mesh
+	for s in copy.get_surface_count():
+		var material := copy.surface_get_material(s) as BaseMaterial3D
+		if material == null or material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED:
+			continue
+		var leaf := material.duplicate() as BaseMaterial3D
+		leaf.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		leaf.alpha_scissor_threshold = 0.45
+		leaf.cull_mode = BaseMaterial3D.CULL_DISABLED
+		copy.surface_set_material(s, leaf)
+	return copy
+
+
+## Meshes under `node`; `inside` is true once the walk is under the wanted node ("" = all).
+static func _collect_meshes(node: Node, parent: Transform3D, parts: Array, only := "", inside := true) -> void:
 	var here := parent
 	if node is Node3D:
 		here = parent * (node as Node3D).transform
-	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+	if not inside and String(node.name) == only:
+		inside = true
+	if inside and node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
 		var mi := node as MeshInstance3D
 		var mesh := mi.mesh
 		var overrides := false
@@ -159,7 +215,7 @@ static func _collect_meshes(node: Node, parent: Transform3D, parts: Array) -> vo
 					mesh.surface_set_material(s, mi.get_surface_override_material(s))
 		parts.append({"mesh": mesh, "transform": here, "material": mi.material_override})
 	for child in node.get_children():
-		_collect_meshes(child, here, parts)
+		_collect_meshes(child, here, parts, only, inside)
 
 
 static func _build_multimeshes(root: Node3D, entry: Dictionary, parts: Array, chunks: Dictionary) -> void:
@@ -195,6 +251,20 @@ static func _add_collision(body: StaticBody3D, entry: Dictionary, transform: Tra
 	if spec.is_empty():
 		return
 	var s := transform.basis.get_scale().x
+	if spec.get("shape", "cylinder") == "box":
+		# A lying log: a box turned with the instance (shapes are never scaled, so size it here).
+		var size: Vector3 = spec.get("size", Vector3.ONE) * s
+		var box_key := "box:%.2f:%.2f:%.2f" % [size.x, size.y, size.z]
+		if not cache.has(box_key):
+			var box := BoxShape3D.new()
+			box.size = size
+			cache[box_key] = box
+		var log := CollisionShape3D.new()
+		log.shape = cache[box_key]
+		var turn := transform.basis.orthonormalized()
+		log.transform = Transform3D(turn, transform.origin + turn * (spec.get("offset", Vector3.ZERO) as Vector3) * s + Vector3.UP * size.y * 0.5)
+		body.add_child(log)
+		return
 	var radius := snappedf(float(spec.get("radius", 0.3)) * s, 0.05)
 	var height := snappedf(float(spec.get("height", 4.0)) * s, 0.1)
 	var key := "%s:%.2f:%.1f" % [spec.get("shape", "cylinder"), radius, height]

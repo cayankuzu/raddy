@@ -5,8 +5,8 @@ extends Node3D
 ## peers: cars live under Cars as "Car<team>", cans under Props as "Can<id>".
 
 signal local_seat_bound(car: RallyCar, role: int)
-## Host-validated lap progress of a team (every peer).
-signal progress_changed(team: int, laps: int, next_gate: int)
+## Host-validated stage progress of a team: the next gate it must cross (every peer).
+signal progress_changed(team: int, next_gate: int)
 ## The start countdown began (every peer); `seconds` until the cars are released.
 signal countdown_started(seconds: float)
 ## The cars were released (every peer).
@@ -35,7 +35,8 @@ const LOAD_TIMEOUT := 20.0
 ## Dev: the local driver weaves down the lane at this speed when autodrive is on.
 const AUTODRIVE_SPEED := 10.0
 
-## Race settings from Net.start_race(): "seed" builds the procedural route, "laps" the distance.
+## Race settings from Net.start_race() (RaceSettings.resolve): "stage" picks the StageCatalog
+## stage every peer builds, with the difficulty and weather applied.
 var settings: Dictionary = {}
 var graph: RouteGraph
 var progress: RaceProgress
@@ -54,6 +55,7 @@ var local_car: RallyCar
 var local_role := RosterRules.Role.NONE
 
 var _team_cars: Dictionary = {}  # team -> RallyCar
+var _trackers: Dictionary = {}  # team -> RouteTracker (every peer, for the HUD; the host's count)
 var _recovery_rules: Dictionary = {}  # host: team -> RecoveryRules
 var _recovery_offers: Dictionary = {}  # team -> {offered, confirmed, seats, peers}
 var _recovery_counts: Dictionary = {}  # team -> recoveries used (host)
@@ -76,8 +78,8 @@ var _grace_timer: SceneTreeTimer
 func _ready() -> void:
 	Net.player_left.connect(_on_player_left)
 	Voice.set_world(self)
-	if settings.has("seed"):
-		_build_route(int(settings.seed))
+	if settings.has("stage"):
+		_build_route()
 	# Spawn RPCs may only go out once every player has this node (scene changes are deferred, and
 	# building the route takes a moment), so the host waits for everyone to report in.
 	if Net.is_host():
@@ -103,8 +105,32 @@ func biome() -> int:
 	return int(settings.get("biome", RaceSettings.Biome.FOREST))
 
 
-func laps_to_finish() -> int:
-	return int(settings.get("laps", 1))
+func stage_index() -> int:
+	return int(settings.get("stage", 0))
+
+
+func stage_length() -> float:
+	return graph.main_route_length() if graph != null else 0.0
+
+
+## How far along the stage `team`'s car is (m) and the furthest it got.
+func distance_of(team: int) -> float:
+	var tracker: RouteTracker = _trackers.get(team)
+	return tracker.distance if tracker != null else 0.0
+
+
+## Teams in race order: finished ones by time, then by distance along the stage.
+func standings() -> Array:
+	var order := _team_cars.keys()
+	order.sort_custom(func(a: int, b: int) -> bool:
+		var fa := finished_teams.has(a)
+		var fb := finished_teams.has(b)
+		if fa != fb:
+			return fa
+		if fa:
+			return finished_teams[a] < finished_teams[b]
+		return distance_of(a) > distance_of(b))
+	return order
 
 
 ## Race time on this peer's clock (the host's is the one that counts for the results).
@@ -124,13 +150,13 @@ func _begin() -> void:
 	_rpc_countdown.rpc(COUNTDOWN_SECONDS)
 
 
-## Builds the same road network on every peer from the seed (the graph is deterministic), with the
-## room's difficulty, biome and weather applied the same way everywhere.
-func _build_route(seed: int) -> void:
+## Builds the same stage on every peer (StageBuilder is deterministic), with the room's difficulty
+## and weather applied the same way everywhere.
+func _build_route() -> void:
 	var started := Time.get_ticks_msec()
-	graph = RouteGenerator.generate(seed)
+	graph = StageBuilder.build(StageCatalog.get_stage(stage_index()))
 	BiomeRules.apply_to_graph(graph, settings)
-	var terrain := TerrainField.new(seed)
+	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(biome()))
 	terrain.set_roads(graph)
 	var track := RoadBuilder.build(graph, terrain, BiomeRules.palette(biome(), weather()))
 	track.add_child(RoadsideDresser.dress(graph, terrain, biome()))
@@ -138,10 +164,10 @@ func _build_route(seed: int) -> void:
 	notes = PaceNotes.build(graph, RaceSettings.note_detail(difficulty()))
 	_contour = MapCanvas.contour_for(graph, terrain)
 	if Net.is_host():
-		progress = RaceProgress.new(graph.checkpoints.size(), int(settings.get("laps", 1)))
+		progress = RaceProgress.new(graph.checkpoints.size())
 		for gate in track.get_node(^"Checkpoints").get_children():
 			(gate as Checkpoint).passed.connect(_on_gate_passed)
-	print("NET route seed %d lap %.0f m gates %d built in %d ms" % [seed, graph.main_route_length(), graph.checkpoints.size(), Time.get_ticks_msec() - started])
+	print("NET stage %s %.0f m gates %d notes %d built in %d ms" % [graph.stage_id, graph.main_route_length(), graph.checkpoints.size(), notes.size(), Time.get_ticks_msec() - started])
 
 
 func _exit_tree() -> void:
@@ -165,6 +191,10 @@ func voice_anchor(peer_id: int) -> Node3D:
 
 
 func _physics_process(delta: float) -> void:
+	for team in _trackers:
+		var tracked: RallyCar = _team_cars.get(team)
+		if tracked != null:
+			(_trackers[team] as RouteTracker).update(tracked.global_position)
 	if countdown_left > 0.0:
 		countdown_left -= delta
 		if countdown_left <= 0.0:
@@ -308,8 +338,12 @@ func _perform_recovery(team: int, rules: RecoveryRules) -> void:
 	var car: RallyCar = _team_cars[team]
 	var target: Transform3D
 	if graph != null:
-		var spot := RecoveryAnchor.find(graph, car.global_position, progress.next_gate(team) if progress != null else 0)
+		var tracker: RouteTracker = _trackers.get(team)
+		var spot := RecoveryAnchor.find(graph, car.global_position, progress.next_gate(team) if progress != null else 0,
+			tracker.furthest if tracker != null else INF)
 		target = spot.transform.translated(Vector3.UP * 0.6)
+		if tracker != null:
+			tracker.reset_to(spot.along)
 	else:
 		var heading := -car.global_basis.z
 		heading.y = 0.0
@@ -381,9 +415,9 @@ func _spawn_cars_for_roster() -> void:
 func _grid_slot(row: int, count: int) -> Transform3D:
 	if graph == null:
 		return Transform3D(Basis(), Vector3((row - (count - 1) * 0.5) * SPAWN_SPACING, 1.0, -6.0))
-	var pose := graph.start_pose(12.0 + GRID_ROW * (count - 1))
+	# The front row waits a few metres behind the start line; later rows sit further back.
+	var pose := graph.start_pose(graph.checkpoints[0].distance - 6.0)
 	var side := GRID_LATERAL if row % 2 == 0 else -GRID_LATERAL
-	# Row 0 (the first team) is at the front; later rows sit further back along the road.
 	return pose.translated_local(Vector3(side, 0.8, GRID_ROW * row))
 
 
@@ -394,8 +428,8 @@ func _on_gate_passed(gate: int, car: RallyCar) -> void:
 		if _team_cars[team] == car:
 			var result := progress.record(team, gate)
 			if result.counted:
-				results.set_progress(team, progress.laps(team), progress.next_gate(team))
-				_rpc_progress.rpc(team, progress.laps(team), progress.next_gate(team))
+				results.set_progress(team, progress.gates_passed(team), distance_of(team))
+				_rpc_progress.rpc(team, progress.next_gate(team))
 			if result.finished:
 				var time_ms := Time.get_ticks_msec() - _start_ms \
 					+ recoveries_used(team) * RaceSettings.recovery_penalty_ms(difficulty())
@@ -419,6 +453,10 @@ func _publish_results() -> void:
 	if _results_sent or not is_inside_tree():
 		return
 	_results_sent = true
+	# Teams still on the stage are placed by how far they got.
+	for team in _trackers:
+		if progress != null:
+			results.set_progress(team, progress.gates_passed(team), (_trackers[team] as RouteTracker).furthest)
 	_rpc_results.rpc(results.rows())
 
 
@@ -454,9 +492,9 @@ func _despawn_can(can_id: int) -> void:
 # --- everyone ---
 
 @rpc("authority", "call_local", "reliable")
-func _rpc_progress(team: int, laps: int, next_gate: int) -> void:
-	print("NET team %d laps %d next gate %d" % [team, laps, next_gate])
-	progress_changed.emit(team, laps, next_gate)
+func _rpc_progress(team: int, next_gate: int) -> void:
+	print("NET team %d next gate %d" % [team, next_gate])
+	progress_changed.emit(team, next_gate)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -529,6 +567,8 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	if Net.is_host():
 		cabin.throw_approved.connect(_on_throw_approved.bind(team))
 	_team_cars[team] = car
+	if graph != null:
+		_trackers[team] = RouteTracker.new(graph)
 	var me := Net.local_entry()
 	if me.get("team", 0) == team:
 		_bind_local_seat(car, me.role)
@@ -541,6 +581,7 @@ func _rpc_despawn_car(team: int) -> void:
 		return
 	var car: RallyCar = _team_cars[team]
 	_team_cars.erase(team)
+	_trackers.erase(team)
 	if car == local_car:
 		local_car = null
 		local_role = RosterRules.Role.NONE

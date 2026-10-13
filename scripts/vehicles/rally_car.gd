@@ -21,6 +21,8 @@ const HOLD_SPEED := 1.0
 const AIR_WHEEL_DECEL := 8.0
 ## A stuck car must travel this far (or reach recovery_max_speed) before the offer is withdrawn.
 const UNSTUCK_DISTANCE := 2.0
+## Deceleration per m/s of speed while ploughing through a water splash (1/s).
+const WATER_DRAG := 0.6
 
 @export var config: VehicleConfig
 
@@ -46,6 +48,9 @@ var wheelbase := 2.5
 ## False on peers that only play back the driver's snapshots (see BodyNetSync): the body is a
 ## frozen kinematic copy and no forces run.
 var simulated := true
+## Water splashes the car is in (WaterSplash areas) and the surface height of the last one.
+var water_contacts := 0
+var water_level := 0.0
 
 var _wheels: Array[CarWheel] = []
 var _drive := 0.0
@@ -114,6 +119,11 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	_apply_stability_assist(state)
 	var velocity := state.linear_velocity
 	state.apply_central_force(-velocity * velocity.length() * config.drag_coefficient)
+	if water_contacts > 0:
+		# Water drag: wheels and body ploughing through, strongest at the bottom of the splash.
+		var flat_velocity := velocity - Vector3.UP * velocity.y
+		var depth := clampf((water_level - (state.transform.origin.y - 0.45)) / 0.4, 0.2, 1.0)
+		state.apply_central_force(-flat_velocity * mass * WATER_DRAG * depth)
 	_detect_impact(state, dt)
 	_update_recovery(state, dt)
 
@@ -124,6 +134,7 @@ func _physics_process(delta: float) -> void:
 		_reset_interpolation = false
 		reset_physics_interpolation()
 	_update_dust()
+	_update_splash()
 	for wheel in _wheels:
 		if wheel.visual == null:
 			continue
@@ -265,6 +276,55 @@ func _update_dust() -> void:
 			material.color = Color(0.45, 0.45, 0.42, 0.4)
 		_:
 			material.color = Color(0.75, 0.68, 0.55, 0.45)
+
+
+## Spray thrown up from the wheels in a water splash.
+func _update_splash() -> void:
+	var splash := get_node_or_null(^"Splash") as GPUParticles3D
+	var speed := absf(forward_speed)
+	var wet := water_contacts > 0 and speed > 2.0
+	if splash == null:
+		if not wet:
+			return
+		splash = GPUParticles3D.new()
+		splash.name = "Splash"
+		splash.position = Vector3(0.0, -0.2, -0.6)
+		splash.amount = 160
+		splash.lifetime = 1.1
+		splash.local_coords = false
+		var material := ParticleProcessMaterial.new()
+		material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+		material.emission_box_extents = Vector3(0.9, 0.1, 1.4)
+		material.direction = Vector3(0.0, 1.0, 0.25)
+		material.spread = 70.0
+		material.initial_velocity_min = 3.0
+		material.initial_velocity_max = 8.0
+		material.gravity = Vector3(0.0, -9.8, 0.0)
+		material.scale_min = 0.25
+		material.scale_max = 0.9
+		var fade := Gradient.new()
+		fade.set_color(0, Color(1, 1, 1, 0.9))
+		fade.set_color(1, Color(1, 1, 1, 0.0))
+		var fade_texture := GradientTexture1D.new()
+		fade_texture.gradient = fade
+		material.color_ramp = fade_texture
+		material.color = Color(0.55, 0.5, 0.42, 0.8)
+		splash.process_material = material
+		var mesh := QuadMesh.new()
+		mesh.size = Vector2(0.7, 0.7)
+		var sprite := StandardMaterial3D.new()
+		sprite.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		sprite.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		sprite.vertex_color_use_as_albedo = true
+		sprite.albedo_texture = _soft_puff()
+		sprite.roughness = 0.2
+		mesh.material = sprite
+		splash.draw_pass_1 = mesh
+		add_child(splash)
+	splash.emitting = wet
+	splash.amount_ratio = clampf(speed / 18.0, 0.15, 1.0)
+	var spray := splash.process_material as ParticleProcessMaterial
+	spray.initial_velocity_max = 4.0 + speed * 0.35
 
 
 ## A round, soft-edged puff for dust particles, made once.

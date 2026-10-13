@@ -1,6 +1,6 @@
 class_name RaceHud
 extends CanvasLayer
-## In-race HUD (spec §17.3): speed, lap and next checkpoint, race time, damage and glass state,
+## In-race HUD (spec §17.3): speed, place, splits, distance to the finish, stage time, damage and glass state,
 ## the countdown, recovery prompt, map and faint messages, who is talking nearby and the keys of
 ## the local role. Kept small: the paper map and the cockpit carry the rest.
 
@@ -13,8 +13,7 @@ var _prompt: Label
 var _talk: Label
 var _keys: Label
 var _summary: Label
-var _my_laps := 0
-var _my_next_gate := 1
+var _my_next_gate := 0
 var _flash_text := ""
 var _flash_left := 0.0
 var _summary_left := 6.0
@@ -36,7 +35,7 @@ func _ready() -> void:
 	_keys.modulate = Color(1, 1, 1, 0.85)
 	_summary = _label(root, 20, Vector4(0.5, 1, 0.5, 1), Rect2(-450, -110, 900, 40), HORIZONTAL_ALIGNMENT_CENTER)
 	var keys := RaceSettings.summary_keys(session.settings)
-	_summary.text = "%s · %s · %s · %s" % [tr(keys[0]), tr(keys[1]), tr(keys[2]), tr(keys[3])]
+	_summary.text = "%s · %s · %s" % [tr(keys[0]), tr(keys[1]), tr(keys[2])]
 	session.progress_changed.connect(_on_progress)
 	session.race_go.connect(func() -> void: _flash(tr("HUD_COUNTDOWN_GO"), 1.2))
 	session.team_finished.connect(_on_team_finished)
@@ -67,9 +66,8 @@ func _my_team() -> int:
 	return Net.local_entry().get("team", 0)
 
 
-func _on_progress(team: int, laps: int, next_gate: int) -> void:
+func _on_progress(team: int, next_gate: int) -> void:
 	if team == _my_team():
-		_my_laps = laps
 		_my_next_gate = next_gate
 
 
@@ -88,14 +86,17 @@ func _flash(text: String, seconds: float) -> void:
 func _process(delta: float) -> void:
 	var car := session.local_car
 	var team := _my_team()
-	var laps := session.laps_to_finish()
 	var lines := PackedStringArray()
 	if car != null:
+		var standings := session.standings()
 		lines.append(tr("HUD_SPEED").format({"speed": roundi(absf(car.forward_speed) * 3.6)}) + "    " \
-			+ tr("HUD_LAP").format({"lap": mini(_my_laps + 1, laps), "laps": laps}))
+			+ tr("HUD_POSITION").format({"place": standings.find(team) + 1, "teams": standings.size()}))
 		var gates := session.graph.checkpoints.size() if session.graph != null else 0
-		var gate_text := tr("HUD_FINISH_LINE") if _my_next_gate == 0 else str(_my_next_gate)
-		lines.append(tr("HUD_NEXT_GATE").format({"gate": gate_text, "gates": gates}) + "    " \
+		var splits := maxi(gates - 2, 0)
+		var gate_text := tr("HUD_FINISH_LINE") if _my_next_gate >= gates - 1 \
+			else tr("HUD_NEXT_SPLIT").format({"split": maxi(_my_next_gate, 1), "splits": splits})
+		var to_go := maxf(session.stage_length() - session.distance_of(team), 0.0)
+		lines.append(gate_text + "    " + tr("HUD_TO_FINISH").format({"km": "%.1f" % (to_go / 1000.0)}) + "    " \
 			+ tr("HUD_TIME").format({"time": RaceResults.format_time(session.finished_teams.get(team, session.race_time_ms()))}))
 	else:
 		lines.append(tr("HUD_SPECTATING"))

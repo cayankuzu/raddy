@@ -1,9 +1,9 @@
 class_name RouteFollower
 extends Node
-## Drives a RallyCar along a closed path with pure pursuit: steer at a point ahead on the path,
-## hold a speed the next corners allow. Used by dev scenes (--autodrive), tests that need a
-## car to complete a lap, and later by the respawn flow as a reference line. Writes car.controls
-## every physics tick, like PlayerCarInput does for a human.
+## Drives a RallyCar along a path with pure pursuit: steer at a point ahead on the path, hold a
+## speed the next corners allow. Used by dev scenes (--autodrive), bots in the flow test and tests
+## that need a car to drive a stage. A stage is an open path: the bot stops at its end. Writes
+## car.controls every physics tick, like PlayerCarInput does for a human.
 
 const LOOKAHEAD_MIN := 7.0
 const LOOKAHEAD_MAX := 24.0
@@ -25,9 +25,11 @@ const STUCK_TIME := 2.0
 ## Off in a race session: the host recovers the car through the team flow.
 @export var self_recover := true
 
-## Path progress in metres along the loop (wraps every lap) and laps completed.
+## Path progress in metres (wraps every lap on a closed path), laps completed (closed paths) and
+## whether the end of an open path was reached.
 var progress := 0.0
 var laps := 0
+var reached_end := false
 var recoveries := 0
 var max_speed_seen := 0.0
 
@@ -35,26 +37,33 @@ var _path := PackedVector3Array()
 var _cumulative := PackedFloat32Array()
 var _curvature := PackedFloat32Array()
 var _loop_length := 0.0
+var _closed := false
 var _index := 0
 var _stuck_time := 0.0
 var _reverse_left := 0.0
+var _located := false
 
 
-## `points` is the closed loop (last point joins the first). The car starts near points[0].
-func set_path(points: PackedVector3Array) -> void:
+## `points` is the path; `closed` joins the last point to the first (a lap). The car starts near
+## points[0] (or anywhere on it: the nearest point is found on the first tick).
+func set_path(points: PackedVector3Array, closed := false) -> void:
 	_path = points
+	_closed = closed
 	_cumulative.resize(points.size())
 	_curvature.resize(points.size())
 	var total := 0.0
 	for i in points.size():
 		_cumulative[i] = total
-		total += points[i].distance_to(points[(i + 1) % points.size()])
+		if closed or i < points.size() - 1:
+			total += points[i].distance_to(points[(i + 1) % points.size()])
 	_loop_length = total
 	for i in points.size():
 		_curvature[i] = _curvature_at(i)
 	_index = 0
 	progress = 0.0
 	laps = 0
+	reached_end = false
+	_located = false
 
 
 func _physics_process(delta: float) -> void:
@@ -72,9 +81,19 @@ func _physics_process(delta: float) -> void:
 		controls.brake = 0.0
 		return
 	var position := car.global_position
+	if not _located:
+		_locate(position)
 	_advance_index(position)
 	var speed := car.forward_speed
 	max_speed_seen = maxf(max_speed_seen, speed)
+	if not _closed and _loop_length - progress < 12.0:
+		# The end of the stage: stop.
+		reached_end = true
+		controls.throttle = 0.0
+		controls.brake = 1.0
+		controls.handbrake = false
+		controls.steer = 0.0
+		return
 
 	if _reverse_left > 0.0:
 		_reverse_left -= delta
@@ -133,11 +152,24 @@ func _physics_process(delta: float) -> void:
 		controls.brake = 0.0
 
 
+## The nearest path point to the car, searched once over the whole path.
+func _locate(position: Vector3) -> void:
+	_located = true
+	var best_distance := INF
+	for i in _path.size():
+		var d := _flat_distance(position, _path[i])
+		if d < best_distance:
+			best_distance = d
+			_index = i
+
+
 func _advance_index(position: Vector3) -> void:
 	# Walk forward while the next point is closer; also allow a short backward correction.
 	var best := _index
 	var best_distance := _flat_distance(position, _path[_index])
 	for step in range(1, 40):
+		if not _closed and _index + step >= _path.size():
+			break
 		var i := (_index + step) % _path.size()
 		var d := _flat_distance(position, _path[i])
 		if d < best_distance:
@@ -146,12 +178,14 @@ func _advance_index(position: Vector3) -> void:
 		elif d > best_distance + 10.0:
 			break
 	for step in range(1, 6):
+		if not _closed and _index - step < 0:
+			break
 		var i := posmod(_index - step, _path.size())
 		var d := _flat_distance(position, _path[i])
 		if d < best_distance:
 			best_distance = d
 			best = i
-	if best < _index and _index - best > _path.size() / 2:
+	if _closed and best < _index and _index - best > _path.size() / 2:
 		laps += 1
 	_index = best
 	progress = _cumulative[_index]
@@ -161,6 +195,10 @@ func _point_ahead(distance: float) -> Vector3:
 	var travelled := 0.0
 	var i := _index
 	while travelled < distance:
+		if not _closed and i >= _path.size() - 1:
+			# Past the end of an open path: aim straight on.
+			var last := _path.size() - 1
+			return _path[last] + (_path[last] - _path[last - 1]).normalized() * (distance - travelled)
 		var next := (i + 1) % _path.size()
 		travelled += _path[i].distance_to(_path[next])
 		i = next
@@ -179,6 +217,8 @@ func _corner_speed_limit(speed: float) -> float:
 			# v^2 = v_corner^2 + 2 a d: how fast we may still go here and brake down in time.
 			var reachable := sqrt(corner_speed * corner_speed + 2.0 * BRAKE_ACCEL * travelled)
 			limit = minf(limit, reachable)
+		if not _closed and i >= _path.size() - 1:
+			break
 		var next := (i + 1) % _path.size()
 		travelled += _path[i].distance_to(_path[next])
 		i = next
@@ -190,6 +230,8 @@ func _corner_speed_limit(speed: float) -> float:
 func _curvature_at(i: int) -> float:
 	var n := _path.size()
 	var span := 3
+	if not _closed and (i - span < 0 or i + span >= n):
+		return 0.0
 	var a := _flat(_path[posmod(i - span, n)])
 	var b := _flat(_path[i])
 	var c := _flat(_path[(i + span) % n])

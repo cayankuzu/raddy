@@ -1,14 +1,15 @@
 extends GutTest
-## Roadside dressing (spec §13): the same world on every peer, nothing on or beside any road, real
-## collision for trees and rocks, more near the road than far from it.
+## Roadside dressing (spec §13): the same world on every peer, nothing on or beside the road nor
+## on a cliff's lip, real collision for trees and rocks, more near the road than far from it, and
+## the real catalogue's trees load and stand on the ground.
 
 var _graph: RouteGraph
 var _terrain: TerrainField
 
 
 func before_each() -> void:
-	_graph = RouteGenerator.generate(4)
-	_terrain = TerrainField.new(4)
+	_graph = StageBuilder.build(StageCatalog.get_stage(StageCatalog.index_of(&"eagle_nest")))
+	_terrain = TerrainField.new(_graph.seed)
 	_terrain.set_roads(_graph)
 
 
@@ -52,7 +53,7 @@ func test_same_seed_same_world() -> void:
 	assert_eq(ta.size(), tb.size())
 	for i in mini(ta.size(), tb.size()):
 		assert_true(ta[i].origin.is_equal_approx(tb[i].origin), "instance %d in the same place" % i)
-	gut.p("seed 4: %d trees, %d rocks, %d grass, %d placed" % [ta.size(), _instances(a, "rock").size(),
+	gut.p("eagle nest: %d trees, %d rocks, %d grass, %d placed" % [ta.size(), _instances(a, "rock").size(),
 		_instances(a, "grass").size(), a.get_meta(&"placed")])
 	a.free()
 	b.free()
@@ -98,4 +99,36 @@ func test_missing_model_files_are_skipped() -> void:
 		[{"id": "ghost", "path": "res://assets/models/does_not_exist.glb", "density": 5.0}])
 	assert_eq(dressing.get_meta(&"placed"), 0)
 	assert_eq(dressing.get_child_count(), 1, "only the empty obstacle body")
+	dressing.free()
+
+
+func test_nothing_on_a_cliff_lip() -> void:
+	var dressing := RoadsideDresser.dress(_graph, _terrain, RaceSettings.Biome.FOREST, _catalog())
+	for prefix in ["tree", "rock", "grass"]:
+		for t in _instances(dressing, prefix):
+			var cliff := _terrain.cliff_at(Vector2(t.origin.x, t.origin.z))
+			if not cliff.is_empty():
+				assert_gte(float(cliff.lateral), float(cliff.half_width) + TerrainField.SHOULDER + RoadsideDresser.CLIFF_LIP - 0.01,
+					"the drop stays in view")
+	dressing.free()
+
+
+func test_the_real_forest_loads_and_stands_on_the_ground() -> void:
+	var graph := StageBuilder.build(StageCatalog.get_stage(StageCatalog.index_of(&"black_pine")))
+	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(RaceSettings.Biome.FOREST))
+	terrain.set_roads(graph)
+	var started := Time.get_ticks_msec()
+	var dressing := RoadsideDresser.dress(graph, terrain, RaceSettings.Biome.FOREST)
+	var placements: Dictionary = dressing.get_meta(&"placements")
+	var trees := 0
+	for id in ["fir", "pine", "noble_fir", "birch_a", "edge_fir", "far_fir"]:
+		trees += (placements.get(id, []) as Array).size()
+		for t in placements.get(id, []):
+			var ground := terrain.height(Vector2(t.origin.x, t.origin.z))
+			assert_almost_eq(t.origin.y, ground, 0.5, "%s stands on the ground" % id)
+			break
+	gut.p("black pine: %d placed in %d ms, %d of the main trees, %d obstacle shapes" % [dressing.get_meta(&"placed"),
+		Time.get_ticks_msec() - started, trees, dressing.get_node(^"Obstacles").get_child_count()])
+	assert_gt(trees, 600, "a forest")
+	assert_gt(dressing.get_node(^"Obstacles").get_child_count(), 500, "trunks you can hit")
 	dressing.free()

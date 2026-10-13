@@ -1,6 +1,7 @@
 class_name RaceResults
 ## Authoritative results of a race (spec §15): places from the host's own clock, finished teams
-## first by time, then unfinished teams by laps and gates reached; recoveries counted. Pure data
+## first by time, then unfinished teams by gates passed and distance along the stage; recoveries
+## counted. Pure data
 ## so the ordering rules are testable; RaceSession fills it and broadcasts `rows()`.
 
 ## Once the first team finishes, the others get this long before the host ends the race.
@@ -10,17 +11,19 @@ var _rows: Dictionary = {}  # team -> row
 
 
 func add_team(team: int, players: Array) -> void:
-	_rows[team] = {"team": team, "players": players, "finished": false, "time_ms": -1, "laps": 0, "next_gate": 1, "recoveries": 0, "left": false}
+	_rows[team] = {"team": team, "players": players, "finished": false, "time_ms": -1, "gates": 0, "distance": 0.0, "recoveries": 0, "left": false}
 
 
 func has_team(team: int) -> bool:
 	return _rows.has(team)
 
 
-func set_progress(team: int, laps: int, next_gate: int) -> void:
+## `gates` passed so far and the furthest `distance` (m) reached along the stage.
+func set_progress(team: int, gates: int, distance := -1.0) -> void:
 	if _rows.has(team):
-		_rows[team].laps = laps
-		_rows[team].next_gate = next_gate
+		_rows[team].gates = gates
+		if distance >= 0.0:
+			_rows[team].distance = maxf(_rows[team].distance, distance)
 
 
 func add_recovery(team: int) -> void:
@@ -64,9 +67,9 @@ func rows() -> Array:
 			return a.time_ms < b.time_ms
 		if a.left != b.left:
 			return b.left
-		if a.laps != b.laps:
-			return a.laps > b.laps
-		return a.next_gate > b.next_gate)
+		if a.gates != b.gates:
+			return a.gates > b.gates
+		return a.distance > b.distance)
 	for i in list.size():
 		list[i].place = i + 1
 	return list

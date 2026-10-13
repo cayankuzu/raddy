@@ -1,7 +1,7 @@
 class_name Checkpoint
 extends Area3D
 ## A gate across the road. Reports cars that drive through it; the race layer (host) decides
-## whether the pass counts (spec §15: checkpoints validate order, alternatives stay legal).
+## whether the pass counts (spec §15: gates count only in stage order).
 
 signal passed(index: int, car: RallyCar)
 

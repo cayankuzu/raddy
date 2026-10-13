@@ -138,6 +138,28 @@ func _move_glass(model: Node3D) -> void:
 		glass.name = GLASS[model_name]
 		cabin.add_child(glass)
 		glass.transform = (cabin.transform.affine_inverse()) * in_car
+		# The model's glass is a dark 80 % tint from its texture atlas: seen from the seats it
+		# darkened the whole world. The panes the crew looks through get clear glass instead.
+		var clear_mesh := glass.mesh.duplicate() as Mesh
+		for s in clear_mesh.get_surface_count():
+			clear_mesh.surface_set_material(s, _clear_glass())
+		glass.mesh = clear_mesh
+
+
+static var _glass: StandardMaterial3D
+
+
+## Nearly clear, glossy glass with a faint green-grey tint, shared by every car.
+static func _clear_glass() -> StandardMaterial3D:
+	if _glass == null:
+		_glass = StandardMaterial3D.new()
+		_glass.resource_name = "ClearGlass"
+		_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_glass.albedo_color = Color(0.78, 0.86, 0.86, 0.1)
+		_glass.roughness = 0.04
+		_glass.metallic_specular = 0.7
+		_glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return _glass
 
 
 ## The steering wheel turns about its column with the car's steering angle.
