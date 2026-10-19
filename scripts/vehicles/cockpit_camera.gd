@@ -122,6 +122,11 @@ func _on_impact(strength: float, _local_direction: Vector3) -> void:
 
 ## Shake for a crash that cost `strength` m/s (also called for seats whose car is simulated on
 ## another peer, from the host's crash broadcast).
+## The head's rest point in the world (the seat, without look, lean or shake).
+func head_position() -> Vector3:
+	return car.global_transform * _rest.origin if car != null else global_position
+
+
 func add_impact(strength: float) -> void:
 	add_trauma(clampf(strength / IMPACT_FULL, 0.0, 1.0) * 0.9)
 

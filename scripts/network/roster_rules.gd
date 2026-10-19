@@ -66,6 +66,16 @@ static func teams_with_players(roster: Dictionary) -> Array[int]:
 
 
 ## Peer id of the team's driver, or 0.
+## "driver" / "navigator" / "none", for logs.
+static func role_name(role: int) -> String:
+	match role:
+		Role.DRIVER:
+			return "driver"
+		Role.NAVIGATOR:
+			return "navigator"
+	return "none"
+
+
 static func driver_of(roster: Dictionary, team: int) -> int:
 	return _seat_holder(roster, team, Role.DRIVER)
 

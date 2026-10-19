@@ -28,11 +28,13 @@ const RECOVERY_PENALTY_MS := {Difficulty.EXPLORE: 0, Difficulty.RALLY: 3000, Dif
 const DIFFICULTY_KEYS := ["DIFFICULTY_EXPLORE", "DIFFICULTY_RALLY", "DIFFICULTY_REDLINE"]
 const BIOME_KEYS := ["BIOME_FOREST", "BIOME_DESERT", "BIOME_MOUNTAIN"]
 const WEATHER_KEYS := ["WEATHER_CLEAR", "WEATHER_RAIN", "WEATHER_FOG", "WEATHER_SNOW", "WEATHER_DUST_STORM"]
+## ShockRules.Mode order.
+const SHOCK_KEYS := ["SHOCK_MODE_OFF", "SHOCK_MODE_RIVALS", "SHOCK_MODE_EVERYONE"]
 
 
 ## What the host picks in the room before the random choices are made.
 static func defaults() -> Dictionary:
-	return {"stage": 0, "difficulty": Difficulty.RALLY, "weather": RANDOM}
+	return {"stage": 0, "difficulty": Difficulty.RALLY, "weather": RANDOM, "shock": ShockRules.Mode.EVERYONE}
 
 
 static func surprise() -> Dictionary:

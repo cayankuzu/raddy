@@ -13,6 +13,9 @@ const ASSIST_SCALE := [0.0, 1.0, 1.8]
 const RUMBLE_ROUGH := 2.0
 const RUMBLE_SLIP := deg_to_rad(25.0)
 const RUMBLE_IMPACT := 12.0
+## One hand on the wheel (the other holds the shock gun): this share of the lock, this fast.
+const ONE_HAND_LOCK := 0.6
+const ONE_HAND_RATE := 0.6
 
 @export var car: RallyCar
 ## Off in a race session, where the team confirms through the host (RecoveryInput).
@@ -73,7 +76,11 @@ func _physics_process(delta: float) -> void:
 	controls.throttle = Input.get_action_strength(&"drive_throttle")
 	controls.brake = Input.get_action_strength(&"drive_brake")
 	var raw := Input.get_axis(&"drive_steer_left", &"drive_steer_right")
-	controls.steer = steering.update(raw, delta, car.forward_speed, car.body_slip_angle(), car.max_steer_angle_at(car.forward_speed))
+	var one_hand := cabin != null and bool(cabin.aiming.get(RosterRules.Role.DRIVER, false))
+	if one_hand:
+		raw *= ONE_HAND_LOCK  # the other hand holds the shock gun: less lock, slower hands
+	controls.steer = steering.update(raw, delta * (ONE_HAND_RATE if one_hand else 1.0), car.forward_speed,
+		car.body_slip_angle(), car.max_steer_angle_at(car.forward_speed))
 	controls.handbrake = Input.is_action_pressed(&"drive_handbrake")
 	controls.horn = Input.is_action_pressed(&"car_horn")
 	if local_recovery and car.needs_recovery and Input.is_action_just_pressed(&"vehicle_recover"):

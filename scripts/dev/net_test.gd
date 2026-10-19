@@ -10,7 +10,8 @@ extends Node3D
 ##   --test-script scripted actions: instance 2 opens a window and throws at 5-6 s,
 ##                 instance 3 leaves at 12 s, instance 1 rolls its car at 13 s and both team-1
 ##                 seats confirm the recovery 1 s after the host offers it, instance 2 kicks the
-##                 windshield out at 24 s (exposure then rises for both seats)
+##                 windshield out at 24 s (exposure then rises for both seats) and shocks its own
+##                 driver at 28 s (host-validated, 6 s faint on every peer)
 ##   --quit-after-seconds=N
 
 const SESSION_SCENE := preload("res://scenes/game/race_session.tscn")
@@ -139,6 +140,11 @@ func _run_test_script() -> void:
 				if _session != null and _session.local_car != null:
 					print("NET kicking the windshield out")
 					(_session.local_car.get_node(^"Cabin") as Cabin).request_kick_windshield())
+			get_tree().create_timer(28.0).timeout.connect(func() -> void:
+				if _session != null and _session.local_car != null:
+					var team: int = Net.local_entry().get("team", 0)
+					print("NET shocking our own driver")
+					_session.request_shock(team, RosterRules.Role.DRIVER, _session.seat_head(team, RosterRules.Role.DRIVER)))
 		3:  # driver of team 2 leaves mid-race
 			get_tree().create_timer(12.0).timeout.connect(func() -> void:
 				print("NET leaving on purpose")

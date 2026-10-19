@@ -87,6 +87,11 @@ Expect 0 "NET damage team 1 (light|medium|critical)" "host judged damage from th
 # Cabin glass (spec 9): the navigator kicks the windshield out at 24 s and every peer sees it.
 Expect 2 "NET kicking the windshield out" "navigator kicked"
 foreach ($i in 0..$Clients) { if ($i -ne 3) { Expect $i "NET windshield removed team 1" "windshield state reached instance $i" } }
+# Shock gun (GAME_DESIGN 6): the navigator shocks its own driver at 28 s; the host validates it
+# and the driver faints on every peer.
+Expect 2 "NET shocking our own driver" "navigator fired"
+Expect 0 "NET shock team 1 navigator -> team 1 driver hit" "host validated the shot"
+foreach ($i in 0..$Clients) { if ($i -ne 3) { Expect $i "NET driver fainted team 1" "the shocked driver fainted on instance $i" } }
 
 if ($failures.Count -eq 0) {
     Write-Host "NET TEST PASSED ($Clients clients, $Seconds s)" -ForegroundColor Green

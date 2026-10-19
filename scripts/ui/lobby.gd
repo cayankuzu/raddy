@@ -13,6 +13,8 @@ static func choices() -> Array:
 		["stage", "LOBBY_STAGE", stage_keys],
 		["difficulty", "LOBBY_DIFFICULTY", RaceSettings.DIFFICULTY_KEYS],
 		["weather", "LOBBY_WEATHER", RaceSettings.WEATHER_KEYS],
+		# The room's rule, not a dice roll: no Random entry.
+		["shock", "LOBBY_SHOCK", RaceSettings.SHOCK_KEYS, false],
 	]
 
 ## OptionButton id for "Random" (Godot treats id -1 as "use the index").
@@ -50,7 +52,8 @@ func _ready() -> void:
 		var box := VBoxContainer.new()
 		box.add_child(UiTheme.label(tr(choice[1]), 16, UiTheme.MUTED))
 		var option := OptionButton.new()
-		option.add_item(tr("CHOICE_RANDOM"), RANDOM_ID)
+		if choice.size() < 4 or choice[3]:
+			option.add_item(tr("CHOICE_RANDOM"), RANDOM_ID)
 		var keys: Array = choice[2]
 		for i in keys.size():
 			option.add_item(tr(keys[i]), i)
@@ -193,8 +196,11 @@ func _refresh_settings() -> void:
 	var choices: Dictionary = Net.lobby_settings
 	for key in _options:
 		var option: OptionButton = _options[key]
-		var value := int(choices.get(key, RaceSettings.RANDOM))
-		option.select(option.get_item_index(RANDOM_ID if value == RaceSettings.RANDOM else value))
+		var value := int(choices.get(key, RaceSettings.defaults().get(key, RaceSettings.RANDOM)))
+		var id := RANDOM_ID if value == RaceSettings.RANDOM else value
+		if option.get_item_index(id) < 0:
+			id = int(RaceSettings.defaults().get(key, 0))
+		option.select(option.get_item_index(id))
 		option.disabled = not Net.is_host()
 	_surprise.disabled = not Net.is_host()
 	var keys := RaceSettings.summary_keys(choices)
@@ -227,7 +233,9 @@ func _on_choice_changed(index: int, key: String) -> void:
 
 
 func _on_surprise() -> void:
-	Net.set_lobby_settings(RaceSettings.surprise())
+	var surprise := RaceSettings.surprise()
+	surprise.shock = Net.lobby_settings.get("shock", RaceSettings.defaults().shock)  # a rule, kept
+	Net.set_lobby_settings(surprise)
 
 
 func _on_ready_pressed() -> void:

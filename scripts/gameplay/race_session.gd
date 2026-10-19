@@ -4,6 +4,8 @@ extends Node3D
 ## every peer binds the local player's seat (camera and input). Node paths must match on all
 ## peers: cars live under Cars as "Car<team>", cans under Props as "Can<id>".
 
+## A shock gun shot landed (or missed) on every peer: for the HUD feed.
+signal shock_landed(shooter_peer: int, target_team: int, target_role: int, hit: bool)
 signal local_seat_bound(car: RallyCar, role: int)
 ## Host-validated stage progress of a team: the next gate it must cross (every peer).
 signal progress_changed(team: int, next_gate: int)
@@ -50,6 +52,9 @@ var progress: RaceProgress
 var notes: Array[Dictionary] = []
 ## The stage's surprises (falling trees, rockfalls): the host decides, every peer plays them.
 var stage_events: StageEvents
+## Host: the shock guns' darts and reloads (GAME_DESIGN §6); darts_of() is known on every peer.
+var shock_rules := ShockRules.new()
+var _shock_darts: Dictionary = {}
 var _next_boulder_id := 1
 var _boulder_index: RouteIndex
 var _contour: Image
@@ -211,6 +216,7 @@ func voice_anchor(peer_id: int) -> Node3D:
 
 
 func _physics_process(delta: float) -> void:
+	shock_rules.step(delta)
 	for team in _trackers:
 		var tracked: RallyCar = _team_cars.get(team)
 		if tracked != null:
@@ -490,6 +496,7 @@ func _on_gate_passed(gate: int, car: RallyCar) -> void:
 			if result.counted:
 				results.set_progress(team, progress.gates_passed(team), distance_of(team))
 				_rpc_progress.rpc(team, progress.next_gate(team))
+				_refill_darts(team)
 			if result.finished:
 				var time_ms := Time.get_ticks_msec() - _start_ms \
 					+ recoveries_used(team) * RaceSettings.recovery_penalty_ms(difficulty())
@@ -564,6 +571,138 @@ func _rpc_countdown(seconds: float) -> void:
 		car.input_locked = true
 	print("NET countdown %.0f s" % seconds)
 	countdown_started.emit(seconds)
+
+
+# --- shock gun (GAME_DESIGN §6): the host decides, every peer sees the shot ---
+
+## The room's choice (RaceSettings key "shock"); everyone may shoot everyone by default.
+func shock_mode() -> int:
+	return int(settings.get("shock", ShockRules.Mode.EVERYONE))
+
+
+func darts_of(peer_id: int) -> int:
+	return _shock_darts.get(peer_id, ShockRules.DARTS)
+
+
+func seat_taken(team: int, role: int) -> bool:
+	if not _team_cars.has(team):
+		return false
+	if not Net.is_active():
+		return role == RosterRules.Role.DRIVER
+	var peer := RosterRules.driver_of(Net.roster, team) if role == RosterRules.Role.DRIVER else RosterRules.navigator_of(Net.roster, team)
+	return peer != 0
+
+
+## Where a seat's head is now (its camera's rest point in the car).
+func seat_head(team: int, role: int) -> Vector3:
+	var car: RallyCar = _team_cars.get(team)
+	if car == null:
+		return Vector3.INF
+	var camera := car.get_node_or_null(^"DriverCamera" if role == RosterRules.Role.DRIVER else ^"NavigatorCamera") as CockpitCamera
+	return camera.head_position() if camera != null else car.global_position + Vector3.UP
+
+
+## The local seat pulls the trigger; `target_team` 0 = nobody in the line of sight.
+func request_shock(target_team: int, target_role: int, aim_point: Vector3) -> void:
+	if Net.is_host() or not Net.is_active():
+		_handle_shock(Net.local_id() if Net.is_active() else 1, target_team, target_role, aim_point)
+	else:
+		_rpc_request_shock.rpc_id(1, target_team, target_role, aim_point)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_request_shock(target_team: int, target_role: int, aim_point: Vector3) -> void:
+	if multiplayer.is_server():
+		_handle_shock(multiplayer.get_remote_sender_id(), target_team, target_role, aim_point)
+
+
+func _handle_shock(peer_id: int, target_team: int, target_role: int, aim_point: Vector3) -> void:
+	var entry: Dictionary = Net.roster.get(peer_id, {}) if Net.is_active() else {"team": _team_cars.keys().front() if not _team_cars.is_empty() else 0, "role": RosterRules.Role.DRIVER}
+	var team: int = entry.get("team", 0)
+	var role: int = entry.get("role", RosterRules.Role.NONE)
+	var car: RallyCar = _team_cars.get(team)
+	if car == null or not racing or role == RosterRules.Role.NONE:
+		return
+	var cabin: Cabin = car.get_node(^"Cabin")
+	shock_rules.mode = shock_mode()
+	if shock_rules.can_fire(peer_id, cabin.is_fainted(role)) != "":
+		return
+	shock_rules.fire(peer_id)
+	var from := seat_head(team, role)
+	var to := from + (aim_point - from).limit_length(ShockRules.RANGE)
+	var hit := false
+	var outcome := "missed"
+	var target_car: RallyCar = _team_cars.get(target_team)
+	if target_car != null and seat_taken(target_team, target_role):
+		var head := seat_head(target_team, target_role)
+		var target_cabin: Cabin = target_car.get_node(^"Cabin")
+		var same_car := target_team == team
+		var exit_open := cabin.is_open_for_shot(ShockRules.opening_toward(car.global_basis, head - from))
+		var entry_open := target_cabin.is_open_for_shot(ShockRules.opening_toward(target_car.global_basis, from - head))
+		var clear := same_car or _line_clear(from, head, [car, target_car])
+		outcome = shock_rules.reaches(same_car, same_car, from.distance_to(head), exit_open, entry_open, clear,
+			target_cabin.is_fainted(target_role), target_cabin.is_shock_immune(target_role))
+		var direction := (head - from).normalized()
+		match outcome:
+			"":
+				hit = target_cabin.host_shock(target_role)
+				to = head
+				outcome = "hit" if hit else "immune"
+			"own_glass":
+				to = from + direction * 0.6
+			"their_glass":
+				to = head - direction * 0.6
+			_:
+				to = head
+	print("NET shock team %d %s -> team %d %s %s" % [team, RosterRules.role_name(role), target_team,
+		RosterRules.role_name(target_role), outcome])
+	_broadcast_shock(peer_id, from, to, hit, target_team, target_role)
+
+
+func _broadcast_shock(peer_id: int, from: Vector3, to: Vector3, hit: bool, target_team: int, target_role: int) -> void:
+	if Net.is_active():
+		_rpc_shock_fx.rpc(peer_id, from, to, hit, target_team, target_role)
+		_rpc_shock_darts.rpc(peer_id, shock_rules.darts(peer_id))
+	else:
+		_rpc_shock_fx(peer_id, from, to, hit, target_team, target_role)
+		_rpc_shock_darts(peer_id, shock_rules.darts(peer_id))
+
+
+## Host: nothing solid (ground, trunks, rocks) between two points, the two cars aside.
+func _line_clear(from: Vector3, to: Vector3, cars: Array) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	var exclude: Array[RID] = []
+	for car in cars:
+		exclude.append((car as RallyCar).get_rid())
+	query.exclude = exclude
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_shock_fx(shooter_peer: int, from: Vector3, to: Vector3, hit: bool, target_team: int, target_role: int) -> void:
+	ShockFx.play(self, from, to, hit)
+	if hit and _team_cars.get(target_team) == local_car and target_role == local_role and local_car != null:
+		var camera := local_car.get_node_or_null(^"NavigatorCamera" if local_role == RosterRules.Role.NAVIGATOR else ^"DriverCamera") as CockpitCamera
+		if camera != null:
+			camera.add_impact(9.0)
+	shock_landed.emit(shooter_peer, target_team, target_role, hit)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_shock_darts(peer_id: int, darts: int) -> void:
+	_shock_darts[peer_id] = darts
+
+
+## Host: a split gate gives the team's seats a full load again.
+func _refill_darts(team: int) -> void:
+	var peers: Array = []
+	for peer_id in Net.roster:
+		if int(Net.roster[peer_id].get("team", 0)) == team:
+			peers.append(peer_id)
+	shock_rules.refill(peers)
+	for peer_id in peers:
+		if Net.is_active():
+			_rpc_shock_darts.rpc(peer_id, shock_rules.darts(peer_id))
 
 
 ## Every peer releases the cars when its own countdown ends (same moment within the ping).
@@ -801,4 +940,12 @@ func _bind_local_seat(car: RallyCar, role: int) -> void:
 	cabin_input.cabin.local_role = role
 	cabin_input.role = role
 	add_child(cabin_input)
+	var shock := ShockInput.new()
+	shock.name = "ShockInput"
+	shock.session = self
+	shock.cabin = cabin_input.cabin
+	shock.role = role
+	shock.team = Net.local_entry().get("team", 0)
+	shock.camera = car.get_node(camera_name) as Camera3D
+	add_child(shock)
 	local_seat_bound.emit(car, role)

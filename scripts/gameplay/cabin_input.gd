@@ -24,7 +24,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		cabin.request_window(Cabin.Side.LEFT, not cabin.window_open[Cabin.Side.LEFT])
 	elif role == RosterRules.Role.NAVIGATOR and event.is_action_pressed(&"cabin_window_right"):
 		cabin.request_window(Cabin.Side.RIGHT, not cabin.window_open[Cabin.Side.RIGHT])
-	elif role == RosterRules.Role.NAVIGATOR and event.is_action_pressed(&"cabin_throw"):
+	elif role == RosterRules.Role.NAVIGATOR and event.is_action_pressed(&"cabin_throw") and not cabin.aiming.get(role, false):
 		cabin.request_throw(Cabin.Side.RIGHT)
 	elif role == RosterRules.Role.NAVIGATOR and event.is_action_pressed(&"cabin_kick_windshield"):
 		cabin.request_kick_windshield()

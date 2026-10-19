@@ -8,6 +8,7 @@ extends CanvasLayer
 
 const SHADOW := Color(0, 0, 0, 0.75)
 const SPLIT_SECONDS := 6.0
+const FEED_SECONDS := 5.0
 const KEYS_SECONDS := 25.0
 
 var session: RaceSession
@@ -23,6 +24,9 @@ var _prompt: Label
 var _talk: Label
 var _keys: Label
 var _summary: Label
+## Shock gun feed: [text, seconds left] newest first.
+var _feed: Label
+var _feed_lines: Array = []
 var _my_next_gate := 0
 var _flash_text := ""
 var _flash_left := 0.0
@@ -62,6 +66,7 @@ func _ready() -> void:
 	_center.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_prompt = _label(root, 30, Vector4(0.5, 0.5, 0.5, 0.5), Rect2(-500, 90, 1000, 110), HORIZONTAL_ALIGNMENT_CENTER)
 	_talk = _label(root, 20, Vector4(1, 0, 1, 0), Rect2(-436, 76, 410, 200), HORIZONTAL_ALIGNMENT_RIGHT)
+	_feed = _label(root, 22, Vector4(1, 0, 1, 0), Rect2(-436, 280, 410, 150), HORIZONTAL_ALIGNMENT_RIGHT)
 	_keys = _label(root, 15, Vector4(0.5, 1, 0.5, 1), Rect2(-460, -34, 920, 24), HORIZONTAL_ALIGNMENT_CENTER)
 	_summary = _label(root, 24, Vector4(0.5, 1, 0.5, 1), Rect2(-460, -80, 920, 40), HORIZONTAL_ALIGNMENT_CENTER)
 	var keys := RaceSettings.summary_keys(session.settings)
@@ -69,6 +74,7 @@ func _ready() -> void:
 	session.progress_changed.connect(_on_progress)
 	session.race_go.connect(func() -> void: _flash(tr("HUD_COUNTDOWN_GO"), 1.0))
 	session.team_finished.connect(_on_team_finished)
+	session.shock_landed.connect(_on_shock)
 	session.local_seat_bound.connect(func(car: RallyCar, _role: int) -> void:
 		_cluster.car = car
 		_bar.my_team = _my_team())
@@ -132,6 +138,18 @@ func _on_team_finished(team: int, time_ms: int) -> void:
 	_flash(text, 4.0)
 
 
+## Who shocked whom, for a few seconds in the corner.
+func _on_shock(shooter_peer: int, target_team: int, target_role: int, hit: bool) -> void:
+	var shooter: String = Net.roster.get(shooter_peer, {}).get("name", "?")
+	var text := tr("SHOCK_FEED_MISS").format({"shooter": shooter})
+	if hit:
+		var target_peer := RosterRules.driver_of(Net.roster, target_team) if target_role == RosterRules.Role.DRIVER \
+			else RosterRules.navigator_of(Net.roster, target_team)
+		text = tr("SHOCK_FEED_HIT").format({"shooter": shooter, "target": Net.roster.get(target_peer, {}).get("name", "?")})
+	_feed_lines.push_front([text, FEED_SECONDS])
+	_feed_lines.resize(mini(_feed_lines.size(), 4))
+
+
 func _flash(text: String, seconds: float) -> void:
 	_flash_text = text
 	_flash_left = seconds
@@ -182,6 +200,13 @@ func _process(delta: float) -> void:
 		if Voice.is_speaking(peer_id):
 			talking.append("● " + tr("HUD_SPEAKING").format({"name": Net.roster[peer_id].name}))
 	_talk.text = "\n".join(talking)
+	var feed := PackedStringArray()
+	for line in _feed_lines:
+		line[1] -= delta
+		if line[1] > 0.0:
+			feed.append(line[0])
+	_feed_lines = _feed_lines.filter(func(line: Array) -> bool: return line[1] > 0.0)
+	_feed.text = "\n".join(feed)
 	var role: int = Net.local_entry().get("role", RosterRules.Role.NONE)
 	_keys.text = tr("HUD_KEYS_DRIVER") if role == RosterRules.Role.DRIVER else (tr("HUD_KEYS_NAVIGATOR") if role == RosterRules.Role.NAVIGATOR else "")
 	if session.racing:
@@ -212,6 +237,8 @@ func _status_text(car: RallyCar, team: int) -> String:
 		lines.append(tr("HUD_DIRTY_GLASS"))
 	if cabin.wipers_on:
 		lines.append(tr("HUD_WIPERS_ON"))
+	if session.shock_mode() != ShockRules.Mode.OFF:
+		lines.append(tr("HUD_SHOCK_DARTS").format({"darts": session.darts_of(Net.local_id()), "max": ShockRules.DARTS}))
 	return "\n".join(lines)
 
 

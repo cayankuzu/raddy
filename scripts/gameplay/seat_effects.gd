@@ -6,6 +6,8 @@ extends CanvasLayer
 ## other crews see them. Pure presentation driven by Cabin signals; intensity is a player setting.
 
 const FLASH_COLOR := Color(0.6, 0.05, 0.05)
+const SHOCK_COLOR := Color(0.45, 0.7, 1.0)
+const SHOCK_SECONDS := 0.9
 
 var cabin: Cabin
 var role := RosterRules.Role.NONE
@@ -15,6 +17,7 @@ var intensity := 1.0
 var _flash: ColorRect
 var _faint: ColorRect
 var _flash_left := 0.0
+var _shock_left := 0.0
 
 
 func _ready() -> void:
@@ -39,6 +42,9 @@ func _ready() -> void:
 	if cabin != null:
 		cabin.face_hit.connect(_on_face_hit)
 		cabin.faint_changed.connect(_on_faint)
+		cabin.shocked.connect(func(hit_role: int) -> void:
+			if hit_role == role:
+				_shock_left = SHOCK_SECONDS)
 
 
 func _read_intensity() -> void:
@@ -58,6 +64,13 @@ func _on_faint(faint_role: int, fainted: bool) -> void:
 
 
 func _process(delta: float) -> void:
+	if _shock_left > 0.0:
+		# The jolt: the view flickers blue-white while the current runs.
+		_shock_left -= delta
+		_flash.color = SHOCK_COLOR
+		_flash.modulate.a = (0.25 + 0.45 * randf()) * clampf(_shock_left / SHOCK_SECONDS, 0.0, 1.0) * intensity
+		return
+	_flash.color = FLASH_COLOR
 	if _flash_left > 0.0:
 		_flash_left -= delta
 		_flash.modulate.a = clampf(_flash_left / 0.5, 0.0, 1.0) * 0.55 * intensity

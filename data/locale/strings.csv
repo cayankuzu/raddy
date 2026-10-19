@@ -215,3 +215,11 @@ SETTINGS_ASSIST_HIGH,Yüksek,High
 SETTINGS_ASSIST_HINT,Kaymayı toparlamaya yardım eder; klavyede ters direksiyonu kendisi kırar.,Helps catch slides; on a keyboard it counter-steers for you.
 SETTINGS_STEER_LINEARITY,Gamepad direksiyon hassasiyeti (orta bölge),Gamepad steering softness (centre)
 SETTINGS_VIBRATION,Gamepad titreşimi,Gamepad vibration
+ACTION_shock_aim,Şok tabancası (nişan al; ateş: sol tık),Shock gun (aim; fire: left click)
+SHOCK_FEED_HIT,{shooter} ⚡ {target},{shooter} ⚡ {target}
+SHOCK_FEED_MISS,{shooter} ıskaladı,{shooter} missed
+HUD_SHOCK_DARTS,Şok tabancası: {darts}/{max},Shock gun: {darts}/{max}
+LOBBY_SHOCK,Şok tabancası,Shock gun
+SHOCK_MODE_OFF,Kapalı,Off
+SHOCK_MODE_RIVALS,Sadece rakiplere,Rivals only
+SHOCK_MODE_EVERYONE,Herkese (dost ateşi açık),Everyone (friendly fire)

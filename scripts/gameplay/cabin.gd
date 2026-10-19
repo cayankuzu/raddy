@@ -21,6 +21,8 @@ signal wipers_changed(on: bool)
 ## Gravel hit a seat's face (short flash on that player's screen).
 signal face_hit(role: int)
 signal faint_changed(role: int, fainted: bool)
+## A shock gun dart hit this seat (every peer; the faint follows through faint_changed).
+signal shocked(role: int)
 
 enum Side { LEFT, RIGHT }
 enum MapState { CLOSED, OPEN, GONE }
@@ -77,6 +79,10 @@ var wipers_on := false
 var exposure: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIGATOR: 0.0}
 var fainted: Dictionary = {RosterRules.Role.DRIVER: false, RosterRules.Role.NAVIGATOR: false}
 var faint_left: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIGATOR: 0.0}
+## Host: seconds a seat cannot be shocked again (the faint plus ShockRules.IMMUNE_SECONDS).
+var shock_immune_left: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIGATOR: 0.0}
+## Local only: whether this peer's seat holds the shock gun up (ShockInput); one hand off the job.
+var aiming: Dictionary = {RosterRules.Role.DRIVER: false, RosterRules.Role.NAVIGATOR: false}
 var cans_left := CAN_STOCK
 ## Dirt per second from the sky (rain drops, snow), set by the race layer from the weather.
 var weather_dirt_rate := 0.0
@@ -347,6 +353,8 @@ func _physics_process(delta: float) -> void:
 			faint_left[role] = maxf(faint_left[role] - delta, 0.0)
 	if not _is_authority_here():
 		return
+	for role in shock_immune_left:
+		shock_immune_left[role] = maxf(float(shock_immune_left[role]) - delta, 0.0)
 	_update_cabin_weather(delta)
 	if fainted[RosterRules.Role.NAVIGATOR] and map_state == MapState.OPEN and RosterRules.navigator_of(Net.roster, team) != 0:
 		_broadcast_map(MapState.CLOSED)  # the map slips out of unconscious hands
@@ -378,6 +386,39 @@ func _physics_process(delta: float) -> void:
 func _on_impact(strength: float, _local_direction: Vector3) -> void:
 	if _is_authority_here():
 		host_impact(strength)
+
+
+## Whether a dart can pass this car's `opening` (ShockRules.Opening): an open or broken side
+## window, or no windshield; never the rear glass.
+func is_open_for_shot(opening: int) -> bool:
+	match opening:
+		ShockRules.Opening.LEFT:
+			return window_state[Side.LEFT] != WindowState.CLOSED
+		ShockRules.Opening.RIGHT:
+			return window_state[Side.RIGHT] != WindowState.CLOSED
+		ShockRules.Opening.FRONT:
+			return windshield == Windshield.REMOVED
+	return false
+
+
+func is_shock_immune(role: int) -> bool:
+	return float(shock_immune_left.get(role, 0.0)) > 0.0
+
+
+## Host (or offline): a dart hit `role`: they faint now (Cabin.FAINT_SECONDS) and are immune until
+## ShockRules.IMMUNE_SECONDS after waking. False when they were already out or still immune.
+func host_shock(role: int) -> bool:
+	if not _is_authority_here() or fainted.get(role, false) or is_shock_immune(role):
+		return false
+	shock_immune_left[role] = FAINT_SECONDS + ShockRules.IMMUNE_SECONDS
+	_broadcast(_rpc_shocked, [role])
+	_broadcast(_rpc_set_faint, [role, true, exposure[role]])
+	return true
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_shocked(role: int) -> void:
+	shocked.emit(role)
 
 
 ## Host (or offline): something smeared the windshield (a tree's crown); the regular tick sends it.
