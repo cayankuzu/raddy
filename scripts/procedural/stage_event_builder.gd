@@ -11,6 +11,10 @@ class_name StageEventBuilder
 ## pick the open side.
 const TREE_TRIGGER_BEFORE := 60.0
 const ROCK_TRIGGER_BEFORE := 38.0
+## A boulder starts on ground at least this far above the road, found by walking out from the
+## shoulder; the slope in between must not dip below the road (a hollow would swallow it).
+const ROCK_MIN_RISE := 4.0
+const ROCK_SEARCH_END := 32.0
 ## The tree falls this far over (degrees): it comes to rest on the road, not under it.
 const TREE_FALL_ANGLE := 84.0
 ## The fir as it stands (the model at 0.9 scale).
@@ -29,7 +33,9 @@ static func build(graph: RouteGraph, terrain: TerrainField) -> Array[Node3D]:
 			&"falling_tree":
 				out.append(_tree(graph, terrain, feature, out.size()))
 			&"rockfall":
-				out.append(_rocks(graph, terrain, feature, out.size()))
+				var rocks := _rocks(graph, terrain, feature, out.size())
+				if rocks != null:
+					out.append(rocks)
 	return out
 
 
@@ -109,13 +115,32 @@ static func _rocks(graph: RouteGraph, terrain: TerrainField, feature: Dictionary
 		var dir: Vector2 = here.direction
 		var right := Vector2(-dir.y, dir.x) * side
 		var half: float = graph.edges[here.edge].width * 0.5
-		var p := Vector2(here.position.x, here.position.z) + right * (half + TerrainField.SHOULDER + 9.0 + k % 2 * 3.0)
-		spots.append(Vector3(p.x, terrain.height(p) + 2.5, p.y))
-		toward += Vector3(-right.x, 0.0, -right.y)
+		var ground := high_ground(terrain, Vector2(here.position.x, here.position.z), here.position.y, right, half)
+		if ground != Vector3.INF:
+			spots.append(ground + Vector3.UP * 2.5)
+			toward += Vector3(-right.x, 0.0, -right.y)
+	if spots.size() < 2:
+		event.free()
+		return null  # no bank above the road here: no rockfall
 	event.set_meta(&"spots", spots)
 	event.set_meta(&"toward_road", toward.normalized())
 	event.add_child(_trigger(graph, feature.at - ROCK_TRIGGER_BEFORE, spot.position))
 	return event
+
+
+## The first ground at least ROCK_MIN_RISE above the road walking out from the shoulder along
+## `right`, with no dip below the road on the way; Vector3.INF when there is none.
+static func high_ground(terrain: TerrainField, road_xz: Vector2, road_y: float, right: Vector2, half: float) -> Vector3:
+	var offset := half + RoadBuilder.VERGE
+	while offset <= ROCK_SEARCH_END:
+		var p := road_xz + right * offset
+		var h := terrain.height(p)
+		if h < road_y - 0.5:
+			return Vector3.INF
+		if h >= road_y + ROCK_MIN_RISE:
+			return Vector3(p.x, h, p.y)
+		offset += 1.0
+	return Vector3.INF
 
 
 ## A box across the road at `distance`, in the event's space (`origin` is the event).

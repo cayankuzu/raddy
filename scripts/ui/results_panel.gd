@@ -46,8 +46,10 @@ func _ready() -> void:
 	var stage_id: StringName = StageCatalog.get_stage(stage).id
 	var records := StageRecords.new()
 	var new_record := ""
+	# Bot-driven runs (flow tests, autodrive captures) never become this PC's records.
+	var recorded := not Flow.is_flow_test() and not Flow.args.has("autodrive")
 	for row in rows:
-		if row.finished:
+		if row.finished and recorded:
 			var outcome := records.record(stage_id, int(row.time_ms), PackedStringArray(row.players), int(row.team))
 			if outcome.new_best:
 				new_record = tr("RESULTS_NEW_RECORD").format({"team": tr(TeamColors.name_key(row.team)), "time": RaceResults.format_time(row.time_ms)})

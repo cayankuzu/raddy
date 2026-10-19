@@ -8,11 +8,12 @@ var _graph: RouteGraph
 var _events: StageEvents
 
 
-func _build(features: Array[Dictionary]) -> void:
+func _build(features: Array[Dictionary], stage := 0, keep_features := false) -> void:
 	_world = Node3D.new()
 	add_child_autofree(_world)
-	_graph = StageBuilder.build(StageCatalog.get_stage(0))
-	_graph.features.assign(features)
+	_graph = StageBuilder.build(StageCatalog.get_stage(stage))
+	if not keep_features:
+		_graph.features.assign(features)
 	var terrain := TerrainField.new(_graph.seed)
 	terrain.set_roads(_graph)
 	var track := RoadBuilder.build(_graph, terrain)  # TrackFeatures builds the events
@@ -55,8 +56,16 @@ func test_the_tree_falls_across_the_near_half_of_the_road_once() -> void:
 	assert_false((tree.get_node(^"Trunk") as CollisionShape3D).disabled, "the trunk blocks the near half")
 	assert_true((tree.get_node(^"Crown") as Area3D).monitoring, "cars pushing through the crown are noticed")
 	assert_gt(_events.obstacles().size(), 5, "bots know where the trunk lies")
+	var last: Vector4 = _events.obstacles()[-1]
+	assert_almost_eq(Vector3(last.x, last.y, last.z).distance_to(tip), 0.0, 0.05, "the bots' trunk reaches the tip")
+	var lying := tree.basis
 	_events.play(0)
-	assert_true(_events.fired(0), "a second play changes nothing")
+	var second: RallyCar = load("res://scenes/vehicles/rally_car.tscn").instantiate()
+	second.transform = _graph.start_pose(620.0 - StageEventBuilder.TREE_TRIGGER_BEFORE).translated(Vector3.UP * 0.8 + Vector3.RIGHT * 2.5)
+	_world.add_child(second)
+	await wait_ticks(30)
+	assert_eq(_events.plays, 1, "neither a second play nor a second car fells it again")
+	assert_true(tree.basis.is_equal_approx(lying), "it stays where it lies")
 	car.queue_free()
 
 
@@ -86,26 +95,36 @@ func test_a_bot_drives_around_the_fallen_tree() -> void:
 	assert_gt(cabin.dirt, 0.3, "through the crown: needles all over the glass")
 
 
-func test_boulders_come_down_onto_the_road() -> void:
-	_build([{"kind": &"rockfall", "from": 900.0, "to": 940.0, "at": 900.0, "side": -1, "value": 0.0}] as Array[Dictionary])
-	var spawned: Array = []
-	_events.spawn_boulder = func(origin: Vector3, velocity: Vector3, radius: float) -> void:
-		var boulder := StageEvents.make_boulder(radius)
-		_world.add_child(boulder)
-		boulder.global_position = origin
-		boulder.linear_velocity = velocity
-		spawned.append(boulder)
-	await _drive_through(900.0 - StageEventBuilder.ROCK_TRIGGER_BEFORE)
-	assert_eq(spawned.size(), StageEvents.BOULDERS)
-	await wait_ticks(4 * Engine.physics_ticks_per_second)
-	var index := RouteIndex.new(_graph)
-	var near_road := 0
-	for boulder in spawned:
-		var p: Vector3 = (boulder as Node3D).global_position
-		if index.distance_to(Vector2(p.x, p.z)) < 12.0:
-			near_road += 1
-	gut.p("boulders within 12 m of the road after 4 s: %d of %d" % [near_road, spawned.size()])
-	assert_gt(near_road, 0, "some reach the road")
+func test_every_rockfall_of_the_catalog_reaches_the_road() -> void:
+	for stage in StageCatalog.count():
+		var graph := StageBuilder.build(StageCatalog.get_stage(stage))
+		var rockfalls := graph.features.filter(func(f: Dictionary) -> bool: return f.kind == &"rockfall")
+		if rockfalls.is_empty():
+			continue
+		_build([], stage, true)
+		var spawned: Array = []
+		_events.spawn_boulder = func(origin: Vector3, velocity: Vector3, radius: float) -> void:
+			var boulder := StageEvents.make_boulder(radius)
+			_world.add_child(boulder)
+			boulder.global_position = origin
+			boulder.linear_velocity = velocity
+			spawned.append(boulder)
+		var index := RouteIndex.new(_graph)
+		for e in _events.event_count():
+			if (_world.find_child("Event%d" % e, true, false) as Node3D).get_meta(&"event_kind") == &"rockfall":
+				_events.play(e)
+		assert_gte(spawned.size(), rockfalls.size() * 2, "stage %d: every rockfall has a bank above the road for its boulders" % stage)
+		var closest := INF
+		for t in 6 * 4:
+			await wait_ticks(Engine.physics_ticks_per_second / 4)
+			for boulder in spawned:
+				var p: Vector3 = (boulder as Node3D).global_position
+				closest = minf(closest, index.distance_to(Vector2(p.x, p.z)))
+		var half: float = _graph.narrowest_width() * 0.5
+		gut.p("stage %d: closest boulder %.1f m from the centre line (road half width %.1f)" % [stage, closest, half])
+		assert_lt(closest, half + 1.0, "stage %d: a boulder reaches the road" % stage)
+		_world.queue_free()
+		await wait_ticks(2)
 
 
 func test_a_tree_falling_on_a_car_shoves_it_without_launching_it() -> void:
@@ -130,6 +149,7 @@ func test_a_tree_falling_on_a_car_shoves_it_without_launching_it() -> void:
 		fastest = maxf(fastest, car.linear_velocity.length())
 		highest = maxf(highest, car.global_position.y - start.y)
 	gut.p("car under the tree: fastest %.1f m/s, rose %.1f m, moved %.1f m" % [fastest, highest, car.global_position.distance_to(start)])
+	assert_gt(car.global_position.distance_to(start), 0.3, "the trunk really hit it")
 	assert_true(is_finite(car.global_position.length()), "no physics blow-up")
 	assert_lt(fastest, 12.0, "shoved, not launched")
 	assert_lt(highest, 2.5, "not thrown into the air")

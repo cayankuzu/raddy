@@ -32,7 +32,7 @@ func setup(model: Node3D, car_space: Callable) -> void:
 	car = get_parent().get_parent() as RallyCar if get_parent() != null else null
 	_rng.seed = hash(get_path())
 	_take_part(model, car_space, &"hood", ["Milano95_Hood"], true)
-	_take_part(model, car_space, &"bumper_front", ["Milano95_Bumper_front", "Milano95_Bumper_front_inner"], false)
+	_take_part(model, car_space, &"bumper_front", ["Milano95_Bumper_front", "Milano95_Bumper_front_inner", "Milano95_Numberplates_Front"], false)
 	_take_part(model, car_space, &"bumper_rear", ["Milano95_Bumper_rear", "Milano95_Bumper_rear_inner"], false)
 
 
@@ -80,8 +80,9 @@ func apply(damage: VehicleDamage) -> void:
 	_update_smoke(damage.level())
 
 
+## 0 on, 1 loose, 2 gone; -1 for a part the model does not have.
 func part_state(part: StringName) -> int:
-	return _parts.get(part, {}).get("state", 0)
+	return _parts.get(part, {}).get("state", -1)
 
 
 func _set_state(part: StringName, state: int) -> void:
@@ -118,19 +119,29 @@ func _throw_off(entry: Dictionary) -> void:
 	debris.collision_layer = 0
 	debris.collision_mask = 1
 	var box: AABB = entry.box
-	var shape := CollisionShape3D.new()
-	var cube := BoxShape3D.new()
-	cube.size = box.size.max(Vector3.ONE * 0.06)
-	shape.shape = cube
-	debris.add_child(shape)
+	# The part leaves in the pose it had (a wind-lifted bonnet stays lifted), with a hull that fits it.
+	var hull_points := PackedVector3Array()
 	for mesh in entry.meshes:
 		var copy := (mesh as MeshInstance3D).duplicate() as MeshInstance3D
-		copy.transform = Transform3D((mesh as MeshInstance3D).transform.basis, (mesh as MeshInstance3D).transform.origin + pivot.position - box.get_center())
+		copy.transform = Transform3D(Basis.IDENTITY, -box.get_center()) * pivot.transform * (mesh as MeshInstance3D).transform
 		debris.add_child(copy)
+		for v in copy.mesh.get_faces():
+			hull_points.append(copy.transform * v)
+	var shape := CollisionShape3D.new()
+	var hull := ConvexPolygonShape3D.new()
+	hull.points = hull_points
+	shape.shape = hull
+	debris.add_child(shape)
 	car.get_parent().add_child(debris)
 	debris.global_transform = car.global_transform * Transform3D(Basis.IDENTITY, box.get_center())
+	# Up and away with the car's own speed (never back into its windshield); it may hit the car
+	# again once it is clear.
 	debris.add_collision_exception_with(car)
-	debris.linear_velocity = car.linear_velocity * 0.8 + car.global_basis.y * _rng.randf_range(2.5, 4.5) + car.global_basis.z * 2.0
+	var owner_car := car
+	debris.get_tree().create_timer(0.25).timeout.connect(func() -> void:
+		if is_instance_valid(debris) and is_instance_valid(owner_car):
+			debris.remove_collision_exception_with(owner_car))
+	debris.linear_velocity = car.linear_velocity + car.global_basis.y * _rng.randf_range(4.5, 6.5)
 	debris.angular_velocity = Vector3(_rng.randf_range(-6, 6), _rng.randf_range(-3, 3), _rng.randf_range(-6, 6))
 	debris.get_tree().create_timer(DEBRIS_LIFETIME).timeout.connect(debris.queue_free)
 

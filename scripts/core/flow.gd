@@ -22,6 +22,9 @@ const SCREENS := [MAIN_MENU, LOBBY, RACE]
 ## Shown once by the main menu (why we came back).
 var last_message := ""
 ## Command line automation, parsed once.
+## Seconds between the host ending the race and the switch to the room.
+const RACE_END_DELAY := 0.5
+
 var args: Dictionary = {}
 ## Races started in this session (the flow test quits after the first one is over).
 var races_started := 0
@@ -81,7 +84,10 @@ func _on_race_started(_settings: Dictionary) -> void:
 
 func _on_race_ended() -> void:
 	if _managed():
-		to_lobby()
+		# Snapshots already on their way (relayed through the host) still find the race scene.
+		get_tree().create_timer(RACE_END_DELAY).timeout.connect(func() -> void:
+			if _managed() and not Net.race_running:
+				to_lobby())
 
 
 func _on_session_ended(reason: String) -> void:

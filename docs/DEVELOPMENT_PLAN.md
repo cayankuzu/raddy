@@ -52,6 +52,24 @@ P5 QA and release
   CHANGELOG, ITCH_IO_RELEASE_CHECKLIST, clean-folder build check, friend test, unsigned-build instructions for
   players (zero-cost rule: no paid code signing).
 
+## 2b. AAA release plan (2026-10-19, owner's go-ahead: "all phases")
+Rules and quality bar: `GAME_DESIGN.md` (pillars, stage rules, shock gun, characters, HUD, 9.8 gate).
+Downloadable Windows build on itch.io only; no browser build at launch (reasons in GAME_DESIGN §1).
+
+| Phase | Goal | Exit gate |
+|---|---|---|
+| A0 Solid ground | review findings fixed, dev leftovers out of the player build, `tools\ci.ps1` runs everything | CI green |
+| A1 Design bible | `GAME_DESIGN.md`: pillars, rules, rubric, web/demo decision | written (done) |
+| A2 Driving feel 2.0 | steering/input layers, tyre and weight tuning, gamepad + vibration, wheel, assists | handling benchmarks hit targets |
+| A3 Stages 2.0 | narrow roads, ditches, dense forest, sightline budget, junction decoys, rally dressing | validator rules + per-stage screenshots + bots |
+| A4 Effects | lingering dust, stones, mud on the body, ruts and skid marks, night lights | per-surface checklist, frame budget |
+| A5 Crew characters | driver + navigator bodies, hands, gestures, states, network sync | screenshots from both seats + nettest |
+| A6 Chaos mechanics | shock gun, doors, intercom, hands system, more events, awards, room modes | unit + network tests per mechanic |
+| A7 AAA HUD / UI / UX | design system, role HUDs, menus, onboarding, gamepad navigation, accessibility | UX audit, new-player test |
+| A8 Network + security | relay for CGNAT, reconnect, RPC audit, rate limits, anti-teleport, streamer mode, Opus | soak test, security review |
+| A9 Performance + QA | budgets met on mid and low PCs, no shader stutter, full test matrix, clean-PC run | all gates |
+| A10 Launch | itch page, trailer/GIFs, press kit, demo build, update pipeline | launch checklist |
+
 ## 3. Technical risks
 | # | Risk | Impact | Mitigation |
 |---|------|--------|------------|

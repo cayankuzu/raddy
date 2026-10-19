@@ -80,7 +80,10 @@ func effects() -> Dictionary:
 
 ## After a recovery the car is patched up enough to drive on.
 func repair_after_recovery() -> void:
-	var points := total()
+	# The raw sum, not the capped total(): heavy damage must come down to REPAIRED_TO as well.
+	var points := 0.0
+	for zone in zones:
+		points += zones[zone]
 	if points <= REPAIRED_TO:
 		return
 	var scale := REPAIRED_TO / points

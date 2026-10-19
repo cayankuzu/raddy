@@ -26,29 +26,32 @@ func best(stage_id: StringName) -> Dictionary:
 	return _file.get_value("best", String(stage_id), {})
 
 
-## Records a finish; returns {"new_best": bool, "previous_ms": int (-1 when none)}.
+## Records a finish; returns {"new_best": bool, "previous_ms": int (-1 when none)}. Times are
+## compared as the screen shows them (tenths, RaceResults.format_time): a "new record" always reads
+## faster than the old one.
 func record(stage_id: StringName, time_ms: int, crew: PackedStringArray, team: int) -> Dictionary:
 	var previous := best(stage_id)
 	var previous_ms: int = previous.get("time_ms", -1)
-	var better := time_ms > 0 and (previous_ms < 0 or time_ms < previous_ms)
+	var better := time_ms > 0 and (previous_ms < 0 or time_ms / 100 < previous_ms / 100)
 	if better:
 		_file.set_value("best", String(stage_id), {"time_ms": time_ms, "crew": crew, "team": team})
 		_file.save(path)
 	return {"new_best": better, "previous_ms": previous_ms}
 
 
-## The medal a time earns on the stage at `index` (StageCatalog).
+## The medal a time earns on the stage at `index` (StageCatalog), judged in tenths like the
+## screen shows it: a time that reads the same as the room's medal time earns that medal.
 static func medal(index: int, time_ms: int) -> int:
 	if time_ms <= 0:
 		return Medal.NONE
 	for level in [Medal.GOLD, Medal.SILVER, Medal.BRONZE]:
-		if time_ms <= medal_time_ms(index, level):
+		if time_ms / 100 <= medal_time_ms(index, level) / 100:
 			return level
 	return Medal.NONE
 
 
-## Time (ms) needed for `medal_level` on the stage at `index`.
+## Time (ms, a whole tenth) needed for `medal_level` on the stage at `index`.
 static func medal_time_ms(index: int, medal_level: int) -> int:
 	if medal_level <= Medal.NONE:
 		return -1
-	return roundi(StageCatalog.length_of(index) / MEDAL_SPEEDS[medal_level - 1] * 1000.0)
+	return roundi(StageCatalog.length_of(index) / MEDAL_SPEEDS[medal_level - 1] * 10.0) * 100

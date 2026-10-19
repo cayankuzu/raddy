@@ -25,6 +25,11 @@ func test_the_model_parts_are_found() -> void:
 	for part in [&"hood", &"bumper_front", &"bumper_rear"]:
 		assert_eq(_fx.part_state(part), 0, "%s starts on the car" % part)
 	assert_not_null(_car.get_node_or_null(^"Model/DamageFx/Hood"), "the bonnet has its own hinge")
+	assert_not_null(_car.get_node_or_null(^"Model/DamageFx/BumperFront"), "the front bumper has its own hinge")
+	assert_not_null(_car.get_node_or_null(^"Model/DamageFx/BumperRear"), "the rear bumper has its own hinge")
+	assert_eq(_fx.part_state(&"spoiler"), -1, "a part the model lacks reads -1")
+	assert_eq(_car.get_node(^"Model/DamageFx/BumperFront").find_children("*Numberplates_Front*", "", true, false).size() > 0, true,
+		"the front plate hangs on the front bumper")
 
 
 func test_front_hits_loosen_then_tear_off_the_bonnet() -> void:
@@ -35,6 +40,9 @@ func test_front_hits_loosen_then_tear_off_the_bonnet() -> void:
 	assert_eq(_fx.part_state(&"hood"), 2, "torn off")
 	assert_false((_car.get_node(^"Model/DamageFx/Hood") as Node3D).visible)
 	assert_eq(_fx.part_state(&"bumper_rear"), 0, "the rear is untouched")
+	_car.apply_damage(_damage(0.0, CarDamageFx.BUMPER_SAG + 1.0))
+	assert_eq(_fx.part_state(&"bumper_rear"), 1, "a rear hit sags the rear bumper")
+	_car.apply_damage(_damage(CarDamageFx.HOOD_GONE + 1.0))
 	_car.apply_damage(_damage(5.0))
 	assert_eq(_fx.part_state(&"hood"), 0, "a recovery puts it back")
 	assert_true((_car.get_node(^"Model/DamageFx/Hood") as Node3D).visible)

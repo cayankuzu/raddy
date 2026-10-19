@@ -31,6 +31,9 @@ var decides := true
 ## a local body (offline); RaceSession replaces it with its synced spawn on the host.
 var spawn_boulder: Callable
 
+## Events actually played here (each plays once).
+var plays := 0
+
 var _events: Array[Node3D] = []
 var _fired: Dictionary = {}
 ## Circles (x, y, z, radius) along each fallen trunk, by event index.
@@ -106,6 +109,7 @@ func play(index: int) -> void:
 	if index < 0 or index >= _events.size() or _fired.has(index):
 		return
 	_fired[index] = true
+	plays += 1
 	var event := _events[index]
 	match event.get_meta(&"event_kind"):
 		&"falling_tree":
@@ -117,17 +121,16 @@ func play(index: int) -> void:
 	print("STAGE event %d %s" % [index, event.get_meta(&"event_kind")])
 
 
-## The fallen trunk as a row of circles, one per metre.
+## The fallen trunk as a row of circles about a metre apart, from the base to the tip.
 static func _trunk_circles(event: Node3D) -> Array[Vector4]:
 	var fallen: Basis = event.get_meta(&"fallen_basis")
 	var reach: float = event.get_meta(&"trunk_reach", StageEventBuilder.TREE_LENGTH)
 	var base := event.global_position
 	var out: Array[Vector4] = []
-	var along := 0.0
-	while along <= reach:
-		var p := base + fallen * (Vector3.UP * along)
+	var steps := ceili(reach)
+	for k in steps + 1:
+		var p := base + fallen * (Vector3.UP * (reach * k / steps))
 		out.append(Vector4(p.x, p.y, p.z, StageEventBuilder.TRUNK_RADIUS))
-		along += 1.0
 	return out
 
 

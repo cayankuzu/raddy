@@ -126,7 +126,7 @@ static func stages() -> Array[Dictionary]:
 			"segments": [
 				{"len": 90}, {"len": 60, "turn": 30, "rise": 3}, {"len": 110, "rise": 9, "cliff": "right", "bank": "left"},
 				{"len": 48, "turn": -170, "rise": 3, "cliff": "right", "caution": true},
-				{"len": 120, "rise": 10, "cliff": "left", "bank": "right", "rockfall": "right"},
+				{"len": 120, "rise": 10, "cliff": "left", "bank": "right"},
 				{"len": 48, "turn": 165, "rise": 3, "cliff": "left", "caution": true},
 				{"len": 100, "rise": 8, "cliff": "right", "bank": "left"}, {"len": 50, "turn": -60, "rise": 2},
 				{"len": 60, "crest": 1.4}, {"len": 50, "turn": 70}, {"len": 80, "rise": -4, "dip": 0.6},
@@ -137,7 +137,7 @@ static func stages() -> Array[Dictionary]:
 				{"len": 70, "crest": 1.8}, {"len": 40, "turn": -50}, {"len": 60, "turn": -30},
 				{"len": 90, "rise": -6, "cliff": "right"}, {"len": 40, "turn": 70, "cliff": "right", "caution": true},
 				{"len": 80, "crest": 1.6}, {"len": 34, "jump": 1.4}, {"len": 60, "turn": -60},
-				{"len": 100, "rise": -6, "bank": "left"}, {"len": 50, "turn": 40}, {"len": 150},
+				{"len": 100, "rise": -6, "bank": "left", "rockfall": "left"}, {"len": 50, "turn": 40}, {"len": 150},
 			]},
 		# A ridge above the clouds: drops on both sides in turn, fast crests and descents.
 		{"id": &"glacier_ridge", "biome": MOUNTAIN, "seed": 3602, "width": 7.0, "surface": Surface.GRAVEL,

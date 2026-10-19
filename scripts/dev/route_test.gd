@@ -121,6 +121,7 @@ func _ready() -> void:
 		_follower.car = _car
 		_follower.set_path(graph.main_route_points())
 		_follower.obstacles = _events.obstacles
+		_follower.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.VERGE
 		add_child(_follower)
 		_player_input.process_mode = Node.PROCESS_MODE_DISABLED
 	if _args.has("chase"):

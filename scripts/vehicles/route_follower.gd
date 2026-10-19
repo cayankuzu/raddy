@@ -40,6 +40,13 @@ const CAR_HALF_WIDTH := 1.0
 ## Things on the road to steer around: Callable() -> Array[Vector4] (centre xyz, radius w), e.g.
 ## StageEvents.obstacles (fallen trees, boulders).
 var obstacles: Callable
+## Half the drivable width (road + verge) the bot may use to get around an obstacle; set from the
+## graph by whoever creates the bot (the narrowest road of the stage).
+var lane_half_width := 5.0
+## Car half length: an obstacle counts until the car's tail is past it.
+const CAR_HALF_LENGTH := 1.9
+## Obstacles this far along beyond the first one ahead are dodged together with it.
+const AVOID_CLUSTER := 10.0
 
 ## Path progress in metres (wraps every lap on a closed path), laps completed (closed paths) and
 ## whether the end of an open path was reached.
@@ -58,6 +65,9 @@ var _index := 0
 var _stuck_time := 0.0
 var _reverse_left := 0.0
 var _located := false
+## Path index of the current aim point, and where the obstacle search window starts (m, <= 0).
+var _aim_index := 0
+var _window_start := 0.0
 
 
 ## `points` is the path; `closed` joins the last point to the first (a lap). The car starts near
@@ -184,43 +194,67 @@ func _dodge() -> Dictionary:
 	if list.is_empty():
 		return result
 	var position := car.global_position
-	var blocked: Array[Vector2] = []
-	var side := Vector3.ZERO
+	# Every obstacle ahead (or still beside the car) near the path: along, band of blocked offsets.
+	var ahead: Array[Vector3] = []
 	for o in list:
 		var centre := Vector3(o.x, o.y, o.z)
 		if _flat_distance(position, centre) > AVOID_AHEAD + AVOID_WIDTH:
 			continue
 		var near := _nearest_ahead(centre)
-		if near.x < 0.0 or near.z > AVOID_WIDTH:
+		if near.x < 0.0 or near.z > AVOID_WIDTH or near.y < -(CAR_HALF_LENGTH + o.w):
 			continue
+		if near.y <= _window_start + 0.01:
+			continue  # nearest at the very start of the window: it lies behind the car
 		var i := int(near.x)
-		var dir := _flat(_path[mini(i + 1, _path.size() - 1)] - _path[maxi(i - 1, 0)]).normalized()
-		var across := Vector2(-dir.y, dir.x)
+		var across := _across(i)
 		var lateral := (_flat(centre) - _flat(_path[i])).dot(across)
 		var clearance: float = o.w + CAR_HALF_WIDTH + AVOID_MARGIN
-		blocked.append(Vector2(lateral - clearance, lateral + clearance))
-		side = Vector3(across.x, 0.0, across.y)
-	if blocked.is_empty():
+		ahead.append(Vector3(near.y, lateral - clearance, lateral + clearance))
+	if ahead.is_empty():
 		return result
+	# Only the first group ahead shapes the line now; the next one gets its turn after.
+	ahead.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.x < b.x)
+	var first := ahead[0].x
+	var blocked: Array[Vector2] = []
+	for a in ahead:
+		if a.x <= first + AVOID_CLUSTER:
+			blocked.append(Vector2(a.y, a.z))
 	result.near = true
+	var limit := minf(AVOID_MAX_SHIFT, lane_half_width - CAR_HALF_WIDTH - 0.3)
 	var candidates: Array[float] = [0.0]
 	for band in blocked:
 		candidates.append(band.x)
 		candidates.append(band.y)
 	var best := INF
 	for c in candidates:
-		if absf(c) > AVOID_MAX_SHIFT or absf(c) >= absf(best):
+		if absf(c) > limit or absf(c) >= absf(best):
 			continue
-		var free := true
-		for band in blocked:
-			if c > band.x + 0.001 and c < band.y - 0.001:
-				free = false
-				break
-		if free:
+		if _free(c, blocked):
 			best = c
-	if best != INF:
-		result.shift = side * best
+	if best == INF:
+		# No gap inside the road: hug the side where the blockage ends sooner, at the edge.
+		var lo := INF
+		var hi := -INF
+		for band in blocked:
+			lo = minf(lo, band.x)
+			hi = maxf(hi, band.y)
+		best = -limit if absf(lo) <= absf(hi) else limit
+	var aim := _across(_aim_index)
+	result.shift = Vector3(aim.x, 0.0, aim.y) * best
 	return result
+
+
+func _free(offset: float, blocked: Array[Vector2]) -> bool:
+	for band in blocked:
+		if offset > band.x + 0.001 and offset < band.y - 0.001:
+			return false
+	return true
+
+
+## Unit vector across the path at point i (to the right of the direction of travel).
+func _across(i: int) -> Vector2:
+	var dir := _flat(_path[mini(i + 1, _path.size() - 1)] - _path[maxi(i - 1, 0)]).normalized()
+	return Vector2(-dir.y, dir.x)
 
 
 ## The path point nearest to `p` from just behind the car to AVOID_AHEAD ahead:
@@ -237,6 +271,7 @@ func _nearest_ahead(p: Vector3) -> Vector3:
 		back += _path[prev].distance_to(_path[i])
 		i = prev
 	along = -back
+	_window_start = along
 	var best := Vector3(-1.0, 0.0, INF)
 	while along <= AVOID_AHEAD:
 		var d := _flat_distance(p, _path[i])
@@ -305,10 +340,12 @@ func _point_ahead(distance: float) -> Vector3:
 		if not _closed and i >= _path.size() - 1:
 			# Past the end of an open path: aim straight on.
 			var last := _path.size() - 1
+			_aim_index = last
 			return _path[last] + (_path[last] - _path[last - 1]).normalized() * (distance - travelled)
 		var next := (i + 1) % _path.size()
 		travelled += _path[i].distance_to(_path[next])
 		i = next
+	_aim_index = i
 	return _path[i]
 
 

@@ -20,6 +20,7 @@ func test_only_a_faster_time_becomes_the_record_and_it_survives_a_restart() -> v
 	assert_true(first.new_best)
 	assert_eq(first.previous_ms, -1)
 	assert_false(records.record(&"black_pine", 140_000, PackedStringArray(["Ayşe"]), 2).new_best, "slower does not count")
+	assert_false(records.record(&"black_pine", 130_050, PackedStringArray(["Ayşe"]), 2).new_best, "reads the same (2:10.0): not a new record")
 	var faster := records.record(&"black_pine", 125_500, PackedStringArray(["Ayşe", "Can"]), 2)
 	assert_true(faster.new_best)
 	assert_eq(faster.previous_ms, 130_000)
@@ -43,5 +44,11 @@ func test_medals_follow_the_stage_length() -> void:
 		assert_eq(StageRecords.medal(index, bronze), StageRecords.Medal.BRONZE)
 		assert_eq(StageRecords.medal(index, bronze * 2), StageRecords.Medal.NONE)
 	assert_eq(StageRecords.medal(0, -1), StageRecords.Medal.NONE, "a crew that did not finish gets nothing")
+	# Judged as the screen shows it: a time that reads the same as the medal time earns it.
+	var gold_ms := StageRecords.medal_time_ms(0, StageRecords.Medal.GOLD)
+	assert_eq(gold_ms % 100, 0, "medal times are whole tenths")
+	assert_eq(RaceResults.format_time(gold_ms + 99), RaceResults.format_time(gold_ms))
+	assert_eq(StageRecords.medal(0, gold_ms + 99), StageRecords.Medal.GOLD, "reads like the gold time: gold")
+	assert_eq(StageRecords.medal(0, gold_ms + 100), StageRecords.Medal.SILVER)
 	gut.p("Kara Çam Geçidi medals: gold %s, silver %s, bronze %s" % [RaceResults.format_time(StageRecords.medal_time_ms(0, 3)),
 		RaceResults.format_time(StageRecords.medal_time_ms(0, 2)), RaceResults.format_time(StageRecords.medal_time_ms(0, 1))])

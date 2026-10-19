@@ -81,7 +81,8 @@ func test_the_clutch_takes_up_without_a_rev_drop() -> void:
 	while box.gear == 1 and t < 6.0:
 		box.update(DT, t * 5.0, 1.0, false)
 		t += DT
-		if t > 1.0:
+		# From 2.5 m/s, before the clutch starts to bite at LAUNCH_SPEED (the old box collapsed there).
+		if t > 0.5:
 			peak = maxf(peak, box.rpm)
 			worst_drop = maxf(worst_drop, peak - box.rpm)
 	gut.p("launch: worst rev drop before the first upshift %.0f rpm" % worst_drop)

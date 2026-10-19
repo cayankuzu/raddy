@@ -24,6 +24,13 @@ const CAR_SCENE := preload("res://scenes/vehicles/rally_car.tscn")
 const CAN_SCENE := preload("res://scenes/props/energy_can.tscn")
 const SPAWN_SPACING := 5.0
 ## Grid on a generated route: one car per row, alternating sides of the centreline.
+## Boulders: still (below REST_SPEED m/s) for REST_TIME s counts as settled; any boulder is
+## settled or removed BOULDER_SETTLE_MAX s after it was thrown (removed when further than
+## BOULDER_KEEP_DISTANCE from the road).
+const BOULDER_REST_SPEED := 0.25
+const BOULDER_REST_TIME := 1.0
+const BOULDER_SETTLE_MAX := 25.0
+const BOULDER_KEEP_DISTANCE := 15.0
 const GRID_ROW := 7.0
 const GRID_LATERAL := 1.6
 const CAN_LIFETIME := 8.0
@@ -44,6 +51,7 @@ var notes: Array[Dictionary] = []
 ## The stage's surprises (falling trees, rockfalls): the host decides, every peer plays them.
 var stage_events: StageEvents
 var _next_boulder_id := 1
+var _boulder_index: RouteIndex
 var _contour: Image
 ## Host: who finished, in what time, with how many recoveries (RaceResults).
 var results := RaceResults.new()
@@ -218,7 +226,10 @@ func _physics_process(delta: float) -> void:
 	if Net.is_host():
 		_judge_recoveries(delta)
 		# Critical damage counts as stuck (spec §8.1): the recovery offer is how the team goes on.
+		_settle_boulders(delta)
 		for team in _team_cars:
+			if finished_teams.has(team):
+				continue
 			if damage_of(team).level() == VehicleDamage.Level.CRITICAL:
 				var car: RallyCar = _team_cars[team]
 				if not car.needs_recovery:
@@ -355,6 +366,8 @@ func _handle_recovery_request(peer_id: int, confirm: bool) -> void:
 func _judge_recoveries(delta: float) -> void:
 	for team in _team_cars:
 		var car: RallyCar = _team_cars[team]
+		if finished_teams.has(team) or car.input_locked:
+			continue  # on the grid or past the finish: nothing to recover
 		if not _recovery_rules.has(team):
 			_recovery_rules[team] = RecoveryRules.new()
 		var rules: RecoveryRules = _recovery_rules[team]
@@ -383,7 +396,7 @@ func _perform_recovery(team: int, rules: RecoveryRules) -> void:
 	if graph != null:
 		var tracker: RouteTracker = _trackers.get(team)
 		var spot := RecoveryAnchor.find(graph, car.global_position, progress.next_gate(team) if progress != null else 0,
-			tracker.furthest if tracker != null else INF)
+			tracker.furthest if tracker != null else INF, stage_events.obstacles() if stage_events != null else [])
 		target = spot.transform.translated(Vector3.UP * 0.6)
 		if tracker != null:
 			tracker.reset_to(spot.along)
@@ -571,6 +584,12 @@ func _rpc_team_finished(team: int, time_ms: int) -> void:
 	var car: RallyCar = _team_cars.get(team)
 	if car != null:
 		car.input_locked = true  # rolls to a stop past the line
+		car.needs_recovery = false
+	if Net.is_host() and _recovery_rules.has(team):
+		var rules: RecoveryRules = _recovery_rules[team]
+		if rules.state == RecoveryRules.State.OFFERED:
+			rules.cancel()
+			_broadcast_recovery(team, rules)
 	print("NET team %d finished in %s" % [team, RaceResults.format_time(time_ms)])
 	team_finished.emit(team, time_ms)
 
@@ -658,6 +677,58 @@ func _rpc_stage_event(index: int) -> void:
 		stage_events.play(index)
 
 
+## Host: a boulder that has come to rest is frozen in place on every peer (one shared, immovable
+## rock for every driver, and no more snapshots); one that is still rolling after
+## BOULDER_SETTLE_MAX is settled where it is, or removed when it rolled far off the road.
+func _settle_boulders(delta: float) -> void:
+	for boulder in _props.get_children():
+		if not boulder is RigidBody3D or not String(boulder.name).begins_with("Boulder") or boulder.has_meta(&"settled"):
+			continue
+		var body := boulder as RigidBody3D
+		var still: float = body.get_meta(&"still", 0.0)
+		var age: float = body.get_meta(&"age", 0.0) + delta
+		still = still + delta if body.linear_velocity.length() < BOULDER_REST_SPEED else 0.0
+		body.set_meta(&"still", still)
+		body.set_meta(&"age", age)
+		if still < BOULDER_REST_TIME and age < BOULDER_SETTLE_MAX:
+			continue
+		var id := int(String(body.name).trim_prefix("Boulder"))
+		var on_road := graph == null or _route_index().distance_to(Vector2(body.global_position.x, body.global_position.z)) < BOULDER_KEEP_DISTANCE
+		if still >= BOULDER_REST_TIME or on_road:
+			_rpc_settle_boulder.rpc(id, body.global_transform)
+		else:
+			_rpc_remove_boulder.rpc(id)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_settle_boulder(id: int, at: Transform3D) -> void:
+	var body := _props.get_node_or_null("Boulder%d" % id) as RigidBody3D
+	if body == null:
+		return
+	body.set_meta(&"settled", true)
+	var sync := body.get_node_or_null(NodePath(SYNC_NODE))
+	if sync != null:
+		body.remove_child(sync)
+		sync.queue_free()
+	body.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
+	body.freeze = true
+	body.global_transform = at
+	print("NET boulder %d settled" % id)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_remove_boulder(id: int) -> void:
+	var body := _props.get_node_or_null("Boulder%d" % id)
+	if body != null:
+		body.queue_free()
+
+
+func _route_index() -> RouteIndex:
+	if _boulder_index == null:
+		_boulder_index = RouteIndex.new(graph)
+	return _boulder_index
+
+
 ## Host: a boulder of a rockfall, simulated here and synced like the cans.
 func _spawn_boulder(origin: Vector3, velocity: Vector3, radius: float) -> void:
 	var id := _next_boulder_id
@@ -712,6 +783,7 @@ func _bind_local_seat(car: RallyCar, role: int) -> void:
 			bot.set_path(graph.main_route_points())
 			if stage_events != null:
 				bot.obstacles = stage_events.obstacles
+			bot.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.VERGE
 			add_child(bot)
 	var effects := SeatEffects.new()
 	effects.name = "SeatEffects"

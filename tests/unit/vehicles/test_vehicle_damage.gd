@@ -66,6 +66,12 @@ func test_recovery_repairs_down_to_light_damage_keeping_the_zone_shape() -> void
 	var before := light.total()
 	light.repair_after_recovery()
 	assert_eq(light.total(), before, "nothing to repair below light")
+	# Far past the cap: the raw damage comes down to light too, not just the capped total.
+	var wrecked := VehicleDamage.new()
+	for i in 6:
+		wrecked.hit(30.0, Vector3.FORWARD)
+	wrecked.repair_after_recovery()
+	assert_eq(wrecked.level(), VehicleDamage.Level.LIGHT, "a wreck is patched up to light damage")
 
 
 func test_round_trips_through_the_network_array() -> void:

@@ -228,3 +228,11 @@ static func polyline_length(points: PackedVector2Array) -> float:
 	for i in range(1, points.size()):
 		total += points[i].distance_to(points[i - 1])
 	return total
+
+
+## The width of the narrowest road of the stage (m).
+func narrowest_width() -> float:
+	var narrowest := INF
+	for edge in edges:
+		narrowest = minf(narrowest, edge.width)
+	return narrowest if narrowest != INF else 0.0

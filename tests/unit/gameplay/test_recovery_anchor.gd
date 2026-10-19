@@ -43,6 +43,15 @@ func test_a_fall_to_the_road_below_does_not_gain_ground() -> void:
 	assert_lte(float(spot.along), 300.0 + RecoveryAnchor.AHEAD_ALLOWANCE + 0.01, "no shortcut by falling")
 
 
+func test_never_dropped_onto_a_fallen_trunk_or_a_boulder() -> void:
+	var on_road: Vector3 = _graph.sample(400.0).position
+	var obstacles: Array = [Vector4(on_road.x, on_road.y, on_road.z, 1.0)]
+	var spot := RecoveryAnchor.find(_graph, _beside(400.0, 3.0), 1, INF, obstacles)
+	var flat := Vector2(spot.transform.origin.x, spot.transform.origin.z)
+	assert_gt(flat.distance_to(Vector2(on_road.x, on_road.z)), 1.0 + RecoveryAnchor.OBSTACLE_CLEARANCE - 0.01, "clear of the boulder")
+	assert_lt(float(spot.along), 400.0, "moved back down the road, not past it")
+
+
 func test_far_from_the_road_still_lands_on_the_road() -> void:
 	var spot := RecoveryAnchor.find(_graph, Vector3(5000.0, 0.0, 5000.0), 1)
 	var flat := Vector2(spot.transform.origin.x, spot.transform.origin.z)

@@ -36,6 +36,8 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if is_multiplayer_authority():
+		if Net.is_active() and not Net.race_running:
+			return  # the race is over: the others are leaving the scene
 		_send_accumulator += delta
 		if _send_accumulator < 1.0 / SEND_RATE:
 			return
