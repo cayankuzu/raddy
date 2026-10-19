@@ -66,8 +66,11 @@ func test_bot_drives_the_stage_through_every_gate_in_order() -> void:
 	assert_eq(_follower.recoveries, 0, "never got stuck")
 	# What RaceProgress would count: each gate once, in order.
 	var counted: Array[int] = []
+	var early: Array[int] = []
 	for gate in _passed:
 		if gate == counted.size():
 			counted.append(gate)
+		elif gate > counted.size():
+			early.append(gate)
 	assert_eq(counted.size(), _graph.checkpoints.size(), "start, every split and the finish in stage order")
-	assert_eq(_passed.filter(func(g: int) -> bool: return g > counted.size()).size(), 0, "never a gate ahead of time")
+	assert_eq(early, [] as Array[int], "never a gate ahead of time")

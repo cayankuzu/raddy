@@ -19,6 +19,16 @@ const MIN_SPEED := 7.0
 const UNSTICK_REVERSE := 1.6
 const STUCK_SPEED := 0.6
 const STUCK_TIME := 2.0
+## Obstacle avoidance: obstacles within AVOID_WIDTH of the path, from AVOID_BEHIND behind the car
+## to AVOID_AHEAD ahead, shift the line sideways by up to AVOID_MAX_SHIFT so the car passes with
+## AVOID_MARGIN to spare, at AVOID_SPEED at most.
+const AVOID_AHEAD := 70.0
+const AVOID_BEHIND := 4.0
+const AVOID_WIDTH := 9.0
+const AVOID_MAX_SHIFT := 6.0
+const AVOID_MARGIN := 0.7
+const AVOID_SPEED := 11.0
+const CAR_HALF_WIDTH := 1.0
 
 @export var car: RallyCar
 @export var top_speed := 30.0
@@ -27,6 +37,9 @@ const STUCK_TIME := 2.0
 ## Seconds to wait after the car is released before driving off (bots on one grid leave in turn
 ## instead of nose to tail).
 @export var start_delay := 0.0
+## Things on the road to steer around: Callable() -> Array[Vector4] (centre xyz, radius w), e.g.
+## StageEvents.obstacles (fallen trees, boulders).
+var obstacles: Callable
 
 ## Path progress in metres (wraps every lap on a closed path), laps completed (closed paths) and
 ## whether the end of an open path was reached.
@@ -85,8 +98,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if start_delay > 0.0:
 		start_delay -= delta
-		controls.throttle = 0.0
-		controls.brake = 1.0
+		_hold_still(controls)
 		return
 	var position := car.global_position
 	if not _located:
@@ -94,13 +106,10 @@ func _physics_process(delta: float) -> void:
 	_advance_index(position)
 	var speed := car.forward_speed
 	max_speed_seen = maxf(max_speed_seen, speed)
-	if not _closed and _loop_length - progress < 12.0:
-		# The end of the stage: stop.
+	if not _closed and (reached_end or _loop_length - progress < 12.0):
+		# The end of the stage: stop, and stay stopped.
 		reached_end = true
-		controls.throttle = 0.0
-		controls.brake = 1.0
-		controls.handbrake = false
-		controls.steer = 0.0
+		_hold_still(controls)
 		return
 
 	if _reverse_left > 0.0:
@@ -128,6 +137,8 @@ func _physics_process(delta: float) -> void:
 	# Steering: aim at the point one lookahead ahead along the path.
 	var lookahead := clampf(LOOKAHEAD_MIN + maxf(speed, 0.0) * LOOKAHEAD_PER_SPEED, LOOKAHEAD_MIN, LOOKAHEAD_MAX)
 	var target := _point_ahead(lookahead)
+	var dodge := _dodge()
+	target += dodge.shift
 	var local := car.global_transform.affine_inverse() * target
 	var forward := -local.z
 	var distance := maxf(Vector2(local.x, forward).length(), 1.0)
@@ -148,6 +159,8 @@ func _physics_process(delta: float) -> void:
 	var off_path := Vector2(local.x, 0.0).length() > 6.0
 	if off_path:
 		allowed = minf(allowed, 12.0)
+	if dodge.near:
+		allowed = minf(allowed, AVOID_SPEED)
 	controls.handbrake = false
 	if speed < allowed - 0.5:
 		controls.throttle = 1.0 if speed < allowed - 3.0 else 0.5
@@ -160,6 +173,83 @@ func _physics_process(delta: float) -> void:
 		controls.brake = 0.0
 
 
+## The sideways shift of the aim point that takes the car around the obstacles on the road
+## ahead ({shift: Vector3, near: bool}). Each obstacle blocks a band of lateral offsets from the
+## path; the line takes the free offset closest to the path.
+func _dodge() -> Dictionary:
+	var result := {"shift": Vector3.ZERO, "near": false}
+	if not obstacles.is_valid():
+		return result
+	var list: Array = obstacles.call()
+	if list.is_empty():
+		return result
+	var position := car.global_position
+	var blocked: Array[Vector2] = []
+	var side := Vector3.ZERO
+	for o in list:
+		var centre := Vector3(o.x, o.y, o.z)
+		if _flat_distance(position, centre) > AVOID_AHEAD + AVOID_WIDTH:
+			continue
+		var near := _nearest_ahead(centre)
+		if near.x < 0.0 or near.z > AVOID_WIDTH:
+			continue
+		var i := int(near.x)
+		var dir := _flat(_path[mini(i + 1, _path.size() - 1)] - _path[maxi(i - 1, 0)]).normalized()
+		var across := Vector2(-dir.y, dir.x)
+		var lateral := (_flat(centre) - _flat(_path[i])).dot(across)
+		var clearance: float = o.w + CAR_HALF_WIDTH + AVOID_MARGIN
+		blocked.append(Vector2(lateral - clearance, lateral + clearance))
+		side = Vector3(across.x, 0.0, across.y)
+	if blocked.is_empty():
+		return result
+	result.near = true
+	var candidates: Array[float] = [0.0]
+	for band in blocked:
+		candidates.append(band.x)
+		candidates.append(band.y)
+	var best := INF
+	for c in candidates:
+		if absf(c) > AVOID_MAX_SHIFT or absf(c) >= absf(best):
+			continue
+		var free := true
+		for band in blocked:
+			if c > band.x + 0.001 and c < band.y - 0.001:
+				free = false
+				break
+		if free:
+			best = c
+	if best != INF:
+		result.shift = side * best
+	return result
+
+
+## The path point nearest to `p` from just behind the car to AVOID_AHEAD ahead:
+## Vector3(index or -1, metres along from the car, flat distance).
+func _nearest_ahead(p: Vector3) -> Vector3:
+	var n := _path.size()
+	var i := _index
+	var along := 0.0
+	var back := 0.0
+	while back < AVOID_BEHIND:
+		if not _closed and i == 0:
+			break
+		var prev := posmod(i - 1, n)
+		back += _path[prev].distance_to(_path[i])
+		i = prev
+	along = -back
+	var best := Vector3(-1.0, 0.0, INF)
+	while along <= AVOID_AHEAD:
+		var d := _flat_distance(p, _path[i])
+		if d < best.z:
+			best = Vector3(i, along, d)
+		if not _closed and i >= n - 1:
+			break
+		var next := (i + 1) % n
+		along += _path[i].distance_to(_path[next])
+		i = next
+	return best
+
+
 ## The nearest path point to the car, searched once over the whole path.
 func _locate(position: Vector3) -> void:
 	_located = true
@@ -169,6 +259,15 @@ func _locate(position: Vector3) -> void:
 		if d < best_distance:
 			best_distance = d
 			_index = i
+
+
+## Brakes while rolling, then holds the handbrake: brake at a standstill would mean reverse.
+func _hold_still(controls: VehicleControls) -> void:
+	var rolling := car.forward_speed > 1.5
+	controls.throttle = 0.0
+	controls.brake = 1.0 if rolling else 0.0
+	controls.handbrake = not rolling
+	controls.steer = 0.0
 
 
 func _advance_index(position: Vector3) -> void:

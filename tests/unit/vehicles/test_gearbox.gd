@@ -28,7 +28,7 @@ func test_shifts_up_through_the_gears_under_full_throttle() -> void:
 	gut.p("shifts %s, ends in gear %d at %.0f rpm" % [shifts, box.gear, box.rpm])
 	assert_eq(box.gear, 5, "fifth by top speed")
 	assert_eq(shifts, [true, true, true, true] as Array[bool], "four upshifts, no hunting")
-	assert_lt(box.rpm, Gearbox.LIMITER + 1.0)
+	assert_lt(box.rpm, Gearbox.REDLINE, "short of the redline at top speed")
 
 
 func test_downshifts_as_the_car_slows_and_power_cuts_during_a_shift() -> void:
@@ -48,7 +48,47 @@ func test_downshifts_as_the_car_slows_and_power_cuts_during_a_shift() -> void:
 	assert_lt(box.load, 0.3, "power cut while the gear changes")
 
 
-func test_revs_freely_in_the_air_and_bounces_off_the_limiter() -> void:
+func test_bounces_off_the_limiter_with_a_power_cut() -> void:
+	var box := Gearbox.new()
+	box.gear = 5
+	box.rpm = 7300.0
+	var bounced := false
+	var cut := false
+	for i in 120:
+		var before := box.rpm
+		box.update(DT, 50.0, 1.0, false)  # wheel_rpm(50, 5) is past the limiter
+		if box.rpm < before - 200.0:
+			bounced = true
+			cut = cut or box.load < 0.3
+	assert_true(bounced, "revs drop back from the limiter")
+	assert_true(cut, "power cut on the limiter")
+	assert_eq(box.gear, 5)
+
+
+func test_shifts_up_off_the_throttle_downhill() -> void:
+	for throttle in [0.0, 0.25]:
+		var box := Gearbox.new()
+		_run(box, 6.0, func(t: float) -> float: return 8.0 + t * 2.0, throttle)
+		assert_gte(box.gear, 2, "throttle %.2f: the wheels alone push it up a gear" % throttle)
+		assert_lt(box.rpm, Gearbox.LIMITER, "throttle %.2f: not stuck on the limiter" % throttle)
+
+
+func test_the_clutch_takes_up_without_a_rev_drop() -> void:
+	var box := Gearbox.new()
+	var peak := 0.0
+	var worst_drop := 0.0
+	var t := 0.0
+	while box.gear == 1 and t < 6.0:
+		box.update(DT, t * 5.0, 1.0, false)
+		t += DT
+		if t > 1.0:
+			peak = maxf(peak, box.rpm)
+			worst_drop = maxf(worst_drop, peak - box.rpm)
+	gut.p("launch: worst rev drop before the first upshift %.0f rpm" % worst_drop)
+	assert_lt(worst_drop, 1000.0, "no collapse when the clutch bites")
+
+
+func test_revs_freely_in_the_air() -> void:
 	var box := Gearbox.new()
 	box.gear = 3
 	_run(box, 1.5, func(_t: float) -> float: return 15.0, 1.0, true)

@@ -366,11 +366,14 @@ static func _soft_puff() -> Texture2D:
 func apply_damage(damage: VehicleDamage) -> void:
 	damage_effects = damage.effects()
 	damage_level = damage.level()
-	var body := get_node_or_null(^"Body") as MeshInstance3D
-	if body == null:
-		return
 	_apply_paint()
-	_update_dents(damage)
+	# The real car shows it with its own parts (bonnet, bumpers, smoke); the placeholder dents
+	# are for the box car only.
+	var damage_fx := get_node_or_null(^"Model/DamageFx") as CarDamageFx
+	if damage_fx != null:
+		damage_fx.apply(damage)
+	elif get_node_or_null(^"Body") != null:
+		_update_dents(damage)
 
 
 ## Paints the body in `color` (team colour), keeping the current damage tint.

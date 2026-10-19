@@ -43,7 +43,9 @@ func _ready() -> void:
 	_bar = HudStageBar.new()
 	_bar.session = session
 	_bar.my_team = _my_team()
-	_bar.title = tr(StageCatalog.name_key(session.stage_index())).to_upper()
+	# Locale-aware upper case: Turkish "i" becomes "İ", not "I".
+	_bar.title = TextServerManager.get_primary_interface().string_to_upper(tr(StageCatalog.name_key(session.stage_index())),
+		TranslationServer.get_locale())
 	_anchor(_bar, Vector4(0.5, 0, 0.5, 0), Rect2(-380, 10, 760, 64))
 	root.add_child(_bar)
 	_cluster = HudCluster.new()
@@ -56,6 +58,8 @@ func _ready() -> void:
 	_status.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	_center = _label(root, 120, Vector4(0.5, 0, 0.5, 0), Rect2(-500, 150, 1000, 140), HORIZONTAL_ALIGNMENT_CENTER)
 	_center.pivot_offset = Vector2(500, 70)
+	_center.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_center.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_prompt = _label(root, 30, Vector4(0.5, 0.5, 0.5, 0.5), Rect2(-500, 90, 1000, 110), HORIZONTAL_ALIGNMENT_CENTER)
 	_talk = _label(root, 20, Vector4(1, 0, 1, 0), Rect2(-436, 76, 410, 200), HORIZONTAL_ALIGNMENT_RIGHT)
 	_keys = _label(root, 15, Vector4(0.5, 1, 0.5, 1), Rect2(-460, -34, 920, 24), HORIZONTAL_ALIGNMENT_CENTER)
@@ -170,6 +174,8 @@ func _process(delta: float) -> void:
 	else:
 		_center.text = ""
 
+	# Digits and GO are huge; whole sentences (finished, waiting) fit at a smaller size.
+	_center.add_theme_font_size_override(&"font_size", 120 if _center.text.length() <= 4 else 56)
 	_prompt.text = _prompt_text(car, team)
 	var talking := PackedStringArray()
 	for peer_id in Net.roster:

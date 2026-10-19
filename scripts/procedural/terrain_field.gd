@@ -33,8 +33,15 @@ const CLIFF_RUN := 12.0
 const VALLEY_START := 70.0
 const VALLEY_END := 120.0
 const BANK_RUN := 14.0
+## A cliff or bank stops shaping ground once another stretch of road is this much nearer than
+## its own (switchback legs, the start straight beside a hairpin).
+const OTHER_STRETCH := 20.0
 
 var relief := DEFAULT_RELIEF
+## Widest road half-width and how many hash cells the nearest-road search must reach to cover the
+## whole blend band (set by set_roads).
+var _max_half_width := 3.5
+var _reach_cells := 4
 
 var _hills := FastNoiseLite.new()
 var _detail := FastNoiseLite.new()
@@ -64,33 +71,47 @@ func _init(seed: int, hill_relief := DEFAULT_RELIEF) -> void:
 
 ## The land around the road before the road is pressed into it.
 func natural_height(p: Vector2) -> float:
-	var base := _base_at(p)
+	return _natural(p, _base_at(p))
+
+
+func _natural(p: Vector2, base: Vector2) -> float:
 	var ramp := smoothstep(0.0, HILL_RAMP, base.y)
 	var hills := (_hills.get_noise_2d(p.x, p.y) * relief + _detail.get_noise_2d(p.x, p.y) * DETAIL_AMPLITUDE) * ramp
-	return base.x + hills + _side_offset(p)
+	return base.x + hills + _side_offset(p, base.y)
 
 
 ## Registers the finished road, so height() can follow it and press the ground flat under it.
 func set_roads(graph: RouteGraph) -> void:
 	_road_cells.clear()
+	_max_half_width = 0.0
 	for edge in graph.edges:
+		_max_half_width = maxf(_max_half_width, edge.width * 0.5)
 		for i in edge.points.size():
 			var key := _cell(edge.points[i])
 			if not _road_cells.has(key):
 				_road_cells[key] = []
 			_road_cells[key].append([edge.points[i], edge.heights[i], edge.width * 0.5])
+	_reach_cells = ceili((SHOULDER + BLEND + _max_half_width) / HASH_CELL)
 	_build_base(graph)
 	_build_sides(graph)
 
 
 ## Ground height with the road applied.
 func height(p: Vector2) -> float:
+	var base := _base_at(p)
+	# Far from every road (the base grid's distance errs by well under 30 m): just the land.
+	if base.y > _max_half_width + SHOULDER + BLEND + 30.0:
+		return _natural(p, base)
+	# The search covers the whole blend band, so neighbouring vertices never disagree about which
+	# road they blend toward.
 	var best_distance := INF
 	var best_height := 0.0
 	var cell := _cell(p)
-	for dx in range(-2, 3):
-		for dz in range(-2, 3):
-			var samples: Array = _road_cells.get(Vector2i(cell.x + dx, cell.y + dz), [])
+	for dx in range(-_reach_cells, _reach_cells + 1):
+		for dz in range(-_reach_cells, _reach_cells + 1):
+			var samples: Variant = _road_cells.get(Vector2i(cell.x + dx, cell.y + dz))
+			if samples == null:
+				continue
 			for sample in samples:
 				var distance: float = (sample[0] as Vector2).distance_to(p) - sample[2]
 				if distance < best_distance:
@@ -98,8 +119,12 @@ func height(p: Vector2) -> float:
 					best_height = sample[1]
 	if best_distance <= SHOULDER:
 		return best_height - TRENCH
-	var natural := natural_height(p)
-	var blend := BLEND if natural > best_height - 2.0 else CLIFF_BLEND
+	var natural := _natural(p, base)
+	# Where the land falls away below the road (a cliff, a steep valley) the blend narrows so the
+	# drop starts right past the shoulder; the width changes smoothly with the fall, so the ground
+	# never steps where it crosses a threshold.
+	var fall := clampf((best_height - natural - 1.0) / 3.0, 0.0, 1.0)
+	var blend := lerpf(BLEND, CLIFF_BLEND, fall * fall * (3.0 - 2.0 * fall))
 	if best_distance >= SHOULDER + blend:
 		return natural
 	var t := (best_distance - SHOULDER) / blend
@@ -123,13 +148,15 @@ func distance_to_centreline(p: Vector2) -> float:
 	return _base_at(p).y
 
 
-## Signed side and lateral distance of `p` from the nearest cliff, or {} when none is near.
+## Signed side and lateral distance of `p` from the nearest cliff, or {} when none is near (or
+## another stretch of road is clearly nearer than the cliff's own).
 func cliff_at(p: Vector2) -> Dictionary:
+	var road := _base_at(p).y
 	for profile in _sides:
 		if profile.kind != &"cliff" or not (profile.box as Rect2).has_point(p):
 			continue
 		var hit := _nearest_on_profile(profile, p)
-		if not hit.is_empty() and hit.lateral > 0.0:
+		if not hit.is_empty() and hit.lateral > 0.0 and float(hit.distance) - road < OTHER_STRETCH:
 			return hit
 	return {}
 
@@ -223,8 +250,10 @@ func _build_sides(graph: RouteGraph) -> void:
 
 
 ## Height the cliffs and banks add at `p`: a cliff falls away past the shoulder and its valley
-## floor rises again further out; a bank climbs into a wall. Both fade out past their ends.
-func _side_offset(p: Vector2) -> float:
+## floor rises again further out; a bank climbs into a wall. Both fade out past their ends, fade
+## to nothing before the edge of their box (no seams), and leave alone ground that belongs to
+## another stretch of road (`road` = distance to the nearest road sample, from the base grid).
+func _side_offset(p: Vector2, road: float) -> float:
 	var out := 0.0
 	for profile in _sides:
 		if not (profile.box as Rect2).has_point(p):
@@ -234,7 +263,12 @@ func _side_offset(p: Vector2) -> float:
 			continue
 		var edge: float = hit.half_width + SHOULDER
 		var lateral: float = hit.lateral
+		var distance: float = hit.distance
 		var fade: float = 1.0 - smoothstep(0.0, 30.0, hit.beyond)
+		fade *= 1.0 - smoothstep(VALLEY_END, VALLEY_END + 20.0, distance)
+		fade *= 1.0 - smoothstep(OTHER_STRETCH * 0.5, OTHER_STRETCH * 1.5, distance - road)
+		if fade <= 0.0:
+			continue
 		if profile.kind == &"cliff":
 			var fall := smoothstep(edge, edge + CLIFF_RUN, lateral) * (1.0 - smoothstep(VALLEY_START, VALLEY_END, lateral) * 0.6)
 			out -= profile.value * fall * fade
@@ -263,5 +297,5 @@ func _nearest_on_profile(profile: Dictionary, p: Vector2) -> Dictionary:
 	var beyond := 0.0
 	if (best == 0 and along < 0.0) or (best == points.size() - 1 and along > 0.0):
 		beyond = absf(along)
-	return {"lateral": offset.dot(right) * float(profile.side), "beyond": beyond,
+	return {"lateral": offset.dot(right) * float(profile.side), "beyond": beyond, "distance": sqrt(best_d),
 		"half_width": (profile.half_widths as PackedFloat32Array)[best], "side": profile.side}

@@ -25,7 +25,8 @@ func test_apply_to_graph_scales_widths_and_sets_surfaces() -> void:
 		assert_gte(redline.edges[i].width, 4.5, "still wider than two car widths")
 		assert_eq(explore.edges[i].surface, plain.edges[i].surface, "clear weather keeps the surface")
 		assert_eq(redline.edges[i].surface, Surface.MUD, "rain turns the creek's dirt to mud")
-	assert_true(RouteValidator.validate(redline).is_empty(), "narrower roads stay valid")
+	assert_eq(RouteValidator.validate(redline), [] as Array[String], "narrower roads stay valid")
+	assert_eq(RouteValidator.validate(explore), [] as Array[String], "wider roads keep their gaps")
 
 
 func test_palettes_and_relief_differ_and_snow_whitens_the_ground() -> void:
@@ -46,8 +47,14 @@ func test_note_detail_follows_difficulty_and_never_lies() -> void:
 	var summary := PaceNotes.build(graph, RaceSettings.note_detail(RaceSettings.Difficulty.REDLINE))
 	assert_eq(full.size(), standard.size())
 	assert_lt(summary.size(), standard.size(), "Redline calls only the dangers")
+	var with_distance := 0
 	for i in standard.size():
 		assert_true(full[i].tr.begins_with(standard[i].tr), "Explore adds distances to the standard call")
+		if full[i].tr.length() > standard[i].tr.length():
+			assert_true(full[i].tr.contains(" · "), "Explore's extra is the distance: %s" % full[i].tr)
+			with_distance += 1
+	assert_gt(with_distance, 0, "Explore calls carry the distance to the next call")
+	assert_eq(RaceSettings.note_detail(RaceSettings.Difficulty.EXPLORE), PaceNotes.DETAIL_FULL)
 	# Every Redline call is one of the standard calls, word for word.
 	var calls := {}
 	for note in standard:

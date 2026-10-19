@@ -19,13 +19,21 @@ func _ready() -> void:
 	quad.size = Vector2(2.0, 2.0)
 	mesh = quad
 	_material.shader = SHADER
+	# Draw before every other transparent surface (windshield mud and cracks, side glass, water):
+	# the screen copy it blurs predates them, so drawing after them would erase them.
+	_material.render_priority = Material.RENDER_PRIORITY_MIN
 	material_override = _material
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# The quad is moved in clip space by the shader: never let culling drop it.
 	extra_cull_margin = 16384.0
 	custom_aabb = AABB(Vector3(-1000, -1000, -1000), Vector3(2000, 2000, 2000))
 	if has_node("/root/Settings"):
-		intensity = float(get_node("/root/Settings").get_value("effects_intensity"))
+		_read_intensity()
+		get_node("/root/Settings").changed.connect(_read_intensity)
+
+
+func _read_intensity() -> void:
+	intensity = float(get_node("/root/Settings").get_value("effects_intensity"))
 
 
 func _process(_delta: float) -> void:

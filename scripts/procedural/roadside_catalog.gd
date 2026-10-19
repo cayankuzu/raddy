@@ -4,8 +4,9 @@ class_name RoadsideCatalog
 ##   (model units in metres), biomes, density (per 100 m per side), near/far (metres beyond the
 ##   verge), bias (>1 = crowd the near edge), scale [min, max], sink (metres into the ground at
 ##   scale 1), tilt (degrees), range (visibility end, m), shadows, variants (each mesh in the file
-##   is its own variant), foliage (alpha-scissor leaves), collision {shape: cylinder|sphere|box,
-##   radius, height, lift, size, offset} in metres at scale 1.
+##   is its own variant), foliage (alpha-scissor leaves), backdrop (no collision, kept out of every
+##   stretch's corridor), collision {shape: cylinder|sphere|box, radius, height, lift, size, offset,
+##   yaw (degrees: the box's turn about the trunk)} in metres at scale 1.
 ## Every asset listed here must have a row in ASSET_LICENSES.md. The Poly Haven scans and the
 ## conifer pack are in real-world metres; the birch set is in centimetres (unit 0.01).
 ##
@@ -99,7 +100,7 @@ static func entries() -> Array[Dictionary]:
 			{"biome_density": {MOUNTAIN: 1.5}}),
 		_tree("snag", CONIFERS, "Coniferous Dead Tree 2_7", [FOREST, MOUNTAIN], 1.0, 2.0, 26.0, [0.8, 1.2], 0.2),
 		_tree("log", CONIFERS, "Coniferous Dead Log_5", [FOREST], 1.2, 1.5, 24.0, [0.8, 1.1], 0.0,
-			{"sink": 0.1, "range": 260.0, "collision": {"shape": "box", "size": Vector3(4.5, 0.6, 0.8)}}),
+			{"sink": 0.1, "range": 260.0, "collision": {"shape": "box", "size": Vector3(7.4, 0.6, 0.75), "yaw": 41.8}}),
 		_tree("mossy_boulder", CONIFERS, "BoulderMossyLarge_8", [FOREST], 1.4, 2.0, 30.0, [0.5, 0.9], 0.0,
 			{"sink": 0.3, "foliage": false, "collision": {"shape": "sphere", "radius": 1.5, "lift": 0.2}}),
 		_tree("mossy_outcrop", CONIFERS, "BoulderOutcropMossyMedium_10", [FOREST, MOUNTAIN], 0.5, 8.0, 34.0, [0.6, 1.0], 0.0,
@@ -118,11 +119,11 @@ static func entries() -> Array[Dictionary]:
 			{"bias": 1.0, "shadows": false}),
 		# The backdrop: forest the cars never reach.
 		_tree("far_fir", CONIFERS, "FirTree_0", [FOREST, MOUNTAIN], 11.0, 34.0, 95.0, [0.8, 1.2], 0.0,
-			{"bias": 1.0, "range": 700.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}}),
+			{"bias": 1.0, "range": 700.0, "shadows": false, "backdrop": true, "biome_density": {MOUNTAIN: 0.5}}),
 		_tree("far_pine", CONIFERS, "PineTree_1", [FOREST, MOUNTAIN], 9.0, 34.0, 95.0, [0.8, 1.15], 0.0,
-			{"bias": 1.0, "range": 700.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}}),
+			{"bias": 1.0, "range": 700.0, "shadows": false, "backdrop": true, "biome_density": {MOUNTAIN: 0.5}}),
 		_tree("far_birch", BIRCHES, "birch-2", [FOREST], 2.0, 34.0, 80.0, [0.8, 1.1], 0.0,
-			{"bias": 1.0, "range": 700.0, "shadows": false, "unit": 0.01}),
+			{"bias": 1.0, "range": 700.0, "shadows": false, "backdrop": true, "unit": 0.01}),
 	])
 	return out
 

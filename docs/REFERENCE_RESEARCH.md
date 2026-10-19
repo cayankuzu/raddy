@@ -29,3 +29,18 @@ covered by `tools/*.ps1`, GUT tests that drive `VehicleControls`, and per-instan
   `_physics_process`).
 
 Art direction research (Half Grip as a mood reference only): see `ART_DIRECTION.md`.
+
+## Gameplay references (checked 2026-10-13, public store pages and press only; nothing copied)
+- **Left! Left! LEFT!** (Steam 5362020): asymmetric co-op rally. The driver gets no map or HUD; the
+  co-driver holds a physical, droppable tablet with the route and must talk the driver through.
+  The fun is the cabin chaos (items fly around, the view is blocked, the tablet goes missing) and a
+  deliberately sloppy little hatchback. RADDY takes the asymmetry (paper map only in the
+  navigator's hands, proximity voice) and the chaos (map blown out of the window, mud on the glass,
+  faints, a bonnet flapping over the windshield, falling trees, rockfalls).
+- **Half Grip** (Steam 4163270): mood and driving-feel reference only (see `ART_DIRECTION.md`).
+- **Rally Panic** (Roblox, a popular imitation; ~3.2k concurrent players at peak, #2 in Racing):
+  narrow forest roads, treacherous bridges, "technical turn chains", short runs, coins and a
+  garage. Lessons: short stages (2-3 min) replay well; danger spots (bridges, drops) are what
+  players talk about; progression gives a reason to replay.
+- Real rally pace-note conventions used by `PaceNotes`: direction + severity 1 (slowest) to 6
+  (nearly flat), "hairpin", "long", hazards (crest/blind crest, jump, dip, water, cliff), cautions.

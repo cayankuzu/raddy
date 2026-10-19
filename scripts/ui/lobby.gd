@@ -207,6 +207,14 @@ func _refresh_settings() -> void:
 		_stage_info.text = "%s · %s · %.1f km
 %s" % [tr(StageCatalog.name_key(stage)), tr(RaceSettings.BIOME_KEYS[info.biome]),
 			StageCatalog.length_of(stage) / 1000.0, tr(StageCatalog.description_key(stage))]
+		_stage_info.text += "\n" + tr("LOBBY_MEDAL_TIMES").format({
+			"gold": RaceResults.format_time(StageRecords.medal_time_ms(stage, StageRecords.Medal.GOLD)),
+			"silver": RaceResults.format_time(StageRecords.medal_time_ms(stage, StageRecords.Medal.SILVER)),
+			"bronze": RaceResults.format_time(StageRecords.medal_time_ms(stage, StageRecords.Medal.BRONZE))})
+		var best := StageRecords.new().best(info.id)
+		if not best.is_empty():
+			_stage_info.text += "\n" + tr("LOBBY_STAGE_RECORD").format({"time": RaceResults.format_time(int(best.time_ms)),
+				"crew": ", ".join(best.crew)})
 
 
 func _on_choice_changed(index: int, key: String) -> void:

@@ -26,6 +26,7 @@ var _elapsed := 0.0
 var _args: Dictionary = {}
 var _car: RallyCar
 var _follower: RouteFollower
+var _events: StageEvents
 var _player_input: PlayerCarInput
 var _chase: ChaseCamera
 var _driver_camera: Camera3D
@@ -58,6 +59,10 @@ func _ready() -> void:
 	track.add_child(RoadsideDresser.dress(graph, terrain, settings.biome, [],
 		GraphicsQuality.scenery_density(quality), GraphicsQuality.range_scale(quality)))
 	add_child(track)
+	_events = StageEvents.new()
+	_events.name = "StageEvents"
+	add_child(_events)
+	_events.setup(track)
 	print("ROUTE built in %d ms" % (Time.get_ticks_msec() - started))
 	for gate in track.get_node(^"Checkpoints").get_children():
 		(gate as Checkpoint).passed.connect(_on_checkpoint_passed)
@@ -115,6 +120,7 @@ func _ready() -> void:
 		_follower.name = "RouteFollower"
 		_follower.car = _car
 		_follower.set_path(graph.main_route_points())
+		_follower.obstacles = _events.obstacles
 		add_child(_follower)
 		_player_input.process_mode = Node.PROCESS_MODE_DISABLED
 	if _args.has("chase"):
@@ -130,8 +136,12 @@ func _ready() -> void:
 		overview.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 		add_child(overview)
 		overview.make_current()
+	var hardest: Array[float] = [0.0]
+	_car.impact.connect(func(strength: float, _direction: Vector3) -> void: hardest[0] = maxf(hardest[0], strength))
 	if _args.has("quit-after-seconds"):
 		get_tree().create_timer(float(_args["quit-after-seconds"])).timeout.connect(func() -> void:
+			if _follower != null:
+				print("ROUTE bot at %.0f m, %d recoveries, hardest impact %.1f m/s" % [_follower.progress, _follower.recoveries, hardest[0]])
 			print("ROUTE quitting")
 			get_tree().quit())
 

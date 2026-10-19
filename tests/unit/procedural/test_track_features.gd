@@ -36,7 +36,8 @@ func test_every_water_feature_gets_a_pool_and_a_splash_area() -> void:
 func test_every_cliff_gets_a_rail_with_one_gap() -> void:
 	_build(&"eagle_nest")
 	var rails := _children("Rail")
-	assert_eq(rails.size(), _graph.features_of(&"cliff").size())
+	assert_eq(rails.size(), TrackFeatures._cliff_runs(_graph).size(), "one rail per run of cliff (touching ones merged)")
+	assert_lte(rails.size(), _graph.features_of(&"cliff").size())
 	var index := RouteIndex.new(_graph)
 	for rail in rails:
 		var gap: float = rail.get_meta(&"gap_at")
@@ -87,3 +88,51 @@ func test_gates_span_the_stage_but_not_another_stretch() -> void:
 			var tip := shape.global_transform * Vector3(box.size.x * end, 0.0, 0.0)
 			var near := index.nearest(Vector2(tip.x, tip.z))
 			assert_lt(absf(float(near.along) - data.distance), 45.0, "%s ends near its own stretch" % gate.name)
+
+
+## Flood-fills a 2 m grid from the start line with the walls drawn in (a car is ~1.7 m wide): the
+## fill must never reach the edge of the grid, on any stage.
+func test_the_stage_is_closed_all_round() -> void:
+	for i in StageCatalog.count():
+		var id: StringName = StageCatalog.get_stage(i).id
+		_build(id)
+		var walls := _features.get_node(^"Boundary").get_children()
+		var cell := 2.0
+		var lo := _graph.center - _graph.half_extent - Vector2(60, 60)
+		var size := Vector2i(((_graph.half_extent * 2.0 + Vector2(120, 120)) / cell).ceil())
+		var blocked := PackedByteArray()
+		blocked.resize(size.x * size.y)
+		for wall in walls:
+			var shape := wall as CollisionShape3D
+			var box := shape.shape as BoxShape3D
+			var half := box.size.z * 0.5
+			var a := shape.global_transform * Vector3(0, 0, -half)
+			var b := shape.global_transform * Vector3(0, 0, half)
+			var steps := ceili(Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z)) / (cell * 0.5)) + 1
+			for k in steps + 1:
+				var q := Vector3(a).lerp(b, float(k) / steps)
+				var g := Vector2i(((Vector2(q.x, q.z) - lo) / cell).floor())
+				if g.x >= 0 and g.y >= 0 and g.x < size.x and g.y < size.y:
+					blocked[g.y * size.x + g.x] = 1
+		var start: Vector3 = _graph.sample(StageBuilder.START_GATE).position
+		var seed := Vector2i(((Vector2(start.x, start.z) - lo) / cell).floor())
+		var seen := PackedByteArray()
+		seen.resize(blocked.size())
+		var queue: Array[Vector2i] = [seed]
+		seen[seed.y * size.x + seed.x] = 1
+		var leaked := false
+		var filled := 0
+		while not queue.is_empty():
+			var c: Vector2i = queue.pop_back()
+			filled += 1
+			if c.x == 0 or c.y == 0 or c.x == size.x - 1 or c.y == size.y - 1:
+				leaked = true
+				break
+			for o in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var n: Vector2i = c + o
+				var k := n.y * size.x + n.x
+				if seen[k] == 0 and blocked[k] == 0:
+					seen[k] = 1
+					queue.append(n)
+		gut.p("%s: %d wall pieces, %d cells inside" % [id, walls.size(), filled])
+		assert_false(leaked, "%s: the walls are closed" % id)

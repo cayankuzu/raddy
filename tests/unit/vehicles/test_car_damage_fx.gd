@@ -1,0 +1,66 @@
+extends GutTest
+## Damage you can see (CarDamageFx): a front hit unlatches the bonnet, which the wind lifts more
+## the faster the car goes; harder hits tear it and the bumpers off; the engine steams, then
+## smokes; a recovery puts the parts back.
+
+var _car: RallyCar
+var _fx: CarDamageFx
+
+
+func before_each() -> void:
+	_car = load("res://scenes/vehicles/rally_car.tscn").instantiate()
+	add_child_autofree(_car)
+	_fx = _car.get_node(^"Model/DamageFx") as CarDamageFx
+
+
+func _damage(front: float, rear := 0.0) -> VehicleDamage:
+	var damage := VehicleDamage.new()
+	damage.zones[VehicleDamage.Zone.FRONT] = front
+	damage.zones[VehicleDamage.Zone.REAR] = rear
+	return damage
+
+
+func test_the_model_parts_are_found() -> void:
+	assert_not_null(_fx)
+	for part in [&"hood", &"bumper_front", &"bumper_rear"]:
+		assert_eq(_fx.part_state(part), 0, "%s starts on the car" % part)
+	assert_not_null(_car.get_node_or_null(^"Model/DamageFx/Hood"), "the bonnet has its own hinge")
+
+
+func test_front_hits_loosen_then_tear_off_the_bonnet() -> void:
+	_car.apply_damage(_damage(CarDamageFx.HOOD_LOOSE + 1.0))
+	assert_eq(_fx.part_state(&"hood"), 1, "unlatched")
+	assert_eq(_fx.part_state(&"bumper_front"), 1, "the front bumper sags")
+	_car.apply_damage(_damage(CarDamageFx.HOOD_GONE + 1.0))
+	assert_eq(_fx.part_state(&"hood"), 2, "torn off")
+	assert_false((_car.get_node(^"Model/DamageFx/Hood") as Node3D).visible)
+	assert_eq(_fx.part_state(&"bumper_rear"), 0, "the rear is untouched")
+	_car.apply_damage(_damage(5.0))
+	assert_eq(_fx.part_state(&"hood"), 0, "a recovery puts it back")
+	assert_true((_car.get_node(^"Model/DamageFx/Hood") as Node3D).visible)
+
+
+func test_the_wind_lifts_a_loose_bonnet_with_speed() -> void:
+	_car.apply_damage(_damage(CarDamageFx.HOOD_LOOSE + 1.0))
+	var hood := _car.get_node(^"Model/DamageFx/Hood") as Node3D
+	_car.forward_speed = 0.0
+	_fx._process(0.016)
+	var slow := hood.transform.basis.get_euler().x
+	_car.forward_speed = 30.0
+	_fx._process(0.016)
+	var fast := hood.transform.basis.get_euler().x
+	gut.p("bonnet angle: %.0f deg parked, %.0f deg at 108 km/h" % [rad_to_deg(slow), rad_to_deg(fast)])
+	assert_gt(fast, slow + deg_to_rad(30.0), "lifts toward the windshield at speed")
+
+
+func test_the_engine_steams_then_smokes() -> void:
+	_car.apply_damage(_damage(VehicleDamage.MEDIUM_AT + 1.0))
+	var smoke := _car.get_node_or_null(^"Model/DamageFx/EngineSmoke") as GPUParticles3D
+	assert_not_null(smoke)
+	assert_true(smoke.emitting)
+	var steam := (smoke.process_material as ParticleProcessMaterial).color
+	_car.apply_damage(_damage(VehicleDamage.CRITICAL_AT + 1.0))
+	var black := (smoke.process_material as ParticleProcessMaterial).color
+	assert_lt(black.v, steam.v, "darker when critical")
+	_car.apply_damage(_damage(0.0))
+	assert_false(smoke.emitting)

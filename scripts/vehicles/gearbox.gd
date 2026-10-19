@@ -20,8 +20,12 @@ const SHIFT_TIME := 0.16
 ## How fast the revs chase their target (1/s): quicker up than down, like a light flywheel.
 const RISE_RATE := 10.0
 const FALL_RATE := 6.0
-## Below this speed in first gear the clutch slips and the engine revs with the throttle.
+## In first gear the clutch slips below LAUNCH_SPEED (the engine holds the launch revs with the
+## throttle) and takes up gradually until SLIP_END, where the engine is on the wheels. The launch
+## revs sit just above the revs at SLIP_END, so the bite pulls them down a little, never a collapse.
 const LAUNCH_SPEED := 4.0
+const SLIP_END := 9.0
+const LAUNCH_RPM := 5600.0
 
 ## 1..5 forward, -1 reverse.
 var gear := 1
@@ -43,8 +47,12 @@ func update(dt: float, speed: float, throttle: float, free: bool) -> void:
 	shifting = maxf(shifting - dt, 0.0)
 	_limiter_cut = maxf(_limiter_cut - dt, 0.0)
 	var target := maxf(wheel_rpm(speed, gear), IDLE)
-	if free or (gear == 1 and absf(speed) < LAUNCH_SPEED):
+	if free:
 		target = maxf(target, lerpf(IDLE, REDLINE * 0.92, throttle))
+	elif gear == 1 and absf(speed) < SLIP_END:
+		var take_up := clampf((absf(speed) - LAUNCH_SPEED) / (SLIP_END - LAUNCH_SPEED), 0.0, 1.0)
+		var launch := lerpf(IDLE, LAUNCH_RPM, throttle)
+		target = maxf(target, lerpf(launch, maxf(wheel_rpm(SLIP_END, 1), IDLE), take_up))
 	elif throttle <= 0.05:
 		target = maxf(target, IDLE)
 	var rate := RISE_RATE if target > rpm else FALL_RATE
@@ -54,7 +62,9 @@ func update(dt: float, speed: float, throttle: float, free: bool) -> void:
 		_limiter_cut = 0.05
 	rpm = clampf(rpm, IDLE * 0.9, LIMITER)
 	if shifting <= 0.0 and gear >= 1:
-		if rpm > UPSHIFT and gear < GEAR_TOP.size() and throttle > 0.3 and not free:
+		# Up under power near the limiter, or off the throttle once the wheels alone pass the
+		# redline (rolling down a descent).
+		if rpm > UPSHIFT and gear < GEAR_TOP.size() and not free and (throttle > 0.3 or wheel_rpm(speed, gear) > REDLINE):
 			gear += 1
 			shifting = SHIFT_TIME
 			shifted.emit(true)

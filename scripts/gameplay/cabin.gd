@@ -263,8 +263,10 @@ func _update_cabin_weather(delta: float) -> void:
 			if faint_left[role] <= 0.0:
 				_broadcast(_rpc_set_faint, [role, false, FAINT_RESIDUE])
 			continue
-		# Through a splash with the window open: a face full of muddy water.
-		if car.water_contacts > 0 and speed > 6.0 and _opening_for(role) > 0.0 and _rng.randf() < WATER_SOAK_CHANCE * delta:
+		# Through a splash with your own window open (or no windshield): a face full of muddy water.
+		var own := Side.LEFT if role == RosterRules.Role.DRIVER else Side.RIGHT
+		var soak_open := windshield == Windshield.REMOVED or window_state[own] != WindowState.CLOSED
+		if car.water_contacts > 0 and speed > 6.0 and soak_open and _rng.randf() < WATER_SOAK_CHANCE * delta:
 			exposure[role] += FACE_HIT_EXPOSURE
 			_broadcast(_rpc_face_hit, [role])
 		if rate > 0.0:
@@ -371,8 +373,23 @@ func _physics_process(delta: float) -> void:
 		_lose_map(Side.RIGHT if window_open[Side.RIGHT] else Side.LEFT)
 
 
+## The car's own impact signal: only where this peer both simulates the car and owns the cabin
+## (the host's own car, or offline). Client-driven cars reach host_impact through the host.
 func _on_impact(strength: float, _local_direction: Vector3) -> void:
-	if _is_authority_here() and map_state == MapState.OPEN and strength >= MAP_IMPACT_LOSS:
+	if _is_authority_here():
+		host_impact(strength)
+
+
+## Host (or offline): something smeared the windshield (a tree's crown); the regular tick sends it.
+func host_add_dirt(amount: float) -> void:
+	if not _is_authority_here() or windshield == Windshield.REMOVED:
+		return
+	dirt = clampf(dirt + amount, 0.0, 1.0)
+
+
+## Host: a crash this hard knocks the open map out of the navigator's hands.
+func host_impact(strength: float) -> void:
+	if map_state == MapState.OPEN and strength >= MAP_IMPACT_LOSS:
 		_lose_map(Side.RIGHT if window_open[Side.RIGHT] else Side.LEFT)
 
 

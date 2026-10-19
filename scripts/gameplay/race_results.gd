@@ -78,6 +78,6 @@ func rows() -> Array:
 static func format_time(time_ms: int) -> String:
 	if time_ms < 0:
 		return "--:--.-"
-	var minutes := time_ms / 60000
-	var seconds := (time_ms % 60000) / 1000.0
-	return "%d:%04.1f" % [minutes, seconds]
+	# Whole tenths first (truncated, like a race clock): 59.96 s is "0:59.9", never "0:60.0".
+	var tenths := time_ms / 100
+	return "%d:%02d.%d" % [tenths / 600, (tenths / 10) % 60, tenths % 10]

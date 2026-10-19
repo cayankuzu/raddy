@@ -34,10 +34,15 @@ func _ready() -> void:
 	_faint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_faint)
 	if has_node("/root/Settings"):
-		intensity = float(get_node("/root/Settings").get_value("effects_intensity"))
+		_read_intensity()
+		get_node("/root/Settings").changed.connect(_read_intensity)
 	if cabin != null:
 		cabin.face_hit.connect(_on_face_hit)
 		cabin.faint_changed.connect(_on_faint)
+
+
+func _read_intensity() -> void:
+	intensity = float(get_node("/root/Settings").get_value("effects_intensity"))
 
 
 func _on_face_hit(hit_role: int) -> void:

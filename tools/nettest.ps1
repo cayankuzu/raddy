@@ -65,7 +65,12 @@ foreach ($i in 0..$Clients) { ExpectNot $i "VOICE problem" "no mic problem repor
 if ($Clients -ge 3) {
     $other = LastValue 1 "car team 2 simulated=false packets=(\d+)"
     if ($other -lt 50) { $failures.Add("instance 1: only $other snapshots of team 2's car") }
-    Expect 0 "NET roster \[(?!.*3:)" "host roster drops instance 3 after it leaves"
+    # Instance 3 joins as P3: after the last host roster that lists it, a later one must list P1
+    # without it (the empty startup/shutdown rosters do not count).
+    $hostRosters = @(Select-String -Path (Join-Path $ProjectDir "logs\instance_0.log") -Pattern "NET roster \[")
+    $withP3 = $hostRosters | Where-Object { $_.Line -match ":P3 " } | Select-Object -Last 1
+    $afterLeave = $withP3 -and ($hostRosters | Where-Object { $_.LineNumber -gt $withP3.LineNumber -and $_.Line -match ":P1 " })
+    if (-not $afterLeave) { $failures.Add("instance 0: host roster never dropped instance 3 after it left") }
     Expect 1 "NET car team 2 removed" "team 2 car removed on instance 1 after its driver left"
     Expect 2 "NET car team 2 removed" "team 2 car removed on instance 2 after its driver left"
 }

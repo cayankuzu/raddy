@@ -10,15 +10,18 @@ steady stretches at three engine speeds, pitch-flattened (the recording's own fi
 measured by autocorrelation, is resampled to a constant) and cross-faded into seamless loops.
 Their firing frequencies are written to assets/audio/engine/loops.json for CarAudio (a
 four-cylinder four-stroke fires twice per revolution: f0 = rpm / 30).
-numpy's FFT module is blocked by Smart App Control on the dev PC, so nothing here uses it.
+
+Pure Python on purpose: Smart App Control on the dev PC blocks numpy's compiled modules. Only the
+needed stretch of each long recording is read, so it stays quick.
 """
+import array
 import json
+import math
 import os
+import random
 import shutil
 import struct
 import wave
-
-import numpy as np
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RAW = os.path.join(ROOT, "raw_assets", "audio")
@@ -32,33 +35,43 @@ CRASHES = os.path.join(RAW, "sonniss", "Car_Destruction_Designed_t44_Impacts_Int
 
 # --- reading and writing ---
 
-def read_wav(path):
-    """Mono float32 at RATE from a 16- or 24-bit PCM WAV (96 kHz sources are halved)."""
+def read_wav(path, start=0.0, end=None):
+    """Mono floats at RATE from a 16- or 24-bit PCM WAV, seconds `start`..`end` only (96 kHz
+    sources are halved by averaging sample pairs: a gentle low-pass with a zero at the new Nyquist)."""
     w = wave.open(path, "rb")
-    n, ch, width, rate = w.getnframes(), w.getnchannels(), w.getsampwidth(), w.getframerate()
-    raw = w.readframes(n)
+    ch, width, rate, frames = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
+    first = int(start * rate)
+    last = frames if end is None else min(int(end * rate), frames)
+    w.setpos(first)
+    raw = w.readframes(last - first)
+    step = ch * width
+    out = []
     if width == 3:
-        b = np.frombuffer(raw, dtype=np.uint8).reshape(-1, 3)
-        data = b[:, 0].astype(np.int32) | (b[:, 1].astype(np.int32) << 8) | (b[:, 2].astype(np.int32) << 16)
-        data = np.where(data & 0x800000, data - 0x1000000, data).astype(np.float32) / 8388608.0
+        for i in range(0, len(raw) - step + 1, step):
+            total = 0
+            for c in range(ch):
+                k = i + c * 3
+                v = raw[k] | (raw[k + 1] << 8) | (raw[k + 2] << 16)
+                total += v - 0x1000000 if v & 0x800000 else v
+            out.append(total / ch / 8388608.0)
     elif width == 2:
-        data = np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
+        values = array.array("h", raw)
+        for i in range(0, len(values) - ch + 1, ch):
+            out.append(sum(values[i:i + ch]) / ch / 32768.0)
     else:
         raise ValueError(f"{path}: {width * 8}-bit is not handled")
-    data = data.reshape(-1, ch).mean(axis=1)
     if rate == 2 * RATE:
-        # Averaging pairs is a gentle low-pass with a zero at the new Nyquist: enough here.
-        data = data[: len(data) // 2 * 2].reshape(-1, 2).mean(axis=1)
+        out = [(out[i] + out[i + 1]) * 0.5 for i in range(0, len(out) - 1, 2)]
     elif rate != RATE:
         raise ValueError(f"{path}: {rate} Hz is not handled")
-    return data.astype(np.float32)
+    return out
 
 
 def write_wav(name, x, loop=False):
     """16-bit mono WAV under assets/audio; a loop gets a smpl chunk spanning the whole file."""
     path = os.path.join(OUT, name)
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    pcm = (np.clip(x, -1.0, 1.0) * 32767.0).astype("<i2").tobytes()
+    pcm = array.array("h", (int(max(-1.0, min(1.0, v)) * 32767.0) for v in x)).tobytes()
     chunks = [b"fmt " + struct.pack("<IHHIIHH", 16, 1, 1, RATE, RATE * 2, 2, 16),
               b"data" + struct.pack("<I", len(pcm)) + pcm]
     if loop:
@@ -78,81 +91,96 @@ def copy(src, name):
     print(f"{name}: copied")
 
 
-# --- signal helpers (no FFT) ---
+# --- signal helpers ---
 
 def lowpass(x, cutoff, rate=RATE):
-    """Two cascaded one-pole low-pass filters. A plain Python loop: only a few seconds of
-    synthesised audio go through it."""
-    a = float(np.exp(-2.0 * np.pi * cutoff / rate))
-    data = x.tolist()
+    """Two cascaded one-pole low-pass filters."""
+    a = math.exp(-2.0 * math.pi * cutoff / rate)
+    data = list(x)
     for _ in range(2):
         acc = 0.0
         for i, v in enumerate(data):
             acc = (1.0 - a) * v + a * acc
             data[i] = acc
-    return np.array(data, dtype=np.float32)
+    return data
 
 
 def highpass(x, cutoff, rate=RATE):
-    return x - lowpass(x, cutoff, rate)
+    low = lowpass(x, cutoff, rate)
+    return [a - b for a, b in zip(x, low)]
+
+
+def add(*signals):
+    return [sum(values) for values in zip(*signals)]
+
+
+def scale(x, k):
+    return [v * k for v in x]
 
 
 def normalize(x, peak=0.89):
-    m = float(np.max(np.abs(x))) or 1.0
-    return x * (peak / m)
+    m = max(abs(v) for v in x) or 1.0
+    return [v * (peak / m) for v in x]
 
 
 def fade(x, fade_in=0.005, fade_out=0.05):
-    x = x.copy()
-    i = int(fade_in * RATE)
-    o = int(fade_out * RATE)
-    if i:
-        x[:i] *= np.linspace(0.0, 1.0, i)
-    if o:
-        x[-o:] *= np.linspace(1.0, 0.0, o) ** 2
+    x = list(x)
+    n_in = int(fade_in * RATE)
+    n_out = int(fade_out * RATE)
+    for i in range(min(n_in, len(x))):
+        x[i] *= i / n_in
+    for i in range(min(n_out, len(x))):
+        x[len(x) - 1 - i] *= (i / n_out) ** 2
     return x
 
 
 def loop(x, crossfade):
     """Makes `x` loop seamlessly: its tail (crossfade seconds) is blended into its head."""
     n = int(crossfade * RATE)
-    body = x[:-n].copy()
-    t = np.linspace(0.0, 1.0, n)
-    body[:n] = body[:n] * np.sqrt(t) + x[-n:] * np.sqrt(1.0 - t)
+    body = list(x[:-n])
+    tail = x[-n:]
+    for i in range(n):
+        t = i / (n - 1)
+        body[i] = body[i] * math.sqrt(t) + tail[i] * math.sqrt(1.0 - t)
     return body
-
-
-def cut(x, start, end):
-    return x[int(start * RATE):int(end * RATE)]
 
 
 def f0_track(x, hop=0.02, win=0.08, lo=35.0, hi=330.0):
     """Engine firing frequency every `hop` seconds (autocorrelation on a 4 kHz copy)."""
     factor = 12
-    y = x[: len(x) // factor * factor].reshape(-1, factor).mean(axis=1)
+    y = [sum(x[i:i + factor]) / factor for i in range(0, len(x) - factor + 1, factor)]
     r = RATE / factor
-    y = y - np.convolve(y, np.ones(64) / 64, mode="same")
+    # Remove the slow drift (64-sample moving average), as the analysis script did.
+    half = 32
+    prefix = [0.0]
+    for v in y:
+        prefix.append(prefix[-1] + v)
+    y = [y[i] - (prefix[min(i + half, len(y))] - prefix[max(i - half, 0)]) / (min(i + half, len(y)) - max(i - half, 0))
+         for i in range(len(y))]
     n = int(win * r)
     h = int(hop * r)
-    lags = np.arange(int(r / hi), int(r / lo) + 1)
+    lags = list(range(int(r / hi), int(r / lo) + 1))
     out = []
     for start in range(0, len(y) - n, h):
         seg = y[start:start + n]
-        energy = float(np.dot(seg, seg)) + 1e-12
-        ac = np.array([np.dot(seg[:-lag], seg[lag:]) for lag in lags]) / energy
-        best = int(np.argmax(ac))
+        energy = sum(v * v for v in seg) + 1e-12
+        ac = [sum(seg[k] * seg[k + lag] for k in range(n - lag)) / energy for lag in lags]
+        best = max(range(len(ac)), key=lambda k: ac[k])
         for i in range(1, len(ac) - 1):
             if ac[i] > 0.85 * ac[best] and ac[i] >= ac[i - 1] and ac[i] >= ac[i + 1]:
                 best = i
                 break
         out.append(r / lags[best])
-    return np.array(out), hop
+    return out, hop
 
 
 def flatten_pitch(x, target):
     """Resamples `x` so its firing frequency stays at `target` Hz (a steady-rpm loop)."""
     track, hop = f0_track(x)
-    track = np.convolve(track, np.ones(5) / 5, mode="same")
+    # Smooth over five frames, padding with the end values (zero padding read the ends of each
+    # take up to 1.67x too fast).
+    padded = [track[0]] * 2 + track + [track[-1]] * 2
+    track = [sum(padded[i:i + 5]) / 5.0 for i in range(len(track))]
     out = []
     pos = 0.0
     while pos < len(x) - 2:
@@ -161,91 +189,97 @@ def flatten_pitch(x, target):
         frac = pos - i
         out.append(x[i] * (1.0 - frac) + x[i + 1] * frac)
         pos += target / f0  # read slower where the recording is higher than the target
-    return np.array(out, dtype=np.float32)
+    return out
 
 
 # --- synthesis ---
 
+def noise(n, rng):
+    return [rng.gauss(0.0, 1.0) for _ in range(n)]
+
+
 def gravel(seconds, seed):
     """Stones crunching under tyres: a rumble bed plus thousands of tiny stone clicks."""
-    rng = np.random.default_rng(seed)
+    rng = random.Random(seed)
     n = int(seconds * RATE)
-    bed = lowpass(rng.standard_normal(n).astype(np.float32), 700.0) * 0.35
-    clicks = np.zeros(n, dtype=np.float32)
+    bed = scale(lowpass(noise(n, rng), 700.0), 0.35)
+    clicks = [0.0] * n
     for _ in range(int(seconds * 900)):
-        at = rng.integers(0, n - 400)
-        length = rng.integers(60, 320)
-        burst = rng.standard_normal(length).astype(np.float32) * np.exp(-np.linspace(0, 6, length))
-        clicks[at:at + length] += burst * rng.uniform(0.1, 1.0) ** 2
+        at = rng.randrange(0, n - 400)
+        length = rng.randrange(60, 320)
+        amp = rng.uniform(0.1, 1.0) ** 2
+        for k in range(length):
+            clicks[at + k] += rng.gauss(0.0, 1.0) * math.exp(-6.0 * k / length) * amp
     clicks = highpass(lowpass(clicks, 5000.0), 600.0)
-    return normalize(bed + clicks * 0.8)
+    return normalize(add(bed, scale(clicks, 0.8)))
 
 
 def rumble(seconds, seed):
     """Smooth rolling on a hard surface: low rumble and a little hiss."""
-    rng = np.random.default_rng(seed)
+    rng = random.Random(seed)
     n = int(seconds * RATE)
-    low = lowpass(rng.standard_normal(n).astype(np.float32), 180.0)
-    hiss = highpass(rng.standard_normal(n).astype(np.float32), 3000.0) * 0.02
-    return normalize(low + hiss)
+    low = lowpass(noise(n, rng), 180.0)
+    hiss = scale(highpass(noise(n, rng), 3000.0), 0.02)
+    return normalize(add(low, hiss))
 
 
 def wind(seconds, seed):
     """Wind past the car: band-limited noise with slow gusts."""
-    rng = np.random.default_rng(seed)
+    rng = random.Random(seed)
     n = int(seconds * RATE)
-    noise = rng.standard_normal(n).astype(np.float32)
-    body = lowpass(noise, 900.0) - lowpass(noise, 120.0) * 0.6
-    t = np.arange(n) / RATE
-    gust = 0.75 + 0.25 * np.sin(2 * np.pi * 0.31 * t) * np.sin(2 * np.pi * 0.13 * t + 1.0)
-    return normalize(body * gust)
+    raw = noise(n, rng)
+    body = [a - b * 0.6 for a, b in zip(lowpass(raw, 900.0), lowpass(raw, 120.0))]
+    gust = [0.75 + 0.25 * math.sin(2 * math.pi * 0.31 * i / RATE) * math.sin(2 * math.pi * 0.13 * i / RATE + 1.0) for i in range(n)]
+    return normalize([a * b for a, b in zip(body, gust)])
 
 
 def bubbles(n, rng, rate_per_second, seconds):
-    out = np.zeros(n, dtype=np.float32)
+    out = [0.0] * n
     for _ in range(int(rate_per_second * seconds)):
-        at = rng.integers(0, max(n - 4000, 1))
+        at = rng.randrange(0, max(n - 4000, 1))
         f = rng.uniform(250.0, 900.0)
-        length = rng.integers(800, 3500)
-        t = np.arange(length) / RATE
-        out[at:at + length] += np.sin(2 * np.pi * f * t * (1.0 + 2.0 * t)) * np.exp(-t * 40.0) * rng.uniform(0.2, 1.0)
+        length = rng.randrange(800, 3500)
+        amp = rng.uniform(0.2, 1.0)
+        for k in range(length):
+            t = k / RATE
+            out[at + k] += math.sin(2 * math.pi * f * t * (1.0 + 2.0 * t)) * math.exp(-t * 40.0) * amp
     return out
 
 
 def slosh(seconds, seed):
     """Driving through water: churning low noise and bubbles."""
-    rng = np.random.default_rng(seed)
+    rng = random.Random(seed)
     n = int(seconds * RATE)
-    noise = lowpass(rng.standard_normal(n).astype(np.float32), 1400.0)
-    t = np.arange(n) / RATE
-    churn = 0.6 + 0.4 * np.abs(np.sin(2 * np.pi * 3.1 * t)) * np.abs(np.sin(2 * np.pi * 1.7 * t + 0.5))
-    return normalize(noise * churn + bubbles(n, rng, 40, seconds) * 0.25)
+    water = lowpass(noise(n, rng), 1400.0)
+    churn = [0.6 + 0.4 * abs(math.sin(2 * math.pi * 3.1 * i / RATE)) * abs(math.sin(2 * math.pi * 1.7 * i / RATE + 0.5)) for i in range(n)]
+    return normalize(add([a * b for a, b in zip(water, churn)], scale(bubbles(n, rng, 40, seconds), 0.25)))
 
 
 def splash(seed):
     """Hitting a water splash: a burst of water that falls back."""
-    rng = np.random.default_rng(seed)
+    rng = random.Random(seed)
     n = int(1.4 * RATE)
-    t = np.arange(n) / RATE
-    noise = rng.standard_normal(n).astype(np.float32)
-    burst = (lowpass(noise, 2500.0) * np.exp(-t * 4.0) + highpass(noise, 2000.0) * 0.4 * np.exp(-t * 7.0))
-    burst[: int(0.01 * RATE)] *= np.linspace(0.0, 1.0, int(0.01 * RATE))
-    return fade(normalize(burst + bubbles(n, rng, 25, 1.4) * 0.2), 0.0, 0.2)
+    raw = noise(n, rng)
+    low = lowpass(raw, 2500.0)
+    high = highpass(raw, 2000.0)
+    burst = [low[i] * math.exp(-i / RATE * 4.0) + high[i] * 0.4 * math.exp(-i / RATE * 7.0) for i in range(n)]
+    attack = int(0.01 * RATE)
+    for i in range(attack):
+        burst[i] *= i / attack
+    return fade(normalize(add(burst, scale(bubbles(n, rng, 25, 1.4), 0.2))), 0.0, 0.2)
 
 
 def main():
     meta = {}
     # Engine: three steady loops (low cruise, mid pull, high pull), pitch-flattened.
-    toyota = read_wav(TOYOTA)
     for name, start, end, target in [("low", 59.5, 62.6, 51.5), ("mid", 143.4, 144.7, 111.0), ("high", 92.0, 94.6, 172.0)]:
-        steady = flatten_pitch(cut(toyota, start, end), target)
+        steady = flatten_pitch(read_wav(TOYOTA, start, end), target)
         write_wav(f"engine/engine_{name}.wav", normalize(loop(steady, 0.12)), loop=True)
         meta[name] = target
     with open(os.path.join(OUT, "engine", "loops.json"), "w") as f:
         json.dump({"firing_hz": meta, "source": "Sonniss GDC 2020, Pole Position - Toyota Corolla 1998 rally car, t9 onboard exhaust"}, f, indent=1)
     # Tyres.
-    skids = read_wav(SKIDS)
-    write_wav("tyres/skid.wav", normalize(loop(cut(skids, 19.0, 23.3), 0.3)), loop=True)
+    write_wav("tyres/skid.wav", normalize(loop(read_wav(SKIDS, 19.0, 23.3), 0.3)), loop=True)
     write_wav("tyres/gravel.wav", loop(gravel(3.3, 11), 0.3), loop=True)
     write_wav("tyres/rumble.wav", loop(rumble(2.4, 12), 0.2), loop=True)
     # Air and water.
@@ -253,14 +287,12 @@ def main():
     write_wav("water/slosh.wav", loop(slosh(2.3, 14), 0.2), loop=True)
     write_wav("water/splash.wav", splash(15))
     # Horn: the sustained part of the onboard horn recording.
-    horn = read_wav(HORN)
-    write_wav("car/horn.wav", normalize(loop(cut(horn, 17.0, 19.6), 0.15)), loop=True)
+    write_wav("car/horn.wav", normalize(loop(read_wav(HORN, 17.0, 19.6), 0.15)), loop=True)
     # Crashes: the first strike of each designed impact, and some of the smaller hits in the tails.
-    crashes = read_wav(CRASHES)
     for i, (start, length) in enumerate([(0.45, 1.6), (7.7, 1.4), (16.7, 1.5), (27.2, 1.6), (36.45, 1.5), (49.2, 1.6)]):
-        write_wav(f"impacts/crash_heavy_{i}.wav", fade(normalize(cut(crashes, start, start + length)), 0.002, 0.4))
+        write_wav(f"impacts/crash_heavy_{i}.wav", fade(normalize(read_wav(CRASHES, start, start + length)), 0.002, 0.4))
     for i, (start, length) in enumerate([(4.45, 0.6), (11.95, 0.6), (32.45, 0.5), (33.7, 0.45), (42.0, 0.4), (45.0, 0.45)]):
-        write_wav(f"impacts/crash_light_{i}.wav", fade(normalize(cut(crashes, start, start + length), 0.7), 0.002, 0.15))
+        write_wav(f"impacts/crash_light_{i}.wav", fade(normalize(read_wav(CRASHES, start, start + length), 0.7), 0.002, 0.15))
     # CC0 files used as they are.
     bsb = os.path.join(RAW, "bigsoundbank")
     copy(os.path.join(bsb, "1293.ogg"), "ambience/rain_on_roof.ogg")

@@ -27,12 +27,14 @@ var _clock := 0.0
 
 
 ## Feeds one tick. `stuck` is what the car reports (overturned, wedged, no wheels down...),
-## `position` its origin now. Returns true when the offer just opened or closed.
-func step(delta: float, stuck: bool, position: Vector3) -> bool:
+## `position` its origin now. `hold` is a stuck state moving does not cure (critical damage: the
+## car still crawls), so the offer stays open while it moves. Returns true when the offer just
+## opened or closed.
+func step(delta: float, stuck: bool, position: Vector3, hold := false) -> bool:
 	_clock += delta
 	if state == State.RECOVERING:
 		return false
-	var moved := position.distance_to(_anchor) > STUCK_DISTANCE
+	var moved := not hold and position.distance_to(_anchor) > STUCK_DISTANCE
 	if not stuck or moved:
 		stuck_time = 0.0
 		_anchor = position

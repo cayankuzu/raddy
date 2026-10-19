@@ -10,6 +10,7 @@ const CORRIDOR := 36.0
 const WALL_STEP := 8.0
 const WALL_THICKNESS := 1.0
 const WALL_ABOVE_ROAD := 14.0
+const WALL_OVERRUN := 4.0
 ## Guard rails: posts this far apart, the rail this far outside the verge.
 const POST_SPACING := 3.2
 const RAIL_OUTSIDE := 0.35
@@ -27,9 +28,11 @@ static func build(graph: RouteGraph, terrain: TerrainField, biome: int) -> Node3
 	var index := RouteIndex.new(graph)
 	for feature in graph.features_of(&"water"):
 		root.add_child(_build_water(graph, feature))
-	for feature in graph.features_of(&"cliff"):
-		root.add_child(_build_rail(graph, feature))
+	for run in _cliff_runs(graph):
+		root.add_child(_build_rail(graph, run))
 	root.add_child(_build_boundary(graph, terrain, index))
+	for event in StageEventBuilder.build(graph, terrain):
+		root.add_child(event)
 	if graph.checkpoints.size() >= 2:
 		root.add_child(_build_arch(graph, graph.checkpoints[0], "START", Color("c8202a")))
 		root.add_child(_build_arch(graph, graph.checkpoints[-1], "FINISH", Color("1d1d1f")))
@@ -122,6 +125,23 @@ static func _build_water(graph: RouteGraph, feature: Dictionary) -> Node3D:
 
 
 # --- guard rails ---
+
+## Cliff features in stage order, with touching ones on the same side merged into one run (one
+## rail, one gap), so back-to-back cliff segments never get overlapping rails.
+static func _cliff_runs(graph: RouteGraph) -> Array[Dictionary]:
+	var runs: Array[Dictionary] = []
+	for feature in graph.features_of(&"cliff"):
+		var merged := false
+		for run in runs:
+			if int(run.side) == int(feature.side) and float(feature.from) <= float(run.to) + 0.5 and float(feature.to) >= float(run.from) - 0.5:
+				run.from = minf(float(run.from), float(feature.from))
+				run.to = maxf(float(run.to), float(feature.to))
+				merged = true
+				break
+		if not merged:
+			runs.append(feature.duplicate())
+	return runs
+
 
 static func _build_rail(graph: RouteGraph, feature: Dictionary) -> StaticBody3D:
 	var body := StaticBody3D.new()
@@ -223,35 +243,94 @@ static func _build_rail(graph: RouteGraph, feature: Dictionary) -> StaticBody3D:
 # --- the stage boundary ---
 
 ## Invisible walls CORRIDOR metres either side of the road, skipped where another part of the
-## road is nearer (inside a hairpin), plus a cap across each end.
+## road is nearer (inside a hairpin), plus a cap across each end. Every run of wall ends exactly
+## where it stops being valid (and a little past it, so the walls of two legs cross inside a
+## corner) and the side walls meet the end caps, so the stage is closed all round.
 static func _build_boundary(graph: RouteGraph, terrain: TerrainField, index: RouteIndex) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = "Boundary"
 	var total := graph.main_route_length()
-	for side in [-1.0, 1.0]:
-		var previous: Variant = null
-		var distance := 0.0
-		while distance <= total:
-			var here := graph.sample(distance)
-			var dir: Vector2 = here.direction
-			var flat: Vector2 = Vector2(here.position.x, here.position.z) + Vector2(-dir.y, dir.x) * side * CORRIDOR
-			var keep := index.distance_to(flat) > CORRIDOR - 3.0
-			var post := Vector3(flat.x, here.position.y, flat.y)
-			if keep and previous != null:
-				_add_wall(body, terrain, previous, post)
-			previous = post if keep else null
-			distance += WALL_STEP
+	var corners := {}  # [end, side] -> Vector3 corner of that end cap
 	for end in [0.0, total]:
 		var here := graph.sample(end)
 		var dir: Vector2 = here.direction
 		var right := Vector2(-dir.y, dir.x)
 		var back: Vector2 = -dir if end == 0.0 else dir
 		var center := Vector2(here.position.x, here.position.z) + back * 3.0
-		var a: Vector2 = center - right * CORRIDOR
-		var b: Vector2 = center + right * CORRIDOR
-		_add_wall(body, terrain, Vector3(a.x, here.position.y, a.y), Vector3(b.x, here.position.y, b.y))
+		for side in [-1.0, 1.0]:
+			var corner: Vector2 = center + right * side * CORRIDOR
+			corners[[end, side]] = Vector3(corner.x, here.position.y, corner.y)
+		_add_wall(body, terrain, corners[[end, -1.0]], corners[[end, 1.0]])
 		body.get_child(body.get_child_count() - 1).name = "Cap%d" % (0 if end == 0.0 else 1)
+	for side in [-1.0, 1.0]:
+		var previous: Vector3 = corners[[0.0, side]]
+		var previous_keep := true
+		var previous_distance := 0.0
+		var distance := 0.0
+		while true:
+			var d := minf(distance, total)
+			var post := _wall_post(graph, d, side)
+			var keep := _wall_valid(index, post)
+			if keep and previous_keep:
+				_add_wall(body, terrain, previous, post)
+			elif keep != previous_keep:
+				var cross := _wall_crossing(graph, index, side, previous_distance, d, previous_keep)
+				if previous_keep:
+					_add_wall(body, terrain, previous, _past(previous, cross))
+				else:
+					_add_wall(body, terrain, _past(post, cross), post)
+			previous = post
+			previous_keep = keep
+			previous_distance = d
+			if d >= total:
+				break
+			distance += WALL_STEP
+		if previous_keep:
+			_add_wall(body, terrain, previous, corners[[total, side]])
 	return body
+
+
+## The wall's line at `distance` along the road, `side` (-1 left, 1 right), interpolated between
+## the road's points (not snapped to them).
+static func _wall_post(graph: RouteGraph, distance: float, side: float) -> Vector3:
+	var points := graph.main_route_points()
+	var along := graph.route_distances()
+	var i := graph.route_index_at(distance)
+	var j := mini(i + 1, points.size() - 1)
+	var t := 0.0 if j == i else clampf((distance - along[i]) / maxf(along[j] - along[i], 0.001), 0.0, 1.0)
+	var at := points[i].lerp(points[j], t)
+	var a := points[maxi(i - 1, 0)]
+	var b := points[mini(j + 1, points.size() - 1)]
+	var dir := Vector2(b.x - a.x, b.z - a.z).normalized()
+	var flat := Vector2(at.x, at.z) + Vector2(-dir.y, dir.x) * side * CORRIDOR
+	return Vector3(flat.x, at.y, flat.y)
+
+
+## A wall post is valid while no other part of the road comes inside the corridor there.
+static func _wall_valid(index: RouteIndex, post: Vector3) -> bool:
+	return index.distance_to(Vector2(post.x, post.z)) > CORRIDOR - 3.0
+
+
+## Where between `from` and `to` (distances) the wall stops (or starts) being valid.
+static func _wall_crossing(graph: RouteGraph, index: RouteIndex, side: float, from: float, to: float, valid_at_from: bool) -> Vector3:
+	var lo := from
+	var hi := to
+	for k in 12:
+		var mid := (lo + hi) * 0.5
+		if _wall_valid(index, _wall_post(graph, mid, side)) == valid_at_from:
+			lo = mid
+		else:
+			hi = mid
+	return _wall_post(graph, (lo + hi) * 0.5, side)
+
+
+## A point WALL_OVERRUN past `end`, continuing the line from `start`: walls of two legs cross
+## inside a corner instead of stopping short of each other.
+static func _past(start: Vector3, end: Vector3) -> Vector3:
+	var flat := Vector3(end.x - start.x, 0.0, end.z - start.z)
+	if flat.length() < 0.01:
+		return end
+	return end + flat.normalized() * WALL_OVERRUN
 
 
 static func _add_wall(body: StaticBody3D, terrain: TerrainField, a: Vector3, b: Vector3) -> void:

@@ -49,7 +49,9 @@ func _ready() -> void:
 	else:
 		_try_join()
 	if _args.has("quit-after-seconds"):
-		get_tree().create_timer(float(_args["quit-after-seconds"])).timeout.connect(_quit)
+		# Host first, clients after it (see Flow: no two clients dropping in one network poll).
+		var stagger := 0.0 if _instance == 0 else 1.0 + 0.5 * _instance
+		get_tree().create_timer(float(_args["quit-after-seconds"]) + stagger).timeout.connect(_quit)
 
 
 func _try_join() -> void:

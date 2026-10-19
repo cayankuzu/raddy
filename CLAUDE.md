@@ -65,7 +65,9 @@ No Blender; model in Godot only as a last resort.
 - Race start: `Net.report_race_loaded()` from every player; the host spawns only when `Net.all_players_loaded()`
   (scene changes are deferred: spawn RPCs sent earlier are lost), then a 3 s countdown with `car.input_locked`.
   Results: host clock + recovery penalty, `RaceResults.rows()`, published when all finished/left or 120 s after
-  the first finisher. Host buttons: same stage / next stage (`Net.start_race(settings, true)`) / back to room.
+  the first finisher. `StageRecords` (user://records.cfg, per PC) keeps the best time per stage and gives
+  bronze/silver/gold from the stage length (`MEDAL_SPEEDS`); results show the medal and a new record,
+  the room shows the medal times and the record. Host buttons: same stage / next stage (`Net.start_race(settings, true)`) / back to room.
 - UI is built in code with `UiTheme` (static helpers must use `TranslationServer.translate`, not `tr`).
   Canvas layers: SeatEffects 5, RaceHud 8, ResultsPanel 12, PauseMenu 15, SettingsMenu 20.
 - `RaceHud` is drawn in code (`HudStageBar`, `HudCluster` rev counter/gear/speed) in `UiTheme.hud_font()`
@@ -75,7 +77,7 @@ No Blender; model in Godot only as a last resort.
 ## Stages (scripts/procedural)
 - Six named point-to-point stages in `StageCatalog` (two per biome; names `STAGE_<ID>` in strings.csv). A recipe
   is segments (`len`, `turn`, `rise`, `crest`/`jump`/`dip`, `water`, `cliff`/`bank` left|right|both, `surface`,
-  `width`, `caution`); `StageBuilder.build(stage)` → `RouteGraph` (START → WAYPOINT(s) where surface/width change →
+  `width`, `caution`, `falling_tree`/`rockfall` left|right); `StageBuilder.build(stage)` → `RouteGraph` (START → WAYPOINT(s) where surface/width change →
   FINISH, 2 m polylines + heights, `features` by distance, gates: start line at 40 m, two splits, finish 70 m
   before the end). `graph.sample(distance)`, `route_distances()`, `RouteIndex` (nearest road point + distance
   along) and `RouteTracker` (follows a car along the stage) work in metres along the road.
@@ -92,7 +94,15 @@ No Blender; model in Godot only as a last resort.
   other (the terrain test probes only open ground).
 - `RoadsideDresser` (+ `RoadsideCatalog`): Poly Haven scans and the Sketchfab conifer/birch packs (`node` picks
   one tree from a pack, `unit` 0.01 for the centimetre birches, `foliage` = alpha scissor), a thick edge band
-  before the walls and a backdrop beyond; nothing on a cliff's lip.
+  before the walls and a backdrop beyond (`backdrop` entries stay outside the corridor); nothing on a cliff's
+  lip. Scenery is batched by mesh into MultiMeshInstance3D chunks (48-192 m) with visibility ranges: the
+  frame cost on this laptop is CPU draw submission, not triangles. `GraphicsQuality` (Settings
+  `graphics_quality`, AUTO = Low on integrated GPUs) scales scenery density/range, shadows, SSAO/glow and
+  the render scale; dev scenes take `--quality=0|1|2`.
+- Stage events: `StageEventBuilder` (from `TrackFeatures`) puts `Event<n>` bodies with a trigger area
+  before the spot (a fir that falls across the road, rocks off a bank); `StageEvents` (child of the race)
+  lets the host decide and every peer play it (`_rpc_stage_event`); boulders are host-simulated props like
+  the cans (`_rpc_spawn_boulder`). Offline (route_test) the trigger plays locally.
 - `RouteFollower` (pure pursuit + corner speed planner, `start_delay`, stops at the end of an open path) drives
   a `RallyCar`: `--autodrive`, tests, flow-test bots. `RaceProgress` is the host's gate accounting.
 - Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N`
@@ -127,7 +137,9 @@ No Blender; model in Godot only as a last resort.
   checked by `PlayerCarInput`, `RouteFollower` and `CabinInput` via `cabin.is_fainted(role)`.
 - Damage (spec §8): the driver's `RallyCar.impact` (body contact; a landing on the wheels does not count) is
   judged by the host (`_rpc_report_impact` from a client driver), which keeps a `VehicleDamage` per team, sends
-  crash sounds (`_rpc_crash_fx`) and `_rpc_set_damage`; every peer calls `RallyCar.apply_damage`. Critical
+  crash sounds + a camera jolt (`_rpc_crash_fx`) and `_rpc_set_damage`; every peer calls `RallyCar.apply_damage`,
+  which drives `CarDamageFx` (Model/DamageFx: bonnet unlatches and lifts with speed, then tears off; bumpers
+  sag/fall; engine steam then black smoke; a recovery restores the parts). Critical
   damage sets `needs_recovery` on the host. Snapshot extras carry steer, compressions, stuck flag, surface,
   throttle, horn and brake (remote cars' sound and lamps).
 - Dev bootstrap `scenes/dev/net_test.tscn` takes `--role --port --host --players --as-player --local
@@ -190,7 +202,8 @@ No Blender; model in Godot only as a last resort.
   "Access denied" with a normal ACL. Python and Godot usually still read; a locked tracked file can be restored
   with Python: write `git show HEAD:path` to `path.restore`, then `os.replace` onto the path. Do not change the
   security software yourself; the user was asked to uninstall it (it also leaked the atom table).
-- Smart App Control also blocks numpy's FFT DLL (`numpy.fft` import fails): tools use autocorrelation instead.
+- Smart App Control blocks numpy's DLLs (first `numpy.fft`, now any numpy import): the Python tools
+  (`tools/cut_audio.py` etc.) are pure Python.
 - If every Godot run suddenly takes 20 s+ to start (nettest timings slip, `--quit-after 5` takes 19 s), check
   for a leftover `chrome-headless-shell.exe` (Playwright, under `%LOCALAPPDATA%\ms-playwright`) rendering WebGL
   in software: a Sketchfab tab left in the built-in browser ate 65% of the CPU once. Kill its process tree.

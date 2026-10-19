@@ -1,8 +1,11 @@
 class_name ResultsPanel
 extends CanvasLayer
-## Results (spec §15, §17.3): place, team, players, time (penalties in), gates passed, recoveries
-## and status from the host's rows. The host picks what comes next: the same stage again, the next
+## Results (spec §15, §17.3): place, team, players, time (penalties in), the medal it earns,
+## gates passed, recoveries and status from the host's rows; finishes go into this PC's stage
+## records (StageRecords) and a new record is announced. The host picks what comes next: the same stage again, the next
 ## stage, or back to the room; the others see that they are waiting.
+
+const MEDAL_COLORS := [Color.WHITE, Color("c98a4b"), Color("c7cdd3"), Color("ffd23f")]
 
 var rows: Array = []
 var settings: Dictionary = {}
@@ -33,22 +36,38 @@ func _ready() -> void:
 	column.add_child(UiTheme.label("%s · %s · %s" % [tr(keys[0]), tr(keys[1]), tr(keys[2])], 18, UiTheme.MUTED))
 
 	var grid := GridContainer.new()
-	grid.columns = 6
+	grid.columns = 7
 	grid.add_theme_constant_override(&"h_separation", 28)
 	column.add_child(grid)
-	for header in ["RESULTS_PLACE", "RESULTS_TEAM", "RESULTS_TIME", "RESULTS_SPLITS", "RESULTS_RECOVERIES", "RESULTS_STATUS"]:
+	for header in ["RESULTS_PLACE", "RESULTS_TEAM", "RESULTS_TIME", "RESULTS_MEDAL", "RESULTS_SPLITS", "RESULTS_RECOVERIES", "RESULTS_STATUS"]:
 		grid.add_child(UiTheme.label(tr(header), 18, UiTheme.MUTED))
 	var my_team: int = Net.local_entry().get("team", 0)
+	var stage := int(settings.get("stage", 0))
+	var stage_id: StringName = StageCatalog.get_stage(stage).id
+	var records := StageRecords.new()
+	var new_record := ""
+	for row in rows:
+		if row.finished:
+			var outcome := records.record(stage_id, int(row.time_ms), PackedStringArray(row.players), int(row.team))
+			if outcome.new_best:
+				new_record = tr("RESULTS_NEW_RECORD").format({"team": tr(TeamColors.name_key(row.team)), "time": RaceResults.format_time(row.time_ms)})
 	for row in rows:
 		var color := Color("ffe08a") if row.team == my_team else UiTheme.PAPER
 		grid.add_child(UiTheme.label(str(row.place), 22, color))
 		grid.add_child(UiTheme.label("%s %d — %s" % [tr("RESULTS_TEAM"), row.team, ", ".join(row.players)], 20, color))
 		grid.add_child(UiTheme.label(RaceResults.format_time(row.time_ms), 22, color))
+		var medal := StageRecords.medal(stage, int(row.time_ms)) if row.finished else StageRecords.Medal.NONE
+		grid.add_child(UiTheme.label(tr(StageRecords.MEDAL_KEYS[medal]) if medal != StageRecords.Medal.NONE else "—", 20,
+			MEDAL_COLORS[medal] if medal != StageRecords.Medal.NONE else color))
 		grid.add_child(UiTheme.label(str(row.gates), 20, color))
 		grid.add_child(UiTheme.label(str(row.recoveries), 20, color))
 		var status := tr("RESULTS_FINISHED") if row.finished else (tr("RESULTS_LEFT") if row.left else tr("RESULTS_DNF"))
 		grid.add_child(UiTheme.label(status, 20, color))
 
+	if new_record != "":
+		var banner := UiTheme.label(new_record, 24, Color("ffd23f"))
+		banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(banner)
 	var buttons := HBoxContainer.new()
 	column.add_child(buttons)
 	if Net.is_host():

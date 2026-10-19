@@ -329,7 +329,8 @@ func _add_gates() -> void:
 		flag.position = at
 		gates.add_child(flag)
 		var label := Label.new()
-		label.text = "START" if gate.index == 0 else ("FINISH" if gate.index == graph.checkpoints.size() - 1 else "SPLIT %d" % gate.index)
+		label.text = TranslationServer.translate("MAP_START") if gate.index == 0 else (TranslationServer.translate("MAP_FINISH")
+			if gate.index == graph.checkpoints.size() - 1 else TranslationServer.translate("MAP_SPLIT").format({"n": gate.index}))
 		label.position = at + Vector2(6, -44)
 		label.add_theme_color_override(&"font_color", INK)
 		label.add_theme_font_size_override(&"font_size", 20)
@@ -377,7 +378,8 @@ func _add_notes(notes: Array[Dictionary]) -> void:
 	column.position = Vector2(NETWORK_AREA.x + 14.0, 24.0)
 	_content.add_child(column)
 	var title := Label.new()
-	title.text = "YOL NOTLARI"
+	title.text = TranslationServer.translate("MAP_NOTES_TITLE")
+	var lang := "en" if TranslationServer.get_locale().begins_with("en") else "tr"
 	title.add_theme_color_override(&"font_color", INK)
 	title.add_theme_font_size_override(&"font_size", 22)
 	column.add_child(title)
@@ -387,7 +389,7 @@ func _add_notes(notes: Array[Dictionary]) -> void:
 	var line := 24.0 if notes.size() <= 40 else 20.0
 	for note in notes:
 		var label := Label.new()
-		label.text = "%d  %s" % [note.number, note.tr]
+		label.text = "%d  %s" % [note.number, note.get(lang, note.tr)]
 		label.position = Vector2(0.0, y)
 		label.size = Vector2(NOTES_WIDTH - 28.0, 0.0)
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

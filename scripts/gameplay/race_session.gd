@@ -41,6 +41,9 @@ var settings: Dictionary = {}
 var graph: RouteGraph
 var progress: RaceProgress
 var notes: Array[Dictionary] = []
+## The stage's surprises (falling trees, rockfalls): the host decides, every peer plays them.
+var stage_events: StageEvents
+var _next_boulder_id := 1
 var _contour: Image
 ## Host: who finished, in what time, with how many recoveries (RaceResults).
 var results := RaceResults.new()
@@ -162,6 +165,14 @@ func _build_route() -> void:
 	track.add_child(RoadsideDresser.dress(graph, terrain, biome(), [],
 		GraphicsQuality.scenery_density(quality), GraphicsQuality.range_scale(quality)))
 	add_child(track)
+	stage_events = StageEvents.new()
+	stage_events.name = "StageEvents"
+	stage_events.decides = Net.is_host()
+	stage_events.spawn_boulder = _spawn_boulder
+	add_child(stage_events)
+	stage_events.setup(track)
+	if Net.is_host():
+		stage_events.triggered.connect(func(index: int) -> void: _rpc_stage_event.rpc(index))
 	notes = PaceNotes.build(graph, RaceSettings.note_detail(difficulty()))
 	_contour = MapCanvas.contour_for(graph, terrain)
 	if Net.is_host():
@@ -261,7 +272,12 @@ func _rpc_report_impact(team: int, strength: float, local_direction: Vector3) ->
 	var sender := multiplayer.get_remote_sender_id()
 	if RosterRules.driver_of(Net.roster, team) != sender:
 		return  # only the team's own driver speaks for its car
-	_judge_impact(team, clampf(strength, 0.0, 60.0), local_direction.normalized())
+	var hit := clampf(strength, 0.0, 60.0)
+	_judge_impact(team, hit, local_direction.normalized())
+	# The host's own car tells its Cabin directly; a client's crash knocks the map out here.
+	var car: RallyCar = _team_cars.get(team)
+	if car != null and Time.get_ticks_msec() >= _damage_ignore_until.get(team, 0):
+		(car.get_node(^"Cabin") as Cabin).host_impact(hit)
 
 
 func _judge_impact(team: int, strength: float, local_direction: Vector3) -> void:
@@ -288,6 +304,12 @@ func _rpc_crash_fx(team: int, strength: float) -> void:
 	var audio := car.get_node_or_null(^"Audio") as CarAudio
 	if audio != null:
 		audio.play_crash(strength)
+	# A crew member riding in a car simulated elsewhere (the navigator) feels the crash too.
+	if car == local_car:
+		var seat := ^"NavigatorCamera" if local_role == RosterRules.Role.NAVIGATOR else ^"DriverCamera"
+		var camera := car.get_node_or_null(seat) as CockpitCamera
+		if camera != null:
+			camera.add_impact(strength)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -337,7 +359,11 @@ func _judge_recoveries(delta: float) -> void:
 			_recovery_rules[team] = RecoveryRules.new()
 		var rules: RecoveryRules = _recovery_rules[team]
 		rules.seats = _team_seats(team)
-		if rules.step(delta, car.needs_recovery, car.global_position):
+		# Critical damage counts as stuck here, on the host's own judgement: for a client-driven car
+		# the replicated needs_recovery flag is the driver's and would hide it.
+		var critical := damage_of(team).level() == VehicleDamage.Level.CRITICAL
+		var stuck := car.needs_recovery or critical
+		if rules.step(delta, stuck, car.global_position, critical):
 			_broadcast_recovery(team, rules)
 
 
@@ -390,6 +416,10 @@ func _rpc_recovery_offer(team: int, offered: bool, confirmed: int, seats: int, p
 	_recovery_offers[team] = {"offered": offered, "confirmed": confirmed, "seats": seats, "peers": peers}
 	print("NET recovery team %d %s %d/%d" % [team, "offered" if offered else "closed", confirmed, seats])
 	recovery_changed.emit(team, offered, confirmed, seats)
+	# Flow-test bots have nobody to press R for them.
+	if autodrive and Flow.is_flow_test() and offered and local_car != null and team == Net.local_entry().get("team", 0) \
+			and not peers.has(Net.local_id()):
+		request_recovery(true)
 
 
 ## Every peer learns the new pose; only the car's simulating peer applies it (the snapshots carry
@@ -621,6 +651,36 @@ func _rpc_spawn_can(can_id: int, origin: Vector3, rotation: Quaternion, velocity
 	print("NET can %d spawned" % can_id)
 
 
+## Every peer plays the stage event the host saw a crew trigger.
+@rpc("authority", "call_local", "reliable")
+func _rpc_stage_event(index: int) -> void:
+	if stage_events != null:
+		stage_events.play(index)
+
+
+## Host: a boulder of a rockfall, simulated here and synced like the cans.
+func _spawn_boulder(origin: Vector3, velocity: Vector3, radius: float) -> void:
+	var id := _next_boulder_id
+	_next_boulder_id += 1
+	_rpc_spawn_boulder.rpc(id, origin, velocity, radius)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_spawn_boulder(id: int, origin: Vector3, velocity: Vector3, radius: float) -> void:
+	var boulder := StageEvents.make_boulder(radius)
+	boulder.name = "Boulder%d" % id
+	boulder.position = origin
+	var sync := BodyNetSync.new()
+	sync.name = SYNC_NODE  # authority stays 1: the host simulates the rocks
+	boulder.add_child(sync)
+	_props.add_child(boulder)
+	if stage_events != null:
+		stage_events.track_boulder(boulder, radius)
+	if Net.is_host():
+		boulder.linear_velocity = velocity
+	print("NET boulder %d" % id)
+
+
 @rpc("authority", "call_local", "reliable")
 func _rpc_despawn_can(can_id: int) -> void:
 	var can := _props.get_node_or_null("Can%d" % can_id)
@@ -650,6 +710,8 @@ func _bind_local_seat(car: RallyCar, role: int) -> void:
 			bot.top_speed = 22.0 - 2.0 * (_team_cars.size() - 1)
 			bot.start_delay = 1.5 * (_team_cars.size() - 1)
 			bot.set_path(graph.main_route_points())
+			if stage_events != null:
+				bot.obstacles = stage_events.obstacles
 			add_child(bot)
 	var effects := SeatEffects.new()
 	effects.name = "SeatEffects"

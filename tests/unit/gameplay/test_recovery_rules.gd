@@ -35,6 +35,15 @@ func test_moving_or_unsticking_closes_the_offer() -> void:
 	assert_eq(rules.stuck_time, 0.0, "the clock restarts")
 
 
+func test_critical_damage_keeps_the_offer_open_while_the_car_crawls() -> void:
+	var rules := RecoveryRules.new()
+	for i in int(3.5 / TICK):
+		rules.step(TICK, true, Vector3.ZERO, true)
+	assert_eq(rules.state, RecoveryRules.State.OFFERED)
+	assert_false(rules.step(TICK, true, Vector3(5.0, 0.0, 0.0), true), "crawling on does not close it")
+	assert_eq(rules.state, RecoveryRules.State.OFFERED)
+
+
 func test_two_seats_need_both_confirmations() -> void:
 	var rules := RecoveryRules.new()
 	rules.seats = 2

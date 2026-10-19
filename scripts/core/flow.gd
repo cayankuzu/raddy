@@ -33,7 +33,12 @@ func _ready() -> void:
 	Net.race_started.connect(_on_race_started)
 	Net.race_ended.connect(_on_race_ended)
 	if args.has("quit-after-seconds"):
-		get_tree().create_timer(float(args["quit-after-seconds"])).timeout.connect(func() -> void:
+		# The host of a test run leaves first and the clients after it, half a second apart: two
+		# clients dropping in the same network poll make the engine's own leave notice (SceneMultiplayer)
+		# hit a peer that is already gone.
+		var instance := int(args.get("instance", "0"))
+		var stagger := 0.0 if instance == 0 else 1.0 + 0.5 * instance
+		get_tree().create_timer(float(args["quit-after-seconds"]) + stagger).timeout.connect(func() -> void:
 			print("FLOW timeout, quitting")
 			get_tree().quit(1))
 

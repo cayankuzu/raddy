@@ -13,6 +13,8 @@ const MAX_GRADE := 0.3
 const SEPARATION := 30.0
 const SEPARATION_ALONG := 150.0
 const CROSS_CELL := 12.0
+## Two car widths.
+const MIN_WIDTH := 4.5
 
 
 static func validate(graph: RouteGraph) -> Array[String]:
@@ -26,7 +28,18 @@ static func validate(graph: RouteGraph) -> Array[String]:
 	_check_crossings(graph, problems)
 	_check_separation(graph, problems)
 	_check_checkpoints(graph, problems)
+	_check_widths(graph, problems)
 	return problems
+
+
+## Every road is wide enough for two cars, and its paved width plus both verges still fits the gap
+## kept between stretches (Explore widens roads).
+static func _check_widths(graph: RouteGraph, problems: Array[String]) -> void:
+	for edge in graph.edges:
+		if edge.width < MIN_WIDTH:
+			problems.append("edge %d is %.1f m wide, under %.1f" % [edge.id, edge.width, MIN_WIDTH])
+		if edge.width + 2.0 * RoadBuilder.VERGE > SEPARATION:
+			problems.append("edge %d with its verges (%.1f m) does not fit the %.0f m gap" % [edge.id, edge.width + 2.0 * RoadBuilder.VERGE, SEPARATION])
 
 
 ## The road runs start -> waypoints -> finish through every edge exactly once.

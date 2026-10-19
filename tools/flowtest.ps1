@@ -13,6 +13,7 @@ param(
 
 $launch = Join-Path $PSScriptRoot "launch.ps1"
 $players = $Clients + 1
+$teams = [Math]::Min($players, 3)  # RosterRules.MAX_TEAMS: extra players sit as navigators
 & $launch -Server -Clients $Clients -Headless -Scene "res://scenes/ui/main_menu.tscn" `
     -ExtraArgs "--flow-test,--players=$players,--stage=$Stage,--weather=0,--autodrive,--quit-after-seconds=$Seconds"
 
@@ -51,7 +52,7 @@ foreach ($i in 0..$Clients) {
     Expect $i "FLOW screen race" "reached the race"
     Expect $i "NET countdown 3 s" "countdown on every peer"
     Expect $i "NET go" "cars released"
-    for ($team = 1; $team -le $players; $team++) {
+    for ($team = 1; $team -le $teams; $team++) {
         Expect $i "NET team $team finished in" "team $team finish reached instance $i"
     }
     Expect $i "NET race finished, order" "results published"

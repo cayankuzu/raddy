@@ -27,14 +27,15 @@ func test_finishers_first_by_time_then_progress_then_leavers() -> void:
 
 func test_unfinished_teams_rank_by_gates_then_distance_and_leavers_last() -> void:
 	var results := RaceResults.new()
-	for team in [1, 2, 3]:
+	for team in [1, 2, 3, 4]:
 		results.add_team(team, [])
 	results.set_progress(1, 2, 700.0)
 	results.set_progress(2, 2, 1100.0)
 	results.set_progress(3, 3, 1500.0)
+	results.set_progress(4, 1, 1400.0)  # furthest along, but missed a gate
 	results.mark_left(3)
 	var order := results.rows().map(func(r: Dictionary) -> int: return r.team)
-	assert_eq(order, [2, 1, 3], "further along first, a leaver last even with more progress")
+	assert_eq(order, [2, 1, 4, 3], "more gates first, then further along; a leaver last even with more progress")
 
 
 func test_distance_only_grows() -> void:
@@ -57,3 +58,6 @@ func test_time_format() -> void:
 	assert_eq(RaceResults.format_time(95_300), "1:35.3")
 	assert_eq(RaceResults.format_time(5_050), "0:05.0")
 	assert_eq(RaceResults.format_time(-1), "--:--.-")
+	assert_eq(RaceResults.format_time(59_960), "0:59.9", "never rounds up to 60")
+	assert_eq(RaceResults.format_time(179_970), "2:59.9")
+	assert_eq(RaceResults.format_time(180_000), "3:00.0")

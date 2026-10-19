@@ -117,6 +117,12 @@ func add_trauma(amount: float) -> void:
 
 
 func _on_impact(strength: float, _local_direction: Vector3) -> void:
+	add_impact(strength)
+
+
+## Shake for a crash that cost `strength` m/s (also called for seats whose car is simulated on
+## another peer, from the host's crash broadcast).
+func add_impact(strength: float) -> void:
 	add_trauma(clampf(strength / IMPACT_FULL, 0.0, 1.0) * 0.9)
 
 
@@ -155,6 +161,9 @@ func _process(delta: float) -> void:
 			look = look.lerp(Vector2.ZERO, 1.0 - exp(-RECENTRE_RATE * delta))
 	else:
 		_corner_yaw = 0.0
+	if current and _map_in_hands():
+		# The map is held up in front of the seat: the head comes back to it.
+		look = look.lerp(Vector2.ZERO, 1.0 - exp(-8.0 * delta))
 	var speed := absf(car.forward_speed)
 	var target_fov := BASE_FOV + SPEED_FOV * clampf(speed / FOV_SPEED, 0.0, 1.0)
 	fov = lerpf(fov, target_fov, 1.0 - exp(-3.0 * delta))

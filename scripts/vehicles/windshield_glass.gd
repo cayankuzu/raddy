@@ -43,6 +43,7 @@ func _ready() -> void:
 	_material.set_shader_parameter(&"pivot_a", Vector2(PIVOTS[0], 0.06))
 	_material.set_shader_parameter(&"pivot_b", Vector2(PIVOTS[1], 0.06))
 	_material.set_shader_parameter(&"wipe_reach", _size.x * BLADE_SHARE)
+	_material.set_shader_parameter(&"wipe_sweep", deg_to_rad(WIPER_SWEEP))
 	glass.material_override = _material
 	_build_blades()
 	cabin.dirt_changed.connect(_on_dirt)

@@ -62,6 +62,10 @@ func _ready() -> void:
 	_setup_steering(model)
 	_add_cabin_light()
 	_setup_lights(model)
+	var damage_fx := CarDamageFx.new()
+	damage_fx.name = "DamageFx"
+	add_child(damage_fx)
+	damage_fx.setup(model, _car_space)
 
 
 ## A soft, shadowless fill inside the cabin so the dashboard and the hands read in daylight
@@ -142,8 +146,10 @@ func _move_glass(model: Node3D) -> void:
 		var in_car := _car_space(glass)
 		var placeholder := cabin.get_node_or_null(NodePath(GLASS[model_name]))
 		if placeholder != null:
+			# Model sits before Cabin, so Cabin's @onready panes pick up the real glass; the
+			# placeholder is out of the tree and referenced by nothing, so it goes now.
 			cabin.remove_child(placeholder)
-			placeholder.queue_free()
+			placeholder.free()
 		glass.get_parent().remove_child(glass)
 		glass.name = GLASS[model_name]
 		cabin.add_child(glass)

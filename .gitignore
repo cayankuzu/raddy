@@ -26,3 +26,6 @@ AGENTS.md
 
 # Raw downloads (large source recordings); tools/cut_audio.py makes the shipped files
 /raw_assets/
+
+# Python bytecode from the tools
+__pycache__/

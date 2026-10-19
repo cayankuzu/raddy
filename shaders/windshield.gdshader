@@ -22,6 +22,8 @@ uniform vec2 plane_size = vec2(1.0);
 uniform vec2 pivot_a = vec2(0.2, 0.05);
 uniform vec2 pivot_b = vec2(0.58, 0.05);
 uniform float wipe_reach = 0.5;
+// The blades turn this far up from parked (radians).
+uniform float wipe_sweep = 1.658;
 
 varying vec3 local_pos;
 
@@ -33,10 +35,14 @@ void fragment() {
 	vec3 rel = local_pos - plane_origin;
 	vec2 metres = vec2(dot(rel, plane_u), dot(rel, plane_v));
 	vec2 uv = metres / max(plane_size, vec2(0.0001));
-	// Swept area: within either blade's reach above its pivot.
-	float da = length(metres - pivot_a * plane_size);
-	float db = length(metres - pivot_b * plane_size);
-	float swept = max(1.0 - smoothstep(wipe_reach - 0.06, wipe_reach, da), 1.0 - smoothstep(wipe_reach - 0.06, wipe_reach, db));
+	// Swept area: the sector each blade covers (from parked, along u, up to wipe_sweep).
+	vec2 ra = metres - pivot_a * plane_size;
+	vec2 rb = metres - pivot_b * plane_size;
+	float sa = (1.0 - smoothstep(wipe_reach - 0.06, wipe_reach, length(ra)))
+		* (1.0 - smoothstep(wipe_sweep, wipe_sweep + 0.1, atan(ra.y, ra.x)));
+	float sb = (1.0 - smoothstep(wipe_reach - 0.06, wipe_reach, length(rb)))
+		* (1.0 - smoothstep(wipe_sweep, wipe_sweep + 0.1, atan(rb.y, rb.x)));
+	float swept = max(sa, sb);
 	swept *= smoothstep(-0.02, 0.04, metres.y - pivot_a.y * plane_size.y);
 	float d = mix(edge_dirt, dirt, swept);
 	// Blotches and streaks that grow as the glass gets dirtier.

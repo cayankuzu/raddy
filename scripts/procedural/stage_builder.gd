@@ -7,7 +7,8 @@ class_name StageBuilder
 ##
 ## Segment keys: "len" (m, required), "turn" (deg, + right / - left), "rise" (m over the segment),
 ## "crest" / "jump" / "dip" (m), "water" (true), "cliff" / "bank" ("left" | "right" | "both") with "drop" /
-## "wall" (m), "surface" (Surface id), "width" (m), "caution" (true: a pace-note warning).
+## "wall" (m), "surface" (Surface id), "width" (m), "caution" (true: a pace-note warning),
+## "falling_tree" / "rockfall" ("left" | "right": a surprise StageEvents springs on the first crew).
 
 ## Integration step and the spacing of the finished polyline (metres).
 const STEP := 1.0
@@ -101,6 +102,7 @@ static func build(stage: Dictionary) -> RouteGraph:
 	var edge_points := PackedVector2Array()
 	var edge_heights := PackedFloat32Array()
 	var from_node := start.id
+	var previous_edge: RouteGraph.RouteEdge = null
 	for n in picks.size():
 		var i := picks[n]
 		edge_points.append(dense[i])
@@ -112,6 +114,11 @@ static func build(stage: Dictionary) -> RouteGraph:
 			node.height = heights[i]
 			var edge := graph.add_edge(from_node, node.id, edge_points, edge_heights, widths[i], surfaces[i])
 			graph.main_route.append(edge.id)
+			# Neighbours across the section change share their end cross-section.
+			if previous_edge != null:
+				edge.before = previous_edge.points[previous_edge.points.size() - 2]
+				previous_edge.after = edge.points[1]
+			previous_edge = edge
 			from_node = node.id
 			edge_points = PackedVector2Array([dense[i]])
 			edge_heights = PackedFloat32Array([heights[i]])
@@ -140,6 +147,10 @@ static func _add_features(graph: RouteGraph, segment: Dictionary, from: float, t
 		var value := float(segment.get("drop", DEFAULT_DROP)) if kind == &"cliff" else float(segment.get("wall", DEFAULT_WALL))
 		for side in ([-1, 1] if where == "both" else [-1 if where == "left" else 1]):
 			graph.features.append({"kind": kind, "from": from, "to": to, "at": middle, "side": side, "value": value})
+	for kind in [&"falling_tree", &"rockfall"]:
+		if segment.has(String(kind)):
+			graph.features.append({"kind": kind, "from": from, "to": to, "at": middle,
+				"side": -1 if segment[String(kind)] == "left" else 1, "value": 0.0})
 	if segment.get("caution", false):
 		graph.features.append({"kind": &"caution", "from": from, "to": to, "at": from, "side": 0, "value": 0.0})
 

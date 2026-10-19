@@ -101,6 +101,10 @@ static func _try_place(entry: Dictionary, graph: RouteGraph, terrain: TerrainFie
 	var p := edge.points[i] + right * (edge.width * 0.5 + RoadBuilder.VERGE + out) + dir * along
 	if terrain.distance_to_road(p) < RoadBuilder.VERGE + CLEARANCE:
 		return null
+	# Scenery nobody can hit stays out of every stretch's corridor (inside a hairpin the far band of
+	# one leg would otherwise stand on the other leg's roadside, where cars do go).
+	if entry.get("backdrop", false) and terrain.distance_to_centreline(p) < TrackFeatures.CORRIDOR + 6.0:
+		return null
 	if p.distance_to(start_xz) < START_CLEAR:
 		return null
 	var cliff := terrain.cliff_at(p)
@@ -160,18 +164,24 @@ static func _parts_of(entry: Dictionary) -> Array:
 	var instance := scene.instantiate()
 	var parts: Array = []
 	var only: String = entry.get("node", "")
-	_collect_meshes(instance, Transform3D.IDENTITY, parts, only, only == "")
+	var found := {}
+	_collect_meshes(instance, Transform3D.IDENTITY, parts, only, only == "", found)
 	instance.free()
 	var unit: float = entry.get("unit", 1.0)
 	if unit != 1.0:
 		for part in parts:
 			part.transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * unit), Vector3.ZERO) * part.transform
 	if only != "" and not parts.is_empty():
+		# The named node's pivot is its trunk axis in these packs; the first mesh's box centre is
+		# not (bark meshes include the branches) and put colliders up to 0.9 m off the trunk.
 		var trunk: AABB = parts[0].transform * (parts[0].mesh as Mesh).get_aabb()
+		var axis := trunk.get_center()
+		if found.has("origin"):
+			axis = (found.origin as Vector3) * unit
 		var bottom := INF
 		for part in parts:
 			bottom = minf(bottom, (part.transform * (part.mesh as Mesh).get_aabb()).position.y)
-		var recentre := Transform3D(Basis.IDENTITY, -Vector3(trunk.get_center().x, bottom, trunk.get_center().z))
+		var recentre := Transform3D(Basis.IDENTITY, -Vector3(axis.x, bottom, axis.z))
 		for part in parts:
 			part.transform = recentre * part.transform
 	if entry.get("foliage", false):
@@ -205,12 +215,14 @@ static func _scissored(mesh: Mesh) -> Mesh:
 
 
 ## Meshes under `node`; `inside` is true once the walk is under the wanted node ("" = all).
-static func _collect_meshes(node: Node, parent: Transform3D, parts: Array, only := "", inside := true) -> void:
+## `found.origin` gets the wanted node's own position (its pivot).
+static func _collect_meshes(node: Node, parent: Transform3D, parts: Array, only := "", inside := true, found := {}) -> void:
 	var here := parent
 	if node is Node3D:
 		here = parent * (node as Node3D).transform
 	if not inside and String(node.name) == only:
 		inside = true
+		found.origin = here.origin
 	if inside and node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
 		var mi := node as MeshInstance3D
 		var mesh := mi.mesh
@@ -225,7 +237,7 @@ static func _collect_meshes(node: Node, parent: Transform3D, parts: Array, only 
 					mesh.surface_set_material(s, mi.get_surface_override_material(s))
 		parts.append({"mesh": mesh, "transform": here, "material": mi.material_override})
 	for child in node.get_children():
-		_collect_meshes(child, here, parts, only, inside)
+		_collect_meshes(child, here, parts, only, inside, found)
 
 
 ## Files each part of one placed instance under its batch and chunk.
@@ -293,7 +305,7 @@ static func _add_collision(body: StaticBody3D, entry: Dictionary, transform: Tra
 			cache[box_key] = box
 		var log := CollisionShape3D.new()
 		log.shape = cache[box_key]
-		var turn := transform.basis.orthonormalized()
+		var turn := transform.basis.orthonormalized() * Basis(Vector3.UP, deg_to_rad(float(spec.get("yaw", 0.0))))
 		log.transform = Transform3D(turn, transform.origin + turn * (spec.get("offset", Vector3.ZERO) as Vector3) * s + Vector3.UP * size.y * 0.5)
 		body.add_child(log)
 		return

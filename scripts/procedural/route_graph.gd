@@ -31,10 +31,14 @@ class RouteEdge:
 	var width := 7.0
 	var surface := Surface.GRAVEL
 	var length := 0.0
+	## The road point just before this edge's first and just after its last (on the neighbouring
+	## edges; INF at the stage's ends), so both edges use the same cross-section at a shared node.
+	var before := Vector2.INF
+	var after := Vector2.INF
 
 	func direction_at(index: int) -> Vector2:
-		var a := points[maxi(index - 1, 0)]
-		var b := points[mini(index + 1, points.size() - 1)]
+		var a := before if index == 0 and before.is_finite() else points[maxi(index - 1, 0)]
+		var b := after if index == points.size() - 1 and after.is_finite() else points[mini(index + 1, points.size() - 1)]
 		return (b - a).normalized()
 
 	func point_3d(index: int) -> Vector3:

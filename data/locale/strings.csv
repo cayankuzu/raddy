@@ -70,7 +70,7 @@ SETTINGS_CAMERA_SHAKE,Kamera sarsıntısı,Camera shake
 SETTINGS_MOUSE_SENSITIVITY,Fare hassasiyeti,Mouse sensitivity
 SETTINGS_INVERT_MOUSE,Fare Y eksenini ters çevir,Invert mouse Y
 SETTINGS_LOOK_RECENTRE,Sürücü bakışı yola dönsün,Driver's view returns to the road
-SETTINGS_EFFECTS,Ekran efektleri (kan, bulanıklık),Screen effects (blood, blur)
+SETTINGS_EFFECTS,"Ekran efektleri (kan, bulanıklık)","Screen effects (blood, blur)"
 SETTINGS_QUALITY,Grafik kalitesi,Graphics quality
 SETTINGS_QUALITY_AUTO,Otomatik,Auto
 SETTINGS_QUALITY_LOW,Düşük,Low
@@ -196,3 +196,15 @@ STAGE_GLACIER_RIDGE_DESC,"Bulutların üstünde bir sırt: iki yanda sırayla u�
 HUD_SPLIT_TIME,ARA {split}   {time},SPLIT {split}   {time}
 HUD_DIRTY_GLASS,Cam kirli — T silecek,Dirty glass — T wipers
 HUD_WIPERS_ON,Silecekler açık,Wipers on
+MENU_VERSION,Sürüm {version} · test sürümü,Version {version} · test build
+MAP_NOTES_TITLE,YOL NOTLARI,PACE NOTES
+MAP_START,START,START
+MAP_FINISH,BİTİŞ,FINISH
+MAP_SPLIT,ARA {n},SPLIT {n}
+RESULTS_MEDAL,Madalya,Medal
+RESULTS_NEW_RECORD,YENİ ETAP REKORU! {team} · {time},NEW STAGE RECORD! {team} · {time}
+MEDAL_BRONZE,Bronz,Bronze
+MEDAL_SILVER,Gümüş,Silver
+MEDAL_GOLD,Altın,Gold
+LOBBY_MEDAL_TIMES,Altın {gold} · Gümüş {silver} · Bronz {bronze},Gold {gold} · Silver {silver} · Bronze {bronze}
+LOBBY_STAGE_RECORD,Bu bilgisayardaki rekor: {time} — {crew},Record on this PC: {time} — {crew}

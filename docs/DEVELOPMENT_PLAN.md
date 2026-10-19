@@ -199,8 +199,7 @@ P5 QA and release
     the cockpit (driver looks into corners, recentres), dirt/cracks/wipers on the real windshield.
   - Fixed on the way: the grid sat behind the stage's start wall; jump landings counted as crashes (drivers
     now report body impacts); the model's 80 % dark glass; numpy FFT blocked by Smart App Control.
-  Verified: 160 GUT tests, `tools
-ettest.ps1` (3 clients), `toolslowtest.ps1` (both bots finish Kara Çam
+  Verified: 160 GUT tests, `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1` (both bots finish Kara Çam
   Geçidi: 2:08.4 / 2:18.6), screenshots `reports/screenshots/stage_*.png`, `hud_race.png`, `glass_*.png`.
   Not yet: crew bodies/hands (needs a free rigged character; a download needs the user's OK), more chaos
   events, lighting/time-of-day pass per biome, distant mountain backdrop, human play-feel test with friends.

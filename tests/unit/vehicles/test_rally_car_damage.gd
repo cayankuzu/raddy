@@ -63,5 +63,7 @@ func test_critical_damage_cuts_the_power_and_medium_pulls_the_wheel() -> void:
 	await _drive(3.0)
 	gut.p("critical damage: %.1f m/s" % _car.forward_speed)
 	assert_lt(_car.forward_speed, healthy_speed * 0.6, "crawling")
-	assert_not_null(_car.get_node_or_null(^"Dents"), "damage is visible on the body")
-	assert_gt(_car.get_node(^"Dents").get_child_count(), 0)
+	var fx := _car.get_node_or_null(^"Model/DamageFx") as CarDamageFx
+	assert_not_null(fx, "the real car shows damage with its own parts")
+	assert_gt(fx.part_state(&"bumper_front"), 0, "damage is visible on the body")
+	assert_true((fx.get_node(^"EngineSmoke") as GPUParticles3D).emitting, "the engine smokes")

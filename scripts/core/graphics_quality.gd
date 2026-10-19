@@ -54,7 +54,11 @@ static func apply_look(env: Environment, sun: DirectionalLight3D, level: int) ->
 	if level == Level.LOW:
 		env.ssao_enabled = false
 		env.glow_enabled = false
-		env.volumetric_fog_enabled = false
+		# Volumetric fog is part of how far you see in fog and dust: fold it into the depth fog so
+		# Low never sees further than High.
+		if env.volumetric_fog_enabled:
+			env.fog_density += env.volumetric_fog_density
+			env.volumetric_fog_enabled = false
 
 
 ## The 3D resolution for `viewport` at `level` (FSR 1 when below native).

@@ -214,6 +214,14 @@ func _on_peer_disconnected(id: int) -> void:
 	if not _as_host or not roster.has(id):
 		return
 	roster.erase(id)
+	# Peers that dropped in the same network poll already have their ENet channels freed but are
+	# reported later in that poll: react once it is over, so no message is addressed to them.
+	_announce_left.call_deferred(id)
+
+
+func _announce_left(id: int) -> void:
+	if not _as_host:
+		return
 	player_left.emit(id)
 	_broadcast_roster()
 

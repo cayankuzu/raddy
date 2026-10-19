@@ -45,6 +45,9 @@ func _ready() -> void:
 	_message = UiTheme.label(Flow.last_message, 18, Color("ffb38a"))
 	column.add_child(_message)
 	Flow.last_message = ""
+	var version := UiTheme.label(tr("MENU_VERSION").format({"version": ProjectSettings.get_setting("application/config/version", "")}), 14, UiTheme.MUTED)
+	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	column.add_child(version)
 
 	Net.session_started.connect(_on_session_started)
 	Net.session_ended.connect(_on_session_ended)
