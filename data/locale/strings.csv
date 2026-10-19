@@ -208,3 +208,10 @@ MEDAL_SILVER,Gümüş,Silver
 MEDAL_GOLD,Altın,Gold
 LOBBY_MEDAL_TIMES,Altın {gold} · Gümüş {silver} · Bronz {bronze},Gold {gold} · Silver {silver} · Bronze {bronze}
 LOBBY_STAGE_RECORD,Bu bilgisayardaki rekor: {time} — {crew},Record on this PC: {time} — {crew}
+SETTINGS_ASSIST,Sürüş yardımı,Driving assist
+SETTINGS_ASSIST_OFF,Kapalı,Off
+SETTINGS_ASSIST_NORMAL,Normal,Normal
+SETTINGS_ASSIST_HIGH,Yüksek,High
+SETTINGS_ASSIST_HINT,Kaymayı toparlamaya yardım eder; klavyede ters direksiyonu kendisi kırar.,Helps catch slides; on a keyboard it counter-steers for you.
+SETTINGS_STEER_LINEARITY,Gamepad direksiyon hassasiyeti (orta bölge),Gamepad steering softness (centre)
+SETTINGS_VIBRATION,Gamepad titreşimi,Gamepad vibration

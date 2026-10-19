@@ -79,18 +79,27 @@ func test_turn_in_response_and_cornering_grip() -> void:
 	assert_between(lateral_g, 0.45, 1.1, "gravel grip in a steady corner")
 
 
-## Keyboard steering: full lock is a key press away, but the wheels take a moment to get there.
+## Keyboard steering (through SteeringInput, as a player drives): full lock is a key press away,
+## quick when slow, gentle at speed so a stab does not spin the car.
 func test_keyboard_lock_comes_in_smoothly() -> void:
-	await _cruise(50.0 * KMH)
-	_car.controls.steer = 1.0
-	var target := _car.max_steer_angle_at(_car.forward_speed)
-	var seconds := 0.0
-	while absf(_car.steer_angle) < target * 0.95 and seconds < 2.0:
-		await wait_ticks(1)
-		seconds += 1.0 / TICKS
-	_car.controls.clear()
-	gut.p("keyboard to full lock at 50 km/h: %.2f s (lock %.1f deg)" % [seconds, rad_to_deg(target)])
-	assert_between(seconds, 0.08, 0.5)
+	var times: Array[float] = []
+	for kmh in [20.0, 50.0, 100.0]:
+		await _cruise(kmh * KMH)
+		var steering := SteeringInput.new()
+		var target := _car.max_steer_angle_at(_car.forward_speed)
+		var seconds := 0.0
+		while absf(_car.steer_angle) < target * 0.95 and seconds < 2.0:
+			_car.controls.steer = steering.update(1.0, 1.0 / TICKS, _car.forward_speed, _car.body_slip_angle(), target)
+			await wait_ticks(1)
+			seconds += 1.0 / TICKS
+		_car.controls.clear()
+		times.append(seconds)
+		gut.p("keyboard to full lock at %.0f km/h: %.2f s (lock %.1f deg)" % [kmh, seconds, rad_to_deg(target)])
+		_car.reset_to(Transform3D(Basis(), START))
+		await wait_ticks(TICKS)
+	assert_between(times[0], 0.1, 0.3, "quick at low speed")
+	assert_between(times[2], 0.25, 0.6, "gentle at speed")
+	assert_gt(times[2], times[0], "slower at speed than when slow")
 
 
 ## Handbrake hairpin: from 45 km/h, full lock with a handbrake pull, then power: the car comes
@@ -114,7 +123,7 @@ func test_handbrake_hairpin() -> void:
 			break
 	_car.controls.clear()
 	gut.p("handbrake hairpin from 45 km/h: 150 deg in %.2f s" % seconds)
-	assert_lt(seconds, 4.0, "turns round quickly")
+	assert_lt(seconds, 3.2, "turns round quickly")
 	assert_eq(_car.wheels_in_contact(), 4, "on its wheels")
 
 

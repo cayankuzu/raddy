@@ -43,6 +43,10 @@ var paint_color := Color(0.86, 0.3, 0.1)
 var grip_scale := 1.0
 ## True on the grid and after finishing: the car holds still whatever the controls say.
 var input_locked := false
+## The driver's assist level (PlayerCarInput from Settings): scales the stability assist, 0 = off.
+var assist_scale := 1.0
+## Seconds of "handbrake turn" intent left (refilled while the handbrake is held).
+var _handbrake_intent := 0.0
 ## Distance between the front and rear axles, from the wheel mounts.
 var wheelbase := 2.5
 ## False on peers that only play back the driver's snapshots (see BodyNetSync): the body is a
@@ -580,9 +584,17 @@ func _apply_anti_roll(state: PhysicsDirectBodyState3D) -> void:
 ## ESC-like help for casual drivers. Past a free slip angle it turns the nose back toward the
 ## direction of travel and damps rotation that would widen the slide, so slides stay catchable.
 ## Off while the handbrake is held, so handbrake turns still rotate the car.
+## Share of the stability assist that yields while the driver steers into the rotation, for this
+## long (s) after the handbrake was let go.
+const ASSIST_YIELD := 0.8
+const HANDBRAKE_INTENT := 1.5
+
+
 func _apply_stability_assist(state: PhysicsDirectBodyState3D) -> void:
+	_handbrake_intent = HANDBRAKE_INTENT if controls.handbrake else maxf(_handbrake_intent - state.step, 0.0)
 	# Reversing (or travelling backwards after a spin) is not a slide to correct.
-	if config.stability_assist <= 0.0 or controls.handbrake or forward_speed < SLIP_SPEED_FLOOR or wheels_in_contact() < 3:
+	var assist := config.stability_assist * assist_scale
+	if assist <= 0.0 or controls.handbrake or forward_speed < SLIP_SPEED_FLOOR or wheels_in_contact() < 3:
 		return
 	var up := state.transform.basis.y
 	var velocity := state.linear_velocity - up * state.linear_velocity.dot(up)
@@ -593,10 +605,14 @@ func _apply_stability_assist(state: PhysicsDirectBodyState3D) -> void:
 	var excess := absf(slip) - config.assist_free_slip
 	if excess <= 0.0:
 		return
+	# Just after a handbrake pull, steering the way the car rotates (round a hairpin) is the driver
+	# asking for the slide: the assist backs off; counter-steering (catching it) keeps full help.
+	var asking := clampf(controls.steer * signf(slip), 0.0, 1.0) * clampf(_handbrake_intent / HANDBRAKE_INTENT, 0.0, 1.0)
+	assist *= 1.0 - ASSIST_YIELD * asking
 	var yaw_rate := state.angular_velocity.dot(up)
-	var correction := signf(slip) * excess * config.stability_assist * config.stability_assist
+	var correction := signf(slip) * excess * assist * assist
 	if yaw_rate * slip < 0.0:  # rotating away from the travel direction: the slide is widening
-		correction -= yaw_rate * config.stability_assist
+		correction -= yaw_rate * assist
 	var yaw_inertia := 1.0 / maxf(state.inverse_inertia.y, 0.000001)
 	state.apply_torque(up * correction * yaw_inertia)
 

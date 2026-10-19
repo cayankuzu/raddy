@@ -19,6 +19,12 @@ const DEFAULTS := {
 	"invert_mouse": false,
 	"look_recentre": true,
 	"effects_intensity": 1.0,
+	## 0 off, 1 normal, 2 high: stability help and counter-steer (PlayerCarInput).
+	"driving_assist": 1,
+	## 0..1: gamepad steering response, linear to very soft around the centre.
+	"steer_linearity": 0.4,
+	## 0..1: gamepad rumble strength.
+	"vibration": 1.0,
 	## GraphicsQuality.Level, or -1 = Auto.
 	"graphics_quality": -1,
 	"fullscreen": false,

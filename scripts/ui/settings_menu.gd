@@ -86,6 +86,16 @@ func _ready() -> void:
 	_check(column, "SETTINGS_INVERT_MOUSE", "invert_mouse")
 	_check(column, "SETTINGS_LOOK_RECENTRE", "look_recentre")
 	_slider(column, "SETTINGS_EFFECTS", "effects_intensity")
+	var assist := OptionButton.new()
+	for item in [["SETTINGS_ASSIST_OFF", 0], ["SETTINGS_ASSIST_NORMAL", 1], ["SETTINGS_ASSIST_HIGH", 2]]:
+		assist.add_item(tr(item[0]), item[1])
+	assist.select(assist.get_item_index(int(Settings.get_value("driving_assist"))))
+	assist.item_selected.connect(func(index: int) -> void:
+		Settings.set_value("driving_assist", assist.get_item_id(index)))
+	UiTheme.row(column, "SETTINGS_ASSIST", assist)
+	column.add_child(UiTheme.label(tr("SETTINGS_ASSIST_HINT"), 15, UiTheme.MUTED))
+	_slider(column, "SETTINGS_STEER_LINEARITY", "steer_linearity")
+	_slider(column, "SETTINGS_VIBRATION", "vibration")
 	var quality := OptionButton.new()
 	for item in [["SETTINGS_QUALITY_AUTO", GraphicsQuality.AUTO], ["SETTINGS_QUALITY_LOW", GraphicsQuality.Level.LOW],
 			["SETTINGS_QUALITY_MEDIUM", GraphicsQuality.Level.MEDIUM], ["SETTINGS_QUALITY_HIGH", GraphicsQuality.Level.HIGH]]:

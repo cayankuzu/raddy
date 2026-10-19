@@ -22,7 +22,7 @@ extends Resource
 @export var anti_roll_stiffness := 9000.0
 
 @export_group("Engine and brakes")
-@export var engine_force := 7200.0
+@export var engine_force := 8400.0
 @export var top_speed := 46.0
 @export var reverse_force := 3600.0
 @export var reverse_top_speed := 9.0
@@ -40,7 +40,7 @@ extends Resource
 @export var tire_grip := 1.0
 @export_range(0.02, 0.5, 0.01, "radians_as_degrees") var peak_slip_angle := 0.14
 ## Rear lateral grip while the handbrake is held.
-@export_range(0.0, 1.0) var handbrake_rear_grip := 0.45
+@export_range(0.0, 1.0) var handbrake_rear_grip := 0.32
 ## Tyre forces act this far above the contact patch: lower roll torque, fewer silly flips.
 @export var tire_force_lift := 0.3
 ## Share of grip always left for drive and brakes, even when a tyre is sliding sideways.
