@@ -10,6 +10,7 @@ extends Node3D
 ##   --map-open      open the map right away (screenshots)
 ##   --windshield=cracked|removed  --dirt=0.4   start with that glass state (screenshots)
 ##   --weather=0..4 --difficulty=0..2   race settings (default clear, rally)
+##   --quality=0..2  graphics level for the scenery (default: the player's setting)
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (gates, finish) that tools and tests can read.
 
@@ -53,7 +54,9 @@ func _ready() -> void:
 	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(settings.biome))
 	terrain.set_roads(graph)
 	var track := RoadBuilder.build(graph, terrain, palette)
-	track.add_child(RoadsideDresser.dress(graph, terrain, settings.biome))
+	var quality := int(_args.get("quality", str(GraphicsQuality.current())))
+	track.add_child(RoadsideDresser.dress(graph, terrain, settings.biome, [],
+		GraphicsQuality.scenery_density(quality), GraphicsQuality.range_scale(quality)))
 	add_child(track)
 	print("ROUTE built in %d ms" % (Time.get_ticks_msec() - started))
 	for gate in track.get_node(^"Checkpoints").get_children():

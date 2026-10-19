@@ -84,4 +84,5 @@ static func create(biome: int, weather: int) -> Node3D:
 	sun.directional_shadow_split_3 = 0.45
 	sun.directional_shadow_blend_splits = true
 	root.add_child(sun)
+	GraphicsQuality.apply_look(env, sun, GraphicsQuality.current())
 	return root

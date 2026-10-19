@@ -2,11 +2,16 @@ class_name RoadsideDresser
 ## Dresses a stage with trees, bushes, rocks and ground cover from RoadsideCatalog (spec §13):
 ## deterministic per seed so every peer gets the same world, never on or beside the road (the
 ## verge and a margin stay clear) nor on the lip of a cliff, denser near the road where it gives
-## the sense of speed, a thick band where the stage ends and a backdrop beyond it. Visuals are
-## MultiMeshes split into 64 m chunks with a visibility range; trees and rocks get real collision
-## so hitting one hurts (spec §8.2).
+## the sense of speed, a thick band where the stage ends and a backdrop beyond it. Trees and rocks
+## get real collision so hitting one hurts (spec §8.2).
+## Drawing: every instance of one mesh with the same shadow and range settings goes into one
+## batch, whichever entry placed it (a fir by the road and a fir in the backdrop share it), split
+## into chunks sized to its visibility range. The renderer's cost here is the number of objects and
+## draw calls, not triangles: chunks of a few instances each made the forest four times slower.
 
-const CHUNK := 64.0
+## Chunk edge for a batch: about 40 % of its visibility range, within these bounds (metres).
+const CHUNK_MIN := 48.0
+const CHUNK_MAX := 192.0
 ## Distance along the road between placement tries, per side.
 const STEP := 4.0
 ## Nothing within this many metres of a road edge (the verge is 2.5 m).
@@ -20,17 +25,27 @@ enum Kind { TREE, BUSH, ROCK, GROUND }
 
 
 ## Builds the "Dressing" node for `graph` in `biome`. `catalog` defaults to RoadsideCatalog's
-## entries; tests pass their own (entries may carry a "mesh" instead of a "path").
-static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog: Array = []) -> Node3D:
+## entries; tests pass their own (entries may carry a "mesh" instead of a "path"). `scenery`
+## thins out what nobody can hit (entries without collision) and `range_scale` shortens how far
+## everything is drawn: GraphicsQuality. Collidable placements never change with them.
+static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog: Array = [],
+		scenery := 1.0, range_scale := 1.0) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Dressing"
-	var entries: Array = catalog if not catalog.is_empty() else RoadsideCatalog.for_biome(biome)
+	var entries: Array = []
+	for entry in (catalog if not catalog.is_empty() else RoadsideCatalog.for_biome(biome)):
+		var tuned: Dictionary = entry.duplicate()
+		if not tuned.has("collision"):
+			tuned.density = float(tuned.get("density", 1.0)) * scenery
+		tuned.range = float(tuned.get("range", 250.0)) * range_scale
+		entries.append(tuned)
 	var start := graph.start_pose(graph.checkpoints[0].distance if not graph.checkpoints.is_empty() else 12.0).origin
 	var start_xz := Vector2(start.x, start.z)
 	var collisions := StaticBody3D.new()
 	collisions.name = "Obstacles"
 	root.add_child(collisions)
 	var shape_cache: Dictionary = {}
+	var batches: Dictionary = {}  # batch key -> {name, mesh, material, shadows, range, chunk, cells: {Vector2i: Array}}
 	var placed := 0
 	# Every instance per entry id, kept as data: the MultiMeshes cannot be read back headless
 	# (the dummy renderer stores no instance buffers), and gameplay may want them later.
@@ -43,7 +58,7 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 		var parts: Array = entry.get("_parts", [])
 		if parts.is_empty():
 			continue
-		var chunks: Dictionary = {}  # Vector2i -> Array[Transform3D]
+		var all: Array[Transform3D] = []
 		for edge in graph.edges:
 			var travelled := 0.0
 			for i in range(1, edge.points.size()):
@@ -56,17 +71,12 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 					if t == null:
 						continue
 					var transform: Transform3D = t
-					var key := Vector2i(floori(transform.origin.x / CHUNK), floori(transform.origin.z / CHUNK))
-					if not chunks.has(key):
-						chunks[key] = []
-					chunks[key].append(transform)
+					all.append(transform)
+					_add_to_batches(batches, entry, parts, transform)
 					_add_collision(collisions, entry, transform, shape_cache)
 					placed += 1
-		_build_multimeshes(root, entry, parts, chunks)
-		var all: Array[Transform3D] = []
-		for key in chunks:
-			all.append_array(chunks[key])
 		placements[entry.id] = all
+	_build_batches(root, batches)
 	root.set_meta(&"placed", placed)
 	root.set_meta(&"placements", placements)
 	return root
@@ -218,29 +228,51 @@ static func _collect_meshes(node: Node, parent: Transform3D, parts: Array, only 
 		_collect_meshes(child, here, parts, only, inside)
 
 
-static func _build_multimeshes(root: Node3D, entry: Dictionary, parts: Array, chunks: Dictionary) -> void:
+## Files each part of one placed instance under its batch and chunk.
+static func _add_to_batches(batches: Dictionary, entry: Dictionary, parts: Array, transform: Transform3D) -> void:
 	var range_end: float = entry.get("range", 250.0)
 	var shadows: bool = entry.get("shadows", true)
-	for key in chunks:
-		var transforms: Array = chunks[key]
-		var origin := Vector3((key.x + 0.5) * CHUNK, 0.0, (key.y + 0.5) * CHUNK)
-		for p in parts.size():
-			var part: Dictionary = parts[p]
+	for part in parts:
+		var material: Material = part.material
+		var key := "%d|%d|%s|%d" % [(part.mesh as Mesh).get_instance_id(), material.get_instance_id() if material != null else 0,
+			shadows, roundi(range_end)]
+		if not batches.has(key):
+			batches[key] = {"name": "%s_%d" % [entry.id, batches.size()], "mesh": part.mesh, "material": material,
+				"shadows": shadows, "range": range_end, "chunk": clampf(range_end * 0.4, CHUNK_MIN, CHUNK_MAX), "cells": {}}
+		var batch: Dictionary = batches[key]
+		var placed: Transform3D = transform * part.transform
+		var chunk: float = batch.chunk
+		var cell := Vector2i(floori(transform.origin.x / chunk), floori(transform.origin.z / chunk))
+		if not batch.cells.has(cell):
+			batch.cells[cell] = []
+		batch.cells[cell].append(placed)
+
+
+static func _build_batches(root: Node3D, batches: Dictionary) -> void:
+	for key in batches:
+		var batch: Dictionary = batches[key]
+		var chunk: float = batch.chunk
+		var range_end: float = batch.range
+		for cell in batch.cells:
+			var transforms: Array = batch.cells[cell]
+			var origin := Vector3((cell.x + 0.5) * chunk, 0.0, (cell.y + 0.5) * chunk)
 			var multimesh := MultiMesh.new()
 			multimesh.transform_format = MultiMesh.TRANSFORM_3D
-			multimesh.mesh = part.mesh
+			multimesh.mesh = batch.mesh
 			multimesh.instance_count = transforms.size()
 			for n in transforms.size():
 				var t: Transform3D = transforms[n]
-				multimesh.set_instance_transform(n, Transform3D(t.basis, t.origin - origin) * part.transform)
+				multimesh.set_instance_transform(n, Transform3D(t.basis, t.origin - origin))
 			var instance := MultiMeshInstance3D.new()
-			instance.name = "%s_%d_%d_%d" % [entry.id, key.x, key.y, p]
+			instance.name = "%s_%d_%d" % [batch.name, cell.x, cell.y]
 			instance.multimesh = multimesh
 			instance.position = origin
-			if part.material != null:
-				instance.material_override = part.material
-			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			instance.visibility_range_end = range_end
+			if batch.material != null:
+				instance.material_override = batch.material
+			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if batch.shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			# Ranges count from the chunk's middle: widen them by half a chunk so nothing pops in
+			# while it is still close.
+			instance.visibility_range_end = range_end + chunk * 0.5
 			instance.visibility_range_end_margin = range_end * 0.1
 			instance.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 			root.add_child(instance)

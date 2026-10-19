@@ -86,6 +86,15 @@ func _ready() -> void:
 	_check(column, "SETTINGS_INVERT_MOUSE", "invert_mouse")
 	_check(column, "SETTINGS_LOOK_RECENTRE", "look_recentre")
 	_slider(column, "SETTINGS_EFFECTS", "effects_intensity")
+	var quality := OptionButton.new()
+	for item in [["SETTINGS_QUALITY_AUTO", GraphicsQuality.AUTO], ["SETTINGS_QUALITY_LOW", GraphicsQuality.Level.LOW],
+			["SETTINGS_QUALITY_MEDIUM", GraphicsQuality.Level.MEDIUM], ["SETTINGS_QUALITY_HIGH", GraphicsQuality.Level.HIGH]]:
+		quality.add_item(tr(item[0]), item[1] + 1)
+	quality.select(quality.get_item_index(int(Settings.get_value("graphics_quality")) + 1))
+	quality.item_selected.connect(func(index: int) -> void:
+		Settings.set_value("graphics_quality", quality.get_item_id(index) - 1))
+	UiTheme.row(column, "SETTINGS_QUALITY", quality)
+	column.add_child(UiTheme.label(tr("SETTINGS_QUALITY_HINT"), 15, UiTheme.MUTED))
 	_check(column, "SETTINGS_FULLSCREEN", "fullscreen")
 	_check(column, "SETTINGS_VSYNC", "vsync")
 

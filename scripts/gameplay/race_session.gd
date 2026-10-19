@@ -158,7 +158,9 @@ func _build_route() -> void:
 	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(biome()))
 	terrain.set_roads(graph)
 	var track := RoadBuilder.build(graph, terrain, BiomeRules.palette(biome(), weather()))
-	track.add_child(RoadsideDresser.dress(graph, terrain, biome()))
+	var quality := GraphicsQuality.current()
+	track.add_child(RoadsideDresser.dress(graph, terrain, biome(), [],
+		GraphicsQuality.scenery_density(quality), GraphicsQuality.range_scale(quality)))
 	add_child(track)
 	notes = PaceNotes.build(graph, RaceSettings.note_detail(difficulty()))
 	_contour = MapCanvas.contour_for(graph, terrain)

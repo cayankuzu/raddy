@@ -71,6 +71,12 @@ SETTINGS_MOUSE_SENSITIVITY,Fare hassasiyeti,Mouse sensitivity
 SETTINGS_INVERT_MOUSE,Fare Y eksenini ters çevir,Invert mouse Y
 SETTINGS_LOOK_RECENTRE,Sürücü bakışı yola dönsün,Driver's view returns to the road
 SETTINGS_EFFECTS,Ekran efektleri (kan, bulanıklık),Screen effects (blood, blur)
+SETTINGS_QUALITY,Grafik kalitesi,Graphics quality
+SETTINGS_QUALITY_AUTO,Otomatik,Auto
+SETTINGS_QUALITY_LOW,Düşük,Low
+SETTINGS_QUALITY_MEDIUM,Orta,Medium
+SETTINGS_QUALITY_HIGH,Yüksek,High
+SETTINGS_QUALITY_HINT,"Gölgeler, uzak orman ve çözünürlük; yeni etapta uygulanır.","Shadows, distant forest and resolution; applies from the next stage."
 SETTINGS_FULLSCREEN,Tam ekran,Fullscreen
 SETTINGS_VSYNC,Dikey eşitleme,V-Sync
 SETTINGS_CONTROLS,Kontroller,Controls

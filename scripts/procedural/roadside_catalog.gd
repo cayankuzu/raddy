@@ -110,17 +110,19 @@ static func entries() -> Array[Dictionary]:
 		_tree("birch_d", BIRCHES, "birch-4", [FOREST], 1.8, 4.0, 30.0, [0.75, 1.05], 0.14, {"unit": 0.01}),
 		_tree("birch_e", BIRCH, "bark11_0", [FOREST], 2.4, 2.0, 28.0, [1.0, 1.5], 0.12),
 		# The edge band: a wall of trunks before the stage's wall.
-		_tree("edge_fir", CONIFERS, "FirTree_0", [FOREST], 10.0, 22.0, 34.0, [0.8, 1.15], 0.32, {"bias": 1.0}),
+		# Their shadows rarely reach the road: no shadow casting (half the forest's draw calls).
+		_tree("edge_fir", CONIFERS, "FirTree_0", [FOREST], 10.0, 22.0, 34.0, [0.8, 1.15], 0.32, {"bias": 1.0, "shadows": false}),
 		_tree("edge_pine", CONIFERS, "PineTree_1", [FOREST, MOUNTAIN], 8.0, 22.0, 34.0, [0.8, 1.1], 0.34,
-			{"bias": 1.0, "biome_density": {MOUNTAIN: 0.6}}),
-		_tree("edge_noble", CONIFERS, "NobleFirTree_2", [FOREST, MOUNTAIN], 10.0, 20.0, 34.0, [1.0, 1.6], 0.2, {"bias": 1.0}),
+			{"bias": 1.0, "shadows": false, "biome_density": {MOUNTAIN: 0.6}}),
+		_tree("edge_noble", CONIFERS, "NobleFirTree_2", [FOREST, MOUNTAIN], 10.0, 20.0, 34.0, [1.0, 1.6], 0.2,
+			{"bias": 1.0, "shadows": false}),
 		# The backdrop: forest the cars never reach.
 		_tree("far_fir", CONIFERS, "FirTree_0", [FOREST, MOUNTAIN], 11.0, 34.0, 95.0, [0.8, 1.2], 0.0,
-			{"bias": 1.0, "range": 900.0, "biome_density": {MOUNTAIN: 0.5}}),
+			{"bias": 1.0, "range": 700.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}}),
 		_tree("far_pine", CONIFERS, "PineTree_1", [FOREST, MOUNTAIN], 9.0, 34.0, 95.0, [0.8, 1.15], 0.0,
-			{"bias": 1.0, "range": 900.0, "biome_density": {MOUNTAIN: 0.5}}),
+			{"bias": 1.0, "range": 700.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}}),
 		_tree("far_birch", BIRCHES, "birch-2", [FOREST], 2.0, 34.0, 80.0, [0.8, 1.1], 0.0,
-			{"bias": 1.0, "range": 700.0, "unit": 0.01}),
+			{"bias": 1.0, "range": 700.0, "shadows": false, "unit": 0.01}),
 	])
 	return out
 

@@ -19,6 +19,8 @@ const DEFAULTS := {
 	"invert_mouse": false,
 	"look_recentre": true,
 	"effects_intensity": 1.0,
+	## GraphicsQuality.Level, or -1 = Auto.
+	"graphics_quality": -1,
 	"fullscreen": false,
 	"vsync": true,
 	"player_name": "",
@@ -92,6 +94,7 @@ func apply() -> void:
 		if DisplayServer.window_get_mode() != mode:
 			DisplayServer.window_set_mode(mode)
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if bool(values.vsync) else DisplayServer.VSYNC_DISABLED)
+		GraphicsQuality.apply_viewport(get_tree().root, GraphicsQuality.current())
 
 
 # --- key bindings ---
