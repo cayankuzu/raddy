@@ -106,3 +106,30 @@ func test_boulders_come_down_onto_the_road() -> void:
 			near_road += 1
 	gut.p("boulders within 12 m of the road after 4 s: %d of %d" % [near_road, spawned.size()])
 	assert_gt(near_road, 0, "some reach the road")
+
+
+func test_a_tree_falling_on_a_car_shoves_it_without_launching_it() -> void:
+	_build([{"kind": &"falling_tree", "from": 600.0, "to": 640.0, "at": 620.0, "side": 1, "value": 0.0}] as Array[Dictionary])
+	var event := _world.find_child("Event0", true, false) as Node3D
+	var reach: float = event.get_meta(&"trunk_reach")
+	var fallen: Basis = event.get_meta(&"fallen_basis")
+	# Parked right where the middle of the trunk comes down.
+	var under := event.global_position + fallen * (Vector3.UP * reach * 0.6)
+	var car: RallyCar = load("res://scenes/vehicles/rally_car.tscn").instantiate()
+	var pose := _graph.start_pose(620.0)
+	pose.origin = Vector3(under.x, pose.origin.y, under.z) + Vector3.UP * 0.8
+	car.transform = pose
+	_world.add_child(car)
+	await wait_ticks(90)
+	var start := car.global_position
+	var fastest := 0.0
+	var highest := 0.0
+	_events.play(0)
+	for i in int((StageEvents.TREE_FALL_TIME + 1.5) * Engine.physics_ticks_per_second):
+		await wait_ticks(1)
+		fastest = maxf(fastest, car.linear_velocity.length())
+		highest = maxf(highest, car.global_position.y - start.y)
+	gut.p("car under the tree: fastest %.1f m/s, rose %.1f m, moved %.1f m" % [fastest, highest, car.global_position.distance_to(start)])
+	assert_true(is_finite(car.global_position.length()), "no physics blow-up")
+	assert_lt(fastest, 12.0, "shoved, not launched")
+	assert_lt(highest, 2.5, "not thrown into the air")

@@ -20,10 +20,19 @@ generated road networks.
   gear and speed. Mouse free look in the cockpit.
 - **Glass:** mud, cracks and two wiper blades on the real windscreen.
 - **Water splashes** slow the car, soak the glass and splash open-window seats.
+- **Stage surprises:** a fir falls across the road in front of the first crew (squeeze past the
+  trunk or push through the crown and lose the view to pine needles), boulders roll down canyon and
+  mountain banks.
+- **Damage you can see:** the bonnet pops, flaps up at speed until the driver is blind and then
+  tears off; bumpers hang and fall off; the engine steams, then smokes. Crashes jolt the camera.
+- **Records and medals:** best time per stage on this PC with the crew's names; bronze, silver and
+  gold times shown in the room and on the results.
 - **Performance:** scenery batched by mesh (forest draw calls 1429 → 608); graphics quality
   setting (Auto/Low/Medium/High; Auto picks Low on integrated graphics).
 - **Fixes:** the grid sat behind the stage's start wall; jump landings counted as crashes (drivers
-  now report body impacts to the host); the model's dark glass darkened the cockpit view.
+  now report body impacts to the host); the model's dark glass darkened the cockpit view; critical
+  damage kept closing the recovery offer while the car crawled; terrain and walls near hairpins;
+  gearbox limiter and clutch take-up; HUD/map texts in both languages.
 
 ## 0.1.0 — first playable (2026-10-12)
 Driving prototype with ray-cast suspension and surfaces; host-authoritative rooms for six players

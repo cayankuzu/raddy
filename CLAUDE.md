@@ -103,8 +103,9 @@ No Blender; model in Godot only as a last resort.
   before the spot (a fir that falls across the road, rocks off a bank); `StageEvents` (child of the race)
   lets the host decide and every peer play it (`_rpc_stage_event`); boulders are host-simulated props like
   the cans (`_rpc_spawn_boulder`). Offline (route_test) the trigger plays locally.
-- `RouteFollower` (pure pursuit + corner speed planner, `start_delay`, stops at the end of an open path) drives
-  a `RallyCar`: `--autodrive`, tests, flow-test bots. `RaceProgress` is the host's gate accounting.
+- `RouteFollower` (pure pursuit + corner speed planner, `start_delay`, stops at the end of an open path,
+  `obstacles` Callable → steers around fallen trunks/boulders at `AVOID_SPEED`) drives a `RallyCar`:
+  `--autodrive`, tests, flow-test bots (which also confirm their own recovery offers). `RaceProgress` is the host's gate accounting.
 - Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N`
   `--quit-after-seconds=N`. `RaceSession.settings.stage` builds the same stage on every peer.
 
@@ -127,7 +128,8 @@ No Blender; model in Godot only as a last resort.
   `authority call_local reliable` RPCs; each peer binds its own seat (camera + `PlayerCarInput`/`CabinInput`).
   `Cabin` (authority 1) owns window state and can stock; seat holders ask, host validates against the roster.
 - Recovery (spec §16): `RallyCar.needs_recovery` rides in the snapshot extras; the host runs `RecoveryRules`
-  per team (3 s stuck → offer, confirmations with an 8 s window, 1 seat = hold R), picks the spot with
+  per team (3 s stuck → offer, confirmations with an 8 s window, 1 seat = hold R; critical damage holds the
+  offer open while the car crawls), picks the spot with
   `RecoveryAnchor.find(graph, position, next_gate)` and sends `_rpc_recover_car`; the simulating peer applies
   `reset_to`. `PlayerCarInput.local_recovery` and `RouteFollower.self_recover` are false inside a session.
 - Cabin (spec §9-10): `Cabin` is the one state system for windows (state + cracked), windshield, dirt,
@@ -186,6 +188,9 @@ No Blender; model in Godot only as a last resort.
   the exported `RADDY.exe` itself ran. No paid code signing (zero-cost rule): the itch.io page must tell players
   how to get past the SmartScreen warning ("More info" → "Run anyway").
 - All instances share `user://` (Godot has no user-data-dir flag): namespace per-instance files by `--instance`.
+- Two clients dropping in the same network poll: ENet frees the second one's channels before Godot reports
+  it, so any send to it logs "Unable to send packet on channel 0". `Net` defers its leave handling past the
+  poll, but SceneMultiplayer's own leave notice still hits it; test instances quit host first, clients after.
 - Local multiplayer tests: bind the ENet host to `127.0.0.1` (verified: host + 2 clients, RPCs both ways, no
   firewall prompt). Binding `*` for internet play triggers the Windows Firewall prompt.
 - Mic API: `AudioServer.set_input_device_active()` / `get_input_frames()` (4.6+, marked experimental).

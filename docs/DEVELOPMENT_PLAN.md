@@ -203,4 +203,29 @@ P5 QA and release
   Geçidi: 2:08.4 / 2:18.6), screenshots `reports/screenshots/stage_*.png`, `hud_race.png`, `glass_*.png`.
   Not yet: crew bodies/hands (needs a free rigged character; a download needs the user's OK), more chaos
   events, lighting/time-of-day pass per biome, distant mountain backdrop, human play-feel test with friends.
+- 2026-10-19: chaos, damage you can see, records, performance, and a second review round. Done and verified:
+  - Stage surprises on five stages (`StageEvents`, `StageEventBuilder`): a fir falls across the road in
+    front of the first crew (a moving body that shoves what it lands on; the trunk blocks the near half,
+    the crown covers the rest and throws needles over the glass when a car pushes through), boulders come
+    down canyon and mountain banks (host-simulated, synced like the cans). Bots (`RouteFollower.obstacles`)
+    slow down and take the free side.
+  - Visible damage (`CarDamageFx`): the bonnet unlatches and lifts with speed until the driver is blind,
+    then tears off; bumpers sag and fall; the engine steams, then smokes black; a recovery restores them.
+    Crashes jolt the seat camera.
+  - Stage records and medals per PC (`StageRecords`): best time and crew per stage, bronze/silver/gold from
+    the stage length, shown in the room and on the results with a "new record" banner.
+  - Performance: scenery batched by mesh (draw calls 1429 → 608 on the forest stage), graphics quality
+    Auto/Low/Medium/High. The dev laptop's frame cost is CPU draw submission, not triangles.
+  - Second multi-agent review (39 findings, 38 confirmed and fixed): terrain blending and side profiles near
+    other stretches, closed boundary walls, rails per merged cliff run, road direction across section
+    changes, width checks, gearbox limiter/off-throttle upshift/clutch take-up, HUD and map translations,
+    camera and blur fixes, scenery out of the corridor, pure-Python audio cutter (Smart App Control now
+    blocks numpy entirely).
+  - Fixed while verifying: critical damage kept reopening and closing the recovery offer while the car
+    crawled (now it stays open); the host sent packets to a second client dropping in the same network poll
+    (leave handling deferred; test instances quit host first); 3 cabin glass placeholders were leaked per car.
+  Verified: 174 GUT tests, `tools\nettest.ps1` (3 clients, no engine errors), `tools\flowtest.ps1` (both trees
+  fall in front of the bots, no damage, 2:14.7 / 2:20.4 on Kara Çam Geçidi), headless bot runs through every
+  event on every stage (no recovery needed), screenshots `reports/screenshots/event_tree_*.png`.
+  Not yet: crew bodies/hands, human play tests (feel, voice, internet), relay for CGNAT homes.
 
