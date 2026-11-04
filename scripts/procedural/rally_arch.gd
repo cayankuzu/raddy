@@ -39,6 +39,7 @@ const FIELD := Color(0.075, 0.08, 0.095)
 const STRIPE_SHARE := 0.05
 const PANEL_CELL := 42
 const PANEL_ROWS := 3
+const PRINT_SUNLIT := 0.58
 
 static var _banner_textures: Dictionary = {}
 
@@ -219,7 +220,9 @@ static func _banner(kind: String) -> MeshInstance3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_texture = banner_texture(kind)
 	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
-	# Matte print: the sun on it must not lift the dark field to grey. It stays readable in a dark forest.
+	# Matte print: the sun on it must not pale the red or lift the dark field to grey. It stays readable
+	# in a dark forest.
+	material.albedo_color = Color.WHITE * PRINT_SUNLIT
 	material.roughness = 0.9
 	material.metallic_specular = 0.1
 	material.emission_enabled = true

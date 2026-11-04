@@ -1,7 +1,7 @@
 class_name RallyProps
 ## How the rally furniture looks (RallyDressing says where it goes): boards on posts, straw bales,
-## stakes and tape, flags and what stands in a spectators' place. Signs, straw, tape and flags are
-## drawn here once, so nothing is shipped and no text needs translating except the two words on the
+## stakes and tape, flags (TurkishFlag) and what stands in a spectators' place. Signs, straw and tape
+## are drawn here once, so nothing is shipped and no text needs translating except the words on the
 ## boards. Each prop is a list of parts ({mesh, transform, material}) for RoadsideDresser's batches:
 ## in its own space a prop stands on y = 0 and looks along +Z.
 

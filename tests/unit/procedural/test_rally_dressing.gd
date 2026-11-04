@@ -231,7 +231,7 @@ func test_every_split_has_a_board_on_each_side_of_the_road() -> void:
 		var boards := _of(world, ["split"])
 		assert_eq(boards.size(), (graph.checkpoints.size() - 2) * 2, "%s: two per split" % graph.stage_id)
 		for board in boards:
-			assert_true(String(board.text).contains(str(1)) or String(board.text).contains(str(2)), "the board says which split")
+			assert_between(int(board.split), 1, graph.checkpoints.size() - 2, "the board says which split")
 			assert_gt(_toward_driver(world, board, float(board.at) - 30.0), 0.7, "%s: it faces the driver" % graph.stage_id)
 			assert_gte((world.terrain as TerrainField).distance_to_road(_flat(board)), RoadBuilder.POST_OFFSET, "%s: past the ditch" % graph.stage_id)
 

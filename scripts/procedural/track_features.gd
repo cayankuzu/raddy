@@ -1,9 +1,9 @@
 class_name TrackFeatures
 ## The stage furniture RoadBuilder adds to the track: water splashes (a muddy pool over the dipped
 ## road with a WaterSplash area that slows and soaks the cars), steel guard rails along the cliff
-## edges (each with one gap, so a careless crew can still go over), the start and finish arches,
-## and the invisible walls that keep the cars inside the stage: a car may leave the road, into the
-## trees or down a bank, but never the map.
+## edges (GuardRail: each with one gap, so a careless crew can still go over), the start and finish
+## arches (RallyArch), and the invisible walls that keep the cars inside the stage: a car may leave
+## the road, into the trees or down a bank, but never the map.
 
 ## Walls stand this far from the road centre (and never inside another part of the road's band).
 const CORRIDOR := 36.0

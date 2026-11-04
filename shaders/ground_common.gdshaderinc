@@ -38,8 +38,9 @@ uniform float slope_end = 0.72;
 
 // The scan's snow is a grey photograph; real snow is nearly white.
 const float SNOW_LIFT = 1.9;
-// ...and its dark hairlines read as worms on the ground.
-const float SNOW_DARKEST = 0.55;
+// ...and its hollows, dark lines in its albedo and its normal map, read as worms on the ground.
+const float SNOW_DARKEST = 0.33;
+const float SNOW_RELIEF = 0.2;
 // Metres per repeat of the noise that gives the third layer's patches, and of the hummocks (a big and a
 // small size); how hard they tilt the light and how dark their hollows get.
 const float PATCH_NOISE = 19.0;
@@ -118,8 +119,8 @@ GroundSample ground_sample(vec3 world_pos, vec3 world_normal) {
 	float snow_w = snow_cover * smoothstep(0.5, 0.78, up + (n1 - 0.5) * 0.35);
 	if (snow_w > 0.001) {
 		vec2 s_uv = xz / snow_tile;
-		albedo = mix(albedo, max(texture(snow_albedo, s_uv).rgb * SNOW_LIFT, vec3(SNOW_DARKEST)), snow_w);
-		nrm = mix(nrm, texture(snow_normal, s_uv).rg, snow_w);
+		albedo = mix(albedo, max(texture(snow_albedo, s_uv).rgb, vec3(SNOW_DARKEST)) * SNOW_LIFT, snow_w);
+		nrm = mix(nrm, mix(vec2(0.5), texture(snow_normal, s_uv).rg, SNOW_RELIEF), snow_w);
 		arm.g = mix(arm.g, 0.55, snow_w);
 	}
 

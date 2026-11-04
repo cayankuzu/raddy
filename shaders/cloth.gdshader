@@ -10,7 +10,7 @@ uniform float sway = 0.09;
 uniform float waves = 9.0;
 uniform float speed = 7.0;
 // The cloth in full sun stays the flag's own deep red through the tone mapper instead of paling to salmon.
-const float SUNLIT = 0.68;
+const float SUNLIT = 0.6;
 
 void vertex() {
 	vec3 root = MODEL_MATRIX[3].xyz;

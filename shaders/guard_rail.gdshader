@@ -8,9 +8,9 @@ render_mode cull_disabled, specular_schlick_ggx;
 uniform sampler2D noise : hint_default_white, filter_linear_mipmap, repeat_enable;
 uniform float post_spacing = 3.2;
 uniform float beam_height = 0.32;
-uniform vec3 zinc : source_color = vec3(0.64, 0.65, 0.64);
-uniform vec3 rust : source_color = vec3(0.31, 0.17, 0.09);
-uniform vec3 road_dust : source_color = vec3(0.56, 0.5, 0.42);
+uniform vec3 zinc : source_color = vec3(0.7, 0.69, 0.66);
+uniform vec3 rust : source_color = vec3(0.3, 0.16, 0.08);
+uniform vec3 road_dust : source_color = vec3(0.5, 0.43, 0.33);
 
 const float BOLT_RADIUS = 0.016;
 const float POST_BOLT_RADIUS = 0.024;
@@ -28,8 +28,8 @@ void fragment() {
 	float ridge = sin(UV.y * 6.28318 * 2.0 - 1.5708) * 0.5 + 0.5;
 
 	vec3 albedo = zinc * mix(0.74, 1.08, big) * mix(0.9, 1.08, mottle);
-	albedo *= mix(0.92, 1.06, smoothstep(0.42, 0.58, spangle));
-	float roughness = mix(0.5, 0.78, spangle * 0.5 + mottle * 0.5);
+	albedo *= mix(0.97, 1.03, smoothstep(0.3, 0.7, spangle));
+	float roughness = mix(0.5, 0.78, spangle * 0.15 + mottle * 0.85);
 	// Dull zinc, not a mirror of the sky.
 	float metallic = 0.2;
 
@@ -59,7 +59,7 @@ void fragment() {
 	metallic = mix(metallic, 0.05, rusted);
 
 	// Spray from the road on the lower half, thickest in the corrugation's valleys.
-	float dusty = clamp((1.0 - smoothstep(0.1, 0.72, UV.y + (big - 0.5) * 0.5)) * mix(0.75, 0.4, ridge) + (1.0 - ridge) * 0.12, 0.0, 0.85);
+	float dusty = clamp((1.0 - smoothstep(0.15, 0.85, UV.y + (big - 0.5) * 0.5)) * mix(1.0, 0.65, ridge) + (1.0 - ridge) * 0.14, 0.0, 0.9);
 	albedo = mix(albedo, road_dust * mix(0.8, 1.1, mottle), dusty);
 	roughness = mix(roughness, 0.9, dusty);
 	metallic = mix(metallic, 0.0, dusty);

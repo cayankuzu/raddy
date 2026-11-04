@@ -36,6 +36,7 @@ const END_ROW_PAST := 8.0
 const END_ROW_REACH := 60.0
 const END_ROW_ID := 9000
 
+const CUT_OUT_SHADER := preload("res://shaders/cut_out_leaf.gdshader")
 ## How much sunlight comes through a leaf from behind.
 const LEAF_BACKLIGHT := Color(0.26, 0.3, 0.14)
 ## Leaves of a pack whose colour its textures overdo: birches come far too blue a green beside the firs.
@@ -272,7 +273,8 @@ static func _expand_variants(entry: Dictionary) -> Array:
 ## MeshInstance3D in it, or only those under the node named "node"), or a bare "mesh" (tests).
 ## "unit" scales a model made in other units (centimetres: 0.01); a "node" entry is re-centred on
 ## its first mesh's footprint (the trunk) with its lowest point on the ground; "foliage" turns
-## blended leaf materials into alpha-scissor ones (cheap, sorted right, cast shadows).
+## blended leaf materials into alpha-scissor ones (cheap, sorted right, cast shadows), "black_ground"
+## cuts leaves out of an atlas that has no alpha.
 ## Missing files are skipped with a note.
 static func _parts_of(entry: Dictionary) -> Array:
 	if entry.has("mesh"):
@@ -310,7 +312,7 @@ static func _parts_of(entry: Dictionary) -> Array:
 			part.transform = recentre * part.transform
 	if entry.get("foliage", false):
 		for part in parts:
-			part.mesh = _scissored(part.mesh, LEAF_TINT.get(path, Color.WHITE))
+			part.mesh = _scissored(part.mesh, LEAF_TINT.get(path, Color.WHITE), entry.get("black_ground", false))
 	_part_cache[cache_key] = parts
 	return parts
 
@@ -323,12 +325,20 @@ static func clear_cache() -> void:
 	_part_cache.clear()
 
 
-## A copy of `mesh` whose blended (leaf) materials use alpha scissor instead, tinted.
-static func _scissored(mesh: Mesh, tint: Color) -> Mesh:
+## A copy of `mesh` whose blended (leaf) materials use alpha scissor instead, tinted, or are cut out of
+## their atlas's black ground.
+static func _scissored(mesh: Mesh, tint: Color, black_ground: bool) -> Mesh:
 	var copy := mesh.duplicate() as Mesh
 	for s in copy.get_surface_count():
 		var material := copy.surface_get_material(s) as BaseMaterial3D
 		if material == null or material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED:
+			continue
+		if black_ground:
+			var cut_out := ShaderMaterial.new()
+			cut_out.shader = CUT_OUT_SHADER
+			cut_out.set_shader_parameter(&"albedo_texture", material.albedo_texture)
+			cut_out.set_shader_parameter(&"translucency", LEAF_BACKLIGHT)
+			copy.surface_set_material(s, cut_out)
 			continue
 		var leaf := material.duplicate() as BaseMaterial3D
 		leaf.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR

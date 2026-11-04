@@ -57,8 +57,8 @@ const BOARD_CLEAR := 2.5
 const BOARD_VIEW := 16.0
 const BOARD_VIEW_CLEAR := 1.6
 ## The one bale before each rail run, lying along the road with its end to the driver: this far
-## before the rail, its middle this far outside the rail's line.
-const RAIL_BALE_OFFSET := 1.0
+## before the rail's first post (past its turned-down end), its middle this far outside the rail's line.
+const RAIL_BALE_OFFSET := GuardRail.END_REACH + 1.0
 const RAIL_BALE_OUT := 0.6
 ## Bales across the road's end: their pitch and how far past the road's edges they run. The row
 ## along the tape at a jump: from before the lip to past the landing. How long a stretch of road
@@ -91,8 +91,9 @@ const SPOT_PITCH := Vector2(1.3, 2.6)
 const SPOT_ROOM := 0.9
 ## The ribs of a clearing (capsules across the road's side): their radius and spacing along the road.
 const CLEARING_RIB := 3.5
-## The size of the words on the boards (m per pixel of the font's 96).
+## The size of the words on the boards (m per pixel of the font's 96), at most this share of the board wide.
 const TEXT_SIZES := {"km": 0.0078, "stop": 0.0034, "split": 0.0044}
+const TEXT_FILLS := 0.86
 ## How far grass keeps from what stands in a clearing (m).
 const FOOTPRINTS := {"car": 2.8, "table": 1.9, "bench": 1.0, "chair": 0.6, "bale": 1.1, "stake": 0.2, "flag": 0.25}
 ## How far the batches are drawn (m): what catches the eye far away, what stands in a place, and
@@ -104,7 +105,7 @@ const SMALL_RANGE := 160.0
 
 ## Everything on the stage, in a fixed order, each {"kind", "position": Vector3 (its foot, on the
 ## ground), "facing": Vector2 (the way its local +Z looks)} and by kind: boards "at" (m along the
-## road), "side", "panel" (the middle's height above the foot), "text"; a "bale" "lift" (m above the
+## road), "side", "panel" (the middle's height above the foot), "text" (a split's its "split" number); a "bale" "lift" (m above the
 ## ground, stacked); what rests on a slope "up"; a car's "paint"; "tape" its "posts" (PackedVector3Array
 ## of feet, closed); what belongs to a place for the crowd (a "spot" is where a person will stand) its "zone".
 static func plan(graph: RouteGraph, terrain: TerrainField) -> Array[Dictionary]:
@@ -208,7 +209,8 @@ static func _plan_boards(context: Dictionary, items: Array[Dictionary]) -> void:
 	for gate in graph.checkpoints.slice(1, -1):
 		for side: float in [-1.0, 1.0]:
 			var split := _board_at(context, "split", gate.distance, side, gate.distance - VIEW_FROM)
-			split.text = TranslationServer.translate("MAP_SPLIT").format({"n": gate.index})
+			split.text = "MAP_SPLIT"
+			split.split = gate.index
 			items.append(split)
 	var km := 1
 	while start + km * KM_STEP < finish:
@@ -599,10 +601,11 @@ static func _tape_node(item: Dictionary) -> MeshInstance3D:
 static func _board_text(item: Dictionary, placed: Transform3D) -> Label3D:
 	var stop: bool = item.kind == "stop"
 	var label := Label3D.new()
-	label.text = item.text
-	label.font = UiTheme.hud_font(800, 100)
+	var font := UiTheme.hud_font(800, 100)
+	label.text = TranslationServer.translate(item.text).format({"n": item.get("split", 0)})
+	label.font = font
 	label.font_size = 96
-	label.pixel_size = TEXT_SIZES.get(item.kind, TEXT_SIZES["km"])
+	label.pixel_size = minf(TEXT_SIZES[item.kind], RallyProps.BOARD_SIZES[item.kind].x * TEXT_FILLS / font.get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 96).x)
 	label.modulate = Color(0.97, 0.97, 0.95) if stop else Color(0.04, 0.04, 0.04)
 	label.outline_size = 0
 	label.shaded = true

@@ -55,7 +55,8 @@ void fragment() {
 	// Only mud and cracks scatter light, clean glass adds what it mirrors (car_glass.gdshader says why
 	// it mirrors nothing from a seat), so ALBEDO counts how much of them covers the glass.
 	float outside = smoothstep(2.0, 3.0, length(VERTEX));
-	ALBEDO = mix(dirt_color * mud, vec3(0.93, 0.96, 1.0), crack * 0.85);
+	vec3 mud_colour = dirt_color * mix(0.45, 1.1, smoothstep(0.25, 0.75, blotch)) * mix(0.8, 1.05, streak);
+	ALBEDO = mix(mud_colour * mud, vec3(0.93, 0.96, 1.0), crack * 0.85);
 	ALPHA = max(max(mix(0.05, 0.3, outside), mud), crack * 0.85);
 	ROUGHNESS = mix(0.04, 0.85, mud);
 	SPECULAR = mix(mix(0.0, 0.65, outside), 0.2, mud);

@@ -15,23 +15,23 @@ const TEXTURE_PATH := "res://assets/textures/%s/%s_%s_1k.jpg"
 ## keeps the tracks wet under a dry sky.
 const ROAD_SETS := {
 	Surface.GRAVEL: {"loose": "gravel_ground_01", "loose_tile": 2.4, "loose_tint": Color(0.95, 0.94, 0.92),
-		"packed": "gravelly_sand", "packed_tile": 2.3, "packed_tint": Color(0.86, 0.86, 0.86),
-		"stones": "rocky_trail", "stones_tile": 1.1, "stones_tint": Color(1.05, 1.03, 1.0), "stones_amount": 0.75, "porosity": 0.9, "saturation": 0.72},
+		"packed": "gravelly_sand", "packed_tile": 2.3, "packed_tint": Color(0.82, 0.92, 1.02),
+		"stones": "rocky_trail", "stones_tile": 1.1, "stones_tint": Color(1.05, 1.03, 1.0), "stones_amount": 0.75, "porosity": 0.9, "saturation": 0.8},
 	Surface.DIRT: {"loose": "gravelly_sand", "loose_tile": 2.2, "loose_tint": Color(0.86, 0.84, 0.82),
 		"packed": "gravelly_sand", "packed_tile": 3.1, "packed_tint": Color(0.72, 0.7, 0.68),
 		"stones": "gravel_ground_01", "stones_tile": 1.6, "stones_tint": Color(0.95, 0.92, 0.88), "stones_amount": 0.3, "porosity": 1.0, "saturation": 0.6},
-	Surface.MUD: {"loose": "brown_mud_leaves_01", "loose_tile": 2.6, "loose_tint": Color(0.82, 0.76, 0.72),
-		"packed": "brown_mud_leaves_01", "packed_tile": 1.7, "packed_tint": Color(0.64, 0.58, 0.54),
-		"stones": "gravel_ground_01", "stones_tile": 1.4, "stones_tint": Color(0.55, 0.5, 0.46), "stones_amount": 0.2, "porosity": 0.7, "rut_gloss": 0.6, "saturation": 0.62},
+	Surface.MUD: {"loose": "brown_mud_leaves_01", "loose_tile": 2.6, "loose_tint": Color(1.12, 1.06, 1.0),
+		"packed": "brown_mud_leaves_01", "packed_tile": 1.7, "packed_tint": Color(0.84, 0.77, 0.72),
+		"stones": "gravel_ground_01", "stones_tile": 1.4, "stones_tint": Color(0.66, 0.6, 0.54), "stones_amount": 0.2, "porosity": 0.7, "rut_gloss": 0.5, "saturation": 0.66},
 	Surface.WET: {"loose": "gravel_ground_01", "loose_tile": 2.4, "loose_tint": Color(0.82, 0.8, 0.78),
-		"packed": "gravelly_sand", "packed_tile": 2.3, "packed_tint": Color(0.72, 0.72, 0.72),
-		"stones": "rocky_trail", "stones_tile": 1.1, "stones_tint": Color(0.92, 0.9, 0.88), "stones_amount": 0.75, "porosity": 1.0, "saturation": 0.72},
+		"packed": "gravelly_sand", "packed_tile": 2.3, "packed_tint": Color(0.7, 0.78, 0.86),
+		"stones": "rocky_trail", "stones_tile": 1.1, "stones_tint": Color(0.92, 0.9, 0.88), "stones_amount": 0.75, "porosity": 1.0, "saturation": 0.8},
 	Surface.SAND: {"loose": "sand_01", "loose_tile": 3.2, "loose_tint": Color(1.0, 0.97, 0.92),
-		"packed": "sand_01", "packed_tile": 4.6, "packed_tint": Color(0.86, 0.82, 0.76),
+		"packed": "sand_01", "packed_tile": 4.6, "packed_tint": Color(0.78, 0.73, 0.66),
 		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(1.0, 0.95, 0.88), "stones_amount": 0.12, "porosity": 0.6},
-	Surface.SNOW: {"loose": "snow_02", "loose_tile": 3.5, "loose_tint": Color(1.35, 1.36, 1.38),
-		"packed": "snow_02", "packed_tile": 2.4, "packed_tint": Color(1.12, 1.14, 1.18),
-		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(0.6, 0.58, 0.56), "stones_amount": 0.0, "porosity": 0.2, "darkest": 0.45},
+	Surface.SNOW: {"loose": "snow_02", "loose_tile": 3.5, "loose_tint": Color(1.65, 1.66, 1.68),
+		"packed": "snow_02", "packed_tile": 2.4, "packed_tint": Color(1.28, 1.3, 1.36),
+		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(0.6, 0.58, 0.56), "stones_amount": 0.0, "porosity": 0.2, "darkest": 0.33, "relief": 0.25},
 	Surface.TARMAC: {"loose": "asphalt_02", "loose_tile": 4.0, "loose_tint": Color(1.0, 1.0, 1.0),
 		"packed": "asphalt_02", "packed_tile": 3.0, "packed_tint": Color(0.86, 0.86, 0.86),
 		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(1.0, 1.0, 1.0), "stones_amount": 0.0, "porosity": 0.5},
@@ -142,6 +142,7 @@ static func _set_road_layers(material: ShaderMaterial, spec: Dictionary) -> void
 	material.set_shader_parameter(&"rut_gloss", spec.get("rut_gloss", 0.0))
 	material.set_shader_parameter(&"saturation", spec.get("saturation", 1.0))
 	material.set_shader_parameter(&"darkest", spec.get("darkest", 0.0))
+	material.set_shader_parameter(&"relief", spec.get("relief", 1.0))
 
 
 static func _set_ground_layers(material: ShaderMaterial, biome: int) -> void:
