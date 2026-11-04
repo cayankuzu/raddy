@@ -36,6 +36,9 @@ const END_ROW_PAST := 8.0
 const END_ROW_REACH := 60.0
 const END_ROW_ID := 9000
 
+## How much sunlight comes through a leaf from behind.
+const LEAF_BACKLIGHT := Color(0.26, 0.3, 0.14)
+
 enum Kind { TREE, BUSH, ROCK, GROUND }
 
 
@@ -326,6 +329,11 @@ static func _scissored(mesh: Mesh) -> Mesh:
 		leaf.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 		leaf.alpha_scissor_threshold = 0.45
 		leaf.cull_mode = BaseMaterial3D.CULL_DISABLED
+		# Leaves are soft and let light through: no hard edge where the light turns away, no shine.
+		leaf.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
+		leaf.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+		leaf.backlight_enabled = true
+		leaf.backlight = LEAF_BACKLIGHT
 		copy.surface_set_material(s, leaf)
 	return copy
 

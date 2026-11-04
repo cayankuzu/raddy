@@ -9,15 +9,32 @@ const VERGE_SHADER := preload("res://shaders/verge.gdshader")
 const TERRAIN_SHADER := preload("res://shaders/terrain.gdshader")
 const TEXTURE_PATH := "res://assets/textures/%s/%s_%s_1k.jpg"
 
-## Texture set, metres per repeat, tint and porosity (how much rain darkens it) per surface.
+## What each surface's road is made of (shaders/road_surface.gdshaderinc): the fine loose material, what
+## the wheel tracks are packed into and the scattered stones, each a texture set with its metres per
+## repeat and tint, how many stones lie about, and porosity (how much rain darkens it). `rut_gloss`
+## keeps the tracks wet under a dry sky.
 const ROAD_SETS := {
-	Surface.GRAVEL: {"set": "rocky_trail", "tile": 3.5, "tint": Color(1.0, 0.98, 0.95), "porosity": 0.9},
-	Surface.DIRT: {"set": "gravelly_sand", "tile": 3.5, "tint": Color(0.92, 0.88, 0.84), "porosity": 1.0},
-	Surface.MUD: {"set": "brown_mud_leaves_01", "tile": 3.0, "tint": Color(0.78, 0.72, 0.66), "porosity": 0.7},
-	Surface.WET: {"set": "rocky_trail", "tile": 3.5, "tint": Color(0.8, 0.78, 0.76), "porosity": 1.0},
-	Surface.SAND: {"set": "sand_01", "tile": 4.5, "tint": Color(1.0, 0.97, 0.92), "porosity": 0.6},
-	Surface.SNOW: {"set": "snow_02", "tile": 7.0, "tint": Color(0.97, 0.98, 1.0), "porosity": 0.2},
-	Surface.TARMAC: {"set": "asphalt_02", "tile": 4.0, "tint": Color(1.0, 1.0, 1.0), "porosity": 0.5},
+	Surface.GRAVEL: {"loose": "gravel_ground_01", "loose_tile": 2.4, "loose_tint": Color(0.95, 0.94, 0.92),
+		"packed": "gravelly_sand", "packed_tile": 2.3, "packed_tint": Color(0.86, 0.86, 0.86),
+		"stones": "rocky_trail", "stones_tile": 1.1, "stones_tint": Color(1.05, 1.03, 1.0), "stones_amount": 0.75, "porosity": 0.9, "saturation": 0.72},
+	Surface.DIRT: {"loose": "gravelly_sand", "loose_tile": 2.2, "loose_tint": Color(0.86, 0.84, 0.82),
+		"packed": "gravelly_sand", "packed_tile": 3.1, "packed_tint": Color(0.72, 0.7, 0.68),
+		"stones": "gravel_ground_01", "stones_tile": 1.6, "stones_tint": Color(0.95, 0.92, 0.88), "stones_amount": 0.3, "porosity": 1.0, "saturation": 0.6},
+	Surface.MUD: {"loose": "brown_mud_leaves_01", "loose_tile": 2.6, "loose_tint": Color(0.82, 0.76, 0.72),
+		"packed": "brown_mud_leaves_01", "packed_tile": 1.7, "packed_tint": Color(0.64, 0.58, 0.54),
+		"stones": "gravel_ground_01", "stones_tile": 1.4, "stones_tint": Color(0.55, 0.5, 0.46), "stones_amount": 0.2, "porosity": 0.7, "rut_gloss": 0.6, "saturation": 0.62},
+	Surface.WET: {"loose": "gravel_ground_01", "loose_tile": 2.4, "loose_tint": Color(0.82, 0.8, 0.78),
+		"packed": "gravelly_sand", "packed_tile": 2.3, "packed_tint": Color(0.72, 0.72, 0.72),
+		"stones": "rocky_trail", "stones_tile": 1.1, "stones_tint": Color(0.92, 0.9, 0.88), "stones_amount": 0.75, "porosity": 1.0, "saturation": 0.72},
+	Surface.SAND: {"loose": "sand_01", "loose_tile": 3.2, "loose_tint": Color(1.0, 0.97, 0.92),
+		"packed": "sand_01", "packed_tile": 4.6, "packed_tint": Color(0.86, 0.82, 0.76),
+		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(1.0, 0.95, 0.88), "stones_amount": 0.12, "porosity": 0.6},
+	Surface.SNOW: {"loose": "snow_02", "loose_tile": 3.5, "loose_tint": Color(1.35, 1.36, 1.38),
+		"packed": "snow_02", "packed_tile": 2.4, "packed_tint": Color(1.12, 1.14, 1.18),
+		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(0.6, 0.58, 0.56), "stones_amount": 0.0, "porosity": 0.2},
+	Surface.TARMAC: {"loose": "asphalt_02", "loose_tile": 4.0, "loose_tint": Color(1.0, 1.0, 1.0),
+		"packed": "asphalt_02", "packed_tile": 3.0, "packed_tint": Color(0.86, 0.86, 0.86),
+		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(1.0, 1.0, 1.0), "stones_amount": 0.0, "porosity": 0.5},
 }
 ## Ground layers per biome: two sets mixed by noise and the rock that shows on slopes.
 const BIOME_GROUND := {
@@ -52,14 +69,10 @@ static func set_weather(weather: int) -> void:
 static func road(surface: StringName) -> ShaderMaterial:
 	var key := "road:%s" % surface
 	if not _materials.has(key):
-		var spec: Dictionary = ROAD_SETS.get(surface, ROAD_SETS[Surface.GRAVEL])
 		var material := ShaderMaterial.new()
 		material.shader = ROAD_SHADER
-		_set_road_layer(material, spec)
-		material.set_shader_parameter(&"porosity", spec.porosity)
+		_set_road_layers(material, ROAD_SETS.get(surface, ROAD_SETS[Surface.GRAVEL]))
 		material.set_shader_parameter(&"macro_noise", noise())
-		if surface in [Surface.SAND, Surface.SNOW, Surface.TARMAC]:
-			material.set_shader_parameter(&"rut_darken", 0.88)
 		_materials[key] = material
 	return _materials[key]
 
@@ -70,7 +83,7 @@ static func verge(surface: StringName, biome: int) -> ShaderMaterial:
 		var material := ShaderMaterial.new()
 		material.shader = VERGE_SHADER
 		_set_ground_layers(material, biome)
-		_set_road_layer(material, ROAD_SETS.get(surface, ROAD_SETS[Surface.GRAVEL]))
+		_set_road_layers(material, ROAD_SETS.get(surface, ROAD_SETS[Surface.GRAVEL]))
 		material.set_shader_parameter(&"shoulder", RoadBuilder.SHOULDER)
 		material.set_shader_parameter(&"ditch_in", RoadBuilder.DITCH_IN)
 		material.set_shader_parameter(&"ditch_out", RoadBuilder.DITCH_OUT)
@@ -112,12 +125,22 @@ static func noise() -> Texture2D:
 	return _noise
 
 
-static func _set_road_layer(material: ShaderMaterial, spec: Dictionary) -> void:
-	material.set_shader_parameter(&"road_albedo", texture(spec.set, "diff"))
-	material.set_shader_parameter(&"road_normal", texture(spec.set, "nor_gl"))
-	material.set_shader_parameter(&"road_arm", texture(spec.set, "arm"))
-	material.set_shader_parameter(&"road_tile", spec.tile)
-	material.set_shader_parameter(&"road_tint", spec.tint)
+static func _set_road_layers(material: ShaderMaterial, spec: Dictionary) -> void:
+	material.set_shader_parameter(&"loose_albedo", texture(spec.loose, "diff"))
+	material.set_shader_parameter(&"loose_normal", texture(spec.loose, "nor_gl"))
+	material.set_shader_parameter(&"loose_arm", texture(spec.loose, "arm"))
+	material.set_shader_parameter(&"packed_albedo", texture(spec.packed, "diff"))
+	material.set_shader_parameter(&"packed_normal", texture(spec.packed, "nor_gl"))
+	material.set_shader_parameter(&"stones_albedo", texture(spec.stones, "diff"))
+	material.set_shader_parameter(&"stones_normal", texture(spec.stones, "nor_gl"))
+	material.set_shader_parameter(&"stones_arm", texture(spec.stones, "arm"))
+	for layer in ["loose", "packed", "stones"]:
+		material.set_shader_parameter(StringName(layer + "_tile"), spec[layer + "_tile"])
+		material.set_shader_parameter(StringName(layer + "_tint"), spec[layer + "_tint"])
+	material.set_shader_parameter(&"stones_amount", spec.stones_amount)
+	material.set_shader_parameter(&"porosity", spec.porosity)
+	material.set_shader_parameter(&"rut_gloss", spec.get("rut_gloss", 0.0))
+	material.set_shader_parameter(&"saturation", spec.get("saturation", 1.0))
 
 
 static func _set_ground_layers(material: ShaderMaterial, biome: int) -> void:

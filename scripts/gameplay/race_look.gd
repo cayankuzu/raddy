@@ -11,6 +11,13 @@ const SUN_COLOR := {
 	RaceSettings.Biome.FOREST: Color(1.0, 0.94, 0.84), RaceSettings.Biome.DESERT: Color(1.0, 0.9, 0.76),
 	RaceSettings.Biome.MOUNTAIN: Color(0.98, 0.95, 0.9),
 }
+## What the shade is lit by besides the sky: light bounced off the leaves, the sand or the rock. Sky
+## alone leaves every shadow blue.
+const BOUNCE := {
+	RaceSettings.Biome.FOREST: Color(0.62, 0.62, 0.46), RaceSettings.Biome.DESERT: Color(0.86, 0.74, 0.58),
+	RaceSettings.Biome.MOUNTAIN: Color(0.72, 0.72, 0.68),
+}
+const BOUNCE_SHARE := 0.5
 const OVERCAST := [RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG, RaceSettings.Weather.SNOW, RaceSettings.Weather.DUST_STORM]
 
 
@@ -40,6 +47,8 @@ static func create(biome: int, weather: int) -> Node3D:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_color = BOUNCE.get(biome, Color.WHITE)
+	env.ambient_light_sky_contribution = 1.0 - BOUNCE_SHARE
 	env.ambient_light_energy = 1.0
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX

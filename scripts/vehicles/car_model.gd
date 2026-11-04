@@ -169,19 +169,15 @@ func _move_glass(model: Node3D) -> void:
 			add_child(windshield)
 
 
-static var _glass: StandardMaterial3D
+static var _glass: ShaderMaterial
 
 
-## Nearly clear, glossy glass with a faint green-grey tint, shared by every car.
-static func _clear_glass() -> StandardMaterial3D:
+## Clear glass, shared by every car (shaders/car_glass.gdshader).
+static func _clear_glass() -> ShaderMaterial:
 	if _glass == null:
-		_glass = StandardMaterial3D.new()
+		_glass = ShaderMaterial.new()
 		_glass.resource_name = "ClearGlass"
-		_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_glass.albedo_color = Color(0.78, 0.86, 0.86, 0.1)
-		_glass.roughness = 0.04
-		_glass.metallic_specular = 0.7
-		_glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_glass.shader = preload("res://shaders/car_glass.gdshader")
 	return _glass
 
 

@@ -1,11 +1,10 @@
 shader_type spatial;
-render_mode blend_mix, cull_disabled, depth_draw_opaque, specular_schlick_ggx;
+render_mode blend_premul_alpha, cull_disabled, depth_draw_opaque, specular_schlick_ggx;
 // The car's windshield (WindshieldGlass): clear glass that gathers mud in blotches and streaks,
 // stays clean where the wipers sweep (the corners keep the dirt), and shows a crack star when a
 // stone hits it. Coordinates are measured in the glass's own plane (the model's UVs point into a
 // texture atlas): u across the car, v up the glass, both 0..1.
 
-uniform vec4 glass_tint : source_color = vec4(0.78, 0.86, 0.86, 0.08);
 uniform vec3 dirt_color : source_color = vec3(0.3, 0.26, 0.2);
 // How dirty the swept part and the corners are (0..1).
 uniform float dirt = 0.0;
@@ -53,9 +52,11 @@ void fragment() {
 	float splatter = smoothstep(0.0, 0.55, d * 1.3 - (1.0 - pattern));
 	float mud = clamp(splatter * 0.85 + d * 0.3, 0.0, 0.94);
 	float crack = cracked * texture(crack_texture, uv).a;
-	ALBEDO = mix(glass_tint.rgb, dirt_color, mud);
-	ALBEDO = mix(ALBEDO, vec3(0.93, 0.96, 1.0), crack);
-	ALPHA = max(max(glass_tint.a, mud), crack * 0.85);
+	// Only mud and cracks scatter light, clean glass adds what it mirrors (car_glass.gdshader says why
+	// it mirrors nothing from a seat), so ALBEDO counts how much of them covers the glass.
+	float outside = smoothstep(2.0, 3.0, length(VERTEX));
+	ALBEDO = mix(dirt_color * mud, vec3(0.93, 0.96, 1.0), crack * 0.85);
+	ALPHA = max(max(mix(0.05, 0.3, outside), mud), crack * 0.85);
 	ROUGHNESS = mix(0.04, 0.85, mud);
-	SPECULAR = mix(0.65, 0.2, mud);
+	SPECULAR = mix(mix(0.0, 0.65, outside), 0.2, mud);
 }

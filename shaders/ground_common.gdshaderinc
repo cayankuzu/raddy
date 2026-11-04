@@ -30,6 +30,9 @@ uniform float macro_strength : hint_range(0.0, 1.0) = 0.28;
 uniform float slope_start = 0.9;
 uniform float slope_end = 0.72;
 
+// The scan's snow is a grey photograph; real snow is nearly white.
+const float SNOW_LIFT = 1.9;
+
 struct GroundSample {
 	vec3 albedo;
 	vec2 normal_rg;
@@ -77,14 +80,14 @@ GroundSample ground_sample(vec3 world_pos, vec3 world_normal) {
 	float snow_w = snow_cover * smoothstep(0.5, 0.78, up + (n1 - 0.5) * 0.35);
 	if (snow_w > 0.001) {
 		vec2 s_uv = xz / snow_tile;
-		albedo = mix(albedo, texture(snow_albedo, s_uv).rgb, snow_w);
+		albedo = mix(albedo, texture(snow_albedo, s_uv).rgb * SNOW_LIFT, snow_w);
 		nrm = mix(nrm, texture(snow_normal, s_uv).rg, snow_w);
 		arm.g = mix(arm.g, 0.55, snow_w);
 	}
 
 	float wet = wetness * (1.0 - snow_w);
 	albedo *= mix(1.0, 0.6, wet);
-	arm.g = mix(arm.g, 0.2, wet * 0.85);
+	arm.g = mix(arm.g, 0.5, wet * 0.85);
 
 	GroundSample s;
 	s.albedo = albedo * ground_tint;

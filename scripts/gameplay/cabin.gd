@@ -490,7 +490,10 @@ func _rpc_set_window_state(side: int, state: int, cracked: bool) -> void:
 	_window_meshes[side].visible = state == WindowState.CLOSED
 	if cracked and _window_meshes[side].material_override == null:
 		# Placeholder look for a cracked pane: whiter, less see-through (the art pass adds cracks).
-		var glass := (_window_meshes[side].mesh.surface_get_material(0) as StandardMaterial3D).duplicate() as StandardMaterial3D
+		var glass := StandardMaterial3D.new()
+		glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		glass.cull_mode = BaseMaterial3D.CULL_DISABLED
+		glass.roughness = 0.04
 		glass.albedo_color = Color(0.85, 0.9, 0.95, 0.7)
 		_window_meshes[side].material_override = glass
 	window_state_changed.emit(side, state, cracked)

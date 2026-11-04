@@ -286,7 +286,8 @@ static func _add_surface(body: StaticBody3D, mesh: ArrayMesh) -> void:
 
 
 ## A strip along the road on `side` (-1 left, 1 right) following the cross-section across `columns`
-## (metres from the road edge). UV = (metres from the road edge, metres along the road).
+## (metres from the road edge). UV = (metres from the road edge, metres along the road), UV2 = (half
+## the road's width, the side): shaders/verge.gdshader carries the road's surface on from there.
 static func _side_strip(edge: RouteGraph.RouteEdge, terrain: TerrainField, side: float, columns: PackedFloat32Array, material: Material) -> ArrayMesh:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -294,7 +295,7 @@ static func _side_strip(edge: RouteGraph.RouteEdge, terrain: TerrainField, side:
 	var half := edge.width * 0.5
 	var along := 0.0
 	var count := edge.points.size()
-	var uv2 := Vector2(half, 0.0)
+	var uv2 := Vector2(half, side)
 	for i in count:
 		if i > 0:
 			along += edge.points[i].distance_to(edge.points[i - 1])
