@@ -10,6 +10,10 @@ class_name StageBuilder
 ## "wall" (m), "surface" (Surface id), "width" (m), "caution" (true: a pace-note warning),
 ## "falling_tree" / "rockfall" ("left" | "right": a surprise StageEvents springs on the first crew).
 
+## The inside of every corner of at least SCREEN_TURN degrees gets a screen (trees, rocks: you
+## cannot see round it), from SCREEN_LEAD metres before it to as far after, unless that side is a cliff.
+const SCREEN_TURN := 25.0
+const SCREEN_LEAD := 20.0
 ## Integration step and the spacing of the finished polyline (metres).
 const STEP := 1.0
 const POINT_SPACING := 2.0
@@ -153,6 +157,12 @@ static func _add_features(graph: RouteGraph, segment: Dictionary, from: float, t
 				"side": -1 if segment[String(kind)] == "left" else 1, "value": 0.0})
 	if segment.get("caution", false):
 		graph.features.append({"kind": &"caution", "from": from, "to": to, "at": from, "side": 0, "value": 0.0})
+	var turn := float(segment.get("turn", 0.0))
+	var cliff := str(segment.get("cliff", ""))
+	var inside := "right" if turn > 0.0 else "left"
+	if absf(turn) >= SCREEN_TURN and cliff != inside and cliff != "both":
+		graph.features.append({"kind": &"screen", "from": from - SCREEN_LEAD, "to": to + SCREEN_LEAD, "at": middle,
+			"side": 1 if turn > 0.0 else -1, "value": 0.0})
 
 
 ## Height the features add at `s` metres along the road.

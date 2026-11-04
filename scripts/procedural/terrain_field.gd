@@ -47,6 +47,8 @@ const BANK_RUN := 14.0
 ## A cliff or bank stops shaping ground once another stretch of road is this much nearer than
 ## its own (switchback legs, the start straight beside a hairpin).
 const OTHER_STRETCH := 20.0
+## cliff_at counts this far past a cliff's ends.
+const CLIFF_END_MARGIN := 8.0
 
 var relief := DEFAULT_RELIEF
 ## Widest road half-width and how many hash cells the nearest-road search must reach to cover the
@@ -345,7 +347,8 @@ func cliff_at(p: Vector2) -> Dictionary:
 		if profile.kind != &"cliff" or not (profile.box as Rect2).has_point(p):
 			continue
 		var hit := _nearest_on_profile(profile, p)
-		if not hit.is_empty() and hit.lateral > 0.0 and float(hit.distance) - road < OTHER_STRETCH:
+		# Past a cliff's end (the drop has faded) the side is ordinary ground again.
+		if not hit.is_empty() and hit.lateral > 0.0 and float(hit.beyond) < CLIFF_END_MARGIN and float(hit.distance) - road < OTHER_STRETCH:
 			return hit
 	return {}
 

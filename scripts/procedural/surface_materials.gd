@@ -22,7 +22,7 @@ const ROAD_SETS := {
 ## Ground layers per biome: two sets mixed by noise and the rock that shows on slopes.
 const BIOME_GROUND := {
 	RaceSettings.Biome.FOREST: {"ground": "forrest_ground_01", "ground2": "sparse_grass", "rock": "rock_face_03",
-		"ground_tile": 5.0, "ground2_tile": 6.0, "tint": Color(0.92, 0.96, 0.9), "ground2_amount": 0.45},
+		"ground_tile": 5.0, "ground2_tile": 6.0, "tint": Color(0.74, 0.76, 0.68), "ground2_amount": 0.2},
 	RaceSettings.Biome.DESERT: {"ground": "sand_01", "ground2": "dry_ground_01", "rock": "rock_face_03",
 		"ground_tile": 6.0, "ground2_tile": 5.0, "tint": Color(1.0, 0.95, 0.88), "ground2_amount": 0.45},
 	RaceSettings.Biome.MOUNTAIN: {"ground": "rocky_terrain_02", "ground2": "gravel_ground_01", "rock": "rock_face_03",

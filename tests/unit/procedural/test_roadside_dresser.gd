@@ -18,11 +18,11 @@ func _catalog() -> Array:
 	trunk.height = 6.0
 	var stone := SphereMesh.new()
 	return [
-		{"id": "tree", "mesh": trunk, "density": 6.0, "near": 2.0, "far": 30.0, "scale": [0.8, 1.2],
+		{"id": "tree", "mesh": trunk, "density": 6.0, "near": 3.0, "far": 32.0, "scale": [0.8, 1.2],
 			"collision": {"shape": "cylinder", "radius": 0.4, "height": 6.0}},
-		{"id": "rock", "mesh": stone, "density": 2.0, "near": 1.0, "far": 12.0, "scale": [0.6, 1.5],
+		{"id": "rock", "mesh": stone, "density": 2.0, "near": 3.0, "far": 14.0, "scale": [0.6, 1.5],
 			"collision": {"shape": "sphere", "radius": 0.5}},
-		{"id": "grass", "mesh": stone, "density": 10.0, "near": 0.0, "far": 8.0, "shadows": false},
+		{"id": "grass", "mesh": stone, "density": 10.0, "near": 1.2, "far": 10.0, "shadows": false},
 	]
 
 
@@ -59,15 +59,99 @@ func test_same_seed_same_world() -> void:
 	b.free()
 
 
-func test_nothing_on_or_beside_any_road() -> void:
+func test_undergrowth_may_grow_in_the_ditch_but_hard_things_stay_out() -> void:
 	var dressing := RoadsideDresser.dress(_graph, _terrain, RaceSettings.Biome.FOREST, _catalog())
+	var soft := INF
+	for t in _instances(dressing, "grass"):
+		soft = minf(soft, _terrain.distance_to_road(Vector2(t.origin.x, t.origin.z)))
+	var hard := INF
+	for t in _instances(dressing, "tree"):
+		var reach := 0.4 * t.basis.get_scale().x
+		hard = minf(hard, _terrain.distance_to_road(Vector2(t.origin.x, t.origin.z)) - reach)
+	for t in _instances(dressing, "rock"):
+		var reach := 0.5 * t.basis.get_scale().x
+		hard = minf(hard, _terrain.distance_to_road(Vector2(t.origin.x, t.origin.z)) - reach)
+	gut.p("closest to a road edge: undergrowth %.2f m, a hard surface %.2f m" % [soft, hard])
+	assert_gte(soft, RoadsideDresser.SOFT_CLEAR - 0.01, "the shoulder stays clear")
+	assert_gte(hard, RoadsideDresser.HARD_CLEAR - 0.01, "no trunk in the ditch")
+	dressing.free()
+
+
+func test_trunks_keep_their_spacing() -> void:
+	var dressing := RoadsideDresser.dress(_graph, _terrain, RaceSettings.Biome.FOREST, _catalog())
+	var all: Array[Transform3D] = _instances(dressing, "tree")
+	all.append_array(_instances(dressing, "rock"))
 	var closest := INF
-	for prefix in ["tree", "rock", "grass"]:
-		for t in _instances(dressing, prefix):
-			var d := _terrain.distance_to_road(Vector2(t.origin.x, t.origin.z))
-			closest = minf(closest, d)
-	gut.p("closest instance to a road edge: %.2f m" % closest)
-	assert_gte(closest, RoadBuilder.ROADSIDE + RoadsideDresser.CLEARANCE - 0.01, "the road's side and a margin stay clear")
+	for a in all.size():
+		for b in range(a + 1, mini(a + 200, all.size())):
+			closest = minf(closest, Vector2(all[a].origin.x, all[a].origin.z).distance_to(Vector2(all[b].origin.x, all[b].origin.z)))
+	gut.p("closest two trunks: %.2f m" % closest)
+	assert_gte(closest, RoadsideDresser.TRUNK_SPACING - 0.01)
+	dressing.free()
+
+
+func test_screened_sides_are_screened() -> void:
+	# GAME_DESIGN §4: on every screened stretch something tall stands between the road's side and
+	# 6.5 m out, at least twice per 10 m, so the sightline rule is true in the world, on Low as well.
+	for s in StageCatalog.count():
+		var stage := StageCatalog.get_stage(s)
+		var graph := StageBuilder.build(stage)
+		var terrain := TerrainField.new(graph.seed, BiomeRules.relief(stage.biome))
+		terrain.set_roads(graph)
+		var dressing := RoadsideDresser.dress(graph, terrain, stage.biome, [], GraphicsQuality.SCENERY[GraphicsQuality.Level.LOW])
+		var placements: Dictionary = dressing.get_meta(&"placements")
+		var occluders: Array = []
+		for id in placements:
+			if String(id).begins_with("screen_") or String(id).begins_with("row_"):
+				occluders.append_array(placements[id])
+		var sides := Sightline.screens(graph)
+		var along := graph.route_distances()
+		var index := RouteIndex.new(graph)
+		var bins := {}
+		for t in occluders:
+			var p := Vector2(t.origin.x, t.origin.z)
+			var near := index.nearest(p)
+			var distance := int(float(near.along) / 10.0)
+			var at: Dictionary = graph.sample(float(near.along))
+			var dir: Vector2 = at.direction
+			var side := 1 if (p - Vector2(at.position.x, at.position.z)).dot(Vector2(-dir.y, dir.x)) > 0.0 else 0
+			var key := Vector2i(distance, side)
+			bins[key] = int(bins.get(key, 0)) + 1
+		var total := 0
+		var good := 0
+		var start_line: float = graph.checkpoints[0].distance
+		for i in range(0, along.size(), 5):
+			if along[i] < start_line + RoadsideDresser.START_CLEAR or along[i] > graph.checkpoints[-1].distance:
+				continue
+			for side in 2:
+				# Well inside a screened stretch (not on its first or last few metres).
+				if sides[side][i] == 1 and sides[side][maxi(i - 5, 0)] == 1 and sides[side][mini(i + 5, along.size() - 1)] == 1:
+					total += 1
+					if int(bins.get(Vector2i(int(along[i] / 10.0), side), 0)) >= 2:
+						good += 1
+		var share := float(good) / maxi(total, 1)
+		gut.p("%s: %.0f %% of screened 10 m stretches have 2+ occluders" % [graph.stage_id, share * 100.0])
+		assert_gte(share, 0.93, "%s: the screens are really there" % graph.stage_id)
+		dressing.free()
+
+
+func test_the_road_band_is_a_wall_of_trunks() -> void:
+	var graph := StageBuilder.build(StageCatalog.get_stage(StageCatalog.index_of(&"black_pine")))
+	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(RaceSettings.Biome.FOREST))
+	terrain.set_roads(graph)
+	var dressing := RoadsideDresser.dress(graph, terrain, RaceSettings.Biome.FOREST)
+	var count := 0
+	var placements: Dictionary = dressing.get_meta(&"placements")
+	for id in placements:
+		if not String(id) in ["row_fir", "row_noble", "row_birch", "fir", "pine", "noble_fir", "birch_a", "birch_b", "birch_c", "birch_d", "birch_e"]:
+			continue
+		for t in placements[id]:
+			var d := terrain.distance_to_road(Vector2(t.origin.x, t.origin.z))
+			if d >= RoadBuilder.ROADSIDE and d <= 10.0:
+				count += 1
+	var per_side := count / (graph.main_route_length() / 100.0) / 2.0
+	gut.p("trunks 2.6-10 m from the road: %.1f per 100 m per side" % per_side)
+	assert_gte(per_side, 15.0, "a forest wall, not a parkland")
 	dressing.free()
 
 
@@ -85,11 +169,11 @@ func test_denser_near_the_road() -> void:
 	var far := 0
 	for t in _instances(dressing, "tree"):
 		var d := _terrain.distance_to_road(Vector2(t.origin.x, t.origin.z))
-		if d < RoadBuilder.ROADSIDE + 14.0:
+		if d < RoadBuilder.ROADSIDE + 10.0:
 			near += 1
 		elif d < INF:
 			far += 1
-	gut.p("trees within 14 m of the verge: %d, further (within 20 m search): %d" % [near, far])
+	gut.p("trees within 10 m of the road's side: %d, further (within 20 m search): %d" % [near, far])
 	assert_gt(near, far, "the band beside the road is the dense one")
 	dressing.free()
 

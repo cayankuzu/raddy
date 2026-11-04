@@ -1,9 +1,10 @@
 class_name RoadsideDresser
 ## Dresses a stage with trees, bushes, rocks and ground cover from RoadsideCatalog (spec §13):
-## deterministic per seed so every peer gets the same world, never on or beside the road (the
-## verge and a margin stay clear) nor on the lip of a cliff, denser near the road where it gives
-## the sense of speed, a thick band where the stage ends and a backdrop beyond it. Trees and rocks
-## get real collision so hitting one hurts (spec §8.2).
+## deterministic per seed so every peer gets the same world. Undergrowth grows into the ditch; hard
+## things (trunks, rocks) start beyond the road's side, a car's width apart, and nothing stands on
+## the lip of a cliff. The forest is a wall beside the road (GAME_DESIGN §4: the road ahead is never
+## readable), "screen" entries close the sides Sightline counts on, a thick band stands where the
+## stage ends and a backdrop beyond it. Trees and rocks get real collision (spec §8.2).
 ## Drawing: every instance of one mesh with the same shadow and range settings goes into one
 ## batch, whichever entry placed it (a fir by the road and a fir in the backdrop share it), split
 ## into chunks sized to its visibility range. The renderer's cost here is the number of objects and
@@ -14,8 +15,14 @@ const CHUNK_MIN := 48.0
 const CHUNK_MAX := 192.0
 ## Distance along the road between placement tries, per side.
 const STEP := 4.0
-## Nothing within this many metres of the road's side (RoadBuilder.ROADSIDE).
-const CLEARANCE := 1.5
+## Metres from the road's edge: undergrowth may grow from here (in the ditch), and hard things keep
+## their surface at least this far out (never in the ditch).
+const SOFT_CLEAR := RoadBuilder.SHOULDER + 0.4
+const HARD_CLEAR := RoadBuilder.ROADSIDE
+## Trunks and rocks stay this far apart (a car may wedge, but not disappear into a solid wall).
+const TRUNK_SPACING := 1.8
+## Nothing hard this close to a tree that will fall (its trunk needs the room).
+const EVENT_CLEAR := 4.0
 ## No dressing near the start grid, where spectators and the start arch go.
 const START_CLEAR := 30.0
 ## Nothing on a cliff's lip: the drop stays in view.
@@ -35,7 +42,8 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 	var entries: Array = []
 	for entry in (catalog if not catalog.is_empty() else RoadsideCatalog.for_biome(biome)):
 		var tuned: Dictionary = entry.duplicate()
-		if not tuned.has("collision"):
+		# Screens are gameplay (Low must not see further): only what hides nothing thins out.
+		if not tuned.has("collision") and not tuned.get("screen", false):
 			tuned.density = float(tuned.get("density", 1.0)) * scenery
 		tuned.range = float(tuned.get("range", 250.0)) * range_scale
 		entries.append(tuned)
@@ -54,6 +62,8 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 	var expanded: Array = []
 	for entry in entries:
 		expanded.append_array(_expand_variants(entry))
+	var context := {"graph": graph, "terrain": terrain, "start": start_xz, "screens": Sightline.screens(graph),
+		"hard": {}, "event_bases": StageEventBuilder.tree_bases(graph, terrain)}
 	for entry in expanded:
 		var parts: Array = entry.get("_parts", [])
 		if parts.is_empty():
@@ -66,15 +76,17 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 				if travelled < STEP:
 					continue
 				travelled = 0.0
+				var tries := ceili(float(entry.get("density", 1.0)) * STEP / 100.0)
 				for side in [-1.0, 1.0]:
-					var t: Variant = _try_place(entry, graph, terrain, edge, i, side, start_xz)
-					if t == null:
-						continue
-					var transform: Transform3D = t
-					all.append(transform)
-					_add_to_batches(batches, entry, parts, transform)
-					_add_collision(collisions, entry, transform, shape_cache)
-					placed += 1
+					for k in tries:
+						var t: Variant = _try_place(entry, context, edge, i, side, k, tries)
+						if t == null:
+							continue
+						var transform: Transform3D = t
+						all.append(transform)
+						_add_to_batches(batches, entry, parts, transform)
+						_add_collision(collisions, entry, transform, shape_cache)
+						placed += 1
 		placements[entry.id] = all
 	_build_batches(root, batches)
 	root.set_meta(&"placed", placed)
@@ -82,14 +94,32 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 	return root
 
 
-## One placement attempt for `entry` beside point `i` of `edge` on `side`. Returns the instance
-## transform or null. Randomness comes only from a hash of (seed, entry, edge, point, side).
-static func _try_place(entry: Dictionary, graph: RouteGraph, terrain: TerrainField, edge: RouteGraph.RouteEdge,
-		i: int, side: float, start_xz: Vector2) -> Variant:
+## How far a hard entry's surface reaches from its centre at scale `s` (m), or -1 when it is soft.
+static func _hard_reach(entry: Dictionary, s: float) -> float:
+	var spec: Dictionary = entry.get("collision", {})
+	if spec.is_empty():
+		return -1.0
+	if spec.get("shape", "cylinder") == "box":
+		var size: Vector3 = spec.get("size", Vector3.ONE)
+		return maxf(size.x, size.z) * 0.5 * s
+	return float(spec.get("radius", 0.3)) * s
+
+
+## One placement attempt `k` of `tries` for `entry` beside point `i` of `edge` on `side`. Returns
+## the instance transform or null. Randomness comes only from a hash of (seed, entry, edge, point,
+## side, k), and hard placements are checked in a fixed order: the same world on every peer.
+static func _try_place(entry: Dictionary, context: Dictionary, edge: RouteGraph.RouteEdge,
+		i: int, side: float, k: int, tries: int) -> Variant:
+	var graph: RouteGraph = context.graph
+	var terrain: TerrainField = context.terrain
+	if entry.get("screen", false):
+		var flags: PackedByteArray = context.screens[0 if side < 0.0 else 1]
+		if flags[graph.route_index_of(edge.id, i)] == 0:
+			return null
 	var rng := RandomNumberGenerator.new()
-	rng.seed = hash([graph.seed, entry.id, edge.id, i, side])
+	rng.seed = hash([graph.seed, entry.id, edge.id, i, side]) if k == 0 else hash([graph.seed, entry.id, edge.id, i, side, k])
 	var density: float = entry.get("density", 1.0)  # instances per 100 m of road per side
-	if rng.randf() > density * STEP / 100.0:
+	if rng.randf() > density * STEP / 100.0 / tries:
 		return null
 	var dir := edge.direction_at(i)
 	var right := Vector2(-dir.y, dir.x) * side
@@ -98,9 +128,20 @@ static func _try_place(entry: Dictionary, graph: RouteGraph, terrain: TerrainFie
 	# Biased toward the near edge: the band beside the road is the one the player sees.
 	var out := near + (far - near) * pow(rng.randf(), entry.get("bias", 1.6))
 	var along := (rng.randf() - 0.5) * STEP
-	var p := edge.points[i] + right * (edge.width * 0.5 + RoadBuilder.ROADSIDE + out) + dir * along
-	if terrain.distance_to_road(p) < RoadBuilder.ROADSIDE + CLEARANCE:
+	var p := edge.points[i] + right * (edge.width * 0.5 + out) + dir * along
+	var scale_range: Array = entry.get("scale", [1.0, 1.0])
+	var s := rng.randf_range(scale_range[0], scale_range[1])
+	var reach := _hard_reach(entry, s)
+	var road := terrain.distance_to_road(p)
+	if road < (HARD_CLEAR + reach if reach >= 0.0 else SOFT_CLEAR):
 		return null
+	var start_xz: Vector2 = context.start
+	if reach >= 0.0:
+		if _too_close(context.hard, p):
+			return null
+		for base in context.event_bases:
+			if p.distance_to(base) < EVENT_CLEAR:
+				return null
 	# Scenery nobody can hit stays out of every stretch's corridor (inside a hairpin the far band of
 	# one leg would otherwise stand on the other leg's roadside, where cars do go).
 	if entry.get("backdrop", false) and terrain.distance_to_centreline(p) < TrackFeatures.CORRIDOR + 6.0:
@@ -110,14 +151,31 @@ static func _try_place(entry: Dictionary, graph: RouteGraph, terrain: TerrainFie
 	var cliff := terrain.cliff_at(p)
 	if not cliff.is_empty() and float(cliff.lateral) < float(cliff.half_width) + TerrainField.FLAT_BAND + CLIFF_LIP:
 		return null
-	var scale_range: Array = entry.get("scale", [1.0, 1.0])
-	var s := rng.randf_range(scale_range[0], scale_range[1])
+	if reach >= 0.0:
+		_remember_hard(context.hard, p)
 	var y := terrain.height(p) - float(entry.get("sink", 0.15)) * s
 	var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * s)
 	var tilt: float = entry.get("tilt", 0.0)
 	if tilt > 0.0:
 		basis = Basis(Vector3(rng.randf() - 0.5, 0.0, rng.randf() - 0.5).normalized(), rng.randf() * deg_to_rad(tilt)) * basis
 	return Transform3D(basis, Vector3(p.x, y, p.y))
+
+
+static func _too_close(hard: Dictionary, p: Vector2) -> bool:
+	var cell := Vector2i(floori(p.x / TRUNK_SPACING), floori(p.y / TRUNK_SPACING))
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			for other in hard.get(Vector2i(cell.x + dx, cell.y + dz), []):
+				if (other as Vector2).distance_squared_to(p) < TRUNK_SPACING * TRUNK_SPACING:
+					return true
+	return false
+
+
+static func _remember_hard(hard: Dictionary, p: Vector2) -> void:
+	var cell := Vector2i(floori(p.x / TRUNK_SPACING), floori(p.y / TRUNK_SPACING))
+	if not hard.has(cell):
+		hard[cell] = []
+	hard[cell].append(p)
 
 
 ## Scan files often hold several variants side by side (four ferns, five bushes). With

@@ -8,12 +8,19 @@ const MIN_STAGE_LENGTH := 2000.0
 const MAX_STAGE_LENGTH := 4000.0
 ## A hairpin or a danger at least every this many metres.
 const MAX_DANGER_GAP := 500.0
+## The sightline budget (Sightline): half the stage shows at most ~80 m of road ahead, a long view
+## is rare, and no straight is ever readable for longer than this.
+const MAX_MEDIAN_SIGHT := 80.0
+const LONG_SIGHT := 150.0
+const MAX_LONG_SHARE := 0.03
+const MAX_SIGHT := 200.0
 
 
 static func check(graph: RouteGraph) -> Array[String]:
 	var problems: Array[String] = []
 	_check_length(graph, problems)
 	_check_rhythm(graph, problems)
+	_check_sightlines(graph, problems)
 	return problems
 
 
@@ -40,3 +47,14 @@ static func _check_rhythm(graph: RouteGraph, problems: Array[String]) -> void:
 	var worst := worst_danger_gap(graph)
 	if worst > MAX_DANGER_GAP:
 		problems.append("%.0f m without a danger, more than %.0f" % [worst, MAX_DANGER_GAP])
+
+
+static func _check_sightlines(graph: RouteGraph, problems: Array[String]) -> void:
+	var seen := Sightline.survey(graph, LONG_SIGHT)
+	if float(seen.median) > MAX_MEDIAN_SIGHT:
+		problems.append("half the stage sees more than %.0f m ahead (median %.0f m)" % [MAX_MEDIAN_SIGHT, seen.median])
+	if float(seen.long_share) > MAX_LONG_SHARE:
+		problems.append("%.1f %% of the stage sees more than %.0f m ahead" % [float(seen.long_share) * 100.0, LONG_SIGHT])
+	if float(seen.max) > MAX_SIGHT:
+		problems.append("%.0f m of road in view at %.0f m: break the straight with a crest or a kink" % [seen.max, seen.worst_at])
+

@@ -38,6 +38,17 @@ static func build(graph: RouteGraph, terrain: TerrainField) -> Array[Node3D]:
 	return out
 
 
+## Where the stage's falling trees stand (XZ), for RoadsideDresser to leave them room.
+static func tree_bases(graph: RouteGraph, terrain: TerrainField) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for feature in graph.features_of(&"falling_tree"):
+		var spot := graph.sample(feature.at)
+		var dir: Vector2 = spot.direction
+		var right := Vector2(-dir.y, dir.x) * float(feature.side)
+		out.append(Vector2(spot.position.x, spot.position.z) + right * (float(graph.edges[spot.edge].width) * 0.5 + TREE_BASE))
+	return out
+
+
 static func _tree(graph: RouteGraph, terrain: TerrainField, feature: Dictionary, n: int) -> StaticBody3D:
 	var spot := graph.sample(feature.at)
 	var dir: Vector2 = spot.direction
