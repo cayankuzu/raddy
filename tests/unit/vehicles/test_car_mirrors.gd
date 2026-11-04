@@ -107,3 +107,18 @@ func test_a_map_held_up_hides_what_is_behind_it() -> void:
 	assert_true(map.covers(eye, behind), "held up it does")
 	assert_false(map.covers(eye, eye + Vector3(0.0, 1.0, 0.0)), "not what is beside it")
 	cabin.request_map(false)
+
+
+func test_a_look_to_the_side_moves_the_eyes_and_so_the_picture() -> void:
+	var seat := _seat(^"DriverCamera")
+	seat.look = Vector2.ZERO
+	seat._since_look = -1000.0
+	seat._process(0.016)
+	var ahead := seat.global_position
+	seat.look = Vector2(60.0, 0.0)
+	seat._process(0.016)
+	var aside := seat.global_position
+	assert_gt(ahead.distance_to(aside), 0.05, "the eyes turn about the neck")
+	var glass := _now(CarMirrors.Slot.INTERIOR)
+	assert_gt(glass.seen_at(Vector3(0.0, 0.6, 9.0), _car.to_local(ahead)).distance_to(glass.seen_at(Vector3(0.0, 0.6, 9.0), _car.to_local(aside))), 0.05,
+		"what the mirror shows moves across the glass")

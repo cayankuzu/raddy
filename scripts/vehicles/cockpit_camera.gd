@@ -32,6 +32,9 @@ const RECENTRE_AFTER := 1.1
 const RECENTRE_RATE := 3.5
 ## The driver looks into a corner by this much of the front wheels' angle.
 const CORNER_LOOK := 0.55
+## The head turns about the neck, not about the eyes: where they are from it. So a look to the side moves the eyes
+## too, and what the mirrors show them.
+const EYES_FROM_NECK := Vector3(0.0, 0.06, -0.09)
 
 var car: RallyCar
 ## 0..1 user setting (Settings "camera_shake").
@@ -194,5 +197,5 @@ func _process(delta: float) -> void:
 		deg_to_rad(jitter.x * 0.8),
 		deg_to_rad(-_lean.y * ROLL_PER_G + jitter.z * 1.0)))
 	var head := Basis.from_euler(Vector3(deg_to_rad(look.y), deg_to_rad(look.x + _corner_yaw), 0.0), EULER_ORDER_YXZ)
-	var local := Transform3D(_rest.basis * head * rotation_offset, _rest.origin + offset)
+	var local := Transform3D(_rest.basis * head * rotation_offset, _rest.origin + offset + _rest.basis * (head * EYES_FROM_NECK - EYES_FROM_NECK))
 	global_transform = car.get_global_transform_interpolated() * local

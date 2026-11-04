@@ -14,7 +14,7 @@ extends Node3D
 ##   --windshield=cracked|removed  --dirt=0.4   start with that glass state (screenshots)
 ##   --weather=0..4 --difficulty=0..2   race settings (default clear, rally)
 ##   --dusk          the sun low, headlights on, dials lit
-##   --quality=0..2  graphics level for the scenery (default: the player's setting)
+##   --quality=0..2  graphics level (default: the player's setting)
 ##   --follower=D    a second car D metres behind, driven by a bot when --autodrive is on (mirrors)
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (gates, finish) that tools and tests can read.
@@ -49,6 +49,8 @@ func _ready() -> void:
 		"difficulty": int(_args.get("difficulty", "1"))}
 	graph = StageBuilder.build(stage)
 	BiomeRules.apply_to_graph(graph, settings)
+	if _args.has("quality"):
+		GraphicsQuality.forced = int(_args["quality"])
 	var palette := BiomeRules.palette(settings.biome, settings.weather)
 	# The race's own sky, sun and fog recipe replaces the scene's placeholder ones.
 	$WorldEnvironment.free()
@@ -61,7 +63,7 @@ func _ready() -> void:
 	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(settings.biome))
 	terrain.set_roads(graph)
 	var track := RoadBuilder.build(graph, terrain, palette)
-	var quality := int(_args.get("quality", str(GraphicsQuality.current())))
+	var quality := GraphicsQuality.current()
 	track.add_child(RoadsideDresser.dress(graph, terrain, settings.biome, [],
 		GraphicsQuality.scenery_density(quality), GraphicsQuality.range_scale(quality)))
 	add_child(track)

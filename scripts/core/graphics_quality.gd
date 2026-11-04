@@ -29,9 +29,15 @@ const MIRROR_TURNS := {Level.LOW: [0, 1, -1, 0, 2, -1], Level.MEDIUM: [0, 1, 0, 
 const RENDER_SCALE := {Level.LOW: 0.77, Level.MEDIUM: 1.0, Level.HIGH: 1.0}
 
 
+## Dev scenes (--quality) force a level here, whatever the player's setting says.
+static var forced := AUTO
+
+
 ## The level in force: the setting, or Auto's pick (integrated graphics -> Low, otherwise High;
 ## headless runs count as High so tests see the full world).
 static func current() -> int:
+	if forced != AUTO:
+		return forced
 	var tree := Engine.get_main_loop() as SceneTree
 	var chosen := AUTO
 	if tree != null and tree.root.has_node(^"Settings"):
