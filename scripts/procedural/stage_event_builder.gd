@@ -15,15 +15,14 @@ const ROCK_TRIGGER_BEFORE := 38.0
 ## shoulder; the slope in between must not dip below the road (a hollow would swallow it).
 const ROCK_MIN_RISE := 4.0
 const ROCK_SEARCH_END := 32.0
-## The tree falls this far over (degrees): it comes to rest on the road, not under it.
-const TREE_FALL_ANGLE := 84.0
 ## The fir as it stands (the model at 0.9 scale).
 const TREE_LENGTH := 13.0
 const TRUNK_RADIUS := 0.35
-## The trunk ends this far past the centre line; the crown beyond it has no collision.
-const TRUNK_PAST_CENTRE := 0.5
-## How far from the road's edge the fir stands, beyond the verge.
-const TREE_SETBACK := 2.5
+## The trunk ends this far short of the centre line, on its own half: the far half stays open.
+## The crown beyond it has no collision.
+const TRUNK_SHORT_OF_CENTRE := 0.3
+## How far from the road's edge the fir stands: just past the skirt, on the low ground.
+const TREE_BASE := RoadBuilder.ROADSIDE + 0.4
 
 
 static func build(graph: RouteGraph, terrain: TerrainField) -> Array[Node3D]:
@@ -45,7 +44,7 @@ static func _tree(graph: RouteGraph, terrain: TerrainField, feature: Dictionary,
 	var side := float(feature.side)
 	var right := Vector2(-dir.y, dir.x) * side
 	var half: float = graph.edges[spot.edge].width * 0.5
-	var setback := half + RoadBuilder.VERGE + TREE_SETBACK
+	var setback := half + TREE_BASE
 	var base_xz := Vector2(spot.position.x, spot.position.z) + right * setback
 	var base := Vector3(base_xz.x, terrain.height(base_xz), base_xz.y)
 	var event := StaticBody3D.new()
@@ -56,10 +55,13 @@ static func _tree(graph: RouteGraph, terrain: TerrainField, feature: Dictionary,
 	var toward_road := Vector3(-right.x, 0.0, -right.y)
 	var fall := (toward_road + Vector3(dir.x, 0.0, dir.y) * 0.25).normalized()
 	var axis := Vector3.UP.cross(fall).normalized()
-	var fallen := Basis(axis, deg_to_rad(TREE_FALL_ANGLE))
-	# The trunk's length so that, lying, it ends TRUNK_PAST_CENTRE beyond the centre line.
-	var across := fall.dot(toward_road) * sin(deg_to_rad(TREE_FALL_ANGLE))
-	var reach := minf((setback + TRUNK_PAST_CENTRE) / across, TREE_LENGTH)
+	# It comes to rest with its trunk on the road's level (the base stands lower, in the ditch's
+	# ground), and ends TRUNK_SHORT_OF_CENTRE before the centre line.
+	var horizontal := (setback - TRUNK_SHORT_OF_CENTRE) / fall.dot(toward_road)
+	var climb: float = spot.position.y + TRUNK_RADIUS - base.y
+	var angle := PI * 0.5 - atan2(climb, horizontal)
+	var fallen := Basis(axis, angle)
+	var reach := minf(Vector2(horizontal, climb).length(), TREE_LENGTH)
 	event.set_meta(&"fallen_basis", fallen)
 	event.set_meta(&"trunk_reach", reach)
 	event.set_meta(&"crash_point", base + fallen * (Vector3.UP * reach))
@@ -131,11 +133,11 @@ static func _rocks(graph: RouteGraph, terrain: TerrainField, feature: Dictionary
 ## The first ground at least ROCK_MIN_RISE above the road walking out from the shoulder along
 ## `right`, with no dip below the road on the way; Vector3.INF when there is none.
 static func high_ground(terrain: TerrainField, road_xz: Vector2, road_y: float, right: Vector2, half: float) -> Vector3:
-	var offset := half + RoadBuilder.VERGE
+	var offset := half + RoadBuilder.ROADSIDE
 	while offset <= ROCK_SEARCH_END:
 		var p := road_xz + right * offset
 		var h := terrain.height(p)
-		if h < road_y - 0.5:
+		if h < road_y - TerrainField.FLOOR_DROP - 1.0:
 			return Vector3.INF
 		if h >= road_y + ROCK_MIN_RISE:
 			return Vector3(p.x, h, p.y)

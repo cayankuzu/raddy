@@ -21,7 +21,7 @@ const GRIP_SCALE := {Weather.CLEAR: 1.0, Weather.RAIN: 0.8, Weather.FOG: 1.0, We
 const FOG_DENSITY := {Weather.CLEAR: 0.0015, Weather.RAIN: 0.004, Weather.FOG: 0.02, Weather.SNOW: 0.008, Weather.DUST_STORM: 0.014}
 
 ## Road width multiplier: Explore is wider, Redline narrower and more technical.
-const WIDTH_SCALE := {Difficulty.EXPLORE: 1.2, Difficulty.RALLY: 1.0, Difficulty.REDLINE: 0.85}
+const WIDTH_OFFSET := {Difficulty.EXPLORE: 0.8, Difficulty.RALLY: 0.0, Difficulty.REDLINE: -0.2}
 ## Time added to a team's result per recovery (spec 16.3: small, testable, not punishing).
 const RECOVERY_PENALTY_MS := {Difficulty.EXPLORE: 0, Difficulty.RALLY: 3000, Difficulty.REDLINE: 6000}
 
@@ -73,8 +73,9 @@ static func is_resolved(settings: Dictionary) -> bool:
 	return true
 
 
-static func width_scale(difficulty: int) -> float:
-	return WIDTH_SCALE.get(difficulty, 1.0)
+## Metres the difficulty adds to every road's width (GAME_DESIGN §4: Explore +0.8 m).
+static func width_offset(difficulty: int) -> float:
+	return WIDTH_OFFSET.get(difficulty, 0.0)
 
 
 static func recovery_penalty_ms(difficulty: int) -> int:

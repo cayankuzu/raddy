@@ -14,8 +14,8 @@ const CHUNK_MIN := 48.0
 const CHUNK_MAX := 192.0
 ## Distance along the road between placement tries, per side.
 const STEP := 4.0
-## Nothing within this many metres of a road edge (the verge is 2.5 m).
-const CLEARANCE := 4.0
+## Nothing within this many metres of the road's side (RoadBuilder.ROADSIDE).
+const CLEARANCE := 1.5
 ## No dressing near the start grid, where spectators and the start arch go.
 const START_CLEAR := 30.0
 ## Nothing on a cliff's lip: the drop stays in view.
@@ -98,8 +98,8 @@ static func _try_place(entry: Dictionary, graph: RouteGraph, terrain: TerrainFie
 	# Biased toward the near edge: the band beside the road is the one the player sees.
 	var out := near + (far - near) * pow(rng.randf(), entry.get("bias", 1.6))
 	var along := (rng.randf() - 0.5) * STEP
-	var p := edge.points[i] + right * (edge.width * 0.5 + RoadBuilder.VERGE + out) + dir * along
-	if terrain.distance_to_road(p) < RoadBuilder.VERGE + CLEARANCE:
+	var p := edge.points[i] + right * (edge.width * 0.5 + RoadBuilder.ROADSIDE + out) + dir * along
+	if terrain.distance_to_road(p) < RoadBuilder.ROADSIDE + CLEARANCE:
 		return null
 	# Scenery nobody can hit stays out of every stretch's corridor (inside a hairpin the far band of
 	# one leg would otherwise stand on the other leg's roadside, where cars do go).
@@ -108,7 +108,7 @@ static func _try_place(entry: Dictionary, graph: RouteGraph, terrain: TerrainFie
 	if p.distance_to(start_xz) < START_CLEAR:
 		return null
 	var cliff := terrain.cliff_at(p)
-	if not cliff.is_empty() and float(cliff.lateral) < float(cliff.half_width) + TerrainField.SHOULDER + CLIFF_LIP:
+	if not cliff.is_empty() and float(cliff.lateral) < float(cliff.half_width) + TerrainField.FLAT_BAND + CLIFF_LIP:
 		return null
 	var scale_range: Array = entry.get("scale", [1.0, 1.0])
 	var s := rng.randf_range(scale_range[0], scale_range[1])

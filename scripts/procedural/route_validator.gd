@@ -13,8 +13,10 @@ const MAX_GRADE := 0.3
 const SEPARATION := 30.0
 const SEPARATION_ALONG := 150.0
 const CROSS_CELL := 12.0
-## Two car widths.
-const MIN_WIDTH := 4.5
+## GAME_DESIGN §4: a real stage is about two car widths, sometimes less.
+const MIN_WIDTH := 3.6
+## The road's width never steps along a stage: ditches and shoulders run unbroken.
+const MAX_WIDTH_STEP := 0.01
 
 
 static func validate(graph: RouteGraph) -> Array[String]:
@@ -36,10 +38,15 @@ static func validate(graph: RouteGraph) -> Array[String]:
 ## kept between stretches (Explore widens roads).
 static func _check_widths(graph: RouteGraph, problems: Array[String]) -> void:
 	for edge in graph.edges:
-		if edge.width < MIN_WIDTH:
+		if edge.width < MIN_WIDTH - 0.001:
 			problems.append("edge %d is %.1f m wide, under %.1f" % [edge.id, edge.width, MIN_WIDTH])
-		if edge.width + 2.0 * RoadBuilder.VERGE > SEPARATION:
-			problems.append("edge %d with its verges (%.1f m) does not fit the %.0f m gap" % [edge.id, edge.width + 2.0 * RoadBuilder.VERGE, SEPARATION])
+		if edge.width + 2.0 * RoadBuilder.ROADSIDE > SEPARATION:
+			problems.append("edge %d with its sides (%.1f m) does not fit the %.0f m gap" % [edge.id, edge.width + 2.0 * RoadBuilder.ROADSIDE, SEPARATION])
+	for i in range(1, graph.main_route.size()):
+		var before := graph.edges[graph.main_route[i - 1]]
+		var after := graph.edges[graph.main_route[i]]
+		if absf(after.width - before.width) > MAX_WIDTH_STEP:
+			problems.append("edge %d steps from %.1f to %.1f m wide: ditches cannot step" % [after.id, before.width, after.width])
 
 
 ## The road runs start -> waypoints -> finish through every edge exactly once.

@@ -46,6 +46,34 @@ func test_every_stage_is_valid() -> void:
 		assert_eq(problems, [] as Array[String], "%s has no problems" % graph.stage_id)
 
 
+func test_widths_follow_the_design_rule() -> void:
+	# GAME_DESIGN §4: Rally 3.6-5.0 m; every difficulty's roads stay wide enough for the validator.
+	for i in StageCatalog.count():
+		var rally := StageBuilder.build(StageCatalog.get_stage(i))
+		for edge in rally.edges:
+			assert_between(edge.width, 3.6, 5.0, "%s is a narrow rally road" % rally.stage_id)
+		for difficulty in RaceSettings.Difficulty.values():
+			var graph := StageBuilder.build(StageCatalog.get_stage(i))
+			BiomeRules.apply_to_graph(graph, {"difficulty": difficulty, "weather": RaceSettings.Weather.CLEAR})
+			assert_gte(graph.narrowest_width(), 3.6 - 0.001, "%s stays two car widths at difficulty %d" % [graph.stage_id, difficulty])
+	# Three cars fit side by side on the narrowest grid, staggered.
+	assert_lte(RaceSession.GRID_LATERAL + 0.8, 3.6 * 0.5, "a staggered car stays on the narrowest road")
+
+
+func test_a_width_step_along_the_road_is_a_problem() -> void:
+	var graph := StageBuilder.build({"id": &"step", "seed": 1, "width": 4.4, "segments": [
+		{"len": 800}, {"len": 800, "width": 5.0}, {"len": 800, "width": 5.0}]})
+	var problems := RouteValidator.validate(graph)
+	assert_true(problems.any(func(p: String) -> bool: return p.contains("steps from")), "the validator says so: %s" % [problems])
+
+
+func test_every_stage_meets_the_design_rules() -> void:
+	for graph in _stages():
+		var problems := StageDesignRules.check(graph)
+		gut.p("%s: %.0f m, worst gap between dangers %.0f m" % [graph.stage_id, graph.main_route_length(), StageDesignRules.worst_danger_gap(graph)])
+		assert_eq(problems, [] as Array[String], "%s meets the design" % graph.stage_id)
+
+
 func test_same_recipe_same_stage() -> void:
 	for i in StageCatalog.count():
 		var a := StageBuilder.build(StageCatalog.get_stage(i))

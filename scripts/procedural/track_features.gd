@@ -11,7 +11,7 @@ const WALL_STEP := 8.0
 const WALL_THICKNESS := 1.0
 const WALL_ABOVE_ROAD := 14.0
 const WALL_OVERRUN := 4.0
-## Guard rails: posts this far apart, the rail this far outside the verge.
+## Guard rails: posts this far apart, the rail this far outside the shoulder.
 const POST_SPACING := 3.2
 const RAIL_OUTSIDE := 0.35
 const RAIL_HEIGHT := 0.75
@@ -60,7 +60,7 @@ static func _build_water(graph: RouteGraph, feature: Dictionary) -> Node3D:
 	from -= 2.0
 	to += 2.0
 	var spot := graph.sample(feature.at)
-	var half: float = graph.edges[spot.edge].width * 0.5 + RoadBuilder.VERGE + 3.0
+	var half: float = graph.edges[spot.edge].width * 0.5 + RoadBuilder.ROADSIDE + 2.5
 	# A pool with a ragged, oval outline: five vertices across each row, the outer ones fully
 	# transparent, so the water fades into the mud instead of ending in a straight edge.
 	var surface := SurfaceTool.new()
@@ -162,7 +162,7 @@ static func _build_rail(graph: RouteGraph, feature: Dictionary) -> StaticBody3D:
 		var dir: Vector2 = here.direction
 		var right := Vector3(-dir.y, 0.0, dir.x) * side
 		var half: float = graph.edges[here.edge].width * 0.5
-		var base: Vector3 = here.position + right * (half + RoadBuilder.VERGE + RAIL_OUTSIDE)
+		var base: Vector3 = here.position + right * (half + RoadBuilder.SHOULDER + RAIL_OUTSIDE)
 		if absf(distance - gap_at) < 4.5:
 			if not (runs[-1] as Array).is_empty():
 				runs.append([])
@@ -358,7 +358,7 @@ static func _build_arch(graph: RouteGraph, gate: RouteGraph.Gate, text: String, 
 	var dir := gate.direction
 	arch.transform = Transform3D(Basis.looking_at(Vector3(dir.x, 0.0, dir.y), Vector3.UP),
 		Vector3(gate.position.x, edge.heights[gate.point_index], gate.position.y))
-	var span := edge.width + RoadBuilder.VERGE * 2.0 + 1.6
+	var span := edge.width + RoadBuilder.ROADSIDE * 2.0 + 1.0
 	var body := StaticBody3D.new()
 	body.name = "Posts"
 	arch.add_child(body)
@@ -369,10 +369,10 @@ static func _build_arch(graph: RouteGraph, gate: RouteGraph.Gate, text: String, 
 	for side in [-1.0, 1.0]:
 		var post := MeshInstance3D.new()
 		var post_mesh := BoxMesh.new()
-		post_mesh.size = Vector3(0.45, ARCH_HEIGHT, 0.45)
+		post_mesh.size = Vector3(0.45, ARCH_HEIGHT + RoadBuilder.POST_FOOT, 0.45)
 		post_mesh.material = truss
 		post.mesh = post_mesh
-		post.position = Vector3(side * span * 0.5, ARCH_HEIGHT * 0.5, 0.0)
+		post.position = Vector3(side * span * 0.5, (ARCH_HEIGHT - RoadBuilder.POST_FOOT) * 0.5, 0.0)
 		body.add_child(post)
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()

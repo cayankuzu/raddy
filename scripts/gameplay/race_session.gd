@@ -34,7 +34,7 @@ const BOULDER_REST_TIME := 1.0
 const BOULDER_SETTLE_MAX := 25.0
 const BOULDER_KEEP_DISTANCE := 15.0
 const GRID_ROW := 7.0
-const GRID_LATERAL := 1.6
+const GRID_LATERAL := 0.9
 const CAN_LIFETIME := 8.0
 const SYNC_NODE := &"NetSync"
 ## Spec 3: a short start. The cars hold on the grid while it counts down.
@@ -922,7 +922,7 @@ func _bind_local_seat(car: RallyCar, role: int) -> void:
 			bot.set_path(graph.main_route_points())
 			if stage_events != null:
 				bot.obstacles = stage_events.obstacles
-			bot.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.VERGE
+			bot.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER
 			add_child(bot)
 	var effects := SeatEffects.new()
 	effects.name = "SeatEffects"

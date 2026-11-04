@@ -2,8 +2,11 @@ class_name TerrainField
 extends RefCounted
 ## Deterministic ground height for a stage: a smooth surface through the road's own heights (so
 ## the land rises and falls with the road), hills that grow away from the road, the stage's cliffs
-## (drops beside the road) and banks (walls beside it), and the ground pressed flat under the road
-## so a road is always level across its width and the ground rises or falls away from its edges.
+## (drops beside the road) and banks (walls beside it). The road stands on its own cross-section
+## (cross_section): shoulder, ditch, lip and a skirt down to the floor. The ground grid (CELL m, the
+## mesh and collision RoadBuilder makes) lies flat under all that, FLOOR_DROP below the lowest road
+## height nearby, so its 4 m triangles can never poke through a shoulder or a ditch.
+## height() is the surface you see: the profile near a road, the grid beyond it.
 
 ## Hill height and the noise frequencies.
 const DEFAULT_RELIEF := 9.0
@@ -12,11 +15,19 @@ const DETAIL_AMPLITUDE := 1.0
 const DETAIL_FREQUENCY := 1.0 / 45.0
 ## Hills grow from nothing at the road to full height this far from it.
 const HILL_RAMP := 80.0
-## Ground within this distance of the road edge is held just under road height (verge plus a
-## shoulder wider than one terrain cell, so interpolated ground never pokes through the road).
-const SHOULDER := 7.0
-## How far under the road the ground sits in that band; the road and verge meshes cover it.
-const TRENCH := 0.12
+## The ground grid: cell size and how far it reaches around the stage.
+const CELL := 4.0
+const MARGIN := 140.0
+## Ground within this distance of the road edge is flat, FLOOR_DROP below the lowest road height
+## within FLOOR_WINDOW along the road: the road's profile (RoadBuilder.ROADSIDE) plus a grid cell's
+## diagonal, so interpolated ground never pokes through the ribbons.
+const FLAT_BAND := 8.5
+const FLOOR_DROP := 0.7
+const FLOOR_WINDOW := 6.0
+## Ditches ease to nothing over this distance (m along the road) next to where they must not be:
+## cliff sides, water, a rockfall's side, the stage's ends.
+const DITCH_FADE := 8.0
+const DITCH_CLEAR_ENDS := 15.0
 ## Width of the band where the ground blends from road height back to the land around it; a
 ## cliff side blends over CLIFF_BLEND so the drop starts right past the shoulder.
 const BLEND := 20.0
@@ -45,8 +56,24 @@ var _reach_cells := 4
 
 var _hills := FastNoiseLite.new()
 var _detail := FastNoiseLite.new()
-## cell -> Array of [Vector2 point, height, half_width]
+## cell -> Array of road segments: [a, b, height_a, height_b, half_width, floor_a, floor_b, edge_id,
+## point index, ditch_left_a, ditch_left_b, ditch_right_a, ditch_right_b]
 var _road_cells: Dictionary = {}
+## Per point of the stage road (RouteGraph route index): the ditch factor on each side, the floor.
+var _ditch_left := PackedFloat32Array()
+var _ditch_right := PackedFloat32Array()
+var _floor := PackedFloat32Array()
+var _graph: RouteGraph
+## The nearest road found by _find_nearest: metres from its edge (negative on it), its height, the
+## floor height there and the ditch factor on p's side.
+var _n_edge_distance := INF
+var _n_height := 0.0
+var _n_floor := 0.0
+var _n_ditch := 1.0
+## The ground grid (built on first use): heights row by row, its origin and cell counts.
+var _grid := PackedFloat32Array()
+var _grid_origin := Vector2.ZERO
+var _grid_cells := Vector2i.ZERO
 ## Base grid: heights through the road and the distance to the nearest road sample.
 var _base := PackedFloat32Array()
 var _base_distance := PackedFloat32Array()
@@ -80,67 +107,229 @@ func _natural(p: Vector2, base: Vector2) -> float:
 	return base.x + hills + _side_offset(p, base.y)
 
 
-## Registers the finished road, so height() can follow it and press the ground flat under it.
+## Registers the finished road, so height() can follow it and lay the ground under it.
 func set_roads(graph: RouteGraph) -> void:
+	_graph = graph
 	_road_cells.clear()
+	_grid = PackedFloat32Array()
 	_max_half_width = 0.0
+	_build_ditches(graph)
 	for edge in graph.edges:
 		_max_half_width = maxf(_max_half_width, edge.width * 0.5)
-		for i in edge.points.size():
-			var key := _cell(edge.points[i])
-			if not _road_cells.has(key):
-				_road_cells[key] = []
-			_road_cells[key].append([edge.points[i], edge.heights[i], edge.width * 0.5])
-	_reach_cells = ceili((SHOULDER + BLEND + _max_half_width) / HASH_CELL)
+		for i in range(edge.points.size() - 1):
+			_add_segment(graph, edge, i)
+	_reach_cells = ceili((FLAT_BAND + BLEND + _max_half_width) / HASH_CELL)
 	_build_base(graph)
 	_build_sides(graph)
 
 
-## Ground height with the road applied.
+func _add_segment(graph: RouteGraph, edge: RouteGraph.RouteEdge, i: int) -> void:
+	var a := edge.points[i]
+	var b := edge.points[i + 1]
+	var ra := graph.route_index_of(edge.id, i)
+	var rb := graph.route_index_of(edge.id, i + 1)
+	var segment := [a, b, edge.heights[i], edge.heights[i + 1], edge.width * 0.5, _floor[ra], _floor[rb], edge.id, i,
+		_ditch_left[ra], _ditch_left[rb], _ditch_right[ra], _ditch_right[rb]]
+	var lo := _cell(a.min(b))
+	var hi := _cell(a.max(b))
+	for x in range(lo.x, hi.x + 1):
+		for z in range(lo.y, hi.y + 1):
+			var key := Vector2i(x, z)
+			if not _road_cells.has(key):
+				_road_cells[key] = []
+			_road_cells[key].append(segment)
+
+
+## The ditch factor per road point on each side (1 = a full ditch, 0 = none), and the floor: the
+## lowest road height within FLOOR_WINDOW.
+func _build_ditches(graph: RouteGraph) -> void:
+	var points := graph.main_route_points()
+	var along := graph.route_distances()
+	var total: float = along[-1] if not along.is_empty() else 0.0
+	# [from, to, side (0 = both)] where a ditch must not be.
+	var zones: Array = [[-INF, DITCH_CLEAR_ENDS, 0], [total - DITCH_CLEAR_ENDS, INF, 0]]
+	for feature in graph.features:
+		match feature.kind:
+			&"cliff":
+				zones.append([float(feature.from) - DITCH_FADE, float(feature.to) + DITCH_FADE, int(feature.side)])
+			&"water":
+				zones.append([float(feature.from) - DITCH_FADE, float(feature.to) + DITCH_FADE, 0])
+			&"rockfall":
+				zones.append([float(feature.from) - 10.0, float(feature.to) + 30.0, int(feature.side)])
+	var count := points.size()
+	_ditch_left.resize(count)
+	_ditch_right.resize(count)
+	_floor.resize(count)
+	var window := ceili(FLOOR_WINDOW / StageBuilder.POINT_SPACING)
+	for i in count:
+		var s := along[i]
+		var left := 1.0
+		var right := 1.0
+		for zone in zones:
+			var gap := maxf(maxf(float(zone[0]) - s, s - float(zone[1])), 0.0)
+			var factor := clampf(gap / DITCH_FADE, 0.0, 1.0)
+			if zone[2] <= 0:
+				left = minf(left, factor)
+			if zone[2] >= 0:
+				right = minf(right, factor)
+		_ditch_left[i] = left
+		_ditch_right[i] = right
+		var lowest := points[i].y
+		for k in range(maxi(i - window, 0), mini(i + window, count - 1) + 1):
+			lowest = minf(lowest, points[k].y)
+		_floor[i] = lowest
+
+
+## The road's cross-section: height above the centreline `e` metres from the road edge, `d` the
+## ditch factor there. Shoulder, ditch, lip, then a skirt down to the floor.
+static func cross_section(e: float, d: float) -> float:
+	if e <= 0.0:
+		return RoadBuilder.ROAD_LIFT
+	var bottom := -RoadBuilder.SHOULDER_DROP - (RoadBuilder.DITCH_DEPTH - RoadBuilder.SHOULDER_DROP) * d
+	var lip := -RoadBuilder.SHOULDER_DROP - (RoadBuilder.LIP_DROP - RoadBuilder.SHOULDER_DROP) * d
+	if e <= RoadBuilder.SHOULDER:
+		return lerpf(RoadBuilder.ROAD_LIFT, -RoadBuilder.SHOULDER_DROP, e / RoadBuilder.SHOULDER)
+	if e <= RoadBuilder.DITCH_IN:
+		return lerpf(-RoadBuilder.SHOULDER_DROP, bottom, (e - RoadBuilder.SHOULDER) / (RoadBuilder.DITCH_IN - RoadBuilder.SHOULDER))
+	if e <= RoadBuilder.DITCH_OUT:
+		return bottom
+	if e <= RoadBuilder.DITCH_END:
+		return lerpf(bottom, lip, (e - RoadBuilder.DITCH_OUT) / (RoadBuilder.DITCH_END - RoadBuilder.DITCH_OUT))
+	if e <= RoadBuilder.ROADSIDE:
+		return lerpf(lip, -FLOOR_DROP, (e - RoadBuilder.DITCH_END) / (RoadBuilder.ROADSIDE - RoadBuilder.DITCH_END))
+	return -FLOOR_DROP
+
+
+## The ditch factor of point `i` of `edge_id` on `side` (-1 left, 1 right).
+func ditch_at(edge_id: int, i: int, side: float) -> float:
+	var r := _graph.route_index_of(edge_id, i)
+	return _ditch_left[r] if side < 0.0 else _ditch_right[r]
+
+
+## The ground grid: {"heights": row by row, "origin": Vector2, "cells": Vector2i}. Width and depth
+## in vertices are cells + 1.
+func grid() -> Dictionary:
+	_ensure_grid()
+	return {"heights": _grid, "origin": _grid_origin, "cells": _grid_cells}
+
+
+func _ensure_grid() -> void:
+	if not _grid.is_empty() or _graph == null:
+		return
+	var half := _graph.half_extent + Vector2(MARGIN, MARGIN)
+	_grid_cells = Vector2i(ceili(half.x * 2.0 / CELL), ceili(half.y * 2.0 / CELL))
+	_grid_origin = _graph.center - Vector2(_grid_cells) * CELL * 0.5
+	var width := _grid_cells.x + 1
+	var depth := _grid_cells.y + 1
+	_grid.resize(width * depth)
+	for z in depth:
+		for x in width:
+			_grid[z * width + x] = _ground(_grid_origin + Vector2(x, z) * CELL)
+
+
+## The grid's surface at `p`, on the same triangles as the mesh: (i, i+1, i+w) and (i+1, i+w+1, i+w).
+func grid_at(p: Vector2) -> float:
+	_ensure_grid()
+	if _grid.is_empty():
+		return _ground(p)
+	var g := (p - _grid_origin) / CELL
+	var x := floori(g.x)
+	var z := floori(g.y)
+	if x < 0 or z < 0 or x >= _grid_cells.x or z >= _grid_cells.y:
+		return _ground(p)
+	var fx := g.x - x
+	var fz := g.y - z
+	var width := _grid_cells.x + 1
+	var i := z * width + x
+	if fx + fz <= 1.0:
+		return _grid[i] + fx * (_grid[i + 1] - _grid[i]) + fz * (_grid[i + width] - _grid[i])
+	return _grid[i + width + 1] + (1.0 - fx) * (_grid[i + width] - _grid[i + width + 1]) + (1.0 - fz) * (_grid[i + 1] - _grid[i + width + 1])
+
+
+## Finds the nearest road to `p` within `reach` hash cells (into the _n_ fields).
+func _find_nearest(p: Vector2, reach: int) -> void:
+	_n_edge_distance = INF
+	var cell := _cell(p)
+	var best: Array = []
+	var best_t := 0.0
+	var best_offset := Vector2.ZERO
+	for ring in reach + 1:
+		# Anything in this ring is at least (ring - 1) cells away.
+		if _n_edge_distance < (ring - 1) * HASH_CELL - _max_half_width:
+			break
+		for dx in range(-ring, ring + 1):
+			for dz in range(-ring, ring + 1):
+				if maxi(absi(dx), absi(dz)) != ring:
+					continue
+				var segments: Variant = _road_cells.get(Vector2i(cell.x + dx, cell.y + dz))
+				if segments == null:
+					continue
+				for segment in segments:
+					var a: Vector2 = segment[0]
+					var ab: Vector2 = segment[1] - a
+					var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
+					var offset: Vector2 = p - (a + ab * t)
+					var e: float = offset.length() - float(segment[4])
+					if e < _n_edge_distance:
+						_n_edge_distance = e
+						best = segment
+						best_t = t
+						best_offset = offset
+	if best.is_empty():
+		return
+	_n_height = lerpf(best[2], best[3], best_t)
+	_n_floor = lerpf(best[5], best[6], best_t)
+	var along: Vector2 = best[1] - best[0]
+	var right := Vector2(-along.y, along.x)
+	if best_offset.dot(right) < 0.0:
+		_n_ditch = lerpf(best[9], best[10], best_t)
+	else:
+		_n_ditch = lerpf(best[11], best[12], best_t)
+
+
+## The surface you see at `p`: the road's profile near it, the ground grid beyond.
 func height(p: Vector2) -> float:
+	if _road_cells.is_empty():
+		return _ground(p)
+	_find_nearest(p, 1)
+	if _n_edge_distance <= RoadBuilder.ROADSIDE:
+		return _n_height + cross_section(_n_edge_distance, _n_ditch)
+	return grid_at(p)
+
+
+## The ground under everything: flat below the road, blending out to the land around it.
+func _ground(p: Vector2) -> float:
 	var base := _base_at(p)
 	# Far from every road (the base grid's distance errs by well under 30 m): just the land.
-	if base.y > _max_half_width + SHOULDER + BLEND + 30.0:
+	if base.y > _max_half_width + FLAT_BAND + BLEND + 30.0:
 		return _natural(p, base)
 	# The search covers the whole blend band, so neighbouring vertices never disagree about which
 	# road they blend toward.
-	var best_distance := INF
-	var best_height := 0.0
-	var cell := _cell(p)
-	for dx in range(-_reach_cells, _reach_cells + 1):
-		for dz in range(-_reach_cells, _reach_cells + 1):
-			var samples: Variant = _road_cells.get(Vector2i(cell.x + dx, cell.y + dz))
-			if samples == null:
-				continue
-			for sample in samples:
-				var distance: float = (sample[0] as Vector2).distance_to(p) - sample[2]
-				if distance < best_distance:
-					best_distance = distance
-					best_height = sample[1]
-	if best_distance <= SHOULDER:
-		return best_height - TRENCH
+	_find_nearest(p, _reach_cells)
+	if _n_edge_distance == INF:
+		return _natural(p, base)
+	var distance := _n_edge_distance
+	var road_height := _n_height
+	var floor_height := _n_floor - FLOOR_DROP
+	if distance <= FLAT_BAND:
+		return floor_height
 	var natural := _natural(p, base)
 	# Where the land falls away below the road (a cliff, a steep valley) the blend narrows so the
-	# drop starts right past the shoulder; the width changes smoothly with the fall, so the ground
+	# drop starts right past the flat band; the width changes smoothly with the fall, so the ground
 	# never steps where it crosses a threshold.
-	var fall := clampf((best_height - natural - 1.0) / 3.0, 0.0, 1.0)
+	var fall := clampf((road_height - natural - 1.0) / 3.0, 0.0, 1.0)
 	var blend := lerpf(BLEND, CLIFF_BLEND, fall * fall * (3.0 - 2.0 * fall))
-	if best_distance >= SHOULDER + blend:
+	if distance >= FLAT_BAND + blend:
 		return natural
-	var t := (best_distance - SHOULDER) / blend
-	return lerpf(best_height - TRENCH, natural, smoothstep(0.0, 1.0, t))
+	var t := (distance - FLAT_BAND) / blend
+	return lerpf(floor_height, natural, smoothstep(0.0, 1.0, t))
 
 
 ## Distance from `p` to the nearest road edge (negative on a road), or INF when no road is within
 ## about 20 m. Used to keep roadside props off the road.
 func distance_to_road(p: Vector2) -> float:
-	var best := INF
-	var cell := _cell(p)
-	for dx in range(-2, 3):
-		for dz in range(-2, 3):
-			for sample in _road_cells.get(Vector2i(cell.x + dx, cell.y + dz), []):
-				best = minf(best, (sample[0] as Vector2).distance_to(p) - sample[2])
-	return best
+	_find_nearest(p, 2)
+	return _n_edge_distance
 
 
 ## Distance from `p` to the road's centreline (any range), from the base grid.
@@ -261,7 +450,7 @@ func _side_offset(p: Vector2, road: float) -> float:
 		var hit := _nearest_on_profile(profile, p)
 		if hit.is_empty() or hit.lateral <= 0.0:
 			continue
-		var edge: float = hit.half_width + SHOULDER
+		var edge: float = hit.half_width + FLAT_BAND
 		var lateral: float = hit.lateral
 		var distance: float = hit.distance
 		var fade: float = 1.0 - smoothstep(0.0, 30.0, hit.beyond)

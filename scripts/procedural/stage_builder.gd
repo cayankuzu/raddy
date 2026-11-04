@@ -37,7 +37,7 @@ static func build(stage: Dictionary) -> RouteGraph:
 	graph.stage_id = StringName(stage.get("id", "stage"))
 	var biome := int(stage.get("biome", RaceSettings.Biome.FOREST))
 	graph.biome = StringName(RaceSettings.Biome.keys()[clampi(biome, 0, RaceSettings.Biome.size() - 1)].to_lower())
-	var default_width: float = stage.get("width", 7.0)
+	var default_width: float = stage.get("width", 4.4)
 	var default_surface: StringName = stage.get("surface", Surface.GRAVEL)
 
 	# 1. The dense centreline, 1 m at a time, with the climb and the attributes of each metre.

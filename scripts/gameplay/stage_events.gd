@@ -12,7 +12,7 @@ signal triggered(index: int)
 
 ## Boulders per rockfall and how hard they are thrown off the bank toward the road.
 const BOULDERS := 4
-const BOULDER_PUSH := Vector2(5.0, 9.0)
+const BOULDER_PUSH := Vector2(7.0, 12.0)
 const TREE_FALL_TIME := 1.7
 const BOULDER_MESH := "res://assets/models/boulder_01/boulder_01_1k.gltf"
 ## Pushing through the crown throws needles and twigs over the windshield (0..1 dirt).

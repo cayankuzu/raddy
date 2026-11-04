@@ -1,10 +1,19 @@
 class_name RouteFollower
 extends Node
-## Drives a RallyCar along a path with pure pursuit: steer at a point ahead on the path, hold a
-## speed the next corners allow. Used by dev scenes (--autodrive), bots in the flow test and tests
+## Drives a RallyCar along a path: the steering follows the path's own curvature a moment ahead and
+## corrects the heading and the distance from the line (aiming at a point ahead instead cuts corners
+## by the square of that distance, wider than a rally road); the speed is what the next corners
+## allow. Used by dev scenes (--autodrive), bots in the flow test and tests
 ## that need a car to drive a stage. A stage is an open path: the bot stops at its end. Writes
 ## car.controls every physics tick, like PlayerCarInput does for a human.
 
+## Steering: the path's curvature this long ahead (the wheels take a moment to turn), the share of
+## the heading error steered away, and the gain on the distance from the line.
+const PREVIEW_TIME := 0.22
+const PREVIEW_MIN := 3.0
+const HEADING_GAIN := 0.9
+const LINE_GAIN := 1.4
+## How far ahead the avoidance aims its sideways shift (m) at 1 m/s and at least.
 const LOOKAHEAD_MIN := 7.0
 const LOOKAHEAD_MAX := 24.0
 const LOOKAHEAD_PER_SPEED := 0.55
@@ -144,30 +153,16 @@ func _physics_process(delta: float) -> void:
 	else:
 		_stuck_time = 0.0
 
-	# Steering: aim at the point one lookahead ahead along the path.
-	var lookahead := clampf(LOOKAHEAD_MIN + maxf(speed, 0.0) * LOOKAHEAD_PER_SPEED, LOOKAHEAD_MIN, LOOKAHEAD_MAX)
-	var target := _point_ahead(lookahead)
+	# Steering: the road's curve just ahead, plus corrections for the heading and the line.
+	_point_ahead(clampf(LOOKAHEAD_MIN + maxf(speed, 0.0) * LOOKAHEAD_PER_SPEED, LOOKAHEAD_MIN, LOOKAHEAD_MAX))
 	var dodge := _dodge()
-	target += dodge.shift
-	var local := car.global_transform.affine_inverse() * target
-	var forward := -local.z
-	var distance := maxf(Vector2(local.x, forward).length(), 1.0)
-	var wanted_angle := atan2(local.x, maxf(forward, 0.1))
-	# Pure pursuit: the arc through the target has curvature 2x/L^2; Ackermann turns that into
-	# a steer angle via the wheelbase.
-	var curvature := 2.0 * local.x / (distance * distance)
-	var steer_angle := atan(curvature * car.wheelbase)
-	if forward < 0.0:
-		steer_angle = signf(local.x) * car.config.max_steer_angle  # target behind: turn hard
-	elif absf(wanted_angle) > PI / 3.0:
-		steer_angle = signf(local.x) * car.config.max_steer_angle
+	var steering := _steering(position, speed, float(dodge.lateral))
 	var lock := car.max_steer_angle_at(speed)
-	controls.steer = clampf(steer_angle / lock, -1.0, 1.0)
+	controls.steer = clampf(steering.angle / lock, -1.0, 1.0)
 
 	# Speed: the slowest of the corner limits ahead, each relaxed by the braking distance to it.
 	var allowed := minf(top_speed, _corner_speed_limit(speed))
-	var off_path := Vector2(local.x, 0.0).length() > 6.0
-	if off_path:
+	if absf(float(steering.off_line)) > 6.0:
 		allowed = minf(allowed, 12.0)
 	if dodge.near:
 		allowed = minf(allowed, AVOID_SPEED)
@@ -183,11 +178,60 @@ func _physics_process(delta: float) -> void:
 		controls.brake = 0.0
 
 
-## The sideways shift of the aim point that takes the car around the obstacles on the road
-## ahead ({shift: Vector3, near: bool}). Each obstacle blocks a band of lateral offsets from the
-## path; the line takes the free offset closest to the path.
+## The steer angle (radians, + right) that follows the path `lateral` metres to its right:
+## {"angle", "off_line": metres from that line}.
+func _steering(position: Vector3, speed: float, lateral: float) -> Dictionary:
+	var v := absf(speed)
+	var ahead := _index_ahead(maxf(v * PREVIEW_TIME, PREVIEW_MIN))
+	var across := _across(_index)
+	var off_line := (_flat(position) - _flat(_path[_index])).dot(across) - lateral
+	var nose := -car.global_basis.z
+	var heading := _flat(nose).normalized()
+	var wanted := _flat(_path[mini(ahead + 1, _path.size() - 1)] - _path[maxi(ahead - 1, 0)]).normalized()
+	# Positive: the path bends to the car's right of where the nose points.
+	var heading_error := heading.angle_to(wanted)
+	var curve := atan(_signed_curvature_at(ahead) * car.wheelbase)
+	var angle := curve + heading_error * HEADING_GAIN - atan(LINE_GAIN * off_line / (v + 2.0))
+	if absf(heading_error) > PI / 3.0:
+		angle = signf(heading_error) * car.config.max_steer_angle  # far off: turn hard
+	return {"angle": angle, "off_line": off_line}
+
+
+## The path point `distance` metres ahead of the car (index).
+func _index_ahead(distance: float) -> int:
+	var travelled := 0.0
+	var i := _index
+	while travelled < distance:
+		if not _closed and i >= _path.size() - 1:
+			return i
+		var next := (i + 1) % _path.size()
+		travelled += _path[i].distance_to(_path[next])
+		i = next
+	return i
+
+
+## Curvature (1/m) of the path at point i, positive turning right.
+func _signed_curvature_at(i: int) -> float:
+	var n := _path.size()
+	var span := 2
+	if not _closed and (i - span < 0 or i + span >= n):
+		return 0.0
+	var a := _flat(_path[posmod(i - span, n)])
+	var b := _flat(_path[i])
+	var c := _flat(_path[(i + span) % n])
+	var ab := b - a
+	var bc := c - b
+	var chord := (ab.length() + bc.length()) * 0.5
+	if chord < 0.001:
+		return 0.0
+	return 2.0 * sin(ab.angle_to(bc) * 0.5) / chord
+
+
+## The sideways shift of the line that takes the car around the obstacles on the road ahead
+## ({lateral: metres to the path's right, near: bool}). Each obstacle blocks a band of lateral
+## offsets from the path; the line takes the free offset closest to the path.
 func _dodge() -> Dictionary:
-	var result := {"shift": Vector3.ZERO, "near": false}
+	var result := {"lateral": 0.0, "near": false}
 	if not obstacles.is_valid():
 		return result
 	var list: Array = obstacles.call()
@@ -239,8 +283,7 @@ func _dodge() -> Dictionary:
 			lo = minf(lo, band.x)
 			hi = maxf(hi, band.y)
 		best = -limit if absf(lo) <= absf(hi) else limit
-	var aim := _across(_aim_index)
-	result.shift = Vector3(aim.x, 0.0, aim.y) * best
+	result.lateral = best
 	return result
 
 

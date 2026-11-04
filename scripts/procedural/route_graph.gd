@@ -28,7 +28,7 @@ class RouteEdge:
 	var points := PackedVector2Array()
 	## Road height at each point (Y).
 	var heights := PackedFloat32Array()
-	var width := 7.0
+	var width := 4.4
 	var surface := Surface.GRAVEL
 	var length := 0.0
 	## The road point just before this edge's first and just after its last (on the neighbouring
@@ -76,6 +76,8 @@ var _route_distances := PackedFloat32Array()
 var _route_edges := PackedInt32Array()
 var _route_indices := PackedInt32Array()
 var _indexed_edges := -1
+## edge id -> route index of the edge's first point.
+var _edge_starts: Dictionary = {}
 
 
 func add_node(kind: int, position: Vector2) -> RouteNode:
@@ -147,6 +149,12 @@ func route_index_at(distance: float) -> int:
 	return lo
 
 
+## Index into main_route_points() of point `index` of `edge_id`.
+func route_index_of(edge_id: int, index: int) -> int:
+	_index_route()
+	return int(_edge_starts[edge_id]) + index
+
+
 ## Distance from the start of point `index` of `edge_id`.
 func distance_of(edge_id: int, index: int) -> float:
 	_index_route()
@@ -208,9 +216,11 @@ func _index_route() -> void:
 	_route_distances = PackedFloat32Array()
 	_route_edges = PackedInt32Array()
 	_route_indices = PackedInt32Array()
+	_edge_starts = {}
 	var total := 0.0
 	for edge_id in main_route:
 		var edge := edges[edge_id]
+		_edge_starts[edge_id] = maxi(_route_points.size() - 1, 0)
 		for i in edge.points.size():
 			if i == 0 and not _route_points.is_empty():
 				continue

@@ -71,7 +71,10 @@ static func verge(surface: StringName, biome: int) -> ShaderMaterial:
 		material.shader = VERGE_SHADER
 		_set_ground_layers(material, biome)
 		_set_road_layer(material, ROAD_SETS.get(surface, ROAD_SETS[Surface.GRAVEL]))
-		material.set_shader_parameter(&"verge_width", RoadBuilder.VERGE)
+		material.set_shader_parameter(&"shoulder", RoadBuilder.SHOULDER)
+		material.set_shader_parameter(&"ditch_in", RoadBuilder.DITCH_IN)
+		material.set_shader_parameter(&"ditch_out", RoadBuilder.DITCH_OUT)
+		material.set_shader_parameter(&"ditch_end", RoadBuilder.DITCH_END)
 		_materials[key] = material
 	return _materials[key]
 

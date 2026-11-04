@@ -2,7 +2,8 @@ class_name StageRecords
 extends RefCounted
 ## Best times per stage on this PC (a reason to run a stage again) and the medal a time earns.
 ## Every finish the player sees counts, theirs or a friend's crew: the record names the crew.
-## Saved to user://records.cfg; tests point `path` elsewhere.
+## Saved to user://records.cfg per StageCatalog.LAYOUT (old times on other roads mean nothing);
+## tests point `path` elsewhere.
 
 enum Medal { NONE, BRONZE, SILVER, GOLD }
 
@@ -23,7 +24,7 @@ func _init(save_path := PATH) -> void:
 
 ## {"time_ms", "crew": PackedStringArray, "team": int} or {} when the stage has no record yet.
 func best(stage_id: StringName) -> Dictionary:
-	return _file.get_value("best", String(stage_id), {})
+	return _file.get_value(_section(), String(stage_id), {})
 
 
 ## Records a finish; returns {"new_best": bool, "previous_ms": int (-1 when none)}. Times are
@@ -34,9 +35,13 @@ func record(stage_id: StringName, time_ms: int, crew: PackedStringArray, team: i
 	var previous_ms: int = previous.get("time_ms", -1)
 	var better := time_ms > 0 and (previous_ms < 0 or time_ms / 100 < previous_ms / 100)
 	if better:
-		_file.set_value("best", String(stage_id), {"time_ms": time_ms, "crew": crew, "team": team})
+		_file.set_value(_section(), String(stage_id), {"time_ms": time_ms, "crew": crew, "team": team})
 		_file.save(path)
 	return {"new_best": better, "previous_ms": previous_ms}
+
+
+static func _section() -> String:
+	return "best_v%d" % StageCatalog.LAYOUT
 
 
 ## The medal a time earns on the stage at `index` (StageCatalog), judged in tenths like the

@@ -67,7 +67,7 @@ func test_nothing_on_or_beside_any_road() -> void:
 			var d := _terrain.distance_to_road(Vector2(t.origin.x, t.origin.z))
 			closest = minf(closest, d)
 	gut.p("closest instance to a road edge: %.2f m" % closest)
-	assert_gte(closest, RoadBuilder.VERGE + RoadsideDresser.CLEARANCE - 0.01, "the verge and a margin stay clear")
+	assert_gte(closest, RoadBuilder.ROADSIDE + RoadsideDresser.CLEARANCE - 0.01, "the road's side and a margin stay clear")
 	dressing.free()
 
 
@@ -85,7 +85,7 @@ func test_denser_near_the_road() -> void:
 	var far := 0
 	for t in _instances(dressing, "tree"):
 		var d := _terrain.distance_to_road(Vector2(t.origin.x, t.origin.z))
-		if d < RoadBuilder.VERGE + 14.0:
+		if d < RoadBuilder.ROADSIDE + 14.0:
 			near += 1
 		elif d < INF:
 			far += 1
@@ -108,7 +108,7 @@ func test_nothing_on_a_cliff_lip() -> void:
 		for t in _instances(dressing, prefix):
 			var cliff := _terrain.cliff_at(Vector2(t.origin.x, t.origin.z))
 			if not cliff.is_empty():
-				assert_gte(float(cliff.lateral), float(cliff.half_width) + TerrainField.SHOULDER + RoadsideDresser.CLIFF_LIP - 0.01,
+				assert_gte(float(cliff.lateral), float(cliff.half_width) + TerrainField.FLAT_BAND + RoadsideDresser.CLIFF_LIP - 0.01,
 					"the drop stays in view")
 	dressing.free()
 

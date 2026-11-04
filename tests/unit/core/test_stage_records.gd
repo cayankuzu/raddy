@@ -32,6 +32,14 @@ func test_only_a_faster_time_becomes_the_record_and_it_survives_a_restart() -> v
 	assert_eq(reloaded.best(&"misty_creek"), {}, "records are per stage")
 
 
+func test_records_of_an_older_road_layout_are_not_read() -> void:
+	var old := ConfigFile.new()
+	old.set_value("best", "black_pine", {"time_ms": 60_000, "crew": PackedStringArray(["Eski"]), "team": 1})
+	old.set_value("best_v1", "black_pine", {"time_ms": 61_000, "crew": PackedStringArray(["Eski"]), "team": 1})
+	old.save(PATH)
+	assert_eq(StageRecords.new(PATH).best(&"black_pine"), {}, "wide-road times do not count on the new roads")
+
+
 func test_medals_follow_the_stage_length() -> void:
 	for index in StageCatalog.count():
 		var gold := StageRecords.medal_time_ms(index, StageRecords.Medal.GOLD)

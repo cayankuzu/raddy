@@ -42,9 +42,9 @@ static func surface_for(surface: StringName, weather: int) -> StringName:
 ## weather. Call before TerrainField.set_roads and RoadBuilder.build.
 static func apply_to_graph(graph: RouteGraph, settings: Dictionary) -> void:
 	var weather := int(settings.get("weather", RaceSettings.Weather.CLEAR))
-	var width := RaceSettings.width_scale(int(settings.get("difficulty", RaceSettings.Difficulty.RALLY)))
+	var width := RaceSettings.width_offset(int(settings.get("difficulty", RaceSettings.Difficulty.RALLY)))
 	for edge in graph.edges:
-		edge.width *= width
+		edge.width += width
 		edge.surface = surface_for(edge.surface, weather)
 
 
@@ -55,6 +55,7 @@ static func relief(biome: int) -> float:
 static func palette(biome: int, weather: int) -> Dictionary:
 	var out: Dictionary = PALETTES.get(biome, PALETTES[RaceSettings.Biome.FOREST]).duplicate()
 	out.biome = biome
+	out.weather = weather
 	if weather == RaceSettings.Weather.SNOW:
 		out.merge(SNOW_PALETTE, true)
 	elif weather == RaceSettings.Weather.DUST_STORM:
