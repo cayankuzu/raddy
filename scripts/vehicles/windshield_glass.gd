@@ -1,9 +1,9 @@
 class_name WindshieldGlass
 extends Node
 ## Puts the Cabin's dirt, cracks and wipers onto the real windshield (shaders/windshield.gdshader)
-## instead of over the player's screen: mud gathers on the glass in blotches, the two wiper blades
-## sweep it (3D blades, seen from inside and out), the corners they cannot reach stay dirty, and a
-## stone leaves a crack star where it hit. Every peer sees every car's glass the same way.
+## instead of over the player's screen: mud gathers on the glass in blotches, the car's own two wipers
+## sweep it (cut out of the model, each turning about its hinge), only where a blade really passes the glass
+## comes clean, and a stone leaves a crack star where it hit. Every peer sees every car's glass the same way.
 
 const SHADER := preload("res://shaders/windshield.gdshader")
 const WIPER_PERIOD := 1.1
@@ -11,17 +11,22 @@ const WIPER_PERIOD := 1.1
 const WIPER_SWEEP := 95.0
 ## How quickly the corners lose dirt that the wipers do not reach (per second).
 const EDGE_CLEAR_RATE := 0.015
-## Wiper pivots across the bottom of the glass (0..1) and blade length (share of its width).
-const PIVOTS: Array[float] = [0.17, 0.55]
-const BLADE_SHARE := 0.4
+## The wipers' hinges in car space (the thin ends of the arms), with their cut parts (CarParts).
+const WIPERS: Array[Dictionary] = [
+	{"hinge": Vector3(0.007, 0.4125, -1.102), "arm": &"wiper_arm_a", "blade": &"wiper_blade_a"},
+	{"hinge": Vector3(0.533, 0.4095, -1.0215), "arm": &"wiper_arm_b", "blade": &"wiper_blade_b"},
+]
 
 var cabin: Cabin
 var glass: MeshInstance3D
+## The car's cut parts (CarParts.cut).
+var parts: Dictionary = {}
 
 var _material := ShaderMaterial.new()
 var _edge_dirt := 0.0
-var _blades: Array[Node3D] = []
+var _wipers: Array[Node3D] = []
 var _wiper_time := 0.0
+var _hinge_axis := Vector3.UP
 ## The glass's plane in its mesh space: bottom-left corner, unit axes (across, up, outward).
 var _origin := Vector3.ZERO
 var _u := Vector3.RIGHT
@@ -35,17 +40,14 @@ func _ready() -> void:
 		return
 	_measure_plane()
 	_material.shader = SHADER
-	_material.set_shader_parameter(&"dirt_noise", _noise())
+	_material.set_shader_parameter(&"dirt_noise", dirt_noise())
 	_material.set_shader_parameter(&"plane_origin", _origin)
 	_material.set_shader_parameter(&"plane_u", _u)
 	_material.set_shader_parameter(&"plane_v", _v)
 	_material.set_shader_parameter(&"plane_size", _size)
-	_material.set_shader_parameter(&"pivot_a", Vector2(PIVOTS[0], 0.06))
-	_material.set_shader_parameter(&"pivot_b", Vector2(PIVOTS[1], 0.06))
-	_material.set_shader_parameter(&"wipe_reach", _size.x * BLADE_SHARE)
 	_material.set_shader_parameter(&"wipe_sweep", deg_to_rad(WIPER_SWEEP))
 	glass.material_override = _material
-	_build_blades()
+	_build_wipers()
 	cabin.dirt_changed.connect(_on_dirt)
 	cabin.windshield_changed.connect(_on_windshield)
 	_on_dirt(cabin.dirt)
@@ -98,15 +100,13 @@ func _on_windshield(state: int) -> void:
 	var cracked := state == Cabin.Windshield.CRACKED
 	_material.set_shader_parameter(&"cracked", 1.0 if cracked else 0.0)
 	if cracked:
-		_material.set_shader_parameter(&"crack_texture", _crack_texture(cabin.team * 31 + 7))
+		_material.set_shader_parameter(&"crack_texture", crack_texture(cabin.team * 31 + 7))
 	if state == Cabin.Windshield.REMOVED:
 		_edge_dirt = 0.0
-	for blade in _blades:
-		blade.visible = state != Cabin.Windshield.REMOVED
 
 
 func _process(delta: float) -> void:
-	if cabin == null or _blades.is_empty():
+	if cabin == null or _wipers.is_empty():
 		return
 	_edge_dirt = maxf(_edge_dirt - EDGE_CLEAR_RATE * delta, cabin.dirt)
 	_material.set_shader_parameter(&"edge_dirt", _edge_dirt)
@@ -118,36 +118,56 @@ func _process(delta: float) -> void:
 		_wiper_time = 0.0 if phase < 0.04 or phase > 0.96 else _wiper_time + delta
 	var sweep := (1.0 - cos(_wiper_time * TAU / WIPER_PERIOD)) * 0.5
 	var angle := deg_to_rad(WIPER_SWEEP) * sweep
-	for pivot in _blades:
-		pivot.basis = Basis(_u, _v, _n) * Basis(Vector3.BACK, angle)
+	for wiper in _wipers:
+		wiper.basis = Basis(_hinge_axis, angle)
 
 
-## Two dark blades on pivots along the bottom edge, lying just outside the glass.
-func _build_blades() -> void:
-	var length := _size.x * BLADE_SHARE
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(length, 0.022, 0.012)
-	var rubber := StandardMaterial3D.new()
-	rubber.albedo_color = Color(0.05, 0.05, 0.055)
-	rubber.roughness = 0.6
-	mesh.material = rubber
-	for fraction in PIVOTS:
-		var pivot := Node3D.new()
-		pivot.name = "WiperPivot"
-		pivot.position = _origin + _u * _size.x * fraction + _v * _size.y * 0.06 + _n * 0.015
-		pivot.basis = Basis(_u, _v, _n)
-		glass.add_child(pivot)
-		var blade := MeshInstance3D.new()
-		blade.mesh = mesh
-		blade.position = Vector3(length * 0.5, 0.0, 0.0)
-		pivot.add_child(blade)
-		_blades.append(pivot)
+## The model's wipers, each turning about its hinge, square to the glass. What each blade passes on the glass
+## goes to the shader: a ring round the hinge, from where the blade lies parked to the end of its sweep.
+func _build_wipers() -> void:
+	var car_space := (glass.get_parent() as Node3D).transform * glass.transform
+	var to_mesh := car_space.affine_inverse()
+	_hinge_axis = (car_space.basis * _n).normalized()
+	var holder := get_parent() as Node3D
+	for i in WIPERS.size():
+		var spec: Dictionary = WIPERS[i]
+		var hinge: Vector3 = spec.hinge
+		var wiper := Node3D.new()
+		wiper.name = "Wiper%d" % i
+		wiper.position = hinge
+		holder.add_child(wiper)
+		for part: StringName in [spec.arm, spec.blade]:
+			var piece := MeshInstance3D.new()
+			piece.name = String(part)
+			piece.mesh = parts[part]
+			piece.position = -hinge
+			wiper.add_child(piece)
+		_wipers.append(wiper)
+		_tell_shader(i, parts[spec.blade], hinge, to_mesh)
+
+
+## `blade` and `hinge` are in car space, `to_mesh` takes them to the glass's mesh space.
+func _tell_shader(index: int, blade: Mesh, hinge: Vector3, to_mesh: Transform3D) -> void:
+	var at_hinge := to_mesh * hinge - _origin
+	var pivot := Vector2(at_hinge.dot(_u), at_hinge.dot(_v))
+	var inner := INF
+	var outer := 0.0
+	var middle := Vector2.ZERO
+	for vertex in blade.get_faces():
+		var at := to_mesh * vertex - _origin
+		var from_hinge := Vector2(at.dot(_u), at.dot(_v)) - pivot
+		inner = minf(inner, from_hinge.length())
+		outer = maxf(outer, from_hinge.length())
+		middle += from_hinge
+	var suffix := "a" if index == 0 else "b"
+	_material.set_shader_parameter(StringName("pivot_" + suffix), pivot)
+	_material.set_shader_parameter(StringName("wipe_" + suffix), Vector3(inner, outer, middle.angle()))
 
 
 static var _noise_texture: NoiseTexture2D
 
 
-static func _noise() -> NoiseTexture2D:
+static func dirt_noise() -> NoiseTexture2D:
 	if _noise_texture == null:
 		var noise := FastNoiseLite.new()
 		noise.noise_type = FastNoiseLite.TYPE_SIMPLEX
@@ -163,7 +183,7 @@ static func _noise() -> NoiseTexture2D:
 
 
 ## A star of jagged crack lines in a transparent image (alpha = crack), seeded per car.
-static func _crack_texture(seed: int) -> ImageTexture:
+static func crack_texture(seed: int) -> ImageTexture:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var size := 512

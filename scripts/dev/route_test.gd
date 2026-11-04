@@ -13,7 +13,9 @@ extends Node3D
 ##   --map-open      open the map right away (screenshots)
 ##   --windshield=cracked|removed  --dirt=0.4   start with that glass state (screenshots)
 ##   --weather=0..4 --difficulty=0..2   race settings (default clear, rally)
+##   --dusk          the sun low, headlights on, dials lit
 ##   --quality=0..2  graphics level for the scenery (default: the player's setting)
+##   --follower=D    a second car D metres behind, driven by a bot when --autodrive is on (mirrors)
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (gates, finish) that tools and tests can read.
 
@@ -21,6 +23,7 @@ const CAR_SCENE := preload("res://scenes/vehicles/rally_car.tscn")
 const FALL_LIMIT := -40.0
 
 var graph: RouteGraph
+var follower: RallyCar
 var checkpoints_passed := 0
 var finished := false
 var _next_checkpoint := 0
@@ -50,7 +53,7 @@ func _ready() -> void:
 	# The race's own sky, sun and fog recipe replaces the scene's placeholder ones.
 	$WorldEnvironment.free()
 	$Sun.free()
-	add_child(RaceLook.create(settings.biome, settings.weather))
+	add_child(RaceLook.create(settings.biome, settings.weather, _args.has("dusk")))
 	var problems := RouteValidator.validate(graph)
 	print("ROUTE stage %s length %.0f m edges %d checkpoints %d features %d problems %s" % [
 		graph.stage_id, graph.main_route_length(), graph.edges.size(), graph.checkpoints.size(), graph.features.size(), str(problems)])
@@ -76,6 +79,7 @@ func _ready() -> void:
 	_car.transform = _start_pose
 	add_child(_car)
 	_car.set_paint(TeamColors.paint(int(_args.get("team", "1"))))
+	(_car.get_node(^"Model") as CarModel).set_headlights(RaceLook.headlights_on(settings.weather, _args.has("dusk")))
 	# Debug: --hide=a+b hides every car node whose name contains a or b (finding stray meshes).
 	if _args.has("hide"):
 		for part in String(_args["hide"]).split("+"):
@@ -84,6 +88,9 @@ func _ready() -> void:
 	var navigator := _args.has("navigator")
 	_driver_camera = _car.get_node(^"NavigatorCamera" if navigator else ^"DriverCamera")
 	_driver_camera.make_current()
+	(_car.get_node(^"Model") as CarModel).bind_seat(_driver_camera as CockpitCamera)
+	if _args.has("follower"):
+		_add_follower(float(_args["follower"]))
 
 	_player_input = PlayerCarInput.new()
 	_player_input.name = "PlayerCarInput"
@@ -150,6 +157,25 @@ func _ready() -> void:
 				print("ROUTE bot at %.0f m, %d recoveries, hardest impact %.1f m/s" % [_follower.progress, _follower.recoveries, hardest[0]])
 			print("ROUTE quitting")
 			get_tree().quit())
+
+
+## A second car `behind` metres back along the road, its headlights on, for looking at in the mirrors.
+func _add_follower(behind: float) -> void:
+	var at := float(_args.get("start", str(graph.checkpoints[0].distance - StageBuilder.GRID_BEFORE_LINE))) - behind
+	follower = CAR_SCENE.instantiate()
+	follower.name = "Follower"
+	follower.transform = graph.start_pose(at).translated(Vector3.UP * 0.8)
+	add_child(follower)
+	follower.set_paint(TeamColors.paint(2))
+	(follower.get_node(^"Model") as CarModel).set_headlights(true)
+	follower.input_locked = not _args.has("autodrive")
+	if _args.has("autodrive"):
+		var bot := RouteFollower.new()
+		bot.name = "FollowerBot"
+		bot.car = follower
+		bot.set_path(graph.main_route_points())
+		bot.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER
+		add_child(bot)
 
 
 func _add_view_camera(view: PackedStringArray) -> void:

@@ -1,0 +1,227 @@
+class_name CarCockpit
+extends Node3D
+## What the crew sees working inside the car, on every peer (the pedals and the revs come with the snapshots):
+## the instrument panel with real needles and warning lamps (shaders/gauge_panel.gdshader, values from
+## CockpitRules), the three pedals and the gear lever cut out of the model (CarParts), and the handbrake, which
+## the model does not have, fitted between the seats. A car far from the camera shows the model's own dash and
+## nothing here moves or draws.
+
+## Everything here draws and moves only this close to the camera.
+const NEAR_CAMERA := 9.0
+## The instrument panel's outline on the model's dash (car space), and how far in front of it the face stands.
+const PANEL_OUTLINE: Array[Vector3] = [
+	Vector3(-0.4965, 0.3505, -0.521), Vector3(-0.4915, 0.451, -0.522), Vector3(-0.458, 0.457, -0.5245),
+	Vector3(-0.201, 0.455, -0.5245), Vector3(-0.1695, 0.448, -0.521), Vector3(-0.1735, 0.3485, -0.522),
+]
+const PANEL_LIFT := 0.0025
+const PANEL_SHADER := preload("res://shaders/gauge_panel.gdshader")
+const PANEL_FACE := preload("res://assets/vehicles/milano95/gauge_face.png")
+## Pedals swing on arms from under the dash: the hinge above a pad, where they are let go and pressed down
+## (degrees from where the model has them, almost at the firewall), how fast they follow the feet (1/s).
+const PEDAL_HINGE_ABOVE := Vector3(0.0, 0.3, 0.05)
+const PEDAL_UP := -9.0
+const PEDAL_DOWN := 3.0
+const PEDAL_RATE := 18.0
+## The gear lever: its hinge in the boot, how far it tilts to each gate (degrees), how fast it moves (gate
+## widths per second; a shift takes Gearbox.SHIFT_TIME).
+const LEVER_HINGE := Vector3(0.0, -0.06, -0.52)
+const LEVER_ACROSS := 9.0
+const LEVER_FORE := 13.0
+const LEVER_RATE := 14.0
+## The handbrake: a low console between the seats, the lever hinged on it, lying back and rising when pulled
+## (degrees).
+const CONSOLE_SIZE := Vector3(0.14, 0.2, 0.5)
+const CONSOLE_AT := Vector3(0.0, -0.17, -0.12)
+const HANDBRAKE_HINGE := Vector3(0.0, -0.06, -0.2)
+const HANDBRAKE_LENGTH := 0.3
+const HANDBRAKE_REST := 7.0
+const HANDBRAKE_PULLED := 34.0
+const HANDBRAKE_RATE := 11.0
+
+var car: RallyCar
+## Seconds since the key was turned: the sweep and the bulb check run from it.
+var since_ignition := 0.0
+
+var _panel: MeshInstance3D
+var _material: ShaderMaterial
+var _pedals: Dictionary = {}  # part -> Node3D
+var _pedal_at: Dictionary = {&"pedal_clutch": 1.0, &"pedal_brake": 0.0, &"pedal_throttle": 0.0}
+var _lever: Node3D
+var _lever_at := Vector2.ZERO
+var _handbrake: Node3D
+var _handbrake_at := 0.0
+var _km := 0.0
+var _time := 0.0
+var _audio: CarAudio
+
+
+## Takes the parts of the car (CarParts) and fits what the model lacks.
+func build(parts: Dictionary) -> void:
+	car = get_parent().get_parent() as RallyCar
+	_build_panel()
+	for part: StringName in _pedal_at:
+		_pedals[part] = _add_moving(parts[part], _pedal_hinge(parts[part]))
+	_lever = _add_moving(parts[&"gear_lever"], LEVER_HINGE)
+	_build_handbrake()
+
+
+## A part's mesh on a hinge of its own: the mesh stays in car space, the node at the hinge turns it.
+func _add_moving(mesh: Mesh, hinge: Vector3) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.name = "Moving"
+	pivot.position = hinge
+	add_child(pivot)
+	var instance := _quiet_mesh(mesh)
+	instance.position = -hinge
+	pivot.add_child(instance)
+	return pivot
+
+
+func _quiet_mesh(mesh: Mesh) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.mesh = mesh
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	instance.visibility_range_end = NEAR_CAMERA
+	return instance
+
+
+static func _pedal_hinge(pedal: Mesh) -> Vector3:
+	return pedal.get_aabb().get_center() + PEDAL_HINGE_ABOVE
+
+
+## The face over the model's printed dials, its UVs across the outline's box.
+func _build_panel() -> void:
+	var low := Vector2(INF, INF)
+	var high := Vector2(-INF, -INF)
+	for corner in PANEL_OUTLINE:
+		low = low.min(Vector2(corner.x, corner.y))
+		high = high.max(Vector2(corner.x, corner.y))
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in PANEL_OUTLINE.size():
+		var at := PANEL_OUTLINE[i]
+		surface.set_normal(Vector3.BACK)
+		surface.set_uv(Vector2((at.x - low.x) / (high.x - low.x), (high.y - at.y) / (high.y - low.y)))
+		surface.add_vertex(at + Vector3.BACK * PANEL_LIFT)
+	for i in range(1, PANEL_OUTLINE.size() - 1):
+		surface.add_index(0)
+		surface.add_index(i)
+		surface.add_index(i + 1)
+	_panel = _quiet_mesh(surface.commit())
+	_panel.name = "InstrumentPanel"
+	_material = ShaderMaterial.new()
+	_material.shader = PANEL_SHADER
+	_material.set_shader_parameter(&"face", PANEL_FACE)
+	_panel.material_override = _material
+	add_child(_panel)
+
+
+## A low console between the seats, and on it the lever: a steel bar, a rubber grip and a chrome button.
+func _build_handbrake() -> void:
+	var plastic := StandardMaterial3D.new()
+	plastic.albedo_color = Color(0.035, 0.035, 0.038)
+	plastic.roughness = 0.75
+	var console_mesh := BoxMesh.new()
+	console_mesh.size = CONSOLE_SIZE
+	console_mesh.material = plastic
+	var console := _quiet_mesh(console_mesh)
+	console.name = "HandbrakeConsole"
+	console.position = CONSOLE_AT
+	add_child(console)
+	var steel := StandardMaterial3D.new()
+	steel.albedo_color = Color(0.55, 0.56, 0.58)
+	steel.metallic = 0.9
+	steel.roughness = 0.35
+	var rubber := StandardMaterial3D.new()
+	rubber.albedo_color = Color(0.03, 0.03, 0.03)
+	rubber.roughness = 0.85
+	var boot_mesh := BoxMesh.new()
+	boot_mesh.size = Vector3(0.05, 0.028, 0.09)
+	boot_mesh.material = rubber
+	var boot := _quiet_mesh(boot_mesh)
+	boot.name = "HandbrakeBoot"
+	boot.position = HANDBRAKE_HINGE + Vector3(0.0, -0.012, 0.03)
+	add_child(boot)
+	_handbrake = Node3D.new()
+	_handbrake.name = "Handbrake"
+	_handbrake.position = HANDBRAKE_HINGE
+	add_child(_handbrake)
+	# Along the lever is +Z in the hinge's space (a cylinder stands along Y).
+	var along := Basis(Vector3.RIGHT, PI * 0.5)
+	_add_lever_piece(0.008, 0.008, HANDBRAKE_LENGTH * 0.62, HANDBRAKE_LENGTH * 0.31, along, steel)
+	_add_lever_piece(0.0165, 0.0145, HANDBRAKE_LENGTH * 0.42, HANDBRAKE_LENGTH * 0.79, along, rubber)
+	_add_lever_piece(0.0075, 0.0075, 0.016, HANDBRAKE_LENGTH + 0.006, along, steel)
+	_set_handbrake(0.0)
+
+
+func _add_lever_piece(top: float, bottom: float, length: float, at: float, turn: Basis, material: Material) -> void:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = top
+	mesh.bottom_radius = bottom
+	mesh.height = length
+	mesh.radial_segments = 12
+	mesh.rings = 1
+	mesh.material = material
+	var piece := _quiet_mesh(mesh)
+	piece.transform = Transform3D(turn, Vector3.BACK * at)
+	_handbrake.add_child(piece)
+
+
+func _set_handbrake(amount: float) -> void:
+	_handbrake.basis = Basis(Vector3.RIGHT, -deg_to_rad(lerpf(HANDBRAKE_REST, HANDBRAKE_PULLED, amount)))
+
+
+## Starts the ignition sweep and the bulb check over.
+func turn_key() -> void:
+	since_ignition = 0.0
+
+
+func _process(delta: float) -> void:
+	var camera := get_viewport().get_camera_3d()
+	if car == null or camera == null or camera.global_position.distance_squared_to(global_position) > NEAR_CAMERA * NEAR_CAMERA:
+		return
+	update(delta)
+
+
+## Everything in the cabin follows the car for one frame.
+func update(delta: float) -> void:
+	since_ignition += delta
+	_time += delta
+	if _audio == null:
+		_audio = car.get_node_or_null(^"Audio") as CarAudio
+		if _audio == null:
+			return
+	_km += absf(car.forward_speed) * delta * 0.001
+	_update_controls(delta)
+	_update_panel()
+
+
+func _update_controls(delta: float) -> void:
+	var box := _audio.gearbox
+	var feet := {&"pedal_clutch": CockpitRules.clutch(box, car.forward_speed), &"pedal_brake": clampf(car.controls.brake, 0.0, 1.0),
+		&"pedal_throttle": clampf(car.controls.throttle, 0.0, 1.0)}
+	for part: StringName in feet:
+		_pedal_at[part] = lerpf(_pedal_at[part], feet[part], 1.0 - exp(-PEDAL_RATE * delta))
+		(_pedals[part] as Node3D).basis = Basis(Vector3.RIGHT, deg_to_rad(lerpf(PEDAL_UP, PEDAL_DOWN, float(_pedal_at[part]))))
+	_lever_at = CockpitRules.lever_step(_lever_at, CockpitRules.gear_gate(box.gear), LEVER_RATE * delta)
+	_lever.basis = Basis(Vector3.RIGHT, deg_to_rad(LEVER_FORE) * _lever_at.y) * Basis(Vector3.BACK, -deg_to_rad(LEVER_ACROSS) * _lever_at.x)
+	_handbrake_at = move_toward(_handbrake_at, 1.0 if car.controls.handbrake else 0.0, HANDBRAKE_RATE * delta)
+	_set_handbrake(_handbrake_at)
+
+
+func _update_panel() -> void:
+	var rpm := _audio.gearbox.rpm if CockpitRules.engine_running(since_ignition) else 0.0
+	var level := car.damage_level
+	var oil := CockpitRules.oil_pressure(rpm, level)
+	_material.set_shader_parameter(&"speed", CockpitRules.with_sweep(CockpitRules.speed_needle(car.forward_speed), since_ignition))
+	_material.set_shader_parameter(&"rpm", CockpitRules.with_sweep(CockpitRules.rpm_needle(rpm), since_ignition))
+	_material.set_shader_parameter(&"temp", CockpitRules.with_sweep(CockpitRules.coolant(since_ignition, level), since_ignition))
+	_material.set_shader_parameter(&"oil", CockpitRules.with_sweep(oil, since_ignition))
+	_material.set_shader_parameter(&"fuel", CockpitRules.with_sweep(CockpitRules.fuel(_km), since_ignition))
+	_material.set_shader_parameter(&"volts", CockpitRules.with_sweep(CockpitRules.volts(since_ignition, level), since_ignition))
+	var model := get_parent() as CarModel
+	var hazard := CockpitRules.hazards_on(car.needs_recovery, level) and CockpitRules.blink(_time)
+	var lamps := CockpitRules.lamps(since_ignition, car.controls.handbrake, level, oil, model.headlights, hazard)
+	_material.set_shader_parameter(&"lamps_a", Vector3(float(lamps[CockpitRules.Lamp.HANDBRAKE]), float(lamps[CockpitRules.Lamp.CHARGE]), float(lamps[CockpitRules.Lamp.OIL])))
+	_material.set_shader_parameter(&"lamps_b", Vector3(float(lamps[CockpitRules.Lamp.ENGINE]), float(lamps[CockpitRules.Lamp.BEAM]), float(lamps[CockpitRules.Lamp.HAZARD])))
+	_material.set_shader_parameter(&"backlight", 1.0 if model.headlights else 0.0)

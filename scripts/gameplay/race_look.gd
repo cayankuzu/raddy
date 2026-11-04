@@ -26,14 +26,33 @@ const CLOUDS_FROM := {false: 0.53, true: 0.3}
 const CLOUDS_THICK := {false: 0.72, true: 0.8}
 const CLOUDS_SIZE := 1024
 const CLOUDS_LIGHT := {false: Color(1.0, 0.99, 0.97), true: Color(0.8, 0.81, 0.83)}
+## The sun stands on a render layer of its own: what leaves it out of its mask (a mirror's camera) has no sun,
+## and so no shadow pass of its own to pay for.
+const SUN_LAYER := 1 << 18
+const SUN_GROUP := &"race_sun"
+## Dusk: the sun low and red, most of the light gone (dev scenes for now: the room's time of day comes with
+## phase A4's night lights). What shows then: headlights, lit dials, the cabin's own glow in the glass.
+const DUSK_SUN_ELEVATION := 7.0
+const DUSK_SUN_COLOR := Color(1.0, 0.58, 0.36)
+const DUSK_LIGHT := 0.2
+## Weather in which the crews drive with their headlights on.
+const HEADLIGHT_WEATHER := [RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG, RaceSettings.Weather.SNOW, RaceSettings.Weather.DUST_STORM]
 
 static var _cloud_covers: Dictionary = {}
+## How much daylight the last race look has (the car's cabin fill stands in for it).
+static var daylight := 1.0
+
+
+## Whether the cars run with their headlights on.
+static func headlights_on(weather: int, dusk := false) -> bool:
+	return dusk or weather in HEADLIGHT_WEATHER
 
 
 ## Returns a node holding the WorldEnvironment and the sun; add it to the scene.
-static func create(biome: int, weather: int) -> Node3D:
+static func create(biome: int, weather: int, dusk := false) -> Node3D:
 	var palette := BiomeRules.palette(biome, weather)
 	var overcast := weather in OVERCAST
+	daylight = DUSK_LIGHT if dusk else 1.0
 	SurfaceMaterials.set_weather(weather)
 
 	var sky_material := ProceduralSkyMaterial.new()
@@ -48,7 +67,7 @@ static func create(biome: int, weather: int) -> Node3D:
 	sky_material.ground_horizon_color = horizon
 	sky_material.ground_bottom_color = horizon.darkened(0.45)
 	sky_material.sun_angle_max = 30.0
-	sky_material.sky_energy_multiplier = 0.8 if overcast else 1.0
+	sky_material.sky_energy_multiplier = (0.8 if overcast else 1.0) * daylight
 	sky_material.sky_cover = _cloud_cover(overcast)
 	sky_material.sky_cover_modulate = CLOUDS_LIGHT[overcast]
 	var sky := Sky.new()
@@ -60,7 +79,7 @@ static func create(biome: int, weather: int) -> Node3D:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_color = BOUNCE.get(biome, Color.WHITE)
 	env.ambient_light_sky_contribution = 1.0 - BOUNCE_SHARE
-	env.ambient_light_energy = 1.0
+	env.ambient_light_energy = daylight
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	env.tonemap_exposure = 1.05 if overcast else 1.0
@@ -72,6 +91,7 @@ static func create(biome: int, weather: int) -> Node3D:
 	env.glow_hdr_threshold = 1.0
 	env.fog_enabled = true
 	env.fog_light_color = palette.get("fog", Color(0.68, 0.72, 0.74))
+	env.fog_light_energy = daylight
 	env.fog_density = RaceSettings.fog_density(weather)
 	env.fog_aerial_perspective = 0.45
 	env.fog_sky_affect = 0.6 if overcast else 0.25
@@ -93,9 +113,9 @@ static func create(biome: int, weather: int) -> Node3D:
 
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
-	sun.rotation_degrees = Vector3(-SUN_ELEVATION.get(biome, 32.0), 35.0, 0.0)
-	sun.light_color = SUN_COLOR.get(biome, Color.WHITE)
-	sun.light_energy = 0.45 if overcast else 1.15
+	sun.rotation_degrees = Vector3(-(DUSK_SUN_ELEVATION if dusk else SUN_ELEVATION.get(biome, 32.0)), 35.0, 0.0)
+	sun.light_color = DUSK_SUN_COLOR if dusk else SUN_COLOR.get(biome, Color.WHITE)
+	sun.light_energy = (0.45 if overcast else 1.15) * daylight
 	sun.shadow_enabled = true
 	sun.shadow_blur = 1.5 if overcast else 1.0
 	sun.directional_shadow_max_distance = 150.0
@@ -103,6 +123,8 @@ static func create(biome: int, weather: int) -> Node3D:
 	sun.directional_shadow_split_2 = 0.18
 	sun.directional_shadow_split_3 = 0.45
 	sun.directional_shadow_blend_splits = true
+	sun.layers = SUN_LAYER
+	sun.add_to_group(SUN_GROUP)
 	root.add_child(sun)
 	GraphicsQuality.apply_look(env, sun, GraphicsQuality.current())
 	return root

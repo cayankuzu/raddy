@@ -7,6 +7,9 @@ extends Node3D
 ## steams and then smokes. Detached parts are local debris (visual, never synced): they bounce
 ## down the road and are cleared after a while.
 
+## Left / right zone points at which that door mirror breaks: about a 13 m/s side hit. A recovery brings the
+## points down below it.
+const MIRROR_BREAK := 24.0
 ## Front / rear zone points for each step.
 const HOOD_LOOSE := 28.0
 const HOOD_GONE := 58.0
@@ -19,6 +22,7 @@ const HOOD_WIND_SPEED := 26.0
 const DEBRIS_LIFETIME := 25.0
 
 var car: RallyCar
+var mirrors: CarMirrors
 
 ## part name -> {"node": Node3D pivot, "mesh": MeshInstance3D, "rest": Transform3D, "state": 0 on / 1 loose / 2 gone}
 var _parts: Dictionary = {}
@@ -77,6 +81,9 @@ func apply(damage: VehicleDamage) -> void:
 	_set_state(&"hood", 2 if front >= HOOD_GONE else (1 if front >= HOOD_LOOSE else 0))
 	_set_state(&"bumper_front", 2 if front >= BUMPER_GONE else (1 if front >= BUMPER_SAG else 0))
 	_set_state(&"bumper_rear", 2 if rear >= BUMPER_GONE else (1 if rear >= BUMPER_SAG else 0))
+	if mirrors != null:
+		mirrors.set_broken(CarMirrors.Slot.LEFT, damage.zones[VehicleDamage.Zone.LEFT] >= MIRROR_BREAK)
+		mirrors.set_broken(CarMirrors.Slot.RIGHT, damage.zones[VehicleDamage.Zone.RIGHT] >= MIRROR_BREAK)
 	_update_smoke(damage.level())
 
 

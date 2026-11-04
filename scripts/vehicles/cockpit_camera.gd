@@ -127,6 +127,16 @@ func head_position() -> Vector3:
 	return car.global_transform * _rest.origin if car != null else global_position
 
 
+## How rough the road feels now, 0..1 (the interior mirror trembles with it).
+func road_roughness() -> float:
+	return _roughness
+
+
+## The head's rest point in the car's space.
+func seat_position() -> Vector3:
+	return _rest.origin
+
+
 func add_impact(strength: float) -> void:
 	add_trauma(clampf(strength / IMPACT_FULL, 0.0, 1.0) * 0.9)
 

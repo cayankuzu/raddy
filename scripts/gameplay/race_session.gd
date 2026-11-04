@@ -754,7 +754,7 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	car.set_paint(TeamColors.paint(team))
 	var model := car.get_node_or_null(^"Model") as CarModel
 	if model != null:
-		model.set_headlights(weather() in [RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG, RaceSettings.Weather.SNOW, RaceSettings.Weather.DUST_STORM])
+		model.set_headlights(RaceLook.headlights_on(weather()))
 	car.set_multiplayer_authority(driver_peer)
 	var sync := BodyNetSync.new()
 	sync.name = SYNC_NODE
@@ -904,6 +904,7 @@ func _bind_local_seat(car: RallyCar, role: int) -> void:
 	local_role = role
 	var camera_name := "DriverCamera" if role == RosterRules.Role.DRIVER else "NavigatorCamera"
 	(car.get_node(camera_name) as Camera3D).make_current()
+	(car.get_node(^"Model") as CarModel).bind_seat(car.get_node(camera_name) as CockpitCamera)
 	if role == RosterRules.Role.DRIVER:
 		var driving := PlayerCarInput.new()
 		driving.name = "DriverInput"

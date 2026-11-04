@@ -65,6 +65,19 @@ func is_open() -> bool:
 	return cabin != null and cabin.map_state == Cabin.MapState.OPEN
 
 
+## Whether the sheet, held up, is in the way between two points in the world.
+func covers(from: Vector3, to: Vector3) -> bool:
+	if not is_open() or not _sheet.visible:
+		return false
+	var to_sheet := _sheet.global_transform.affine_inverse()
+	var a := to_sheet * from
+	var b := to_sheet * to
+	if a.z * b.z > 0.0:
+		return false
+	var at := a.lerp(b, a.z / (a.z - b.z))
+	return absf(at.x) < SHEET_SIZE.x * 0.5 and absf(at.y) < SHEET_SIZE.y * 0.5
+
+
 func _on_map_changed(state: int) -> void:
 	match state:
 		Cabin.MapState.OPEN:

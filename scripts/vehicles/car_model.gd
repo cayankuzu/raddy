@@ -4,12 +4,13 @@ extends Node3D
 ## ASSET_LICENSES.md): the body, interior and glass replace the placeholder boxes, the tyres move
 ## into the car's wheel nodes (so suspension and spin animate them), the side and front glass become
 ## the Cabin's windows (opening, breaking and kicking out work on the real glass), the steering wheel
-## turns with the steering, the body paint takes the team colour, the brake and reverse lights
-## glow with the pedals (remote cars too: the pedals come with the snapshots) and the headlights
-## come on in bad weather.
+## turns with the steering and the body paint takes the team colour. The parts that move on their own are cut
+## out of the model (CarParts): CarMirrors, CarCockpit (needles, pedals, levers), WindshieldGlass (wipers);
+## CarLamps lights its lamps. Remote cars do it all too: the pedals come with the snapshots.
 ## Must sit before the Cabin node in the scene: it swaps the glass in before Cabin._ready runs.
 
 const MODEL := preload("res://assets/vehicles/milano95/milano95.glb")
+const GLASS_SHADER := preload("res://shaders/car_glass.gdshader")
 ## The model is built along +X with its ground at y = 0; the car drives along -Z with its body
 ## origin above the ground. Turning +90 deg about Y maps the model's front (+X) onto -Z; the
 ## 8.5 cm shift puts the axles symmetric about the body origin (wheels at z = +-1.21), which the
@@ -25,23 +26,26 @@ const GLASS := {
 	"Milano95_Glass_Driver": "WindowLeft", "Milano95_Glass_Passanger": "WindowRight",
 	"Milano95_Windshield": "Windshield",
 }
+const FIXED_GLASS: Array[String] = ["Milano95_Glass_Rear", "Milano95_Glass"]
 ## Placeholder meshes hidden once the model is in.
 const PLACEHOLDERS: Array[NodePath] = [^"Body", ^"CabinShell", ^"Interior"]
 ## How far the steering wheel turns for full steering lock (radians).
 const STEERING_RATIO := 2.4
+## The column the wheel turns about (square to the rim, measured from the model), and how far it is set in.
+const WHEEL_AXIS := Vector3(0.0, 0.353, 0.936)
+const WHEEL_SET_IN := Vector3(0.0, 0.0, -0.07)
 
 var car: RallyCar
 var paint_material: StandardMaterial3D
+## The door and interior mirrors: plain glass until a seat is bound (bind_seat).
+var mirrors: CarMirrors
+var cockpit: CarCockpit
+var lamps: CarLamps
 
 var _steering: Node3D
-var _steering_axis := Vector3.FORWARD
+var _glass_panes: Array[MeshInstance3D] = []
 ## Headlights on (bad weather); set before or after the car enters the tree.
 var headlights := false
-var _brake_material: StandardMaterial3D
-var _reverse_material: StandardMaterial3D
-var _head_material: StandardMaterial3D
-var _brake_glow: OmniLight3D
-var _beams: Array[SpotLight3D] = []
 
 
 func _ready() -> void:
@@ -57,15 +61,33 @@ func _ready() -> void:
 		var node := car.get_node_or_null(path) as Node3D
 		if node != null:
 			node.visible = false
+	var parts := CarParts.cut(model, _car_space)
+	mirrors = CarMirrors.new()
+	mirrors.name = "Mirrors"
+	add_child(mirrors)
+	mirrors.build(parts)
 	_move_wheels(model)
-	_move_glass(model)
-	_setup_steering(model)
+	_move_glass(model, parts)
+	_clear_fixed_glass(model)
+	_setup_steering(model, parts)
 	_add_cabin_light()
-	_setup_lights(model)
+	cockpit = CarCockpit.new()
+	cockpit.name = "Cockpit"
+	add_child(cockpit)
+	cockpit.build(parts)
+	lamps = CarLamps.new()
+	lamps.name = "Lamps"
+	lamps.headlights = headlights
+	add_child(lamps)
+	lamps.build(model)
+	var cabin := car.get_node_or_null(^"Cabin") as Cabin
+	if cabin != null:
+		cabin.dome_changed.connect(_on_dome)
 	var damage_fx := CarDamageFx.new()
 	damage_fx.name = "DamageFx"
 	add_child(damage_fx)
 	damage_fx.setup(model, _car_space)
+	damage_fx.mirrors = mirrors
 
 
 ## A soft, shadowless fill inside the cabin so the dashboard and the hands read in daylight
@@ -75,7 +97,7 @@ func _add_cabin_light() -> void:
 	light.name = "CabinFill"
 	light.position = Vector3(0.0, 0.62, 0.05)
 	light.omni_range = 1.9
-	light.light_energy = 0.55
+	light.light_energy = 0.55 * RaceLook.daylight
 	light.light_color = Color(1.0, 0.95, 0.88)
 	light.shadow_enabled = false
 	light.light_specular = 0.2
@@ -131,7 +153,7 @@ func _move_wheels(model: Node3D) -> void:
 
 ## The model's side windows and windshield replace the Cabin's placeholder panes (same names),
 ## so Cabin shows/hides and cracks the real glass.
-func _move_glass(model: Node3D) -> void:
+func _move_glass(model: Node3D, parts: Dictionary) -> void:
 	var cabin := car.get_node_or_null(^"Cabin") as Node3D
 	if cabin == null:
 		return
@@ -160,16 +182,51 @@ func _move_glass(model: Node3D) -> void:
 		for s in clear_mesh.get_surface_count():
 			clear_mesh.surface_set_material(s, _clear_glass())
 		glass.mesh = clear_mesh
+		_add_pane(glass, in_car)
 		if GLASS[model_name] == "Windshield":
 			# Dirt, cracks and wipers live on the real windshield.
 			var windshield := WindshieldGlass.new()
 			windshield.name = "WindshieldGlass"
 			windshield.cabin = cabin as Cabin
 			windshield.glass = glass
+			windshield.parts = parts
 			add_child(windshield)
 
 
+## The rear window and the small side windows stay where they are, but they are clear too: they are what the
+## interior mirror looks through.
+func _clear_fixed_glass(model: Node3D) -> void:
+	for model_name in FIXED_GLASS:
+		for mi in model.find_child(model_name, true, false).find_children("*", "MeshInstance3D", true, false):
+			var pane := mi as MeshInstance3D
+			pane.material_override = _clear_glass()
+			_add_pane(pane, _car_space(pane))
+
+
 static var _glass: ShaderMaterial
+
+
+## A side pane with a crack star (a can hit it, spec §9.2), seeded per pane.
+static func cracked_glass(seed: int) -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = GLASS_SHADER
+	material.set_shader_parameter(&"cracked", 1.0)
+	material.set_shader_parameter(&"crack_texture", WindshieldGlass.crack_texture(seed))
+	return material
+
+
+## The dome lamp lights the cabin, and the cabin mirrors in its own glass (shaders/glass_ghost.gdshaderinc): a real
+## rally detail, reading the map at night half blinds the driver.
+func _on_dome(on: bool) -> void:
+	lamps.set_dome(on)
+	for pane in _glass_panes:
+		pane.set_instance_shader_parameter(&"cabin_glow", 1.0 if on else 0.0)
+
+
+## Tells a pane where the dome lamp is, in the pane's own mesh space.
+func _add_pane(pane: MeshInstance3D, in_car: Transform3D) -> void:
+	_glass_panes.append(pane)
+	pane.set_instance_shader_parameter(&"lamp_position", in_car.affine_inverse() * CarLamps.DOME_LENS_AT)
 
 
 ## Clear glass, shared by every car (shaders/car_glass.gdshader).
@@ -177,12 +234,13 @@ static func _clear_glass() -> ShaderMaterial:
 	if _glass == null:
 		_glass = ShaderMaterial.new()
 		_glass.resource_name = "ClearGlass"
-		_glass.shader = preload("res://shaders/car_glass.gdshader")
+		_glass.shader = GLASS_SHADER
 	return _glass
 
 
-## The steering wheel turns about its column with the car's steering angle.
-func _setup_steering(model: Node3D) -> void:
+## The steering wheel turns about its column with the car's steering angle. It is set forward with the end of
+## the column, as a driver sets it to see the dials through the rim.
+func _setup_steering(model: Node3D, parts: Dictionary) -> void:
 	var holder := model.find_child("Milano95_Steering", true, false) as Node3D
 	if holder == null:
 		return
@@ -191,94 +249,43 @@ func _setup_steering(model: Node3D) -> void:
 		return
 	var mesh_instance := meshes[0] as MeshInstance3D
 	var in_car := _car_space(mesh_instance)
-	var box := mesh_instance.mesh.get_aabb()
-	var centre := in_car * box.get_center()
-	# The column points along the wheel's thinnest dimension.
-	var size := box.size
-	var local_axis := Vector3.RIGHT if size.x <= size.y and size.x <= size.z else (Vector3.UP if size.y <= size.z else Vector3.BACK)
-	_steering_axis = (in_car.basis * local_axis).normalized()
+	var centre := in_car * mesh_instance.mesh.get_aabb().get_center()
 	_steering = Node3D.new()
 	_steering.name = "SteeringPivot"
 	# This node shares the car's space (identity transform); the car itself is busy in _ready.
 	add_child(_steering)
-	_steering.position = centre
+	_steering.position = centre + WHEEL_SET_IN
 	mesh_instance.get_parent().remove_child(mesh_instance)
 	_steering.add_child(mesh_instance)
 	mesh_instance.transform = Transform3D(in_car.basis, in_car.origin - centre)
+	var column_end := MeshInstance3D.new()
+	column_end.name = "ColumnEnd"
+	column_end.mesh = parts[&"column_end"]
+	column_end.position = WHEEL_SET_IN
+	add_child(column_end)
 	# Hide the placeholder torus wheel if it is still around.
 	var old_wheel := car.get_node_or_null(^"Interior/SteeringWheel") as Node3D
 	if old_wheel != null:
 		old_wheel.visible = false
 
 
-## Emissive copies of the lamp materials, a red glow behind the car and two headlight beams.
-func _setup_lights(model: Node3D) -> void:
-	_brake_material = _lamp(model, "Milano95_Brakelights", Color(1.0, 0.05, 0.03))
-	_reverse_material = _lamp(model, "Milano95_Reverse", Color(1.0, 0.97, 0.9))
-	_head_material = _lamp(model, "Milano95_Headlights", Color(1.0, 0.95, 0.82))
-	_brake_glow = OmniLight3D.new()
-	_brake_glow.name = "BrakeGlow"
-	_brake_glow.light_color = Color(1.0, 0.1, 0.05)
-	_brake_glow.omni_range = 3.5
-	_brake_glow.light_energy = 0.0
-	_brake_glow.shadow_enabled = false
-	_brake_glow.position = Vector3(0.0, 0.0, 2.3)
-	add_child(_brake_glow)
-	for side in [-0.55, 0.55]:
-		var beam := SpotLight3D.new()
-		beam.name = "Headlight"
-		beam.light_color = Color(1.0, 0.95, 0.85)
-		beam.light_energy = 4.0
-		beam.spot_range = 45.0
-		beam.spot_angle = 28.0
-		beam.spot_attenuation = 0.7
-		beam.shadow_enabled = false
-		beam.position = Vector3(side, -0.05, -2.0)
-		beam.rotation_degrees = Vector3(-4.0, 0.0, 0.0)
-		add_child(beam)
-		_beams.append(beam)
-	set_headlights(headlights)
-
-
-func _lamp(model: Node3D, node_name: String, color: Color) -> StandardMaterial3D:
-	var holder := model.find_child(node_name, true, false)
-	if holder == null:
-		return null
-	var meshes := holder.find_children("*", "MeshInstance3D", true, false)
-	if meshes.is_empty() and holder is MeshInstance3D:
-		meshes = [holder]
-	var material: StandardMaterial3D
-	for mi in meshes:
-		var mesh_instance := mi as MeshInstance3D
-		var base := mesh_instance.mesh.surface_get_material(0) as StandardMaterial3D
-		if material == null:
-			material = (base.duplicate() if base != null else StandardMaterial3D.new()) as StandardMaterial3D
-			material.emission_enabled = true
-			material.emission = color
-			material.emission_energy_multiplier = 0.0
-		mesh_instance.material_override = material
-	return material
-
-
 func set_headlights(on: bool) -> void:
 	headlights = on
-	for beam in _beams:
-		beam.visible = on
-	if _head_material != null:
-		_head_material.emission_energy_multiplier = 3.0 if on else 0.0
+	if lamps != null:
+		lamps.set_headlights(on)
 
 
 func _process(_delta: float) -> void:
-	if car != null and _brake_material != null:
-		var braking := car.controls.brake > 0.1 and car.forward_speed > -0.5
-		_brake_material.emission_energy_multiplier = 4.0 if braking else 0.4
-		_brake_glow.light_energy = 1.2 if braking else 0.0
-	if car != null and _reverse_material != null:
-		_reverse_material.emission_energy_multiplier = 3.0 if car.forward_speed < -0.5 else 0.0
 	if _steering == null or car == null or car.config == null:
 		return
 	var steer := car.steer_angle / maxf(car.config.max_steer_angle, 0.001)
-	_steering.basis = Basis(_steering_axis, -steer * STEERING_RATIO)
+	_steering.basis = Basis(WHEEL_AXIS.normalized(), steer * STEERING_RATIO)
+
+
+## The local player sits in this car behind `seat`: what only that player sees comes alive for that seat.
+func bind_seat(seat: CockpitCamera) -> void:
+	if mirrors != null:
+		mirrors.bind_seat(seat)
 
 
 ## A node's transform in the car body's space.

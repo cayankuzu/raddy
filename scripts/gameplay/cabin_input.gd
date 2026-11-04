@@ -1,7 +1,8 @@
 class_name CabinInput
 extends Node
 ## Local seat actions on a Cabin. The driver reaches only the driver's (left) window; the
-## navigator reaches both windows, throws cans out of the right one and holds the map (M).
+## navigator reaches both windows, throws cans out of the right one, holds the map (M) and has the dome
+## lamp over it (L).
 ## While the map is open it owns the mouse and the other cabin keys wait (spec §11.1).
 
 var cabin: Cabin
@@ -13,6 +14,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event.is_action_pressed(&"map_toggle") and cabin.local_may_hold_map():
 		cabin.request_map(cabin.map_state != Cabin.MapState.OPEN)
+		get_viewport().set_input_as_handled()
+		return
+	if event.is_action_pressed(&"cabin_dome") and cabin.local_may_hold_map():
+		cabin.request_dome(not cabin.dome_on)
 		get_viewport().set_input_as_handled()
 		return
 	if cabin.map_state == Cabin.MapState.OPEN and cabin.local_may_hold_map():

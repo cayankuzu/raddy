@@ -14,6 +14,13 @@ const SCENERY := {Level.LOW: 0.45, Level.MEDIUM: 0.75, Level.HIGH: 1.0}
 const RANGE := {Level.LOW: 0.6, Level.MEDIUM: 0.8, Level.HIGH: 1.0}
 ## Sun shadows: cascades and how far they reach (metres).
 const SHADOW_DISTANCE := {Level.LOW: 70.0, Level.MEDIUM: 110.0, Level.HIGH: 150.0}
+## The render layer of what the mirrors leave out: ground cover and the far forest. Their cost is draw calls and
+## triangles; in a small picture of the road behind nobody misses them.
+const FINE_SCENERY_LAYER := 1 << 16
+## Mirrors (CarMirrors): picture height in pixels, interior and door mirror.
+const MIRROR_HEIGHT := {Level.LOW: Vector2i(96, 96), Level.MEDIUM: Vector2i(132, 136), Level.HIGH: Vector2i(200, 208)}
+## ...and whose turn it is on each frame, one mirror per frame at most: CarMirrors.Slot, -1 = none.
+const MIRROR_TURNS := {Level.LOW: [0, 1, -1, 0, 2, -1], Level.MEDIUM: [0, 1, 0, 2], Level.HIGH: [0, 1, 0, 2]}
 ## 3D resolution scale (FSR upscales the rest) per level.
 const RENDER_SCALE := {Level.LOW: 0.77, Level.MEDIUM: 1.0, Level.HIGH: 1.0}
 
@@ -44,6 +51,15 @@ static func scenery_density(level: int) -> float:
 
 static func range_scale(level: int) -> float:
 	return RANGE.get(level, 1.0)
+
+
+static func mirror_height(level: int, interior: bool) -> int:
+	var heights: Vector2i = MIRROR_HEIGHT.get(level, MIRROR_HEIGHT[Level.HIGH])
+	return heights.x if interior else heights.y
+
+
+static func mirror_turns(level: int) -> Array:
+	return MIRROR_TURNS.get(level, MIRROR_TURNS[Level.HIGH])
 
 
 ## Shadows, ambient occlusion and glow for the race's sun and environment.

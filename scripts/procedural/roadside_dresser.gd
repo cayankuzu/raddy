@@ -390,10 +390,11 @@ static func _add_to_batches(batches: Dictionary, entry: Dictionary, parts: Array
 	var shadows: bool = entry.get("shadows", true)
 	for part in parts:
 		var material: Material = part.material
-		var key := "%d|%d|%s|%d" % [(part.mesh as Mesh).get_instance_id(), material.get_instance_id() if material != null else 0,
-			shadows, roundi(range_end)]
+		var fine: bool = entry.get("low", false) or entry.get("backdrop", false)
+		var key := "%d|%d|%s|%d|%s" % [(part.mesh as Mesh).get_instance_id(), material.get_instance_id() if material != null else 0,
+			shadows, roundi(range_end), fine]
 		if not batches.has(key):
-			batches[key] = {"name": "%s_%d" % [entry.id, batches.size()], "mesh": part.mesh, "material": material,
+			batches[key] = {"name": "%s_%d" % [entry.id, batches.size()], "mesh": part.mesh, "material": material, "fine": fine,
 				"shadows": shadows, "range": range_end, "chunk": LOW_CHUNK if entry.get("low", false) else clampf(range_end * 0.4, CHUNK_MIN, CHUNK_MAX), "cells": {}}
 		var batch: Dictionary = batches[key]
 		var placed: Transform3D = transform * part.transform
@@ -427,6 +428,8 @@ static func _build_batches(root: Node3D, batches: Dictionary) -> void:
 			if batch.material != null:
 				instance.material_override = batch.material
 			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if batch.shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if batch.fine:
+				instance.layers = GraphicsQuality.FINE_SCENERY_LAYER
 			# Ranges count from the chunk's middle: widen them by half a chunk so nothing pops in
 			# while it is still close.
 			instance.visibility_range_end = range_end + chunk * 0.5

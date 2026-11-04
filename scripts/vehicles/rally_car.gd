@@ -157,7 +157,7 @@ func set_simulated(value: bool) -> void:
 	freeze = not value
 
 
-## Steering, wheel compressions, the stuck flag, the surface, throttle, horn and brake, sent with each
+## Steering, wheel compressions, the stuck flag, the surface, throttle, horn, brake and handbrake, sent with each
 ## network snapshot so remote copies show the wheels and sound right, and the host can judge a
 ## recovery request.
 func get_net_extra() -> PackedFloat32Array:
@@ -169,6 +169,7 @@ func get_net_extra() -> PackedFloat32Array:
 	extra.append(controls.throttle)
 	extra.append(1.0 if controls.horn else 0.0)
 	extra.append(controls.brake)
+	extra.append(1.0 if controls.handbrake else 0.0)
 	return extra
 
 
@@ -195,6 +196,8 @@ func apply_net_extra(extra: PackedFloat32Array, velocity: Vector3) -> void:
 		controls.horn = extra[4 + _wheels.size()] > 0.5
 	if extra.size() > 5 + _wheels.size():
 		controls.brake = extra[5 + _wheels.size()]
+	if extra.size() > 6 + _wheels.size():
+		controls.handbrake = extra[6 + _wheels.size()] > 0.5
 
 
 ## Largest front wheel angle allowed at `speed` m/s: full lock when slow, a few degrees when fast.

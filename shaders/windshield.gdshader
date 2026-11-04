@@ -17,14 +17,26 @@ uniform vec3 plane_origin = vec3(0.0);
 uniform vec3 plane_u = vec3(1.0, 0.0, 0.0);
 uniform vec3 plane_v = vec3(0.0, 1.0, 0.0);
 uniform vec2 plane_size = vec2(1.0);
-// Wiper pivots (in u, v) and their reach in metres.
-uniform vec2 pivot_a = vec2(0.2, 0.05);
-uniform vec2 pivot_b = vec2(0.58, 0.05);
-uniform float wipe_reach = 0.5;
+// Each wiper's hinge (metres in u, v), and what its blade covers: from and to how far from the hinge, and the
+// angle it lies at parked (radians from u).
+uniform vec2 pivot_a = vec2(0.2, -0.1);
+uniform vec2 pivot_b = vec2(0.7, -0.1);
+uniform vec3 wipe_a = vec3(0.2, 0.6, 0.1);
+uniform vec3 wipe_b = vec3(0.2, 0.6, 0.1);
 // The blades turn this far up from parked (radians).
 uniform float wipe_sweep = 1.658;
 
+#include "res://shaders/glass_ghost.gdshaderinc"
+
 varying vec3 local_pos;
+
+// 1 where a blade passes on its way, soft at the edges.
+float swept_by(vec2 from_hinge, vec3 wipe) {
+	float r = length(from_hinge);
+	float a = atan(from_hinge.y, from_hinge.x) - wipe.z;
+	return smoothstep(wipe.x, wipe.x + 0.03, r) * (1.0 - smoothstep(wipe.y - 0.04, wipe.y, r))
+		* smoothstep(-0.12, -0.02, a) * (1.0 - smoothstep(wipe_sweep, wipe_sweep + 0.1, a));
+}
 
 void vertex() {
 	local_pos = VERTEX;
@@ -34,15 +46,7 @@ void fragment() {
 	vec3 rel = local_pos - plane_origin;
 	vec2 metres = vec2(dot(rel, plane_u), dot(rel, plane_v));
 	vec2 uv = metres / max(plane_size, vec2(0.0001));
-	// Swept area: the sector each blade covers (from parked, along u, up to wipe_sweep).
-	vec2 ra = metres - pivot_a * plane_size;
-	vec2 rb = metres - pivot_b * plane_size;
-	float sa = (1.0 - smoothstep(wipe_reach - 0.06, wipe_reach, length(ra)))
-		* (1.0 - smoothstep(wipe_sweep, wipe_sweep + 0.1, atan(ra.y, ra.x)));
-	float sb = (1.0 - smoothstep(wipe_reach - 0.06, wipe_reach, length(rb)))
-		* (1.0 - smoothstep(wipe_sweep, wipe_sweep + 0.1, atan(rb.y, rb.x)));
-	float swept = max(sa, sb);
-	swept *= smoothstep(-0.02, 0.04, metres.y - pivot_a.y * plane_size.y);
+	float swept = max(swept_by(metres - pivot_a, wipe_a), swept_by(metres - pivot_b, wipe_b));
 	float d = mix(edge_dirt, dirt, swept);
 	// Blotches and streaks that grow as the glass gets dirtier.
 	float blotch = texture(dirt_noise, uv * vec2(2.4, 1.6)).r;
@@ -60,4 +64,5 @@ void fragment() {
 	ALPHA = max(max(mix(0.05, 0.3, outside), mud), crack * 0.85);
 	ROUGHNESS = mix(0.04, 0.85, mud);
 	SPECULAR = mix(mix(0.0, 0.65, outside), 0.2, mud);
+	EMISSION = glass_ghost(VERTEX, NORMAL, (VIEW_MATRIX * MODEL_MATRIX * vec4(lamp_position, 1.0)).xyz, outside);
 }

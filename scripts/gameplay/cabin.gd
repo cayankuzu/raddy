@@ -18,6 +18,7 @@ signal window_state_changed(side: int, state: int, cracked: bool)
 signal windshield_changed(state: int)
 signal dirt_changed(level: float)
 signal wipers_changed(on: bool)
+signal dome_changed(on: bool)
 ## Gravel hit a seat's face (short flash on that player's screen).
 signal face_hit(role: int)
 signal faint_changed(role: int, fainted: bool)
@@ -44,6 +45,10 @@ const FACE_HIT_EXPOSURE := 0.12
 ## Chance per second of a stone chip cracking an intact windshield at 20 m/s on gravel.
 const STONE_CHIP_CHANCE := 0.012
 const WIPER_CLEAR_RATE := 0.22
+## A side window slides this way into its door (car space, the glass's own slant) and this far, in this long.
+const PANE_SLIDE: Array[Vector3] = [Vector3(-0.42, -0.907, 0.0), Vector3(0.42, -0.907, 0.0)]
+const PANE_TRAVEL := 0.5
+const PANE_SECONDS := 0.9
 const RUSTLE: Array[AudioStream] = [preload("res://assets/audio/car/map_rustle_0.ogg"), preload("res://assets/audio/car/map_rustle_1.ogg")]
 ## Glass dirt per second while driving through a water splash (at 15 m/s), and how often an open
 ## window lets a wave hit the seat beside it (per second).
@@ -75,6 +80,8 @@ var window_cracked: Array[bool] = [false, false]
 var windshield := Windshield.INTACT
 var dirt := 0.0
 var wipers_on := false
+## The cabin's dome lamp (the map holder's switch, CarLamps shows it).
+var dome_on := false
 ## Per seat (RosterRules.Role): how much wind, dust and grit it has taken; 1 = faint.
 var exposure: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIGATOR: 0.0}
 var fainted: Dictionary = {RosterRules.Role.DRIVER: false, RosterRules.Role.NAVIGATOR: false}
@@ -96,6 +103,10 @@ var map_warning_active := false
 var map_cooldown_left := 0.0
 var paper_map: PaperMap
 
+## How far down each side pane is, 0 closed .. 1 inside the door.
+var _pane_down: Array[float] = [0.0, 0.0]
+var _pane_closed: Array[Vector3] = []
+
 @onready var _window_meshes: Array[MeshInstance3D] = [$WindowLeft, $WindowRight]
 @onready var _windshield_mesh: MeshInstance3D = $Windshield
 
@@ -108,6 +119,24 @@ func _ready() -> void:
 	var car := get_parent() as RallyCar
 	if car != null:
 		car.impact.connect(_on_impact)
+	for mesh in _window_meshes:
+		_pane_closed.append(mesh.position)
+
+
+## Slides the side panes towards where their state says, as far as they can go: a broken one is gone.
+func _process(delta: float) -> void:
+	for side in 2:
+		var wanted := 1.0 if window_state[side] == WindowState.OPEN else 0.0
+		if _pane_down[side] == wanted or window_state[side] == WindowState.BROKEN:
+			continue
+		_pane_down[side] = move_toward(_pane_down[side], wanted, delta / PANE_SECONDS)
+		_show_pane(side)
+
+
+func _show_pane(side: int) -> void:
+	var mesh := _window_meshes[side]
+	mesh.position = _pane_closed[side] + PANE_SLIDE[side] * PANE_TRAVEL * _pane_down[side]
+	mesh.visible = window_state[side] != WindowState.BROKEN and _pane_down[side] < 1.0
 
 
 ## Gives the map its drawing; RaceSession (or a dev scene) calls it once the route exists.
@@ -151,6 +180,15 @@ func request_wipers(on: bool) -> void:
 		_handle_wipers_request(multiplayer.get_unique_id(), on)
 	else:
 		_rpc_request_wipers.rpc_id(1, on)
+
+
+func request_dome(on: bool) -> void:
+	if not Net.is_active():
+		_handle_dome_request(0, on)
+	elif multiplayer.is_server():
+		_handle_dome_request(multiplayer.get_unique_id(), on)
+	else:
+		_rpc_request_dome.rpc_id(1, on)
 
 
 ## Host: a can (or stone) hit a side window at `relative_speed`.
@@ -220,6 +258,12 @@ func _rpc_request_wipers(on: bool) -> void:
 		_handle_wipers_request(multiplayer.get_remote_sender_id(), on)
 
 
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_request_dome(on: bool) -> void:
+	if multiplayer.is_server():
+		_handle_dome_request(multiplayer.get_remote_sender_id(), on)
+
+
 ## Only the navigator kicks the windshield out (spec §9.1); a solo driver may too.
 func _handle_kick_request(peer_id: int) -> void:
 	if Net.is_active() and not may_hold_map(peer_id):
@@ -235,6 +279,15 @@ func _handle_wipers_request(peer_id: int, on: bool) -> void:
 	if wipers_on == on:
 		return
 	_broadcast(_rpc_set_wipers, [on])
+
+
+## The dome lamp is whoever reads the map's: the navigator, or a solo driver.
+func _handle_dome_request(peer_id: int, on: bool) -> void:
+	if Net.is_active() and not may_hold_map(peer_id):
+		return
+	if dome_on == on:
+		return
+	_broadcast(_rpc_set_dome, [on])
 
 
 ## Host (or offline): dirt, stone chips, exposure and faints follow the car's speed and surface.
@@ -487,15 +540,9 @@ func _rpc_set_window_state(side: int, state: int, cracked: bool) -> void:
 	window_state[side] = state
 	window_cracked[side] = cracked
 	window_open[side] = state != WindowState.CLOSED
-	_window_meshes[side].visible = state == WindowState.CLOSED
+	_show_pane(side)
 	if cracked and _window_meshes[side].material_override == null:
-		# Placeholder look for a cracked pane: whiter, less see-through (the art pass adds cracks).
-		var glass := StandardMaterial3D.new()
-		glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		glass.cull_mode = BaseMaterial3D.CULL_DISABLED
-		glass.roughness = 0.04
-		glass.albedo_color = Color(0.85, 0.9, 0.95, 0.7)
-		_window_meshes[side].material_override = glass
+		_window_meshes[side].material_override = CarModel.cracked_glass(team * 17 + side + 1)
 	window_state_changed.emit(side, state, cracked)
 	if window_open[side] != was_open:
 		window_changed.emit(side, window_open[side])
@@ -517,6 +564,12 @@ func _rpc_set_windshield(state: int) -> void:
 func _rpc_set_wipers(on: bool) -> void:
 	wipers_on = on
 	wipers_changed.emit(on)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_set_dome(on: bool) -> void:
+	dome_on = on
+	dome_changed.emit(on)
 
 
 @rpc("authority", "call_local", "reliable")

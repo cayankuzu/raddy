@@ -156,6 +156,7 @@ ACTION_cabin_window_right,Sağ cam,Right window
 ACTION_cabin_throw,Kutu at,Throw a can
 ACTION_cabin_kick_windshield,Ön camı tekmele,Kick the windshield out
 ACTION_cabin_wipers,Silecekler,Wipers
+ACTION_cabin_dome,Tavan lambası,Dome lamp
 ACTION_map_toggle,Harita,Map
 ACTION_map_reset,Haritayı sıfırla,Reset the map view
 ACTION_voice_talk,Bas-konuş,Push to talk
