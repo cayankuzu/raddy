@@ -43,7 +43,7 @@ static func surface_for(surface: StringName, weather: int) -> StringName:
 static func apply_to_graph(graph: RouteGraph, settings: Dictionary) -> void:
 	var weather := int(settings.get("weather", RaceSettings.Weather.CLEAR))
 	var width := RaceSettings.width_offset(int(settings.get("difficulty", RaceSettings.Difficulty.RALLY)))
-	for edge in graph.edges:
+	for edge in graph.road_edges():
 		edge.width += width
 		edge.surface = surface_for(edge.surface, weather)
 

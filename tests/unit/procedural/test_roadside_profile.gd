@@ -82,3 +82,36 @@ func test_a_car_steers_back_out_of_the_ditch() -> void:
 	gut.p("out of the ditch at 6 m/s: %.1f s, %.1f m/s, stuck %s" % [seconds, _car.forward_speed, _car.needs_recovery])
 	assert_true(back, "all four wheels back on the road")
 	assert_false(_car.needs_recovery, "no recovery needed")
+
+
+func test_a_car_in_the_trees_drives_back_onto_the_road() -> void:
+	# Eight metres off the road edge, on the forest floor, turned toward the road.
+	var spot := _graph.sample(AT)
+	var dir: Vector2 = spot.direction
+	var forward := Vector3(dir.x, 0.0, dir.y)
+	var right := Vector3(-dir.y, 0.0, dir.x)
+	var heading := (forward - right).normalized()
+	var at: Vector3 = spot.position + right * (_half() + 8.0)
+	_car = CAR_SCENE.instantiate()
+	_car.transform = Transform3D(Basis.looking_at(heading, Vector3.UP), Vector3(at.x, at.y + 0.3, at.z))
+	_world.add_child(_car)
+	await wait_ticks(TICKS)
+	var worst: Array[float] = [0.0]
+	_car.impact.connect(func(strength: float, _direction: Vector3) -> void: worst[0] = maxf(worst[0], strength))
+	_car.controls.throttle = 0.45
+	var seconds := 0.0
+	var back := false
+	while seconds < 8.0:
+		await wait_ticks(6)
+		seconds += 6.0 / TICKS
+		var on_road := true
+		for i in 4:
+			on_road = on_road and _car.wheel_surface(i) == Surface.GRAVEL and _car.is_wheel_in_contact(i)
+		if on_road:
+			back = true
+			break
+	_car.controls.clear()
+	gut.p("from the trees back onto the road: %.1f s at %.1f m/s, hardest knock %.1f m/s" % [seconds, _car.forward_speed, worst[0]])
+	assert_true(back, "up the bank, over the ditch and onto the road")
+	assert_lt(worst[0], 3.5, "without hitting anything like a wall")
+

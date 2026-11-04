@@ -18,7 +18,7 @@ const STEP := 4.0
 ## Metres from the road's edge: undergrowth may grow from here (in the ditch), and hard things keep
 ## their surface at least this far out (never in the ditch).
 const SOFT_CLEAR := RoadBuilder.SHOULDER + 0.4
-const HARD_CLEAR := RoadBuilder.ROADSIDE
+const HARD_CLEAR := RoadBuilder.POST_OFFSET
 ## Trunks and rocks stay this far apart (a car may wedge, but not disappear into a solid wall).
 const TRUNK_SPACING := 1.8
 ## Nothing hard this close to a tree that will fall (its trunk needs the room).
@@ -69,7 +69,7 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 		if parts.is_empty():
 			continue
 		var all: Array[Transform3D] = []
-		for edge in graph.edges:
+		for edge in graph.road_edges():
 			var travelled := 0.0
 			for i in range(1, edge.points.size()):
 				travelled += edge.points[i].distance_to(edge.points[i - 1])
@@ -113,9 +113,14 @@ static func _try_place(entry: Dictionary, context: Dictionary, edge: RouteGraph.
 	var graph: RouteGraph = context.graph
 	var terrain: TerrainField = context.terrain
 	if entry.get("screen", false):
-		var flags: PackedByteArray = context.screens[0 if side < 0.0 else 1]
-		if flags[graph.route_index_of(edge.id, i)] == 0:
-			return null
+		if edge.id >= RouteGraph.SPUR_EDGE_BASE:
+			# A wrong way's sides are forest like any other, but open land in the desert.
+			if graph.biome == &"desert":
+				return null
+		else:
+			var flags: PackedByteArray = context.screens[0 if side < 0.0 else 1]
+			if flags[graph.route_index_of(edge.id, i)] == 0:
+				return null
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([graph.seed, entry.id, edge.id, i, side]) if k == 0 else hash([graph.seed, entry.id, edge.id, i, side, k])
 	var density: float = entry.get("density", 1.0)  # instances per 100 m of road per side

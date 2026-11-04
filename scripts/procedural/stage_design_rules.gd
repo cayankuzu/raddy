@@ -14,6 +14,14 @@ const MAX_MEDIAN_SIGHT := 80.0
 const LONG_SIGHT := 150.0
 const MAX_LONG_SHARE := 0.03
 const MAX_SIGHT := 200.0
+## Wrong ways per stage and how far apart along the road; a fork must not lie on the side the road
+## itself turns to within FORK_AHEAD metres ("right, not right" could not be called).
+const MIN_JUNCTIONS := 3
+const MAX_JUNCTIONS := 6
+const JUNCTION_SPACING := 150.0
+const FORK_BEFORE := 10.0
+const FORK_AHEAD := 40.0
+const FORK_TURN := deg_to_rad(20.0)
 
 
 static func check(graph: RouteGraph) -> Array[String]:
@@ -21,6 +29,7 @@ static func check(graph: RouteGraph) -> Array[String]:
 	_check_length(graph, problems)
 	_check_rhythm(graph, problems)
 	_check_sightlines(graph, problems)
+	_check_junctions(graph, problems)
 	return problems
 
 
@@ -57,4 +66,20 @@ static func _check_sightlines(graph: RouteGraph, problems: Array[String]) -> voi
 		problems.append("%.1f %% of the stage sees more than %.0f m ahead" % [float(seen.long_share) * 100.0, LONG_SIGHT])
 	if float(seen.max) > MAX_SIGHT:
 		problems.append("%.0f m of road in view at %.0f m: break the straight with a crest or a kink" % [seen.max, seen.worst_at])
+
+
+static func _check_junctions(graph: RouteGraph, problems: Array[String]) -> void:
+	var count := graph.spurs.size()
+	if count < MIN_JUNCTIONS or count > MAX_JUNCTIONS:
+		problems.append("%d wrong ways, not %d-%d" % [count, MIN_JUNCTIONS, MAX_JUNCTIONS])
+	for i in count:
+		var spur := graph.spurs[i]
+		if i > 0 and spur.at - graph.spurs[i - 1].at < JUNCTION_SPACING:
+			problems.append("wrong ways at %.0f and %.0f m are closer than %.0f m" % [graph.spurs[i - 1].at, spur.at, JUNCTION_SPACING])
+		var side := spur.side_sign()
+		if side != 0:
+			var before: Vector2 = graph.sample(spur.at - FORK_BEFORE).direction
+			var after: Vector2 = graph.sample(spur.at + FORK_AHEAD).direction
+			if before.angle_to(after) * side > FORK_TURN:
+				problems.append("the wrong way at %.0f m leaves on the side the road itself turns to" % spur.at)
 

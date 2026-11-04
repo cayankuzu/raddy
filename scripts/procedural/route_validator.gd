@@ -17,6 +17,22 @@ const CROSS_CELL := 12.0
 const MIN_WIDTH := 3.6
 ## The road's width never steps along a stage: ditches and shoulders run unbroken.
 const MAX_WIDTH_STEP := 0.01
+## Wrong ways (spurs): their length and width, how far their junction keeps from any gate, how fast
+## they must leave the road, and how they may not be a way through the trees.
+const SPUR_MIN_LENGTH := 60.0
+const SPUR_MAX_LENGTH := 250.0
+const SPUR_MIN_WIDTH := 3.0
+const JUNCTION_GATE_ALONG := 60.0
+const SPUR_GATE_CLEAR := TrackFeatures.CORRIDOR + 4.0
+const DIVERGE_FROM := 30.0
+const DIVERGE := 0.3
+const SHORTCUT_SLACK := 20.0
+const JUNCTION_QUIET := 30.0
+const EVENT_BEFORE := 80.0
+const EVENT_AFTER := 60.0
+const CLIFF_REACH := 60.0
+const SPUR_TOUCH := 2.0 * TrackFeatures.SPUR_CORRIDOR + 4.0
+const CLIFF_OVERHANG := 8.0
 
 
 static func validate(graph: RouteGraph) -> Array[String]:
@@ -31,7 +47,131 @@ static func validate(graph: RouteGraph) -> Array[String]:
 	_check_separation(graph, problems)
 	_check_checkpoints(graph, problems)
 	_check_widths(graph, problems)
+	_check_spurs(graph, problems)
 	return problems
+
+
+## A wrong way costs time, never the run: it never skips a gate, never leads through the trees to a
+## later part of the road, never over a cliff, and has room to turn round.
+static func _check_spurs(graph: RouteGraph, problems: Array[String]) -> void:
+	if graph.spurs.is_empty():
+		return
+	var index := RouteIndex.new(graph)
+	var road := graph.main_route_points()
+	var along := graph.route_distances()
+	var flat_road := PackedVector2Array()
+	for p in road:
+		flat_road.append(_flat(p))
+	for spur in graph.spurs:
+		var name := "spur %d at %.0f m" % [spur.id, spur.at]
+		for gate in graph.checkpoints:
+			if absf(gate.distance - spur.at) < JUNCTION_GATE_ALONG:
+				problems.append("%s is too close to gate %d" % [name, gate.index])
+		if spur.length < SPUR_MIN_LENGTH or spur.length > SPUR_MAX_LENGTH:
+			problems.append("%s is %.0f m long, outside %.0f-%.0f" % [name, spur.length, SPUR_MIN_LENGTH, SPUR_MAX_LENGTH])
+		for edge in spur.edges:
+			if edge.width < SPUR_MIN_WIDTH - 0.001:
+				problems.append("%s is %.1f m wide, under %.1f" % [name, edge.width, SPUR_MIN_WIDTH])
+			if min_turn_radius(edge.points) < MIN_RADIUS:
+				problems.append("%s turns tighter than %.0f m" % [name, MIN_RADIUS])
+			for i in range(1, edge.points.size()):
+				if absf(edge.heights[i] - edge.heights[i - 1]) / maxf(edge.points[i].distance_to(edge.points[i - 1]), 0.01) > MAX_GRADE:
+					problems.append("%s is steeper than %.0f %%" % [name, MAX_GRADE * 100.0])
+					break
+		var outside := spur.side_sign()
+		if outside == 0:
+			var turned: float = (graph.sample(spur.at).direction as Vector2).angle_to(graph.sample(spur.at + 50.0).direction)
+			outside = -1 if turned > 0.0 else 1
+			if absf(turned) < deg_to_rad(45.0):
+				problems.append("%s carries straight on, but the road does not turn away from it" % name)
+		for feature in graph.features:
+			var from := float(feature.from)
+			var to := float(feature.to)
+			if feature.kind in [&"jump", &"water"] and to > spur.at - JUNCTION_QUIET and from < spur.at + JUNCTION_QUIET:
+				problems.append("%s leaves on a %s" % [name, feature.kind])
+			if feature.kind in [&"falling_tree", &"rockfall"] and to > spur.at - EVENT_BEFORE and from < spur.at + EVENT_AFTER:
+				problems.append("%s is at a %s" % [name, feature.kind])
+			if feature.kind in [&"cliff", &"bank"] and int(feature.side) == outside and to > spur.at - JUNCTION_QUIET and from < spur.at + EVENT_AFTER:
+				problems.append("%s leaves toward a %s" % [name, feature.kind])
+		# Every point of the track and the rim of its turning area, with its distance along the spur.
+		var points := PackedVector2Array()
+		var at := PackedFloat32Array()
+		var spur_points := spur.points_3d()
+		var spur_along := spur.distances()
+		for i in spur_points.size():
+			points.append(_flat(spur_points[i]))
+			at.append(spur_along[i])
+		for k in 8:
+			points.append(spur.landing + Vector2.RIGHT.rotated(TAU * k / 8.0) * spur.landing_radius)
+			at.append(spur.landing_at)
+		_check_spur_points(graph, spur, name, points, at, index, flat_road, along, problems)
+		# It crosses neither the road nor another wrong way.
+		for i in range(2, spur_points.size()):
+			var a := points[i - 1]
+			var b := points[i]
+			var crossed := false
+			for q in range(1, flat_road.size()):
+				if flat_road[q].distance_squared_to(a) < 400.0 and _segments_cross(a, b, flat_road[q - 1], flat_road[q]):
+					problems.append("%s crosses the road" % name)
+					crossed = true
+					break
+			if crossed:
+				break
+
+
+static func _check_spur_points(graph: RouteGraph, spur: RouteGraph.Spur, name: String, points: PackedVector2Array, at: PackedFloat32Array,
+		index: RouteIndex, flat_road: PackedVector2Array, along: PackedFloat32Array, problems: Array[String]) -> void:
+	var alongside := false
+	var near_gate := false
+	var shortcut := false
+	var overhang := false
+	var touching := false
+	for i in points.size():
+		var p := points[i]
+		var s := at[i]
+		var near := index.nearest(p, 80.0)
+		if s >= DIVERGE_FROM and float(near.distance) < minf(DIVERGE * s, SEPARATION):
+			alongside = true
+		for gate in graph.checkpoints:
+			if gate.position.distance_to(p) < SPUR_GATE_CLEAR:
+				near_gate = true
+		# Where its corridor merges with the road's, the road must not be nearer along it than round by the stage.
+		if i % 3 == 0:
+			for q in range(0, flat_road.size(), 2):
+				var d := flat_road[q].distance_to(p)
+				if d < TrackFeatures.CORRIDOR + TrackFeatures.SPUR_CORRIDOR and absf(along[q] - spur.at) > s + d + SHORTCUT_SLACK:
+					shortcut = true
+					break
+		if float(near.distance) != INF:
+			for cliff in graph.features_of(&"cliff"):
+				if float(near.along) < float(cliff.from) - CLIFF_REACH or float(near.along) > float(cliff.to) + CLIFF_REACH:
+					continue
+				var spot := graph.sample(float(near.along))
+				var dir: Vector2 = spot.direction
+				var lateral := (p - Vector2(spot.position.x, spot.position.z)).dot(Vector2(-dir.y, dir.x)) * float(cliff.side)
+				if lateral > float(graph.edges[spot.edge].width) * 0.5 + CLIFF_OVERHANG + TerrainField.FLAT_BAND:
+					overhang = true
+		for other in graph.spurs:
+			if other.id == spur.id:
+				continue
+			if other.landing.distance_to(p) < SPUR_TOUCH:
+				touching = true
+			for q in other.points_3d():
+				if _flat(q).distance_to(p) < SPUR_TOUCH:
+					touching = true
+					break
+			if touching:
+				break
+	if alongside:
+		problems.append("%s runs alongside the road" % name)
+	if near_gate:
+		problems.append("%s comes too close to a gate" % name)
+	if shortcut:
+		problems.append("%s is a way through to another part of the road" % name)
+	if overhang:
+		problems.append("%s runs over a cliff" % name)
+	if touching:
+		problems.append("%s touches another wrong way" % name)
 
 
 ## Every road is wide enough for two cars, and its paved width plus both verges still fits the gap

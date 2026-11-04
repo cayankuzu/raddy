@@ -21,8 +21,8 @@ const TRUNK_RADIUS := 0.35
 ## The trunk ends this far short of the centre line, on its own half: the far half stays open.
 ## The crown beyond it has no collision.
 const TRUNK_SHORT_OF_CENTRE := 0.3
-## How far from the road's edge the fir stands: just past the skirt, on the low ground.
-const TREE_BASE := RoadBuilder.ROADSIDE + 0.4
+## How far from the road's edge the fir stands: just past the ditch's lip.
+const TREE_BASE := RoadBuilder.POST_OFFSET + 0.4
 
 
 static func build(graph: RouteGraph, terrain: TerrainField) -> Array[Node3D]:

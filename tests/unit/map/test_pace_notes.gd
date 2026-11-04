@@ -39,8 +39,8 @@ func test_a_known_corner_is_called_with_the_right_side_and_severity() -> void:
 			found = true
 			assert_eq(note.side, "left")
 			assert_eq(note.severity, 3)
-			assert_eq(note.tr, "Sol 3")
-			assert_eq(note.en, "Left 3")
+			assert_eq(note.tr, "Kavşak: Sol 3, düz değil!")
+			assert_eq(note.en, "Junction: Left 3, not straight!")
 	assert_true(found, "the corner at %.0f m is called" % start)
 
 
@@ -73,3 +73,24 @@ func test_number_at_finds_the_nearest_call() -> void:
 	var notes := PaceNotes.build(_graph(&"red_canyon"))
 	var third: Dictionary = notes[2]
 	assert_eq(PaceNotes.number_at(notes, third.distance + 1.0), third.number)
+
+
+func test_every_wrong_way_has_its_call_at_every_detail() -> void:
+	for i in StageCatalog.count():
+		var graph := StageBuilder.build(StageCatalog.get_stage(i))
+		for detail in [PaceNotes.DETAIL_SUMMARY, PaceNotes.DETAIL_STANDARD, PaceNotes.DETAIL_FULL]:
+			var notes := PaceNotes.build(graph, detail)
+			var calls := notes.filter(func(n: Dictionary) -> bool: return n.junction != "")
+			assert_eq(calls.size(), graph.spurs.size(), "%s: one call per wrong way at detail %d" % [graph.stage_id, detail])
+			for call in calls:
+				assert_true(String(call.tr).begins_with("Kavşak: "), "%s: %s" % [graph.stage_id, call.tr])
+				assert_true(String(call.en).begins_with("Junction: "), "%s: %s" % [graph.stage_id, call.en])
+
+
+func test_junction_texts() -> void:
+	var segments := [{"len": 300}, {"len": 60, "decoy": {"side": "left", "len": 140}}, {"len": 500}, {"len": 40, "turn": -70}, {"len": 800}]
+	var graph := StageBuilder.build({"id": &"t", "seed": 3, "bumps": 0.0, "segments": segments})
+	var note: Dictionary = PaceNotes.build(graph, PaceNotes.DETAIL_STANDARD).filter(func(n: Dictionary) -> bool: return n.junction != "")[0]
+	assert_eq(note.kind, &"junction")
+	assert_eq(note.tr, "Kavşak: Düz, sola değil!")
+	assert_eq(note.en, "Junction: Straight, not left!")

@@ -18,6 +18,14 @@ const MAX_ZOOM := 4.5
 const PAPER := Color("e7dcc3")
 const INK := Color("3a2f24")
 const ROAD_MAIN := Color("5a4634")
+## Wrong ways: thin dashed tracks, so the navigator can tell them from the stage road; a dead end
+## and a closed road end in a bar across.
+const ROAD_TRACK := Color("6e5a42")
+const TRACK_WIDTH := 4.5
+const TRACK_DASH := 10.0
+const TRACK_GAP := 6.0
+const END_BAR_DEAD := 20.0
+const END_BAR_CLOSED := 26.0
 const WATER := Color("3b6f9e")
 const HAZARD := Color("b83a2a")
 const CREASE := Color(0.25, 0.18, 0.1, 0.16)
@@ -63,6 +71,7 @@ func build(route: RouteGraph, notes: Array[Dictionary], contour: Image) -> void:
 	_content.name = "Content"
 	add_child(_content)
 	_add_paper(contour)
+	_add_tracks()
 	_add_roads()
 	_add_creases()
 	_add_gates()
@@ -230,6 +239,78 @@ static func contour_image(terrain: TerrainField, center: Vector2, half: Vector2,
 	return image
 
 
+## The wrong ways, under the stage road (it covers their mouths).
+func _add_tracks() -> void:
+	var tracks := Node2D.new()
+	tracks.name = "Tracks"
+	_content.add_child(tracks)
+	for spur in graph.spurs:
+		var track := Node2D.new()
+		track.name = "Spur%d" % spur.id
+		tracks.add_child(track)
+		var map_points := PackedVector2Array()
+		var flat := spur.points_3d()
+		var along := spur.distances()
+		var shown := spur.length if spur.end == &"dead_end" else float(along[-1])
+		for i in flat.size():
+			if along[i] <= shown + 0.01:
+				map_points.append(world_to_map(Vector2(flat[i].x, flat[i].z)))
+		for dash in dashes(map_points, TRACK_DASH, TRACK_GAP):
+			var line := Line2D.new()
+			line.points = dash
+			line.width = TRACK_WIDTH
+			line.default_color = ROAD_TRACK
+			line.antialiased = true
+			track.add_child(line)
+		# The end: a bar across the dead end, or a red one at the barrier with the road running on.
+		var bar_at: float = spur.length if spur.end == &"dead_end" else spur.barrier_at
+		var k := clampi(along.bsearch(bar_at), 1, flat.size() - 1)
+		var at := world_to_map(Vector2(flat[k].x, flat[k].z))
+		var dir := (at - world_to_map(Vector2(flat[k - 1].x, flat[k - 1].z))).normalized()
+		var across := Vector2(-dir.y, dir.x)
+		var half := (END_BAR_DEAD if spur.end == &"dead_end" else END_BAR_CLOSED) * 0.5
+		var bar := Line2D.new()
+		bar.name = "End"
+		bar.points = PackedVector2Array([at - across * half, at + across * half])
+		bar.width = 6.0
+		bar.default_color = INK if spur.end == &"dead_end" else HAZARD
+		track.add_child(bar)
+
+
+## A polyline cut into dashes.
+static func dashes(points: PackedVector2Array, dash: float, gap: float) -> Array[PackedVector2Array]:
+	var out: Array[PackedVector2Array] = []
+	var current := PackedVector2Array()
+	var left := dash
+	var drawing := true
+	for i in range(1, points.size()):
+		var a := points[i - 1]
+		var b := points[i]
+		var length := a.distance_to(b)
+		var dir := (b - a) / maxf(length, 0.001)
+		var at := 0.0
+		if drawing and current.is_empty():
+			current.append(a)
+		while length - at > left:
+			at += left
+			var p := a + dir * at
+			if drawing:
+				current.append(p)
+				out.append(current)
+				current = PackedVector2Array()
+				left = gap
+			else:
+				current = PackedVector2Array([p])
+				left = dash
+			drawing = not drawing
+		left -= length - at
+		if drawing:
+			current.append(b)
+	if current.size() >= 2:
+		out.append(current)
+	return out
+
+
 func _add_roads() -> void:
 	var roads := Node2D.new()
 	roads.name = "Roads"
@@ -357,7 +438,7 @@ func _add_note_numbers(notes: Array[Dictionary]) -> void:
 		outline.points = _circle(13.0)
 		outline.closed = true
 		outline.width = 2.5
-		outline.default_color = HAZARD if note.caution or note.kind in [&"jump", &"water", &"cliff"] else INK
+		outline.default_color = HAZARD if note.caution or note.junction != "" or note.kind in [&"jump", &"water", &"cliff"] else INK
 		outline.position = at
 		numbers.add_child(outline)
 		var label := Label.new()

@@ -39,6 +39,7 @@ func before_each() -> void:
 func test_track_geometry_covers_the_stage() -> void:
 	var track := _world.get_node(^"Track")
 	assert_eq(track.get_node(^"Roads").get_child_count(), _graph.edges.size(), "one road body per edge")
+	assert_eq(track.get_node(^"Spurs").get_child_count(), _graph.spurs.size(), "wrong ways apart from the road")
 	assert_eq(track.get_node(^"Checkpoints").get_child_count(), _graph.checkpoints.size())
 	assert_not_null(track.get_node(^"Terrain/Shape") as CollisionShape3D)
 	assert_not_null(track.get_node(^"Features/Boundary"))

@@ -127,6 +127,26 @@ func test_handbrake_hairpin() -> void:
 	assert_eq(_car.wheels_in_contact(), 4, "on its wheels")
 
 
+## Manoeuvring at walking pace: from a standstill, full lock and a little throttle pull the car
+## round in a tight circle (a U-turn on a turning area, parking on the grid).
+func test_pulls_away_on_full_lock_at_low_throttle() -> void:
+	for throttle in [0.2, 0.35, 0.6]:
+		_car.reset_to(Transform3D(Basis(), START))
+		await wait_ticks(TICKS)
+		var start_heading := _heading()
+		var seconds := 0.0
+		var turned := 0.0
+		while turned < 170.0 and seconds < 15.0:
+			_car.controls.steer = 1.0
+			_car.controls.throttle = throttle if _car.forward_speed < 2.5 else 0.0
+			await wait_ticks(6)
+			seconds += 6.0 / TICKS
+			turned = absf(wrapf(_heading() - start_heading, -180.0, 180.0))
+		_car.controls.clear()
+		gut.p("full lock from a standstill at %.0f %% throttle: 170 deg in %.1f s, speed %.1f m/s" % [throttle * 100.0, seconds, _car.forward_speed])
+		assert_lt(seconds, 12.0, "throttle %.2f gets the car round" % throttle)
+
+
 ## A 0.8 m drop at 80 km/h: lands on its wheels and settles without bouncing about.
 func test_landing_after_a_drop() -> void:
 	_add_box(Vector3(0.0, 0.3, -40.0), Vector3(20.0, 0.8, 60.0), Surface.GRAVEL)

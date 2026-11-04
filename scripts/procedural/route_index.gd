@@ -10,9 +10,20 @@ var _points := PackedVector2Array()
 var _along := PackedFloat32Array()
 
 
-func _init(graph: RouteGraph) -> void:
-	var points := graph.main_route_points()
-	_along = graph.route_distances()
+func _init(graph: RouteGraph = null) -> void:
+	if graph != null:
+		_fill(graph.main_route_points(), graph.route_distances())
+
+
+## An index of any polyline (a wrong way's track).
+static func of_points(points: PackedVector3Array, along: PackedFloat32Array) -> RouteIndex:
+	var index := RouteIndex.new()
+	index._fill(points, along)
+	return index
+
+
+func _fill(points: PackedVector3Array, along: PackedFloat32Array) -> void:
+	_along = along
 	for i in points.size():
 		var flat := Vector2(points[i].x, points[i].z)
 		_points.append(flat)

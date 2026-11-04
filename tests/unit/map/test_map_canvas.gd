@@ -94,3 +94,22 @@ func test_contour_image_has_height_bands_and_edges() -> void:
 			colors[image.get_pixel(x, y).to_html(false)] = true
 	gut.p("contour colours: %d" % colors.size())
 	assert_gte(colors.size(), 4, "several bands plus their darker edges")
+
+
+func test_wrong_ways_are_thin_dashed_tracks_under_the_road() -> void:
+	var graph := StageBuilder.build(StageCatalog.get_stage(0))
+	var canvas := MapCanvas.new()
+	add_child_autofree(canvas)
+	canvas.build(graph, PaceNotes.build(graph, PaceNotes.DETAIL_STANDARD), Image.create(4, 4, false, Image.FORMAT_RGB8))
+	var content := canvas.get_node(^"Content")
+	var tracks := content.get_node(^"Tracks")
+	assert_eq(tracks.get_child_count(), graph.spurs.size(), "one per wrong way")
+	assert_lt(tracks.get_index(), content.get_node(^"Roads").get_index(), "under the stage road")
+	assert_not_null(tracks.get_child(0).get_node_or_null(^"End"), "with a bar across its end")
+	var line := PackedVector2Array([Vector2.ZERO, Vector2(160.0, 0.0)])
+	var total := 0.0
+	var pieces := MapCanvas.dashes(line, 10.0, 6.0)
+	for piece in pieces:
+		total += piece[0].distance_to(piece[-1])
+	assert_eq(pieces.size(), 10, "dashes all along")
+	assert_almost_eq(total, 100.0, 0.5, "10 on, 6 off")

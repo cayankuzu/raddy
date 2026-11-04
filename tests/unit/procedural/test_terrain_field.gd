@@ -21,9 +21,12 @@ func test_cross_section_profile() -> void:
 	assert_almost_eq(TerrainField.cross_section(1.3, 1.0), -0.40, 0.001, "ditch bottom")
 	assert_almost_eq(TerrainField.cross_section(1.6, 1.0), -0.40, 0.001, "ditch bottom")
 	assert_almost_eq(TerrainField.cross_section(2.1, 1.0), -0.15, 0.001, "lip")
-	assert_almost_eq(TerrainField.cross_section(2.6, 1.0), -0.70, 0.001, "skirt foot")
+	assert_almost_eq(TerrainField.cross_section(RoadBuilder.ROADSIDE, 1.0), -TerrainField.FLOOR_DROP, 0.001, "the bank's foot")
 	assert_almost_eq(TerrainField.cross_section(1.45, 0.0), -0.05, 0.001, "no ditch: flat")
-	assert_almost_eq(TerrainField.cross_section(2.6, 0.0), -0.70, 0.001, "the skirt is always there")
+	assert_almost_eq(TerrainField.cross_section(RoadBuilder.ROADSIDE, 0.0), -TerrainField.FLOOR_DROP, 0.001, "the bank is always there")
+	# A car in the trees can drive back up onto the road: the bank is gentle.
+	var bank := (TerrainField.cross_section(RoadBuilder.DITCH_END, 1.0) + TerrainField.FLOOR_DROP) / (RoadBuilder.ROADSIDE - RoadBuilder.DITCH_END)
+	assert_lt(bank, 0.3, "the bank's slope")
 	_setup(&"black_pine")
 	var spot := _graph.sample(100.0)
 	var dir: Vector2 = spot.direction

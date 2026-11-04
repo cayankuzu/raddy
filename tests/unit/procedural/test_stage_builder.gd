@@ -70,8 +70,42 @@ func test_a_width_step_along_the_road_is_a_problem() -> void:
 func test_every_stage_meets_the_design_rules() -> void:
 	for graph in _stages():
 		var problems := StageDesignRules.check(graph)
-		gut.p("%s: %.0f m, worst gap between dangers %.0f m" % [graph.stage_id, graph.main_route_length(), StageDesignRules.worst_danger_gap(graph)])
+		var junctions := graph.spurs.map(func(s: RouteGraph.Spur) -> String: return "%.0f %s%s" % [s.at, s.side, " closed" if s.end == &"barrier" else ""])
+		gut.p("%s: %.0f m, worst gap between dangers %.0f m, wrong ways: %s" % [graph.stage_id, graph.main_route_length(), StageDesignRules.worst_danger_gap(graph), ", ".join(junctions)])
 		assert_eq(problems, [] as Array[String], "%s meets the design" % graph.stage_id)
+
+
+func test_a_decoy_never_changes_the_stage_road() -> void:
+	var segments := [{"len": 400}, {"len": 40, "turn": -80}, {"len": 800}, {"len": 40, "turn": 60}, {"len": 800}]
+	var plain := StageBuilder.build({"id": &"t", "seed": 3, "segments": segments})
+	var with_decoy: Array = segments.duplicate(true)
+	with_decoy[1].decoy = {"side": "straight", "len": 140}
+	var graph := StageBuilder.build({"id": &"t", "seed": 3, "segments": with_decoy})
+	assert_eq(graph.spurs.size(), 1)
+	assert_eq(var_to_str(graph.to_dict().edges), var_to_str(plain.to_dict().edges), "same road")
+	assert_eq(var_to_str(graph.to_dict().checkpoints), var_to_str(plain.to_dict().checkpoints), "same gates")
+	var spur := graph.spurs[0]
+	var road_point := graph.sample(spur.at).position as Vector3
+	assert_almost_eq(spur.points_3d()[0].distance_to(road_point), 0.0, 0.01, "the junction is a road point")
+	assert_gte(spur.edges[0].id, RouteGraph.SPUR_EDGE_BASE)
+	var straight := (spur.edges[0].points[5] - spur.edges[0].points[0]).normalized()
+	var before: Vector2 = graph.sample(spur.at - 8.0).direction
+	assert_gt(straight.dot(before), 0.99, "a straight decoy carries straight on where the road turns")
+	assert_almost_eq(spur.distances()[-1], 140.0, 2.5, "as long as asked")
+	assert_almost_eq(spur.landing.distance_to(spur.edges[0].points[-1]), 0.0, 2.5, "the turning area at its end")
+	assert_gte(spur.landing_radius, 6.0, "room to turn the car round")
+	for i in 6:
+		var near_road := graph.sample(spur.at).position as Vector3
+		assert_almost_eq(spur.edges[0].heights[i], near_road.y, 0.3, "it leaves at road level")
+
+
+func test_a_closed_road_carries_on_past_its_barrier() -> void:
+	var segments := [{"len": 400}, {"len": 40, "turn": -80, "decoy": {"side": "straight", "len": 70, "end": "barrier"}}, {"len": 800}, {"len": 40, "turn": 60}, {"len": 800}]
+	var spur := StageBuilder.build({"id": &"t", "seed": 3, "segments": segments}).spurs[0]
+	assert_eq(spur.end, &"barrier")
+	assert_almost_eq(spur.barrier_at, 70.0, 0.01)
+	assert_gt(spur.distances()[-1], spur.barrier_at + 20.0, "the road runs on beyond it")
+	assert_lt(spur.landing_at, spur.barrier_at, "room to turn before the barrier")
 
 
 func test_same_recipe_same_stage() -> void:

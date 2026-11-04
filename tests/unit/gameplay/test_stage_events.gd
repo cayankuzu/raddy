@@ -51,7 +51,7 @@ func test_the_tree_falls_across_the_near_half_of_the_road_once() -> void:
 	var tip_off := index.distance_to(Vector2(tip.x, tip.z))
 	var base_off := index.distance_to(Vector2(event.global_position.x, event.global_position.z))
 	gut.p("trunk from %.1f m off the centre line to %.1f m past it" % [base_off, tip_off])
-	assert_gt(base_off, _graph.edges[0].width * 0.5 + RoadBuilder.ROADSIDE, "it stood beyond the road's side")
+	assert_gt(base_off, _graph.edges[0].width * 0.5 + RoadBuilder.POST_OFFSET, "it stood beyond the ditch")
 	assert_lt(tip_off, 1.0, "the trunk ends at the centre line: the far half stays open")
 	assert_false((tree.get_node(^"Trunk") as CollisionShape3D).disabled, "the trunk blocks the near half")
 	assert_true((tree.get_node(^"Crown") as Area3D).monitoring, "cars pushing through the crown are noticed")

@@ -11,6 +11,8 @@ const WINDOW_BACK := 8
 ## Further than this from the tracked point: search the whole stage (up to `furthest` + REACQUIRE_AHEAD).
 const LOST_DISTANCE := 40.0
 const REACQUIRE_AHEAD := 30.0
+## Progress only counts within this of the road: trees, drops and wrong ways earn nothing.
+const ON_ROAD := 14.0
 
 var distance := 0.0
 var furthest := 0.0
@@ -47,9 +49,10 @@ func update(position: Vector3) -> void:
 				best_distance = d
 				best = i
 	_index = best
-	distance = _along[_index]
-	furthest = maxf(furthest, distance)
 	off_road = best_distance
+	if off_road <= ON_ROAD:
+		distance = _along[_index]
+		furthest = maxf(furthest, distance)
 
 
 ## Starts again from `along` metres (after a recovery puts the car back).

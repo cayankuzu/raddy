@@ -8,14 +8,16 @@ class_name RoadBuilder
 ## origin -> +X -> +Z; trimesh collision is one-sided, so every face here keeps that order.
 
 ## The road's cross-section beyond its edge (metres from the edge; TerrainField.cross_section):
-## a drivable gravel shoulder, a V ditch (bottom from DITCH_IN to DITCH_OUT), a lip, and a skirt down
-## to the ground. Heights: SHOULDER_DROP at the shoulder's edge, DITCH_DEPTH at the bottom and
-## LIP_DROP at the lip, all below the road.
+## a drivable gravel shoulder, a V ditch (bottom from DITCH_IN to DITCH_OUT), a lip, and a gentle
+## bank down to the ground at ROADSIDE (gentle: a car in the trees can drive back up onto the road).
+## Heights: SHOULDER_DROP at the shoulder's edge, DITCH_DEPTH at the bottom and LIP_DROP at the lip,
+## all below the road. POST_OFFSET: where anything standing beside the road starts (just past the lip).
 const SHOULDER := 0.8
 const DITCH_IN := 1.3
 const DITCH_OUT := 1.6
 const DITCH_END := 2.1
-const ROADSIDE := 2.6
+const ROADSIDE := 4.6
+const POST_OFFSET := 2.6
 const SHOULDER_DROP := 0.05
 const DITCH_DEPTH := 0.4
 const LIP_DROP := 0.15
@@ -25,6 +27,13 @@ const ROAD_LIFT := 0.02
 const GATE_HEIGHT := 14.0
 ## How far posts beside the road reach below road level (the ground lies FLOOR_DROP below it).
 const POST_FOOT := 1.5
+## Wrong ways lie just under the stage road where they meet it, and the mouth's filler under both.
+const SPUR_LIFT := 0.008
+const MOUTH_LIFT := 0.004
+## The junction's filler reaches this far past the road's edge, then falls away into the ditch.
+const MOUTH_REACH := 3.0
+const MOUTH_SKIRT := 0.7
+const DISC_SEGMENTS := 24
 
 static var _palette: Dictionary = {}
 static var _biome := 0
@@ -48,6 +57,11 @@ static func build(graph: RouteGraph, terrain: TerrainField, palette := {}) -> No
 	if not graph.main_route.is_empty():
 		_add_apron(roads.get_node("Road%d" % graph.main_route[0]), graph.edges[graph.main_route[0]], false)
 		_add_apron(roads.get_node("Road%d" % graph.main_route[-1]), graph.edges[graph.main_route[-1]], true)
+	var spurs := Node3D.new()
+	spurs.name = "Spurs"
+	root.add_child(spurs)
+	for spur in graph.spurs:
+		spurs.add_child(_build_spur(graph, spur, terrain))
 	var gates := Node3D.new()
 	gates.name = "Checkpoints"
 	root.add_child(gates)
@@ -123,7 +137,121 @@ static func _build_terrain(graph: RouteGraph, terrain: TerrainField) -> StaticBo
 
 # --- roads ---
 
-static func _build_road(edge: RouteGraph.RouteEdge, terrain: TerrainField) -> StaticBody3D:
+## One wrong way: its road, the turning area, and the filler in the junction's corners.
+static func _build_spur(graph: RouteGraph, spur: RouteGraph.Spur, terrain: TerrainField) -> Node3D:
+	var node := Node3D.new()
+	node.name = "Spur%d" % spur.id
+	node.set_meta(&"spur_id", spur.id)
+	for edge in spur.edges:
+		node.add_child(_build_road(edge, terrain, SPUR_LIFT))
+	node.add_child(_build_landing(spur))
+	node.add_child(_build_mouth(graph, spur, terrain))
+	if spur.end == &"barrier":
+		var last := spur.edges[-1]
+		_add_apron(node.get_node("Road%d" % last.id), last, true)
+	return node
+
+
+## The turning area at a track's end: a disc of road, its side the road's own profile (no ditch).
+static func _build_landing(spur: RouteGraph.Spur) -> StaticBody3D:
+	var edge := spur.edges[-1]
+	var body := StaticBody3D.new()
+	body.name = "Landing"
+	body.set_meta(&"surface", edge.surface)
+	var r := spur.landing_radius
+	var center := Vector3(spur.landing.x, spur.landing_height, spur.landing.y)
+	var disc := SurfaceTool.new()
+	disc.begin(Mesh.PRIMITIVE_TRIANGLES)
+	disc.set_material(SurfaceMaterials.road(edge.surface))
+	disc.set_normal(Vector3.UP)
+	disc.set_uv(Vector2.ZERO)
+	disc.set_uv2(Vector2(r, 0.0))
+	disc.add_vertex(center + Vector3.UP * SPUR_LIFT)
+	for k in DISC_SEGMENTS + 1:
+		var a := TAU * k / DISC_SEGMENTS
+		var offset := Vector3(cos(a), 0.0, sin(a)) * r
+		disc.set_normal(Vector3.UP)
+		disc.set_uv(Vector2(offset.x, offset.z))
+		disc.set_uv2(Vector2(r, 0.0))
+		disc.add_vertex(center + offset + Vector3.UP * SPUR_LIFT)
+	for k in DISC_SEGMENTS:
+		disc.add_index(0)
+		disc.add_index(k + 1)
+		disc.add_index(k + 2)
+	disc.generate_tangents()
+	_add_surface(body, disc.commit())
+	# The side: rings at the road's profile columns.
+	var columns := PackedFloat32Array([0.0, SHOULDER, DITCH_END, ROADSIDE])
+	var ring := SurfaceTool.new()
+	ring.begin(Mesh.PRIMITIVE_TRIANGLES)
+	ring.set_material(SurfaceMaterials.verge(edge.surface, _biome))
+	for k in DISC_SEGMENTS + 1:
+		var a := TAU * k / DISC_SEGMENTS
+		var out := Vector3(cos(a), 0.0, sin(a))
+		for e in columns:
+			ring.set_normal(Vector3.UP)
+			ring.set_uv(Vector2(e, a * r))
+			ring.set_uv2(Vector2(r, 0.0))
+			ring.add_vertex(center + out * (r + e) + Vector3.UP * TerrainField.cross_section(e, 0.0))
+	var stride := columns.size()
+	for k in DISC_SEGMENTS:
+		for c in stride - 1:
+			var inner0 := k * stride + c
+			var inner1 := inner0 + stride
+			ring.add_index(inner0)
+			ring.add_index(inner0 + 1)
+			ring.add_index(inner1)
+			ring.add_index(inner1)
+			ring.add_index(inner0 + 1)
+			ring.add_index(inner1 + 1)
+	ring.generate_tangents()
+	_add_surface(body, ring.commit())
+	return body
+
+
+## Fills the corners where a wrong way leaves the stage road: a low disc at road level, under both
+## ribbons, its rim falling away into the ditches.
+static func _build_mouth(graph: RouteGraph, spur: RouteGraph.Spur, terrain: TerrainField) -> StaticBody3D:
+	var spot := graph.sample(spur.at)
+	var edge := graph.edges[spot.edge]
+	var body := StaticBody3D.new()
+	body.name = "Mouth"
+	body.set_meta(&"surface", edge.surface)
+	var center: Vector3 = spot.position
+	var r := edge.width * 0.5 + MOUTH_REACH
+	var radii := PackedFloat32Array([0.0, r * 0.5, r, r + MOUTH_SKIRT])
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	surface.set_material(SurfaceMaterials.road(edge.surface))
+	for k in DISC_SEGMENTS + 1:
+		var a := TAU * k / DISC_SEGMENTS
+		var out := Vector3(cos(a), 0.0, sin(a))
+		for n in radii.size():
+			var p := center + out * radii[n]
+			var y := terrain.road_height_near(Vector2(p.x, p.z)) + MOUTH_LIFT
+			if n == radii.size() - 1:
+				y -= DITCH_DEPTH + SHOULDER_DROP
+			surface.set_normal(Vector3.UP)
+			surface.set_uv(Vector2(p.x - center.x, p.z - center.z))
+			surface.set_uv2(Vector2(r, 0.0))
+			surface.add_vertex(Vector3(p.x, y, p.z))
+	var stride := radii.size()
+	for k in DISC_SEGMENTS:
+		for n in stride - 1:
+			var a0 := k * stride + n
+			var a1 := a0 + stride
+			surface.add_index(a0)
+			surface.add_index(a0 + 1)
+			surface.add_index(a1)
+			surface.add_index(a1)
+			surface.add_index(a0 + 1)
+			surface.add_index(a1 + 1)
+	surface.generate_tangents()
+	_add_surface(body, surface.commit())
+	return body
+
+
+static func _build_road(edge: RouteGraph.RouteEdge, terrain: TerrainField, lift := ROAD_LIFT) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = "Road%d" % edge.id
 	body.set_meta(&"surface", edge.surface)
@@ -131,7 +259,7 @@ static func _build_road(edge: RouteGraph.RouteEdge, terrain: TerrainField) -> St
 	var first := 0
 	var last := edge.points.size() - 1
 	var half := edge.width * 0.5
-	var road := _ribbon(edge, first, last, -half, half, ROAD_LIFT, ROAD_LIFT,
+	var road := _ribbon(edge, first, last, -half, half, lift, lift,
 		SurfaceMaterials.road(edge.surface), -half, half, true)
 	# The shoulder is part of the road (its surface, drivable); the ditch is ground of its own.
 	var verge_material := SurfaceMaterials.verge(edge.surface, _biome)
@@ -175,19 +303,20 @@ static func _side_strip(edge: RouteGraph.RouteEdge, terrain: TerrainField, side:
 		var center := edge.point_3d(i)
 		var ahead := edge.point_3d(mini(i + 1, count - 1)) - edge.point_3d(maxi(i - 1, 0))
 		var d := terrain.ditch_at(edge.id, i, side)
+		var foot := terrain.foot_at(edge.id, i)
 		for c in columns.size():
 			var e := columns[c]
 			# The normal from the slope of the profile across and the road's grade along.
 			var inner := columns[maxi(c - 1, 0)]
 			var outer := columns[mini(c + 1, columns.size() - 1)]
-			var across := right * side * (outer - inner) + Vector3.UP * (TerrainField.cross_section(outer, d) - TerrainField.cross_section(inner, d))
+			var across := right * side * (outer - inner) + Vector3.UP * (TerrainField.cross_section(outer, d, foot) - TerrainField.cross_section(inner, d, foot))
 			var normal := across.cross(ahead).normalized() if ahead.length_squared() > 0.0001 else Vector3.UP
 			if normal.y < 0.0:
 				normal = -normal
 			surface.set_normal(normal)
 			surface.set_uv(Vector2(e, along))
 			surface.set_uv2(uv2)
-			surface.add_vertex(center + right * side * (half + e) + Vector3.UP * TerrainField.cross_section(e, d))
+			surface.add_vertex(center + right * side * (half + e) + Vector3.UP * TerrainField.cross_section(e, d, foot))
 	var stride := columns.size()
 	for section in count - 1:
 		for c in stride - 1:
@@ -330,6 +459,6 @@ static func _build_gate(graph: RouteGraph, checkpoint: RouteGraph.Gate, index: R
 		post_mesh.size = Vector3(0.3, 3.5 + POST_FOOT, 0.3)
 		post_mesh.material = _material(color, 0.6)
 		post.mesh = post_mesh
-		post.position = Vector3(side * (edge.width * 0.5 + ROADSIDE + 0.5), (3.5 - POST_FOOT) * 0.5, 0.0)
+		post.position = Vector3(side * (edge.width * 0.5 + POST_OFFSET + 0.5), (3.5 - POST_FOOT) * 0.5, 0.0)
 		gate.add_child(post)
 	return gate

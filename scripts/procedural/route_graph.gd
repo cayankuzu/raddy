@@ -5,9 +5,13 @@ extends RefCounted
 ## height per point), plus the stage's features (crests, jumps, dips, water, cliffs, banks) by
 ## distance along the road. StageBuilder makes it from a named stage, RouteValidator checks it,
 ## RoadBuilder turns it into geometry, and the paper map and pace notes read the same data, so the
-## map always matches the world.
+## map always matches the world. Wrong ways (`spurs`: dead-end tracks and closed roads leaving the
+## stage road) are kept apart from `edges`: everything that follows the stage ignores them, and only
+## what builds the world reads road_edges().
 
-const VERSION := 2
+const VERSION := 3
+## Spur edge ids start here: they never index `edges`.
+const SPUR_EDGE_BASE := 1000
 
 enum NodeKind { START, FINISH, WAYPOINT }
 
@@ -45,6 +49,49 @@ class RouteEdge:
 		return Vector3(points[index].x, heights[index], points[index].y)
 
 
+## A wrong way off the stage road: a track that ends in a dead end with room to turn, or a closed
+## road with a barrier across it (it carries on past the barrier, out of sight).
+class Spur:
+	var id := 0
+	## Metres along the stage road, always a vertex of main_route_points().
+	var at := 0.0
+	## Where the wrong way goes from the road: &"straight" | &"left" | &"right".
+	var side := &"straight"
+	var end := &"dead_end"
+	## The side of the stage road it leaves on (-1 left, 1 right).
+	var road_side := 1
+	var edges: Array[RouteEdge] = []
+	## Junction -> dead end or barrier (m along the spur).
+	var length := 0.0
+	var barrier_at := -1.0
+	## The turning area: centre (XZ), height, radius, and its distance along the spur.
+	var landing := Vector2.ZERO
+	var landing_height := 0.0
+	var landing_radius := 0.0
+	var landing_at := 0.0
+
+	## The whole centreline.
+	func points_3d() -> PackedVector3Array:
+		var out := PackedVector3Array()
+		for edge in edges:
+			for i in edge.points.size():
+				if i == 0 and not out.is_empty():
+					continue
+				out.append(edge.point_3d(i))
+		return out
+
+	## Metres from the junction of every points_3d() point.
+	func distances() -> PackedFloat32Array:
+		var points := points_3d()
+		var out := PackedFloat32Array([0.0])
+		for i in range(1, points.size()):
+			out.append(out[i - 1] + Vector2(points[i].x, points[i].z).distance_to(Vector2(points[i - 1].x, points[i - 1].z)))
+		return out
+
+	func side_sign() -> int:
+		return 0 if side == &"straight" else (-1 if side == &"left" else 1)
+
+
 class Gate:
 	var index := 0
 	var edge_id := 0
@@ -64,6 +111,8 @@ var edges: Array[RouteEdge] = []
 var main_route: Array[int] = []
 ## Gate 0 is the start line, the last one the finish line; splits in between.
 var checkpoints: Array[Gate] = []
+## The wrong ways, in stage order (see Spur).
+var spurs: Array[Spur] = []
 ## Features by distance along the road: {"kind": StringName, "from": m, "to": m, "at": m,
 ## "side": -1 left / 1 right / 0, "value": metres (height, depth or drop)}.
 var features: Array[Dictionary] = []
@@ -104,6 +153,15 @@ func add_edge(from_node: int, to_node: int, points: PackedVector2Array, heights:
 	nodes[from_node].edge_ids.append(edge.id)
 	nodes[to_node].edge_ids.append(edge.id)
 	return edge
+
+
+## Every road surface: the stage road's edges, then each spur's.
+func road_edges() -> Array[RouteEdge]:
+	var out: Array[RouteEdge] = []
+	out.append_array(edges)
+	for spur in spurs:
+		out.append_array(spur.edges)
+	return out
 
 
 func main_route_length() -> float:
@@ -203,9 +261,16 @@ func to_dict() -> Dictionary:
 	var checkpoint_list := []
 	for checkpoint in checkpoints:
 		checkpoint_list.append({"index": checkpoint.index, "edge": checkpoint.edge_id, "point": checkpoint.point_index})
+	var spur_list := []
+	for spur in spurs:
+		var spur_edges := []
+		for edge in spur.edges:
+			spur_edges.append({"id": edge.id, "width": edge.width, "surface": String(edge.surface), "points": edge.points, "heights": edge.heights})
+		spur_list.append({"id": spur.id, "at": spur.at, "side": String(spur.side), "end": String(spur.end), "length": spur.length,
+			"barrier_at": spur.barrier_at, "landing": [spur.landing, spur.landing_height, spur.landing_radius], "edges": spur_edges})
 	return {"version": VERSION, "seed": seed, "stage": String(stage_id), "biome": String(biome), "center": center,
 		"nodes": node_list, "edges": edge_list, "main_route": main_route, "checkpoints": checkpoint_list,
-		"features": features}
+		"features": features, "spurs": spur_list}
 
 
 func _index_route() -> void:

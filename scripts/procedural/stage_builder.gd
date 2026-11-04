@@ -8,12 +8,25 @@ class_name StageBuilder
 ## Segment keys: "len" (m, required), "turn" (deg, + right / - left), "rise" (m over the segment),
 ## "crest" / "jump" / "dip" (m), "water" (true), "cliff" / "bank" ("left" | "right" | "both") with "drop" /
 ## "wall" (m), "surface" (Surface id), "width" (m), "caution" (true: a pace-note warning),
-## "falling_tree" / "rockfall" ("left" | "right": a surprise StageEvents springs on the first crew).
+## "falling_tree" / "rockfall" ("left" | "right": a surprise StageEvents springs on the first crew),
+## "decoy": a wrong way off the road (only the map tells): {"side": "straight" | "left" | "right",
+## "len": m to the dead end or barrier (60-250), "end": "dead_end" | "barrier", "at": 0..1 along the
+## segment (0 for straight, where the road starts to turn; 0.5 otherwise), "angle": degrees off the
+## road for left/right, "bend": degrees it turns after its mouth, "rise": m over its length}.
 
 ## The inside of every corner of at least SCREEN_TURN degrees gets a screen (trees, rocks: you
 ## cannot see round it), from SCREEN_LEAD metres before it to as far after, unless that side is a cliff.
 const SCREEN_TURN := 25.0
 const SCREEN_LEAD := 20.0
+## Wrong ways: how far they leave the road, their straight mouth (they look like the road carrying
+## on), how their heights blend from the road's, how much rougher they are, the road past a barrier
+## and the turning area (the car's turning circle is about 11.7 m across).
+const DECOY_ANGLE := 50.0
+const DECOY_MOUTH := 30.0
+const DECOY_BLEND := 12.0
+const DECOY_BUMPS := 2.5
+const DECOY_RUN_ON := 30.0
+const LANDING_RADIUS := 9.0
 ## Integration step and the spacing of the finished polyline (metres).
 const STEP := 1.0
 const POINT_SPACING := 2.0
@@ -54,6 +67,8 @@ static func build(stage: Dictionary) -> RouteGraph:
 	var position := Vector2.ZERO
 	var climbed := 0.0
 	var travelled := 0.0
+	var headings := PackedFloat32Array([heading])
+	var decoys: Array[Dictionary] = []
 	for segment in stage.get("segments", []):
 		var length: float = segment.get("len", 10.0)
 		var steps := maxi(roundi(length / STEP), 1)
@@ -74,7 +89,10 @@ static func build(stage: Dictionary) -> RouteGraph:
 			level.append(climbed)
 			widths.append(width)
 			surfaces.append(surface)
+			headings.append(heading)
 		_add_features(graph, segment, from, travelled)
+		if segment.has("decoy"):
+			decoys.append({"spec": segment.decoy, "from": from, "to": travelled})
 
 	# 2. Heights: smoothed climb + bumps + the features' own shapes.
 	var heights := _smooth(level, roundi(RISE_SMOOTHING / STEP))
@@ -128,8 +146,98 @@ static func build(stage: Dictionary) -> RouteGraph:
 			edge_heights = PackedFloat32Array([heights[i]])
 
 	_place_gates(graph)
+	if not decoys.is_empty():
+		var index := RouteIndex.new(graph)
+		for request in decoys:
+			_add_spur(graph, request, index, dense, along, heights, headings)
 	_measure(graph)
 	return graph
+
+
+## Builds one wrong way from its recipe. Its first metres lie on the stage road's own band, so its
+## heights blend from the road's; beyond that it has its own climb and a rougher surface.
+static func _add_spur(graph: RouteGraph, request: Dictionary, index: RouteIndex, dense: PackedVector2Array, along: PackedFloat32Array,
+		heights: PackedFloat32Array, headings: PackedFloat32Array) -> void:
+	var spec: Dictionary = request.spec
+	var side := StringName(spec.get("side", "straight"))
+	var stride := maxi(roundi(POINT_SPACING / STEP), 1)
+	var fraction: float = spec.get("at", 0.0 if side == &"straight" else 0.5)
+	var j := roundi(lerpf(float(request.from), float(request.to), fraction) / STEP)
+	j = clampi(j - j % stride, stride * 2, dense.size() - 1 - stride * 2)
+	var spot := graph.sample(along[j])
+	var road_edge := graph.edges[spot.edge]
+	var spur := RouteGraph.Spur.new()
+	spur.id = graph.spurs.size()
+	spur.at = along[j]
+	spur.side = side
+	spur.end = StringName(spec.get("end", "dead_end"))
+	var barrier := spur.end == &"barrier"
+	spur.length = float(spec.get("len", 140.0))
+	var total := spur.length + (DECOY_RUN_ON if barrier else 0.0)
+	var angle := deg_to_rad(float(spec.get("angle", DECOY_ANGLE))) * spur.side_sign()
+	var heading := headings[j] + angle
+	var bend := deg_to_rad(float(spec.get("bend", 0.0)))
+	var rise: float = spec.get("rise", 0.0)
+	var grade := (heights[j + stride] - heights[j - stride]) / (along[j + stride] - along[j - stride]) * cos(angle)
+	# The centreline and its own heights, 1 m at a time.
+	var points := PackedVector2Array([dense[j]])
+	var own := PackedFloat32Array([heights[j]])
+	var position := dense[j]
+	var steps := roundi(total / STEP)
+	for k in range(1, steps + 1):
+		var s := float(k) * STEP
+		var turn := 0.0
+		if s > DECOY_MOUTH and s <= spur.length:
+			turn = bend / maxf(spur.length - DECOY_MOUTH, 1.0) * STEP
+		elif s > spur.length:
+			turn = (1.0 if bend >= 0.0 else -1.0) * deg_to_rad(25.0) / DECOY_RUN_ON * STEP
+		heading += turn * 0.5
+		position += Vector2(sin(heading), -cos(heading)) * STEP
+		heading += turn * 0.5
+		points.append(position)
+		own.append(heights[j] + grade * minf(s, DECOY_MOUTH) + rise * smoothstep(0.0, spur.length, s))
+	own = _smooth(own, 10)
+	var bumps := FastNoiseLite.new()
+	bumps.seed = graph.seed + 31 + spur.id
+	bumps.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	bumps.frequency = BUMP_FREQUENCY
+	var half := road_edge.width * 0.5
+	var edge_points := PackedVector2Array()
+	var edge_heights := PackedFloat32Array()
+	for k in range(0, points.size(), stride):
+		var s := float(k) * STEP
+		var near := index.nearest(points[k])
+		var w := smoothstep(half + RoadBuilder.ROADSIDE, half + RoadBuilder.ROADSIDE + DECOY_BLEND, float(near.distance))
+		var road_height: float = graph.sample(float(near.along)).position.y if float(near.distance) != INF else own[k]
+		var rough := bumps.get_noise_1d(s) * BUMP_AMPLITUDE * DECOY_BUMPS * smoothstep(DECOY_MOUTH, DECOY_MOUTH + 20.0, s)
+		edge_points.append(points[k])
+		edge_heights.append(lerpf(road_height, own[k] + rough, w))
+	var edge := RouteGraph.RouteEdge.new()
+	edge.id = RouteGraph.SPUR_EDGE_BASE + 10 * spur.id
+	edge.from_node = -1
+	edge.to_node = -1
+	edge.points = edge_points
+	edge.heights = edge_heights
+	edge.width = float(spec.get("width", road_edge.width))
+	edge.surface = StringName(spec.get("surface", road_edge.surface))
+	edge.length = RouteGraph.polyline_length(edge_points)
+	spur.edges.append(edge)
+	# The turning area sits at the track's end, or just before the barrier.
+	spur.landing_radius = LANDING_RADIUS
+	spur.landing_at = spur.length if not barrier else spur.length - LANDING_RADIUS + 1.0
+	var at_landing := mini(int(spur.landing_at / POINT_SPACING), edge_points.size() - 1)
+	spur.landing = edge_points[at_landing]
+	spur.landing_height = edge_heights[at_landing]
+	if barrier:
+		spur.barrier_at = spur.length
+	# Which side of the stage road it leaves on, seen from where it has cleared the road.
+	var clear := edge_points[mini(int(DECOY_MOUTH / POINT_SPACING), edge_points.size() - 1)]
+	var near_road := index.nearest(clear)
+	var road_spot := graph.sample(float(near_road.along))
+	var road_dir: Vector2 = road_spot.direction
+	var offset: Vector2 = clear - Vector2(road_spot.position.x, road_spot.position.z)
+	spur.road_side = 1 if offset.dot(Vector2(-road_dir.y, road_dir.x)) >= 0.0 else -1
+	graph.spurs.append(spur)
 
 
 ## Records the segment's features by distance along the road.
@@ -227,9 +335,12 @@ static func _place_gates(graph: RouteGraph) -> void:
 static func _measure(graph: RouteGraph) -> void:
 	var lo := Vector2(INF, INF)
 	var hi := Vector2(-INF, -INF)
-	for edge in graph.edges:
+	for edge in graph.road_edges():
 		for p in edge.points:
 			lo = lo.min(p)
 			hi = hi.max(p)
+	for spur in graph.spurs:
+		lo = lo.min(spur.landing - Vector2.ONE * spur.landing_radius)
+		hi = hi.max(spur.landing + Vector2.ONE * spur.landing_radius)
 	graph.center = (lo + hi) * 0.5
 	graph.half_extent = (hi - lo) * 0.5

@@ -22,6 +22,8 @@ func test_apply_to_graph_scales_widths_and_sets_surfaces() -> void:
 	for i in plain.edges.size():
 		assert_almost_eq(explore.edges[i].width, plain.edges[i].width + 0.8, 0.001, "GAME_DESIGN §4: Explore +0.8 m")
 		assert_almost_eq(redline.edges[i].width, plain.edges[i].width - 0.2, 0.001)
+	for i in plain.spurs.size():
+		assert_almost_eq(explore.spurs[i].edges[0].width, plain.spurs[i].edges[0].width + 0.8, 0.001, "wrong ways too")
 		assert_eq(explore.edges[i].surface, plain.edges[i].surface, "clear weather keeps the surface")
 		assert_eq(redline.edges[i].surface, Surface.MUD, "rain turns the creek's dirt to mud")
 	assert_eq(RouteValidator.validate(redline), [] as Array[String], "narrower roads stay valid")

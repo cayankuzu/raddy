@@ -6,9 +6,10 @@ class_name PaceNotes
 ## map prints beside the road. Pure data; every peer builds the same notes from the same graph.
 ##
 ## Each note: {"number": n, "position": Vector2, "distance": m from the start, "fraction": 0..1,
-##   "kind": &"corner" | &"crest" | &"jump" | &"dip" | &"water" | &"cliff", "side": "left" |
-##   "right" | "", "severity": 1..6 (corners; 0 otherwise), "hairpin": bool, "long": bool,
-##   "caution": bool, "gap": m from the previous note, "tr": "...", "en": "..."}
+##   "kind": &"corner" | &"crest" | &"jump" | &"dip" | &"water" | &"cliff" | &"junction", "side":
+##   "left" | "right" | "", "severity": 1..6 (corners; 0 otherwise), "hairpin": bool, "long": bool,
+##   "caution": bool, "junction": "" | "straight" | "left" | "right" (the wrong way there), "gap": m
+##   from the previous note, "tr": "...", "en": "..."}
 ##
 ## `detail` follows the difficulty (spec 14.4): 2 = Explore (adds the distance to the next
 ## call), 1 = Rally (every call), 0 = Redline (only the dangerous calls: severity 1-2, hairpins,
@@ -28,6 +29,10 @@ const LONG_CORNER := 60.0
 const BLIND_CREST := 1.8
 ## Points either side used to measure the curvature (at 2 m spacing: +-6 m).
 const SPAN := 3
+## A wrong way counts for a corner starting within this distance after it, or running past it;
+## otherwise it gets its own note this far before the junction.
+const JUNCTION_BEFORE := 30.0
+const JUNCTION_LEAD := 15.0
 
 
 static func build(graph: RouteGraph, detail := DETAIL_STANDARD) -> Array[Dictionary]:
@@ -51,6 +56,17 @@ static func build(graph: RouteGraph, detail := DETAIL_STANDARD) -> Array[Diction
 				nearest = call
 		if not nearest.is_empty():
 			nearest.caution = true
+	# A wrong way goes on the corner the road takes there (the call to get right), or on its own note.
+	for spur in graph.spurs:
+		var corner: Dictionary = {}
+		for call in calls:
+			if call.kind == &"corner" and spur.at >= float(call.distance) - JUNCTION_BEFORE and spur.at <= float(call.distance) + float(call.get("length", 0.0)):
+				corner = call
+				break
+		if corner.is_empty():
+			calls.append({"kind": &"junction", "distance": spur.at - JUNCTION_LEAD, "side": "", "severity": 0, "junction": String(spur.side)})
+		else:
+			corner.junction = String(spur.side)
 	calls.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.distance < b.distance)
 	# Two cliff calls on the same side in a row are one cliff.
 	var merged: Array[Dictionary] = []
@@ -79,6 +95,7 @@ static func build(graph: RouteGraph, detail := DETAIL_STANDARD) -> Array[Diction
 			"long": call.get("long", false),
 			"blind": call.get("blind", false),
 			"caution": call.get("caution", false),
+			"junction": call.get("junction", ""),
 			"gap": call.distance - previous,
 		}
 		previous = call.distance
@@ -151,7 +168,7 @@ static func _finish_corner(corner: Dictionary) -> Dictionary:
 
 
 static func _dangerous(call: Dictionary) -> bool:
-	if call.get("caution", false) or call.get("hairpin", false):
+	if call.get("caution", false) or call.get("hairpin", false) or call.get("junction", "") != "":
 		return true
 	match call.kind:
 		&"corner":
@@ -188,7 +205,13 @@ static func _text(note: Dictionary, lang: String, detail: int, next_gap: float) 
 				text = "Uçurum %s" % ("solda" if note.side == "left" else "sağda")
 			else:
 				text = "Cliff on the %s" % note.side
-	if note.caution or note.kind in [&"jump", &"water", &"cliff"] or note.get("blind", false):
+		&"junction":
+			text = "Düz" if tr_mode else "Straight"
+	if note.junction != "":
+		# "Junction: Left 3, not straight!": the call and the wrong way, so nobody takes it.
+		var wrong: String = {"straight": "düz", "left": "sola", "right": "sağa"}[note.junction] if tr_mode else ("not " + note.junction)
+		text = ("Kavşak: %s, %s değil" % [text, wrong]) if tr_mode else ("Junction: %s, %s" % [text, wrong])
+	if note.caution or note.kind in [&"jump", &"water", &"cliff"] or note.get("blind", false) or note.junction != "":
 		text += "!"
 	if note.caution:
 		text += " Dikkat" if tr_mode else " Caution"
