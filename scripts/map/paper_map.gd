@@ -8,7 +8,7 @@ extends Node3D
 
 const SHEET_SIZE := Vector2(0.62, 0.40)
 ## Poses relative to the car: held up in front of the navigator's seat, and folded on the lap.
-const HELD_POSITION := Vector3(0.38, 0.59, -0.33)
+const HELD_POSITION := Vector3(0.27, 0.57, -0.33)
 const HELD_ROTATION_DEG := Vector3(-24.0, 0.0, 0.0)
 const LAP_POSITION := Vector3(0.38, 0.42, -0.18)
 const LAP_ROTATION_DEG := Vector3(-72.0, 0.0, 0.0)

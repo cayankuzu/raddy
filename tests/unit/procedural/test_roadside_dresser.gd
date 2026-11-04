@@ -218,6 +218,41 @@ func test_the_real_forest_loads_and_stands_on_the_ground() -> void:
 	dressing.free()
 
 
+func test_grass_and_ferns_grow_in_a_clearing_but_not_under_what_stands_there() -> void:
+	var stage := StageCatalog.get_stage(0)
+	var graph := StageBuilder.build(stage)
+	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(stage.biome))
+	terrain.set_roads(graph)
+	var capsules := RallyDressing.clearings(graph, terrain)
+	var dressing := RoadsideDresser.dress(graph, terrain, stage.biome)
+	add_child_autofree(dressing)
+	var placements: Dictionary = dressing.get_meta(&"placements")
+	var in_open := 0
+	for id in placements:
+		if not (String(id).begins_with("tuft") or String(id).begins_with("fern")):
+			continue
+		for t: Transform3D in placements[id]:
+			var p := Vector2(t.origin.x, t.origin.z)
+			for capsule in capsules:
+				var d := Geometry2D.get_closest_point_to_segment(p, capsule.a, capsule.b).distance_to(p)
+				if d < float(capsule.radius):
+					if capsule.get("bare", false):
+						fail_test("%s at %s stands on something's footprint" % [id, p])
+					else:
+						in_open += 1
+						break
+	gut.p("low plants inside clearings: %d" % in_open)
+	assert_gt(in_open, 100, "the open places are not bare lawn")
+
+
+func test_the_undergrowth_has_its_new_plants() -> void:
+	var ids := RoadsideCatalog.for_biome(RaceSettings.Biome.FOREST).map(func(e: Dictionary) -> String: return e.id)
+	for id in ["tuft_a", "tuft_b", "tuft_c", "bush_a", "bush_b", "creeper"]:
+		assert_has(ids, id, "the forest grows %s" % id)
+		assert_true(RoadsideCatalog.for_biome(RaceSettings.Biome.MOUNTAIN).map(func(e: Dictionary) -> String: return e.id).has(id), "so does the mountain")
+	assert_false(RoadsideCatalog.for_biome(RaceSettings.Biome.DESERT).map(func(e: Dictionary) -> String: return e.id).has("tuft_a"), "not the desert")
+
+
 func test_no_tree_inside_a_clearing() -> void:
 	# The real forest, on a stage with places for spectators and a road's end.
 	var graph := StageBuilder.build(StageCatalog.get_stage(StageCatalog.index_of(&"black_pine")))
@@ -227,9 +262,12 @@ func test_no_tree_inside_a_clearing() -> void:
 	var capsules := RallyDressing.clearings(graph, terrain)
 	assert_gt(capsules.size(), 40, "places, the road's end and the boards")
 	var placements: Dictionary = dressing.get_meta(&"placements")
+	var low := RoadsideCatalog.for_biome(RaceSettings.Biome.FOREST).filter(func(e: Dictionary) -> bool: return e.get("low", false)).map(func(e: Dictionary) -> String: return e.id)
 	var checked := 0
 	var inside := 0
 	for id in placements:
+		if low.has(String(id).get_slice("_v", 0)):
+			continue
 		var all: Array = placements[id]
 		for k in range(0, all.size(), 3):
 			var origin: Vector3 = all[k].origin

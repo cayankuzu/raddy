@@ -225,6 +225,35 @@ func _check_on_the_ground(world: Dictionary) -> void:
 	assert_gte(closest, RoadBuilder.SHOULDER, "%s: the shoulder stays clear" % graph.stage_id)
 
 
+func test_every_flag_is_the_turkish_flag_in_its_own_proportions() -> void:
+	assert_almost_eq(RallyProps.FLAG_SIZE.x / RallyProps.FLAG_SIZE.y, 1.5, 0.001, "3:2")
+	var parts := RallyProps.flag_parts()
+	var cloth: Mesh = parts[1].mesh
+	var material := cloth.surface_get_material(0) as ShaderMaterial
+	assert_eq(material.get_shader_parameter(&"cloth"), TurkishFlag.texture())
+	var box := cloth.get_aabb()
+	assert_almost_eq(box.size.x, RallyProps.FLAG_SIZE.x, 0.001)
+	assert_almost_eq(box.position.x, 0.0, 0.001, "the hoist is at the pole")
+	assert_almost_eq(float(parts[1].transform.origin.y) - RallyProps.FLAG_SIZE.y * 0.5, RallyProps.FLAG_HEIGHT - RallyProps.FLAG_SIZE.y - 0.09, 0.001, "flying from the pole's top")
+	var pole_scaled: Array = RallyProps.flag_parts(2.0)
+	assert_almost_eq(float(pole_scaled[0].transform.basis.y.y), 2.0 / RallyProps.FLAG_HEIGHT, 0.001, "a shorter pole")
+	assert_almost_eq(float(pole_scaled[1].transform.origin.y), 2.0 - RallyProps.FLAG_SIZE.y * 0.5 - 0.09, 0.001, "the cloth stays at its top")
+
+
+func test_the_start_board_shows_the_flag_and_the_finish_boards_a_chequered_band() -> void:
+	var start := RallyProps._draw("start")
+	var size := RallyProps.SIGN_SIZE
+	var field := start.get_pixel(roundi(size * 0.3), roundi(size * 0.22))
+	assert_almost_eq(field.r, TurkishFlag.RED.r, 0.1, "the flag's red on the start's board")
+	assert_lt(field.g, 0.15)
+	for kind in ["finish", "finish_warning"]:
+		var board := RallyProps._draw(kind)
+		var colours := {}
+		for x in range(size / 4, size * 3 / 4):
+			colours[board.get_pixel(x, size / 2).to_html(false)] = true
+		assert_gte(colours.size(), 2, "%s: black and white across its band" % kind)
+
+
 func test_same_stage_same_dressing() -> void:
 	for i in [0, 3]:
 		var graph: RouteGraph = _worlds[i].graph

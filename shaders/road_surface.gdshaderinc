@@ -36,7 +36,7 @@ const float FAR_FROM = 7.0;
 const float FAR_TO = 38.0;
 const float STONES_FADE_FROM = 28.0;
 const float STONES_FADE_TO = 70.0;
-const float GROOVE_DEPTH = 0.14;
+const float GROOVE_DEPTH = 0.06;
 const float PACKED_FAR_SCALE = 2.7;
 
 struct RoadSample {

@@ -36,14 +36,14 @@ const ROAD_SETS := {
 		"packed": "asphalt_02", "packed_tile": 3.0, "packed_tint": Color(0.86, 0.86, 0.86),
 		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(1.0, 1.0, 1.0), "stones_amount": 0.0, "porosity": 0.5},
 }
-## Ground layers per biome: two sets mixed by noise and the rock that shows on slopes.
+## Ground layers per biome: two sets mixed by noise, a third in patches and the rock that shows on slopes.
 const BIOME_GROUND := {
-	RaceSettings.Biome.FOREST: {"ground": "forrest_ground_01", "ground2": "sparse_grass", "rock": "rock_face_03",
-		"ground_tile": 5.0, "ground2_tile": 6.0, "tint": Color(0.74, 0.76, 0.68), "ground2_amount": 0.2},
-	RaceSettings.Biome.DESERT: {"ground": "sand_01", "ground2": "dry_ground_01", "rock": "rock_face_03",
-		"ground_tile": 6.0, "ground2_tile": 5.0, "tint": Color(1.0, 0.95, 0.88), "ground2_amount": 0.45},
-	RaceSettings.Biome.MOUNTAIN: {"ground": "rocky_terrain_02", "ground2": "gravel_ground_01", "rock": "rock_face_03",
-		"ground_tile": 7.0, "ground2_tile": 5.0, "tint": Color(0.9, 0.92, 0.88), "ground2_amount": 0.4},
+	RaceSettings.Biome.FOREST: {"ground": "forrest_ground_01", "ground2": "sparse_grass", "ground3": "brown_mud_leaves_01", "rock": "rock_face_03",
+		"ground_tile": 5.0, "ground2_tile": 6.0, "ground3_tile": 4.5, "tint": Color(0.74, 0.76, 0.68), "ground2_amount": 0.45, "ground3_amount": 0.35},
+	RaceSettings.Biome.DESERT: {"ground": "sand_01", "ground2": "dry_ground_01", "ground3": "gravelly_sand", "rock": "rock_face_03",
+		"ground_tile": 6.0, "ground2_tile": 5.0, "ground3_tile": 4.0, "tint": Color(1.0, 0.95, 0.88), "ground2_amount": 0.45, "ground3_amount": 0.3},
+	RaceSettings.Biome.MOUNTAIN: {"ground": "rocky_terrain_02", "ground2": "gravel_ground_01", "ground3": "sparse_grass", "rock": "rock_face_03",
+		"ground_tile": 7.0, "ground2_tile": 5.0, "ground3_tile": 5.5, "tint": Color(0.9, 0.92, 0.88), "ground2_amount": 0.4, "ground3_amount": 0.3},
 }
 ## Global shader parameters per weather: how wet surfaces look and how much snow lies around.
 const WEATHER_LOOK := {
@@ -145,7 +145,7 @@ static func _set_road_layers(material: ShaderMaterial, spec: Dictionary) -> void
 
 static func _set_ground_layers(material: ShaderMaterial, biome: int) -> void:
 	var spec: Dictionary = BIOME_GROUND.get(biome, BIOME_GROUND[RaceSettings.Biome.FOREST])
-	for layer in ["ground", "ground2", "rock"]:
+	for layer in ["ground", "ground2", "ground3", "rock"]:
 		material.set_shader_parameter(StringName(layer + "_albedo"), texture(spec[layer], "diff"))
 		material.set_shader_parameter(StringName(layer + "_normal"), texture(spec[layer], "nor_gl"))
 		material.set_shader_parameter(StringName(layer + "_arm"), texture(spec[layer], "arm"))
@@ -153,6 +153,8 @@ static func _set_ground_layers(material: ShaderMaterial, biome: int) -> void:
 	material.set_shader_parameter(&"snow_normal", texture("snow_02", "nor_gl"))
 	material.set_shader_parameter(&"ground_tile", spec.ground_tile)
 	material.set_shader_parameter(&"ground2_tile", spec.ground2_tile)
+	material.set_shader_parameter(&"ground3_tile", spec.ground3_tile)
 	material.set_shader_parameter(&"ground2_amount", spec.ground2_amount)
+	material.set_shader_parameter(&"ground3_amount", spec.ground3_amount)
 	material.set_shader_parameter(&"ground_tint", spec.tint)
 	material.set_shader_parameter(&"macro_noise", noise())

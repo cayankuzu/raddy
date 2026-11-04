@@ -1,10 +1,11 @@
 class_name MapCanvas
 extends SubViewport
 ## The drawing on the navigator's paper map (spec §11.2): the whole stage on a topographic paper
-## background, the pace-note numbers beside the road, the hazards (water, jumps, cliff edges), the
-## start, split and finish flags, fold creases and the live car marker. A long stage is turned
-## sideways so it fills the sheet. Built once from the RouteGraph; zoom and pan move a Camera2D,
-## so the texture on the paper sheet follows the navigator's hands.
+## background, the wrong ways plainly crossed out, the pace-note numbers beside the road (never on
+## each other), the hazards (water, jumps, cliff edges), the start, split and finish lines, fold
+## creases and the live car marker. A long stage is turned sideways so it fills the sheet. Built once
+## from the RouteGraph; zoom and pan move a Camera2D, so the texture on the paper sheet follows the
+## navigator's hands.
 
 ## The whole sheet: the stage on the left, a column of pace notes on the right.
 const CANVAS := Vector2i(1792, 1152)
@@ -17,19 +18,33 @@ const MIN_ZOOM := 1.0
 const MAX_ZOOM := 4.5
 const PAPER := Color("e7dcc3")
 const INK := Color("3a2f24")
-const ROAD_MAIN := Color("5a4634")
-## Wrong ways: thin dashed tracks, so the navigator can tell them from the stage road; a dead end
-## and a closed road end in a bar across.
-const ROAD_TRACK := Color("6e5a42")
-const TRACK_WIDTH := 4.5
-const TRACK_DASH := 10.0
-const TRACK_GAP := 6.0
-const END_BAR_DEAD := 20.0
-const END_BAR_CLOSED := 26.0
+const ROAD_MAIN := Color("3d2d20")
+const ROAD_WIDTH := 10.0
+## The pale edge that lifts the road and the wrong ways off the contour lines.
+const CASING_WIDTH := 6.0
+## Wrong ways: red dashes, a crossed-out disc just past the junction, so even at arm's length nobody
+## takes one for the stage road; a dead end and a closed road end in a bar across.
+const ROAD_TRACK := Color("b83a2a")
+const TRACK_WIDTH := 6.0
+const TRACK_DASH := 15.0
+const TRACK_GAP := 9.0
+const END_BAR_DEAD := 28.0
+const END_BAR_CLOSED := 34.0
+const END_BAR_WIDTH := 8.0
+const CROSS_FROM_MOUTH := 54.0
+const CROSS_RADIUS := 19.0
+const CROSS_LINE := 5.5
+## Rings and labels keep off everything else: how far from the road they may go to find room. A ring
+## pushed further than the first step gets a thin line back to the road.
+const SPOT_REACHES: Array[float] = [24.0, 33.0, 44.0, 56.0, 70.0, 86.0]
+const NOTE_RADIUS := 13.0
+const GATE_LABEL_RADIUS := 34.0
+const GATE_BAR := Vector2(9.0, 36.0)
 const WATER := Color("3b6f9e")
 const HAZARD := Color("b83a2a")
 const CREASE := Color(0.25, 0.18, 0.1, 0.16)
-const FLAG := Color("b83a2a")
+const GATE_COLOR := Color("b83a2a")
+const NOTE_GAP := 2.0
 const CAR := Color("1f3b8a")
 ## Height bands of the contour shading (at least CONTOUR_STEP metres apart; one band per colour
 ## over the stage's height range) and the palette, low to high.
@@ -49,6 +64,10 @@ var _camera: Camera2D
 var _content: Node2D
 var _car_marker: Polygon2D
 var _pan := Vector2.ZERO
+## What is already drawn: Vector3(x, y, radius) of what must not be drawn over, and the lines of the
+## road and the wrong ways.
+var _taken: Array[Vector3] = []
+var _lines := PackedVector2Array()
 
 
 func _init() -> void:
@@ -70,6 +89,8 @@ func build(route: RouteGraph, notes: Array[Dictionary], contour: Image) -> void:
 	_content = Node2D.new()
 	_content.name = "Content"
 	add_child(_content)
+	_taken.clear()
+	_lines = _road_lines()
 	_add_paper(contour)
 	_add_tracks()
 	_add_roads()
@@ -204,7 +225,7 @@ func _add_paper(contour: Image) -> void:
 	shading.texture = ImageTexture.create_from_image(contour)
 	shading.size = NETWORK_AREA
 	shading.stretch_mode = TextureRect.STRETCH_SCALE
-	shading.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	shading.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	shading.modulate = Color(1, 1, 1, 0.42)
 	_content.add_child(shading)
 
@@ -255,13 +276,9 @@ func _add_tracks() -> void:
 		for i in flat.size():
 			if along[i] <= shown + 0.01:
 				map_points.append(world_to_map(Vector2(flat[i].x, flat[i].z)))
+		track.add_child(_line(map_points, TRACK_WIDTH + CASING_WIDTH, PAPER))
 		for dash in dashes(map_points, TRACK_DASH, TRACK_GAP):
-			var line := Line2D.new()
-			line.points = dash
-			line.width = TRACK_WIDTH
-			line.default_color = ROAD_TRACK
-			line.antialiased = true
-			track.add_child(line)
+			track.add_child(_line(dash, TRACK_WIDTH, ROAD_TRACK))
 		# The end: a bar across the dead end, or a red one at the barrier with the road running on.
 		var bar_at: float = spur.length if spur.end == &"dead_end" else spur.barrier_at
 		var k := clampi(along.bsearch(bar_at), 1, flat.size() - 1)
@@ -269,12 +286,52 @@ func _add_tracks() -> void:
 		var dir := (at - world_to_map(Vector2(flat[k - 1].x, flat[k - 1].z))).normalized()
 		var across := Vector2(-dir.y, dir.x)
 		var half := (END_BAR_DEAD if spur.end == &"dead_end" else END_BAR_CLOSED) * 0.5
-		var bar := Line2D.new()
+		var bar := _line(PackedVector2Array([at - across * half, at + across * half]), END_BAR_WIDTH, INK if spur.end == &"dead_end" else HAZARD)
 		bar.name = "End"
-		bar.points = PackedVector2Array([at - across * half, at + across * half])
-		bar.width = 6.0
-		bar.default_color = INK if spur.end == &"dead_end" else HAZARD
 		track.add_child(bar)
+		track.add_child(_crossed_out(_cross_spot(map_points)))
+
+
+## A line drawn smooth.
+static func _line(points: PackedVector2Array, width: float, color: Color) -> Line2D:
+	var line := Line2D.new()
+	line.points = points
+	line.width = width
+	line.default_color = color
+	line.joint_mode = Line2D.LINE_JOINT_ROUND
+	line.antialiased = true
+	return line
+
+
+## Where a wrong way's cross goes: CROSS_FROM_MOUTH along it (the mouth is its first point), and not on
+## another cross.
+func _cross_spot(points: PackedVector2Array) -> Vector2:
+	var length := 0.0
+	for i in range(1, points.size()):
+		var step := points[i].distance_to(points[i - 1])
+		if length + step >= CROSS_FROM_MOUTH:
+			return points[i - 1].lerp(points[i], (CROSS_FROM_MOUTH - length) / maxf(step, 0.001))
+		length += step
+	return points[-1]
+
+
+## A pale disc in a red ring, a red cross in it: "not this way".
+func _crossed_out(at: Vector2) -> Node2D:
+	_taken.append(Vector3(at.x, at.y, CROSS_RADIUS))
+	var mark := Node2D.new()
+	mark.name = "NoWay"
+	mark.position = at
+	var disc := Polygon2D.new()
+	disc.color = PAPER
+	disc.polygon = _circle(CROSS_RADIUS)
+	mark.add_child(disc)
+	var ring := _line(_circle(CROSS_RADIUS), CROSS_LINE, HAZARD)
+	ring.closed = true
+	mark.add_child(ring)
+	var reach := CROSS_RADIUS * 0.6
+	mark.add_child(_line(PackedVector2Array([Vector2(-reach, -reach), Vector2(reach, reach)]), CROSS_LINE, HAZARD))
+	mark.add_child(_line(PackedVector2Array([Vector2(-reach, reach), Vector2(reach, -reach)]), CROSS_LINE, HAZARD))
+	return mark
 
 
 ## A polyline cut into dashes.
@@ -317,20 +374,18 @@ func _add_roads() -> void:
 	_content.add_child(roads)
 	for edge_id in graph.main_route:
 		var edge := graph.edges[edge_id]
-		var line := Line2D.new()
-		line.name = "Edge%d" % edge.id
 		var points := PackedVector2Array()
 		for i in range(0, edge.points.size(), 2):
 			points.append(world_to_map(edge.points[i]))
 		if (edge.points.size() - 1) % 2 != 0:
 			points.append(world_to_map(edge.points[-1]))
-		line.points = points
-		line.joint_mode = Line2D.LINE_JOINT_ROUND
+		var casing := _line(points, ROAD_WIDTH + CASING_WIDTH, PAPER)
+		var line := _line(points, ROAD_WIDTH, ROAD_MAIN)
+		line.name = "Edge%d" % edge.id
+		line.add_child(casing)
+		casing.show_behind_parent = true
 		line.begin_cap_mode = Line2D.LINE_CAP_ROUND
 		line.end_cap_mode = Line2D.LINE_CAP_ROUND
-		line.antialiased = true
-		line.width = 7.0
-		line.default_color = ROAD_MAIN
 		roads.add_child(line)
 
 
@@ -403,19 +458,85 @@ func _add_gates() -> void:
 	_content.add_child(gates)
 	for gate in graph.checkpoints:
 		var at := world_to_map(gate.position)
-		var flag := Polygon2D.new()
-		flag.name = "Gate%d" % gate.index
-		flag.color = INK if gate.index == 0 or gate.index == graph.checkpoints.size() - 1 else FLAG
-		flag.polygon = PackedVector2Array([Vector2(0, 0), Vector2(0, -26), Vector2(18, -20), Vector2(0, -14)])
-		flag.position = at
-		gates.add_child(flag)
+		var dir := _turn(gate.direction, turned)
+		var last := gate.index == graph.checkpoints.size() - 1
+		# A line across the road: solid at the start and the splits, chequered at the finish.
+		var bar := Polygon2D.new()
+		bar.name = "Gate%d" % gate.index
+		bar.color = INK if gate.index == 0 or last else GATE_COLOR
+		bar.polygon = _rect(GATE_BAR)
+		bar.position = at
+		bar.rotation = dir.angle()
+		gates.add_child(bar)
+		if last:
+			_add_checks(bar)
+		_taken.append(Vector3(at.x, at.y, GATE_BAR.y * 0.5))
 		var label := Label.new()
 		label.text = TranslationServer.translate("MAP_START") if gate.index == 0 else (TranslationServer.translate("MAP_FINISH")
-			if gate.index == graph.checkpoints.size() - 1 else TranslationServer.translate("MAP_SPLIT").format({"n": gate.index}))
-		label.position = at + Vector2(6, -44)
+			if last else TranslationServer.translate("MAP_SPLIT").format({"n": gate.index}))
+		var spot := _free_spot(at, Vector2(-dir.y, dir.x), GATE_LABEL_RADIUS, 1.0)
+		_taken.append(Vector3(spot.x, spot.y, GATE_LABEL_RADIUS))
+		label.position = spot - Vector2(GATE_LABEL_RADIUS, 15.0)
+		label.size = Vector2(GATE_LABEL_RADIUS * 2.0, 30.0)
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		label.add_theme_color_override(&"font_color", INK)
-		label.add_theme_font_size_override(&"font_size", 20)
+		label.add_theme_font_size_override(&"font_size", 22)
 		gates.add_child(label)
+
+
+## White squares on the finish's line.
+static func _add_checks(bar: Polygon2D) -> void:
+	const SIDE := 4.5
+	for row in 8:
+		for column in 2:
+			if (row + column) % 2 == 0:
+				var check := Polygon2D.new()
+				check.color = PAPER
+				check.polygon = _rect(Vector2(SIDE, SIDE))
+				check.position = Vector2((column - 0.5) * SIDE, (row - 3.5) * SIDE)
+				bar.add_child(check)
+
+
+## A rectangle round the origin.
+static func _rect(size: Vector2) -> PackedVector2Array:
+	var h := size * 0.5
+	return PackedVector2Array([Vector2(-h.x, -h.y), Vector2(h.x, -h.y), Vector2(h.x, h.y), Vector2(-h.x, h.y)])
+
+
+## The road and the wrong ways as points, for what must not be drawn on them.
+func _road_lines() -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for edge_id in graph.main_route:
+		var edge := graph.edges[edge_id]
+		for i in range(0, edge.points.size(), 2):
+			points.append(world_to_map(edge.points[i]))
+	for spur in graph.spurs:
+		for p in spur.points_3d():
+			points.append(world_to_map(Vector2(p.x, p.z)))
+	return points
+
+
+## The nearest free place for something `radius` round beside the road at `at`: along `side`, on the
+## `way` side first (-1 or 1).
+func _free_spot(at: Vector2, side: Vector2, radius: float, way: float) -> Vector2:
+	for reach in SPOT_REACHES:
+		for sign_of: float in [way, -way]:
+			var spot := at + side * sign_of * (reach + maxf(radius - NOTE_RADIUS, 0.0))
+			if _is_free(spot, radius):
+				return spot
+	return at + side * way * (SPOT_REACHES[0] + maxf(radius - NOTE_RADIUS, 0.0))
+
+
+func _is_free(spot: Vector2, radius: float) -> bool:
+	for taken in _taken:
+		if spot.distance_to(Vector2(taken.x, taken.y)) < radius + taken.z:
+			return false
+	var clear := radius + ROAD_WIDTH * 0.5
+	for p in _lines:
+		if spot.distance_squared_to(p) < clear * clear:
+			return false
+	return true
 
 
 ## A numbered ring beside the road at every note (on the outside of corners), matching the notes
@@ -426,19 +547,20 @@ func _add_note_numbers(notes: Array[Dictionary]) -> void:
 	_content.add_child(numbers)
 	for note in notes:
 		var dir := _map_direction(note.distance)
-		var outward := Vector2(-dir.y, dir.x) * (-1.0 if note.side == "right" else 1.0)
-		var at: Vector2 = world_to_map(note.position) + outward * 22.0
+		var on_road: Vector2 = world_to_map(note.position)
+		var at := _free_spot(on_road, Vector2(-dir.y, dir.x), NOTE_RADIUS, -1.0 if note.side == "right" else 1.0)
+		_taken.append(Vector3(at.x, at.y, NOTE_RADIUS))
+		var color: Color = HAZARD if note.caution or note.junction != "" or note.kind in [&"jump", &"water", &"cliff"] else INK
+		if at.distance_to(on_road) > SPOT_REACHES[0] + 0.5:
+			numbers.add_child(_line(PackedVector2Array([on_road, at]), 1.5, color))
 		var ring := Polygon2D.new()
 		ring.name = "Note%d" % note.number
 		ring.color = PAPER
-		ring.polygon = _circle(13.0)
+		ring.polygon = _circle(NOTE_RADIUS)
 		ring.position = at
 		numbers.add_child(ring)
-		var outline := Line2D.new()
-		outline.points = _circle(13.0)
+		var outline := _line(_circle(NOTE_RADIUS), 2.5, color)
 		outline.closed = true
-		outline.width = 2.5
-		outline.default_color = HAZARD if note.caution or note.junction != "" or note.kind in [&"jump", &"water", &"cliff"] else INK
 		outline.position = at
 		numbers.add_child(outline)
 		var label := Label.new()
@@ -467,17 +589,17 @@ func _add_notes(notes: Array[Dictionary]) -> void:
 	var y := 40.0
 	# Long stages print smaller, so every note fits the column.
 	var font_size := 17 if notes.size() <= 40 else 14
-	var line := 24.0 if notes.size() <= 40 else 20.0
+	var width := NOTES_WIDTH - 28.0
 	for note in notes:
 		var label := Label.new()
 		label.text = "%d  %s" % [note.number, note.get(lang, note.tr)]
 		label.position = Vector2(0.0, y)
-		label.size = Vector2(NOTES_WIDTH - 28.0, 0.0)
+		label.size = Vector2(width, 0.0)
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		label.add_theme_color_override(&"font_color", HAZARD if note.caution else INK)
 		label.add_theme_font_size_override(&"font_size", font_size)
 		column.add_child(label)
-		y += line * (1 + int(label.text.length() / 24))
+		y += label.get_theme_font(&"font").get_multiline_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, width, font_size).y + NOTE_GAP
 
 
 func _add_car_marker() -> void:

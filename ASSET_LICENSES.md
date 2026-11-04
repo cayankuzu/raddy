@@ -18,17 +18,17 @@ is required, it is given anyway. Files: `assets/textures/<id>/<id>_{diff,nor_gl,
 
 | Asset | Author(s) | Used for | Page |
 |---|---|---|---|
-| Rocky Trail | Amal Kumar | gravel roads, wet gravel | https://polyhaven.com/a/rocky_trail |
-| Gravelly Sand | Dario Barresi | dirt roads | https://polyhaven.com/a/gravelly_sand |
-| Brown Mud Leaves 01 | Rob Tuytel | mud shortcuts | https://polyhaven.com/a/brown_mud_leaves_01 |
+| Rocky Trail | Amal Kumar | the stones scattered on gravel roads | https://polyhaven.com/a/rocky_trail |
+| Gravelly Sand | Dario Barresi | dirt roads, packed wheel tracks, desert ground (patches) | https://polyhaven.com/a/gravelly_sand |
+| Brown Mud Leaves 01 | Rob Tuytel | mud roads, forest ground (patches) | https://polyhaven.com/a/brown_mud_leaves_01 |
 | Sand 01 | Rob Tuytel | sand roads, desert ground | https://polyhaven.com/a/sand_01 |
 | Snow 02 | Rob Tuytel | snow roads, snow cover | https://polyhaven.com/a/snow_02 |
 | Asphalt 02 | Rob Tuytel | tarmac | https://polyhaven.com/a/asphalt_02 |
 | Forest Ground 01 | Rob Tuytel | forest ground | https://polyhaven.com/a/forrest_ground_01 |
-| Sparse Grass | Amal Kumar | forest ground (second layer) | https://polyhaven.com/a/sparse_grass |
+| Sparse Grass | Amal Kumar | forest ground (second layer), mountain ground (patches) | https://polyhaven.com/a/sparse_grass |
 | Dry Ground 01 | Rob Tuytel | desert ground (second layer) | https://polyhaven.com/a/dry_ground_01 |
 | Rocky Terrain 02 | Amal Kumar | mountain ground | https://polyhaven.com/a/rocky_terrain_02 |
-| Gravel Ground 01 | Rob Tuytel | mountain ground (second layer) | https://polyhaven.com/a/gravel_ground_01 |
+| Gravel Ground 01 | Rob Tuytel | loose gravel on roads, mountain ground (second layer) | https://polyhaven.com/a/gravel_ground_01 |
 | Rock Face 03 | Dario Barresi, Rico Cilliers | rock on steep slopes | https://polyhaven.com/a/rock_face_03 |
 
 ## Models (Poly Haven, CC0 1.0)
@@ -37,6 +37,9 @@ glTF with 1k textures in `assets/models/<id>/`, downloaded with `tools/fetch_pol
 | Asset | Author(s) | Used for | Page |
 |---|---|---|---|
 | Shrub 03 | Rico Cilliers | forest/mountain bushes | https://polyhaven.com/a/shrub_03 |
+| Shrub 02 | Rico Cilliers | forest/mountain undergrowth (tall, airy bushes) | https://polyhaven.com/a/shrub_02 |
+| Shrub 04 | Rico Cilliers | forest/mountain undergrowth (low creeper) | https://polyhaven.com/a/shrub_04 |
+| Grass Medium 01 | Rob Tuytel, Rico Cilliers | single tufts of grass in forest and mountain | https://polyhaven.com/a/grass_medium_01 |
 | Fern 02 | Rob Tuytel, Rico Cilliers | forest ferns | https://polyhaven.com/a/fern_02 |
 | Dry Branches Medium 01 | Rico Cilliers | fallen branches | https://polyhaven.com/a/dry_branches_medium_01 |
 | Tree Stump 01 | Rob Tuytel | forest stumps (collide) | https://polyhaven.com/a/tree_stump_01 |
@@ -49,7 +52,7 @@ glTF with 1k textures in `assets/models/<id>/`, downloaded with `tools/fetch_pol
 | Crystalline Iceplant | James Ray Cock, Jenelle van Heerden | desert ground plants | https://polyhaven.com/a/crystalline_iceplant |
 | Wild Rooibos Bush | James Ray Cock, Jenelle van Heerden | desert bushes | https://polyhaven.com/a/wild_rooibos_bush |
 | Old Tyre | MP | race furniture (tyre stacks) | https://polyhaven.com/a/old_tyre |
-| Concrete Road Barrier 02 | Amal Kumar | race furniture (barriers) | https://polyhaven.com/a/concrete_road_barrier_02 |
+| Concrete Road Barrier 02 | Amal Kumar | race furniture (barriers, the blocks at the arches' towers) | https://polyhaven.com/a/concrete_road_barrier_02 |
 | Wooden Picnic Table | Ulan Cabanilla | spectator areas | https://polyhaven.com/a/wooden_picnic_table |
 | Painted Wooden Bench | Kirill Sannikov | spectator areas | https://polyhaven.com/a/painted_wooden_bench |
 | Plastic Monobloc Chair 01 | Kuutti Siitonen | spectator areas | https://polyhaven.com/a/plastic_monobloc_chair_01 |

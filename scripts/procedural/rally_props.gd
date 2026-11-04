@@ -29,8 +29,10 @@ const TAPE_HEIGHT := 1.0
 const TAPE_WIDTH := 0.07
 const TAPE_SAG := 0.06
 const FLAG_HEIGHT := 3.6
-const FLAG_SIZE := Vector2(1.15, 0.75)
-const FLAG_DESIGNS := 4
+## The cloth, always in the flag's own proportions (TurkishFlag).
+const FLAG_SIZE := Vector2(0.8 * TurkishFlag.LENGTH, 0.8)
+## The flag on the start's round board: its length on the sign (share of the sign's width).
+const BOARD_FLAG_SHARE := 0.56
 ## The parked cars' collision box and footprint (m).
 const CAR_SIZE := Vector3(1.8, 1.35, 4.4)
 ## Seats: the scanned model, its collision box and footprint (m) and how far it stands from anything else.
@@ -81,9 +83,10 @@ static func stake_parts() -> Array:
 	return [_part(_cached("stake", _stake_mesh))]
 
 
-static func flag_parts() -> Array:
-	return [_part(_cached("flag_pole", _flag_pole_mesh)),
-		_part(_cached("flag", _flag_mesh), Transform3D(Basis.IDENTITY, Vector3.UP * (FLAG_HEIGHT - FLAG_SIZE.y * 0.5 - 0.05)))]
+## A Turkish flag on its pole, `height` metres from its foot to the top.
+static func flag_parts(height := FLAG_HEIGHT) -> Array:
+	return [_part(_cached("flag_pole", _flag_pole_mesh), Transform3D(Basis.IDENTITY.scaled(Vector3(1.0, height / FLAG_HEIGHT, 1.0)), Vector3.ZERO)),
+		_part(_cached("flag", _flag_mesh), Transform3D(Basis.IDENTITY, Vector3.UP * (height - FLAG_SIZE.y * 0.5 - 0.09)))]
 
 
 ## A scanned prop from its file, by RoadsideDresser's loader (it caches them per stage).
@@ -230,11 +233,11 @@ static func _draw(kind: String) -> Image:
 					return BLACK
 				return YELLOW)
 		"start":
-			return _round_flag(WHITE, func(_c: Vector2) -> Color: return RED)
+			return _start_board()
 		"finish_warning":
-			return _round_flag(YELLOW, _checker_cloth)
+			return _round_checker(YELLOW)
 		"finish":
-			return _round_flag(RED, _checker_cloth)
+			return _round_checker(RED)
 		"stop":
 			return _sign(func(u: Vector2) -> Color:
 				var octagon := maxf(maxf(absf(u.x), absf(u.y)), (absf(u.x) + absf(u.y)) * 0.7071)
@@ -259,24 +262,39 @@ static func _draw(kind: String) -> Image:
 	return Image.create(2, 2, false, Image.FORMAT_RGBA8)
 
 
-## A round board with a waving flag on it, `cloth` giving the flag's colour at c in 0..1 (x along it).
-static func _round_flag(ground: Color, cloth: Callable) -> Image:
+## The start's round white board: the flag on its staff.
+static func _start_board() -> Image:
+	const BLACK := Color(0.05, 0.05, 0.05)
+	var board := _sign(func(u: Vector2) -> Color:
+		var d := u.length()
+		if d > 1.0:
+			return Color(0, 0, 0, 0)
+		if d > 0.92 or (absf(u.x + 0.52) < 0.04 and absf(u.y) < 0.66):
+			return BLACK
+		return Color(0.95, 0.95, 0.92))
+	var flag_width := roundi(SIGN_SIZE * BOARD_FLAG_SHARE)
+	var flag := TurkishFlag.image(TurkishFlag.TEXTURE_HEIGHT)
+	flag.resize(flag_width, roundi(flag_width / TurkishFlag.LENGTH), Image.INTERPOLATE_LANCZOS)
+	flag.convert(Image.FORMAT_RGBA8)
+	board.clear_mipmaps()
+	board.blit_rect(flag, Rect2i(Vector2i.ZERO, flag.get_size()), Vector2i(roundi(SIGN_SIZE * 0.26), roundi(SIGN_SIZE * 0.2)))
+	board.generate_mipmaps()
+	return board
+
+
+## A round board with a chequered band across it, the sport's sign for the finish.
+static func _round_checker(ground: Color) -> Image:
+	const BLACK := Color(0.05, 0.05, 0.05)
+	const WHITE := Color(0.95, 0.95, 0.92)
 	return _sign(func(u: Vector2) -> Color:
 		var d := u.length()
 		if d > 1.0:
 			return Color(0, 0, 0, 0)
 		if d > 0.92:
-			return Color(0.05, 0.05, 0.05)
-		if absf(u.x + 0.48) < 0.045 and absf(u.y) < 0.68:
-			return Color(0.05, 0.05, 0.05)
-		var c := Vector2((u.x + 0.44) / 1.0, (u.y + 0.62 - sin((u.x + 0.44) * 4.0) * 0.07) / 0.72)
-		if c.x > 0.0 and c.x < 1.0 and c.y > 0.0 and c.y < 1.0:
-			return cloth.call(c)
+			return BLACK
+		if absf(u.y) < 0.4:
+			return WHITE if (floori(u.x * 2.5 + 8.0) + floori(u.y * 2.5 + 8.0)) % 2 == 0 else BLACK
 		return ground)
-
-
-static func _checker_cloth(c: Vector2) -> Color:
-	return Color(0.95, 0.95, 0.92) if (floori(c.x * 5.0) + floori(c.y * 4.0)) % 2 == 0 else Color(0.05, 0.05, 0.05)
 
 
 ## On the letters K and M at the top of a km board.
@@ -344,20 +362,27 @@ static func _stake_mesh() -> Mesh:
 
 # --- flags ---
 
+## A steel staff (a ball on its top), its foot at y = 0.
 static func _flag_pole_mesh() -> Mesh:
 	var cylinder := CylinderMesh.new()
 	cylinder.top_radius = 0.018
 	cylinder.bottom_radius = 0.028
 	cylinder.height = FLAG_HEIGHT + POST_SINK
-	cylinder.radial_segments = 6
+	cylinder.radial_segments = 8
 	cylinder.rings = 1
 	cylinder.cap_bottom = false
+	var ball := SphereMesh.new()
+	ball.radius = 0.04
+	ball.height = 0.08
+	ball.radial_segments = 8
+	ball.rings = 4
 	var steel := StandardMaterial3D.new()
 	steel.albedo_color = Color(0.72, 0.73, 0.75)
 	steel.metallic = 0.5
 	steel.roughness = 0.45
 	var surface := SurfaceTool.new()
 	surface.append_from(cylinder, 0, Transform3D(Basis.IDENTITY, Vector3.UP * ((FLAG_HEIGHT - POST_SINK) * 0.5)))
+	surface.append_from(ball, 0, Transform3D(Basis.IDENTITY, Vector3.UP * (FLAG_HEIGHT + 0.03)))
 	surface.set_material(steel)
 	return surface.commit()
 
@@ -367,43 +392,16 @@ static func _flag_mesh() -> Mesh:
 	var plane := PlaneMesh.new()
 	plane.size = FLAG_SIZE
 	plane.orientation = PlaneMesh.FACE_Z
-	plane.subdivide_width = 8
-	plane.subdivide_depth = 3
+	plane.subdivide_width = 18
+	plane.subdivide_depth = 6
 	var material := ShaderMaterial.new()
 	material.shader = CLOTH_SHADER
-	material.set_shader_parameter(&"cloth", _flag_texture())
-	material.set_shader_parameter(&"designs", float(FLAG_DESIGNS))
+	material.set_shader_parameter(&"cloth", TurkishFlag.texture())
+	material.set_shader_parameter(&"size", FLAG_SIZE)
 	var surface := SurfaceTool.new()
 	surface.append_from(plane, 0, Transform3D(Basis.IDENTITY, Vector3.RIGHT * FLAG_SIZE.x * 0.5))
 	surface.set_material(material)
 	return surface.commit()
-
-
-## FLAG_DESIGNS flags side by side: the crowd's colours (the three crews' and a chequered one).
-static func _flag_texture() -> Texture2D:
-	if _textures.has("flags"):
-		return _textures["flags"]
-	const W := 48
-	const H := 32
-	var red := TeamColors.paint(1)
-	var blue := TeamColors.paint(2)
-	var yellow := TeamColors.paint(3)
-	var white := Color(0.95, 0.95, 0.92)
-	var black := Color(0.06, 0.06, 0.07)
-	var image := Image.create(W * FLAG_DESIGNS, H, false, Image.FORMAT_RGBA8)
-	for y in H:
-		var v := float(y) / H
-		for x in W:
-			var u := float(x) / W
-			# A chevron pointing away from the pole, like the boards.
-			var chevron := absf(u - 0.5 - absf(v - 0.5) * -0.9 - 0.1) < 0.14
-			image.set_pixel(x, y, white if chevron else red)
-			image.set_pixel(x + W, y, yellow if v < 0.3 or v > 0.7 else blue)
-			image.set_pixel(x + W * 2, y, yellow if (x / 8 + y / 8) % 2 == 0 else black)
-			image.set_pixel(x + W * 3, y, yellow if chevron else blue)
-	image.generate_mipmaps()
-	_textures["flags"] = ImageTexture.create_from_image(image)
-	return _textures["flags"]
 
 
 # --- straw bales ---

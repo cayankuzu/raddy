@@ -42,6 +42,9 @@ const QUIET_ENDS := 60.0
 ## line distance from the road's end (the run-off).
 const START_GATE := 40.0
 const FINISH_RUNOFF := 70.0
+## The grid's first row stands this far before the start line, far enough for its driver to see the
+## arch's banner through the windshield.
+const GRID_BEFORE_LINE := 16.0
 const SPLITS := 2
 ## A crowd on both sides of the start and the finish lines (RallyDressing, as for "spectators"): metres
 ## before and past each line, without the margin every such place has.

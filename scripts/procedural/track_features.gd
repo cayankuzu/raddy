@@ -13,15 +13,12 @@ const WALL_STEP := 8.0
 const WALL_THICKNESS := 1.0
 const WALL_ABOVE_ROAD := 14.0
 const WALL_OVERRUN := 4.0
-## Guard rails: posts this far apart, the rail this far outside the shoulder.
-const POST_SPACING := 3.2
+## Guard rails (GuardRail) stand this far outside the shoulder.
 const RAIL_OUTSIDE := 0.35
-const RAIL_HEIGHT := 0.75
 ## A rail starts and ends this far past its cliff.
 const RAIL_OVERRUN := 12.0
 ## How much of a water feature's dip is filled with water.
 const WATER_FILL := 0.55
-const ARCH_HEIGHT := 5.2
 
 const PUDDLE_SHADER := preload("res://shaders/puddle.gdshader")
 
@@ -33,7 +30,7 @@ static func build(graph: RouteGraph, terrain: TerrainField, biome: int) -> Node3
 	for feature in graph.features_of(&"water"):
 		root.add_child(_build_water(graph, feature))
 	for run in _cliff_runs(graph):
-		root.add_child(_build_rail(graph, run))
+		root.add_child(GuardRail.build(graph, run))
 	root.add_child(_build_boundary(graph, terrain, indexes))
 	for event in StageEventBuilder.build(graph, terrain):
 		root.add_child(event)
@@ -41,8 +38,8 @@ static func build(graph: RouteGraph, terrain: TerrainField, biome: int) -> Node3
 		root.add_child(furniture)
 	root.add_child(RallyDressing.build(graph, terrain))
 	if graph.checkpoints.size() >= 2:
-		root.add_child(_build_arch(graph, graph.checkpoints[0], "START", Color("c8202a")))
-		root.add_child(_build_arch(graph, graph.checkpoints[-1], "FINISH", Color("1d1d1f")))
+		root.add_child(RallyArch.build(graph, graph.checkpoints[0], terrain, "Start", "MAP_START"))
+		root.add_child(RallyArch.build(graph, graph.checkpoints[-1], terrain, "Finish", "MAP_FINISH"))
 	return root
 
 
@@ -148,103 +145,6 @@ static func _cliff_runs(graph: RouteGraph) -> Array[Dictionary]:
 		if not merged:
 			runs.append(feature.duplicate())
 	return runs
-
-
-static func _build_rail(graph: RouteGraph, feature: Dictionary) -> StaticBody3D:
-	var body := StaticBody3D.new()
-	body.name = "Rail%d" % roundi(feature.from)
-	body.set_meta(&"surface", Surface.TARMAC)
-	var side := float(feature.side)
-	var from: float = maxf(feature.from - RAIL_OVERRUN, 0.0)
-	var to: float = minf(feature.to + RAIL_OVERRUN, graph.main_route_length())
-	# One gap per rail, a third of the way along: the barrier is old and something went through.
-	var gap_at := lerpf(from, to, 0.35 + fposmod(float(graph.seed) * 0.137 + feature.from * 0.011, 0.3))
-	var posts: Array[Transform3D] = []
-	var beam := SurfaceTool.new()
-	beam.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var runs: Array = [[]]
-	var distance := from
-	while distance <= to:
-		var here := graph.sample(distance)
-		var dir: Vector2 = here.direction
-		var right := Vector3(-dir.y, 0.0, dir.x) * side
-		var half: float = graph.edges[here.edge].width * 0.5
-		var base: Vector3 = here.position + right * (half + RoadBuilder.SHOULDER + RAIL_OUTSIDE)
-		if absf(distance - gap_at) < 4.5:
-			if not (runs[-1] as Array).is_empty():
-				runs.append([])
-		else:
-			posts.append(Transform3D(Basis.looking_at(Vector3(dir.x, 0.0, dir.y), Vector3.UP), base + Vector3.UP * 0.35))
-			(runs[-1] as Array).append([base, right])
-		distance += POST_SPACING
-	# The W-beam: a corrugated strip at rail height, one per unbroken run.
-	var profile := [Vector2(0.0, 0.42), Vector2(0.07, 0.5), Vector2(0.0, 0.59), Vector2(0.07, 0.68), Vector2(0.0, 0.76)]
-	var vertex_count := 0
-	for run in runs:
-		if run.size() < 2:
-			continue
-		for i in run.size():
-			var base: Vector3 = run[i][0]
-			var out: Vector3 = run[i][1]
-			for p in profile:
-				beam.set_normal(-out)
-				beam.set_uv(Vector2(i * POST_SPACING, p.y))
-				beam.add_vertex(base - out * (0.12 + p.x) + Vector3.UP * p.y)
-		for i in run.size() - 1:
-			for k in profile.size() - 1:
-				var a: int = vertex_count + i * profile.size() + k
-				var b: int = a + profile.size()
-				beam.add_index(a)
-				beam.add_index(b)
-				beam.add_index(a + 1)
-				beam.add_index(a + 1)
-				beam.add_index(b)
-				beam.add_index(b + 1)
-			# Collision: a thin box between each pair of posts.
-			var p0: Vector3 = run[i][0]
-			var p1: Vector3 = run[i + 1][0]
-			var mid := (p0 + p1) * 0.5
-			var span := p1 - p0
-			var shape := CollisionShape3D.new()
-			var box := BoxShape3D.new()
-			box.size = Vector3(0.18, RAIL_HEIGHT + 0.2, span.length() + 0.1)
-			shape.shape = box
-			var flat := Vector3(span.x, 0.0, span.z)
-			if flat.length_squared() > 0.0001:
-				shape.transform = Transform3D(Basis.looking_at(flat, Vector3.UP), mid + Vector3.UP * (RAIL_HEIGHT * 0.5 + 0.05))
-				body.add_child(shape)
-		vertex_count += run.size() * profile.size()
-	var steel := StandardMaterial3D.new()
-	steel.albedo_color = Color(0.72, 0.74, 0.76)
-	steel.metallic = 0.85
-	steel.roughness = 0.42
-	steel.cull_mode = BaseMaterial3D.CULL_DISABLED
-	if vertex_count > 0:
-		beam.generate_normals()
-		var beam_instance := MeshInstance3D.new()
-		beam_instance.name = "Beam"
-		beam_instance.mesh = beam.commit()
-		beam_instance.material_override = steel
-		body.add_child(beam_instance)
-	var post_mesh := BoxMesh.new()
-	post_mesh.size = Vector3(0.1, 0.9, 0.1)
-	var post_material := StandardMaterial3D.new()
-	post_material.albedo_color = Color(0.25, 0.26, 0.27)
-	post_material.metallic = 0.7
-	post_material.roughness = 0.55
-	post_mesh.material = post_material
-	var multimesh := MultiMesh.new()
-	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.mesh = post_mesh
-	multimesh.instance_count = posts.size()
-	for i in posts.size():
-		multimesh.set_instance_transform(i, posts[i])
-	var post_instance := MultiMeshInstance3D.new()
-	post_instance.name = "Posts"
-	post_instance.multimesh = multimesh
-	body.add_child(post_instance)
-	body.set_meta(&"gap_at", gap_at)
-	return body
 
 
 # --- the stage boundary ---
@@ -398,66 +298,6 @@ static func _add_wall(body: StaticBody3D, terrain: TerrainField, a: Vector3, b: 
 	body.add_child(shape)
 
 
-# --- start and finish ---
-
-static func _build_arch(graph: RouteGraph, gate: RouteGraph.Gate, text: String, color: Color) -> Node3D:
-	var arch := Node3D.new()
-	arch.name = "Arch" + text.capitalize()
-	var edge := graph.edges[gate.edge_id]
-	var dir := gate.direction
-	arch.transform = Transform3D(Basis.looking_at(Vector3(dir.x, 0.0, dir.y), Vector3.UP),
-		Vector3(gate.position.x, edge.heights[gate.point_index], gate.position.y))
-	var span := edge.width + RoadBuilder.POST_OFFSET * 2.0 + 1.0
-	var body := StaticBody3D.new()
-	body.name = "Posts"
-	arch.add_child(body)
-	var truss := StandardMaterial3D.new()
-	truss.albedo_color = Color(0.82, 0.83, 0.85)
-	truss.metallic = 0.8
-	truss.roughness = 0.35
-	for side in [-1.0, 1.0]:
-		var post := MeshInstance3D.new()
-		var post_mesh := BoxMesh.new()
-		post_mesh.size = Vector3(0.45, ARCH_HEIGHT + RoadBuilder.POST_FOOT, 0.45)
-		post_mesh.material = truss
-		post.mesh = post_mesh
-		post.position = Vector3(side * span * 0.5, (ARCH_HEIGHT - RoadBuilder.POST_FOOT) * 0.5, 0.0)
-		body.add_child(post)
-		var shape := CollisionShape3D.new()
-		var box := BoxShape3D.new()
-		box.size = post_mesh.size
-		shape.shape = box
-		shape.position = post.position
-		body.add_child(shape)
-	var banner := MeshInstance3D.new()
-	var banner_mesh := BoxMesh.new()
-	banner_mesh.size = Vector3(span + 0.45, 1.25, 0.18)
-	var cloth := StandardMaterial3D.new()
-	cloth.albedo_color = color
-	cloth.roughness = 0.8
-	if text == "FINISH":
-		cloth.albedo_texture = _checker()
-		cloth.albedo_color = Color.WHITE
-		cloth.uv1_scale = Vector3(6.0, 2.0, 1.0)
-	banner_mesh.material = cloth
-	banner.mesh = banner_mesh
-	banner.position = Vector3(0.0, ARCH_HEIGHT - 0.55, 0.0)
-	arch.add_child(banner)
-	for facing in [0.0, PI]:
-		var label := Label3D.new()
-		label.text = "RADDY RALLY  ·  %s" % text
-		label.font_size = 96
-		label.pixel_size = 0.006
-		label.outline_size = 18
-		label.modulate = Color.WHITE
-		label.outline_modulate = Color(0.05, 0.05, 0.05)
-		label.position = Vector3(0.0, ARCH_HEIGHT - 0.55, 0.0)
-		label.rotation = Vector3(0.0, facing, 0.0)
-		label.translate_object_local(Vector3(0.0, 0.0, 0.1))
-		arch.add_child(label)
-	return arch
-
-
 static var _ripple_texture: NoiseTexture2D
 
 
@@ -477,16 +317,3 @@ static func _ripples() -> NoiseTexture2D:
 		_ripple_texture.generate_mipmaps = true
 		_ripple_texture.noise = noise
 	return _ripple_texture
-
-
-static var _checker_texture: Texture2D
-
-
-static func _checker() -> Texture2D:
-	if _checker_texture == null:
-		var image := Image.create(16, 16, false, Image.FORMAT_RGB8)
-		for y in 16:
-			for x in 16:
-				image.set_pixel(x, y, Color.WHITE if (x / 8 + y / 8) % 2 == 0 else Color(0.06, 0.06, 0.07))
-		_checker_texture = ImageTexture.create_from_image(image)
-	return _checker_texture

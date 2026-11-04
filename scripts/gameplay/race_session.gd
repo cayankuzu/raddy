@@ -482,7 +482,7 @@ func _grid_slot(row: int, count: int) -> Transform3D:
 	if graph == null:
 		return Transform3D(Basis(), Vector3((row - (count - 1) * 0.5) * SPAWN_SPACING, 1.0, -6.0))
 	# The front row waits a few metres behind the start line; later rows sit further back.
-	var pose := graph.start_pose(graph.checkpoints[0].distance - 6.0)
+	var pose := graph.start_pose(graph.checkpoints[0].distance - StageBuilder.GRID_BEFORE_LINE)
 	var side := GRID_LATERAL if row % 2 == 0 else -GRID_LATERAL
 	return pose.translated_local(Vector3(side, 0.8, GRID_ROW * row))
 

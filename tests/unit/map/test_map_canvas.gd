@@ -1,7 +1,8 @@
 extends GutTest
 ## The paper map drawing (spec §11.2): the whole stage fits the sheet (turned when it runs
-## north-south), world and map coordinates round-trip, every call is numbered beside the road,
-## zoom and pan stay on the paper, and the contour shading has bands.
+## north-south), world and map coordinates round-trip, every call is numbered beside the road and
+## no number covers another or a wrong way's cross, every wrong way is crossed out, zoom and pan
+## stay on the paper, and the contour shading has bands.
 
 var _canvas: MapCanvas
 var _graph: RouteGraph
@@ -41,11 +42,11 @@ func test_draws_the_road_every_call_hazards_and_gates() -> void:
 			labels += 1
 	assert_eq(labels, _notes.size(), "a number per call")
 	assert_gt(_canvas.get_node(^"Content/Hazards").get_child_count(), 0, "water and jumps are marked")
-	var flags := 0
+	var lines := 0
 	for child in _canvas.get_node(^"Content/Gates").get_children():
 		if child is Polygon2D:
-			flags += 1
-	assert_eq(flags, _graph.checkpoints.size())
+			lines += 1
+	assert_eq(lines, _graph.checkpoints.size(), "a line across the road per gate")
 	var note_labels := 0
 	for child in _canvas.get_node(^"Content/Notes").get_children():
 		if child is Label:
@@ -94,6 +95,47 @@ func test_contour_image_has_height_bands_and_edges() -> void:
 			colors[image.get_pixel(x, y).to_html(false)] = true
 	gut.p("contour colours: %d" % colors.size())
 	assert_gte(colors.size(), 4, "several bands plus their darker edges")
+
+
+func test_every_wrong_way_is_crossed_out_near_its_mouth() -> void:
+	for i in StageCatalog.count():
+		var graph := StageBuilder.build(StageCatalog.get_stage(i))
+		var canvas := MapCanvas.new()
+		add_child_autofree(canvas)
+		canvas.build(graph, PaceNotes.build(graph, PaceNotes.DETAIL_STANDARD), null)
+		var tracks := canvas.get_node(^"Content/Tracks")
+		assert_eq(tracks.get_child_count(), graph.spurs.size())
+		for k in graph.spurs.size():
+			var mark := tracks.get_child(k).get_node_or_null(^"NoWay") as Node2D
+			assert_not_null(mark, "%s: wrong way %d has its cross" % [graph.stage_id, k])
+			var mouth: Vector3 = graph.spurs[k].points_3d()[0]
+			var from_mouth := mark.position.distance_to(canvas.world_to_map(Vector2(mouth.x, mouth.z)))
+			assert_lte(from_mouth, MapCanvas.CROSS_FROM_MOUTH + 1.0, "%s: right by the junction" % graph.stage_id)
+
+
+func test_no_number_covers_another_or_a_cross_or_the_road_on_any_stage() -> void:
+	for i in StageCatalog.count():
+		var graph := StageBuilder.build(StageCatalog.get_stage(i))
+		var notes := PaceNotes.build(graph)
+		var canvas := MapCanvas.new()
+		add_child_autofree(canvas)
+		canvas.build(graph, notes, null)
+		var rings: Array[Vector2] = []
+		for child in canvas.get_node(^"Content/NoteNumbers").get_children():
+			if child is Polygon2D:
+				rings.append((child as Polygon2D).position)
+		assert_eq(rings.size(), notes.size())
+		var crowded := 0
+		for a in rings.size():
+			for b in range(a + 1, rings.size()):
+				if rings[a].distance_to(rings[b]) < MapCanvas.NOTE_RADIUS * 2.0:
+					crowded += 1
+		for track in canvas.get_node(^"Content/Tracks").get_children():
+			for ring in rings:
+				if ring.distance_to((track.get_node(^"NoWay") as Node2D).position) < MapCanvas.NOTE_RADIUS + MapCanvas.CROSS_RADIUS:
+					crowded += 1
+		gut.p("%s: %d rings, %d on top of another" % [graph.stage_id, rings.size(), crowded])
+		assert_eq(crowded, 0, "%s: every number stands free" % graph.stage_id)
 
 
 func test_wrong_ways_are_thin_dashed_tracks_under_the_road() -> void:

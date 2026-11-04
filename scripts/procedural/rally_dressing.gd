@@ -91,6 +91,8 @@ const SPOT_PITCH := Vector2(1.3, 2.6)
 const SPOT_ROOM := 0.9
 ## The ribs of a clearing (capsules across the road's side): their radius and spacing along the road.
 const CLEARING_RIB := 3.5
+## How far grass keeps from what stands in a clearing (m).
+const FOOTPRINTS := {"car": 2.8, "table": 1.9, "bench": 1.0, "chair": 0.6, "bale": 1.1, "stake": 0.2, "flag": 0.25}
 ## How far the batches are drawn (m): what catches the eye far away, what stands in a place, and
 ## what is too thin to see further.
 const BOARD_RANGE := 260.0
@@ -120,16 +122,18 @@ static func plan(graph: RouteGraph, terrain: TerrainField) -> Array[Dictionary]:
 	return items
 
 
-## Where the forest stands back (RoadsideDresser plants nothing there): a place for the crowd, the
-## road's end and the view onto each board. Capsules in the XZ plane: {"a": Vector2, "b": Vector2,
-## "radius": m}.
+## Where the forest stands back (RoadsideDresser plants nothing tall there): a place for the crowd,
+## the road's end and the view onto each board. Capsules in the XZ plane: {"a": Vector2, "b": Vector2,
+## "radius": m}; `bare` ones are the footprints of what stands there, where not even grass grows.
 static func clearings(graph: RouteGraph, terrain: TerrainField) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for item in plan(graph, terrain):
+		var at := Vector2(item.position.x, item.position.z)
 		if item.kind in BOARD_KINDS:
-			var foot := Vector2(item.position.x, item.position.z)
-			out.append({"a": foot, "b": foot, "radius": BOARD_CLEAR})
-			out.append({"a": foot, "b": foot + (item.facing as Vector2) * BOARD_VIEW, "radius": BOARD_VIEW_CLEAR})
+			out.append({"a": at, "b": at, "radius": BOARD_CLEAR})
+			out.append({"a": at, "b": at + (item.facing as Vector2) * BOARD_VIEW, "radius": BOARD_VIEW_CLEAR})
+		elif FOOTPRINTS.has(item.kind):
+			out.append({"a": at, "b": at, "radius": FOOTPRINTS[item.kind], "bare": true})
 	for zone in _zones(graph):
 		var side := float(zone.side)
 		var s := float(zone.from) - Sightline.ZONE_MARGIN

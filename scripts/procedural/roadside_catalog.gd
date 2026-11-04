@@ -5,7 +5,8 @@ class_name RoadsideCatalog
 ##   edge), bias (>1 = crowd the near edge), scale [min, max], sink (metres into the ground at
 ##   scale 1), tilt (degrees), range (visibility end, m), shadows, variants (each mesh in the file
 ##   is its own variant), foliage (alpha-scissor leaves), backdrop (no collision, kept out of every
-##   stretch's corridor), screen (only on the sides Sightline counts on, never thinned), collision {shape: cylinder|sphere|box, radius, height, lift, size, offset,
+##   stretch's corridor), screen (only on the sides Sightline counts on, never thinned), low (grows
+##   in the open places RallyDressing keeps clear of trees too), collision {shape: cylinder|sphere|box, radius, height, lift, size, offset,
 ##   yaw (degrees: the box's turn about the trunk)} in metres at scale 1.
 ## Every asset listed here must have a row in ASSET_LICENSES.md. The Poly Haven scans and the
 ## conifer pack are in real-world metres; the birch set is in centimetres (unit 0.01).
@@ -44,22 +45,36 @@ static func _tree(id: String, path: String, node: String, biomes: Array, density
 static func entries() -> Array[Dictionary]:
 	var out: Array[Dictionary] = [
 		# --- ground cover: many, small, no shadows, short range ---
-		{"id": "fern", "path": _model("fern_02"), "biomes": [FOREST, MOUNTAIN], "variants": true,
+		{"id": "fern", "path": _model("fern_02"), "biomes": [FOREST, MOUNTAIN], "variants": true, "foliage": true, "low": true,
 			"density": 34.0, "near": 1.2, "far": 16.5, "bias": 1.8, "scale": [1.0, 1.9], "sink": 0.03,
 			"range": 110.0, "shadows": false, "biome_density": {MOUNTAIN: 0.25}},
-		{"id": "branches", "path": _model("dry_branches_medium_01"), "biomes": [FOREST, DESERT, MOUNTAIN], "variants": true,
+		{"id": "branches", "path": _model("dry_branches_medium_01"), "biomes": [FOREST, DESERT, MOUNTAIN], "variants": true, "low": true,
 			"density": 7.0, "near": 2.5, "far": 20.5, "scale": [0.9, 1.6], "sink": 0.02, "range": 80.0, "shadows": false},
-		{"id": "pebbles", "path": _model("rock_07"), "biomes": [FOREST, DESERT, MOUNTAIN],
+		{"id": "pebbles", "path": _model("rock_07"), "biomes": [FOREST, DESERT, MOUNTAIN], "low": true,
 			"density": 8.0, "near": 2.5, "far": 14.5, "scale": [2.0, 5.5], "sink": 0.03, "tilt": 25.0,
 			"range": 90.0, "shadows": false, "biome_density": {MOUNTAIN: 1.6, DESERT: 1.2}},
+		# Single tufts of grass (a whole patch of the scan is far too heavy; its taller tufts' seed heads
+		# are cards whose alpha the scan's textures do not carry).
+		{"id": "tuft_a", "path": _model("grass_medium_01"), "node": "grass_medium_01_small_a_LOD0", "foliage": true, "low": true, "biomes": [FOREST, MOUNTAIN],
+			"density": 60.0, "near": 1.2, "far": 22.5, "bias": 1.2, "scale": [2.5, 4.5], "sink": 0.02, "range": 85.0, "shadows": false, "biome_density": {MOUNTAIN: 0.6}},
+		{"id": "tuft_b", "path": _model("grass_medium_01"), "node": "grass_medium_01_small_b_LOD0", "foliage": true, "low": true, "biomes": [FOREST, MOUNTAIN],
+			"density": 60.0, "near": 1.2, "far": 22.5, "bias": 1.2, "scale": [2.5, 4.5], "sink": 0.02, "range": 85.0, "shadows": false, "biome_density": {MOUNTAIN: 0.6}},
+		{"id": "tuft_c", "path": _model("grass_medium_01"), "node": "grass_medium_01_mid_c_LOD0", "foliage": true, "low": true, "biomes": [FOREST, MOUNTAIN],
+			"density": 30.0, "near": 1.2, "far": 22.5, "bias": 1.2, "scale": [2.2, 4.0], "sink": 0.02, "range": 85.0, "shadows": false, "biome_density": {MOUNTAIN: 0.6}},
+		{"id": "creeper", "path": _model("shrub_04"), "foliage": true, "low": true, "biomes": [FOREST, MOUNTAIN],
+			"density": 4.0, "near": 2.0, "far": 18.5, "bias": 1.4, "scale": [1.6, 3.0], "sink": 0.02, "range": 110.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}},
 		{"id": "stones", "path": _model("namaqualand_boulders_01"), "biomes": [DESERT, MOUNTAIN], "variants": true,
 			"density": 12.0, "near": 2.5, "far": 24.5, "scale": [3.0, 7.0], "sink": 0.05, "range": 140.0, "shadows": false},
 		{"id": "iceplant", "path": _model("crystalline_iceplant"), "biomes": [DESERT], "variants": true,
 			"density": 16.0, "near": 2.5, "far": 20.5, "scale": [1.0, 2.2], "sink": 0.01, "range": 100.0, "shadows": false},
 		# --- bushes: medium count, cast shadows ---
-		{"id": "shrub", "path": _model("shrub_03"), "biomes": [FOREST, MOUNTAIN], "variants": true,
+		{"id": "shrub", "path": _model("shrub_03"), "biomes": [FOREST, MOUNTAIN], "variants": true, "foliage": true,
 			"density": 24.0, "near": 3.0, "far": 28.5, "scale": [1.6, 3.2], "sink": 0.05, "range": 260.0,
 			"biome_density": {MOUNTAIN: 0.45}},
+		{"id": "bush_a", "path": _model("shrub_02"), "node": "shrub_02_a", "foliage": true, "biomes": [FOREST, MOUNTAIN],
+			"density": 3.5, "near": 3.0, "far": 26.5, "scale": [0.7, 1.15], "sink": 0.12, "range": 240.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}},
+		{"id": "bush_b", "path": _model("shrub_02"), "node": "shrub_02_c", "foliage": true, "biomes": [FOREST, MOUNTAIN],
+			"density": 3.5, "near": 3.0, "far": 26.5, "scale": [0.7, 1.1], "sink": 0.12, "range": 240.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}},
 		{"id": "rooibos", "path": _model("wild_rooibos_bush"), "biomes": [DESERT], "variants": true,
 			"density": 12.0, "near": 3.0, "far": 30.5, "scale": [1.2, 2.4], "sink": 0.04, "range": 180.0},
 		# --- obstacles: collide (and hurt, spec §8.2) ---

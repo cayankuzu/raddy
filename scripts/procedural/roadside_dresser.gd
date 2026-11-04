@@ -24,7 +24,7 @@ const HARD_CLEAR := RoadBuilder.POST_OFFSET
 const TRUNK_SPACING := 1.8
 ## Nothing hard this close to a tree that will fall (its trunk needs the room).
 const EVENT_CLEAR := 4.0
-## No dressing near the start grid, where spectators and the start arch go.
+## Nothing tall near the start grid, where spectators and the start arch go.
 const START_CLEAR := 30.0
 ## Nothing on a cliff's lip: the drop stays in view.
 const CLIFF_LIP := 12.0
@@ -169,7 +169,7 @@ static func _try_place(entry: Dictionary, context: Dictionary, edge: RouteGraph.
 	var road := terrain.distance_to_road(p)
 	if road < (HARD_CLEAR + reach if reach >= 0.0 else SOFT_CLEAR):
 		return null
-	if _in_clearing(context.clearings, p):
+	if _in_clearing(context.clearings, p, entry.get("low", false)):
 		return null
 	var start_xz: Vector2 = context.start
 	if reach >= 0.0:
@@ -182,7 +182,7 @@ static func _try_place(entry: Dictionary, context: Dictionary, edge: RouteGraph.
 	# one leg would otherwise stand on the other leg's roadside, where cars do go).
 	if entry.get("backdrop", false) and terrain.distance_to_centreline(p) < TrackFeatures.CORRIDOR + 6.0:
 		return null
-	if p.distance_to(start_xz) < START_CLEAR:
+	if p.distance_to(start_xz) < START_CLEAR and not entry.get("low", false):
 		return null
 	var cliff := terrain.cliff_at(p)
 	if not cliff.is_empty() and float(cliff.lateral) < float(cliff.half_width) + TerrainField.FLAT_BAND + CLIFF_LIP:
@@ -215,8 +215,11 @@ static func _clearing_cells(graph: RouteGraph, terrain: TerrainField) -> Diction
 	return cells
 
 
-static func _in_clearing(cells: Dictionary, p: Vector2) -> bool:
+## Whether `p` is kept clear; what grows `low` only keeps out of the footprints of what stands there.
+static func _in_clearing(cells: Dictionary, p: Vector2, low: bool) -> bool:
 	for capsule in cells.get(Vector2i((p / CLEARING_CELL).floor()), []):
+		if low and not capsule.get("bare", false):
+			continue
 		if Geometry2D.get_closest_point_to_segment(p, capsule.a, capsule.b).distance_to(p) < float(capsule.radius):
 			return true
 	return false

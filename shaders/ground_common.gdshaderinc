@@ -1,7 +1,8 @@
 // Shared by terrain.gdshader and verge.gdshader so the verge's outer edge matches the terrain
-// exactly. World-space layers: two ground sets mixed by large-scale noise (breaks tiling), rock on
-// slopes (triplanar albedo/ARM), snow on upward faces by the global `snow_cover`, darker and
-// glossier with the global `wetness`. Normal maps are RG (Godot rebuilds Z).
+// exactly. World-space layers: two ground sets mixed by large-scale noise (breaks tiling), a third in
+// patches a few metres across (litter, bare earth), rock on slopes (triplanar albedo/ARM), hummocks
+// and hollows that catch the light, snow on upward faces by the global `snow_cover`, darker and
+// damper with the global `wetness`. Normal maps are RG (Godot rebuilds Z).
 
 global uniform float wetness;
 global uniform float snow_cover;
@@ -12,6 +13,9 @@ uniform sampler2D ground_arm : hint_default_white, filter_linear_mipmap_anisotro
 uniform sampler2D ground2_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D ground2_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D ground2_arm : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D ground3_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D ground3_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D ground3_arm : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D rock_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D rock_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D rock_arm : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -22,9 +26,11 @@ uniform sampler2D macro_noise : hint_default_white, filter_linear_mipmap, repeat
 uniform vec3 ground_tint : source_color = vec3(1.0);
 uniform float ground_tile = 5.0;
 uniform float ground2_tile = 6.5;
+uniform float ground3_tile = 4.5;
 uniform float rock_tile = 9.0;
 uniform float snow_tile = 5.0;
 uniform float ground2_amount : hint_range(0.0, 1.0) = 0.5;
+uniform float ground3_amount : hint_range(0.0, 1.0) = 0.3;
 uniform float macro_scale = 140.0;
 uniform float macro_strength : hint_range(0.0, 1.0) = 0.28;
 uniform float slope_start = 0.9;
@@ -32,6 +38,14 @@ uniform float slope_end = 0.72;
 
 // The scan's snow is a grey photograph; real snow is nearly white.
 const float SNOW_LIFT = 1.9;
+// Metres per repeat of the noise that gives the third layer's patches, and of the hummocks (a big and a
+// small size); how hard they tilt the light and how dark their hollows get.
+const float PATCH_NOISE = 19.0;
+const float HUMMOCK_BIG = 11.0;
+const float HUMMOCK_SMALL = 2.7;
+const float HUMMOCK_TILT = 0.1;
+const float HUMMOCK_MOST = 0.1;
+const float HOLLOW_DARK = 0.16;
 
 struct GroundSample {
 	vec3 albedo;
@@ -56,6 +70,28 @@ GroundSample ground_sample(vec3 world_pos, vec3 world_normal) {
 	vec3 albedo = mix(texture(ground_albedo, g_uv).rgb, texture(ground2_albedo, g2_uv).rgb, mix2);
 	vec2 nrm = mix(texture(ground_normal, g_uv).rg, texture(ground2_normal, g2_uv).rg, mix2);
 	vec3 arm = mix(texture(ground_arm, g_uv).rgb, texture(ground2_arm, g2_uv).rgb, mix2);
+
+	// Patches of the third layer with a ragged edge.
+	float patches = texture(macro_noise, xz / PATCH_NOISE + vec2(0.13, 0.29)).r;
+	float small = texture(macro_noise, xz / HUMMOCK_SMALL + vec2(0.57, 0.11)).r;
+	float mix3 = smoothstep(0.5, 0.6, patches + (small - 0.5) * 0.3 + (ground3_amount - 0.5));
+	if (mix3 > 0.001) {
+		vec2 g3_uv = xz / ground3_tile + vec2(0.17, 0.83);
+		albedo = mix(albedo, texture(ground3_albedo, g3_uv).rgb, mix3);
+		nrm = mix(nrm, texture(ground3_normal, g3_uv).rg, mix3);
+		arm = mix(arm, texture(ground3_arm, g3_uv).rgb, mix3);
+	}
+
+	// Rough ground: hummocks tilt the light and the hollows between them lie darker.
+	float e = 0.012;
+	vec2 big_at = xz / HUMMOCK_BIG;
+	float big = texture(macro_noise, big_at).r;
+	vec2 tilt = vec2(big - texture(macro_noise, big_at + vec2(e, 0.0)).r, texture(macro_noise, big_at + vec2(0.0, e)).r - big);
+	vec2 small_at = xz / HUMMOCK_SMALL + vec2(0.57, 0.11);
+	tilt += vec2(small - texture(macro_noise, small_at + vec2(e, 0.0)).r, texture(macro_noise, small_at + vec2(0.0, e)).r - small) * 0.6;
+	// Never so far that the sun drops behind a hummock's side: that is a black blot, not a shadow.
+	nrm += clamp(tilt / e * HUMMOCK_TILT * 0.5, vec2(-HUMMOCK_MOST), vec2(HUMMOCK_MOST));
+	albedo *= mix(1.0 - HOLLOW_DARK, 1.0 + HOLLOW_DARK * 0.25, smoothstep(0.3, 0.7, big * 0.6 + small * 0.4));
 
 	// Rock where the slope gets steep, with a ragged edge.
 	float up = world_normal.y;

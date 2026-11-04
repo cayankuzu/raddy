@@ -72,7 +72,7 @@ func _ready() -> void:
 
 	_car = CAR_SCENE.instantiate()
 	_car.name = "RallyCar"
-	_start_pose = graph.start_pose(float(_args.get("start", str(graph.checkpoints[0].distance - 6.0)))).translated(Vector3.UP * 0.8)
+	_start_pose = graph.start_pose(float(_args.get("start", str(graph.checkpoints[0].distance - StageBuilder.GRID_BEFORE_LINE)))).translated(Vector3.UP * 0.8)
 	_car.transform = _start_pose
 	add_child(_car)
 	_car.set_paint(TeamColors.paint(int(_args.get("team", "1"))))
