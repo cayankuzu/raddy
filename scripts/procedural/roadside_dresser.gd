@@ -390,7 +390,7 @@ static func _add_to_batches(batches: Dictionary, entry: Dictionary, parts: Array
 	var shadows: bool = entry.get("shadows", true)
 	for part in parts:
 		var material: Material = part.material
-		var fine: bool = entry.get("low", false) or entry.get("backdrop", false)
+		var fine: bool = entry.get("fine", false) or entry.get("low", false) or entry.get("backdrop", false) or not entry.has("collision")
 		var key := "%d|%d|%s|%d|%s" % [(part.mesh as Mesh).get_instance_id(), material.get_instance_id() if material != null else 0,
 			shadows, roundi(range_end), fine]
 		if not batches.has(key):

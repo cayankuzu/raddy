@@ -136,7 +136,7 @@ func _process(delta: float) -> void:
 func _show_pane(side: int) -> void:
 	var mesh := _window_meshes[side]
 	mesh.position = _pane_closed[side] + PANE_SLIDE[side] * PANE_TRAVEL * _pane_down[side]
-	mesh.visible = window_state[side] != WindowState.BROKEN and _pane_down[side] < 1.0
+	mesh.visible = window_state[side] == WindowState.CLOSED or (window_state[side] == WindowState.OPEN and _pane_down[side] < 1.0)
 
 
 ## Gives the map its drawing; RaceSession (or a dev scene) calls it once the route exists.

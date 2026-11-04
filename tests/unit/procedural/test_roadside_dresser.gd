@@ -300,3 +300,16 @@ func test_the_forest_closes_the_view_past_the_road_end() -> void:
 	gut.p("%d trees in the 40 x 40 m past the road's end" % beyond)
 	assert_gt(beyond, 15, "the road does not end in an empty field")
 	dressing.free()
+
+
+func test_the_mirrors_leave_out_what_is_low_far_or_cannot_be_hit() -> void:
+	var dressing := RoadsideDresser.dress(_graph, _terrain, RaceSettings.Biome.FOREST, _catalog())
+	var layers := {}
+	for child in dressing.get_children():
+		if child is MultiMeshInstance3D:
+			layers[String(child.name).get_slice("_", 0)] = (child as MultiMeshInstance3D).layers
+	assert_true(layers.has("tree") and layers.has("grass"), "both kinds were placed")
+	assert_ne(layers["tree"] & CarMirrors.CAMERA_MASK, 0, "a mirror sees the trees")
+	assert_eq(layers["grass"] & CarMirrors.CAMERA_MASK, 0, "not the grass")
+	assert_ne(layers["grass"] & 0xFFFFF, 0, "which every other camera does see")
+	dressing.free()

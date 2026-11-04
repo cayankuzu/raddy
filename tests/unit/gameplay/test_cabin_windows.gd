@@ -34,6 +34,7 @@ func _spawn(surface: StringName) -> void:
 	_world.add_child(_car)
 	_cabin = _car.get_node(^"Cabin")
 	_cabin.local_role = RosterRules.Role.NAVIGATOR
+	_cabin._rng.seed = 11  # a stone chip is a rare roll: not in the middle of a test
 	_cabin.faint_changed.connect(func(role: int, fainted: bool) -> void: _faints.append([role, fainted]))
 	await wait_ticks(60)
 	_car.set_simulated(false)  # the test dictates the speed the cabin sees

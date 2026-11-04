@@ -102,6 +102,7 @@ static func _build_water(graph: RouteGraph, feature: Dictionary) -> Node3D:
 	var material := ShaderMaterial.new()
 	material.shader = PUDDLE_SHADER
 	material.set_shader_parameter(&"ripples", _ripples())
+	material.set_shader_parameter(&"reflection_steps", GraphicsQuality.water_ray_steps(GraphicsQuality.current()))
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Surface"
 	mesh.mesh = surface.commit()

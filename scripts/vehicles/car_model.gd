@@ -69,7 +69,7 @@ func _ready() -> void:
 	_move_wheels(model)
 	_move_glass(model, parts)
 	_clear_fixed_glass(model)
-	_setup_steering(model, parts)
+	_setup_steering(model)
 	_add_cabin_light()
 	cockpit = CarCockpit.new()
 	cockpit.name = "Cockpit"
@@ -238,9 +238,9 @@ static func _clear_glass() -> ShaderMaterial:
 	return _glass
 
 
-## The steering wheel turns about its column with the car's steering angle. It is set forward with the end of
-## the column, as a driver sets it to see the dials through the rim.
-func _setup_steering(model: Node3D, parts: Dictionary) -> void:
+## The steering wheel turns about its column with the car's steering angle. It is set forward as a driver sets it
+## to see the dials through the rim (CarCockpit moves the column's end with it).
+func _setup_steering(model: Node3D) -> void:
 	var holder := model.find_child("Milano95_Steering", true, false) as Node3D
 	if holder == null:
 		return
@@ -258,11 +258,6 @@ func _setup_steering(model: Node3D, parts: Dictionary) -> void:
 	mesh_instance.get_parent().remove_child(mesh_instance)
 	_steering.add_child(mesh_instance)
 	mesh_instance.transform = Transform3D(in_car.basis, in_car.origin - centre)
-	var column_end := MeshInstance3D.new()
-	column_end.name = "ColumnEnd"
-	column_end.mesh = parts[&"column_end"]
-	column_end.position = WHEEL_SET_IN
-	add_child(column_end)
 	# Hide the placeholder torus wheel if it is still around.
 	var old_wheel := car.get_node_or_null(^"Interior/SteeringWheel") as Node3D
 	if old_wheel != null:
@@ -279,7 +274,8 @@ func _process(_delta: float) -> void:
 	if _steering == null or car == null or car.config == null:
 		return
 	var steer := car.steer_angle / maxf(car.config.max_steer_angle, 0.001)
-	_steering.basis = Basis(WHEEL_AXIS.normalized(), steer * STEERING_RATIO)
+	# The axis points at the driver: clockwise as he sees it is a negative turn.
+	_steering.basis = Basis(WHEEL_AXIS.normalized(), -steer * STEERING_RATIO)
 
 
 ## The local player sits in this car behind `seat`: what only that player sees comes alive for that seat.

@@ -24,6 +24,8 @@ func _ready() -> void:
 	_material.render_priority = Material.RENDER_PRIORITY_MIN
 	material_override = _material
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Only the main view: in a mirror it would smear the picture and pay for a screen copy.
+	layers = CarMirrors.SELF_LAYER
 	# The quad is moved in clip space by the shader: never let culling drop it.
 	extra_cull_margin = 16384.0
 	custom_aabb = AABB(Vector3(-1000, -1000, -1000), Vector3(2000, 2000, 2000))

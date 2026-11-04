@@ -57,6 +57,7 @@ func build(model: Node3D) -> void:
 		beam.spot_angle = 28.0
 		beam.spot_attenuation = 0.7
 		beam.shadow_enabled = false
+		beam.light_specular = 0.25  # a car's flank at a grazing angle would mirror it blindingly into its own door mirror
 		beam.position = Vector3(side, -0.05, -2.0)
 		beam.rotation_degrees = Vector3(-4.0, 0.0, 0.0)
 		add_child(beam)

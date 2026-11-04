@@ -7,7 +7,8 @@ class_name RoadsideCatalog
 ##   is its own variant), foliage (alpha-scissor leaves), black_ground (with foliage: the scan's atlas has
 ##   no alpha but a black ground round every leaf, to be cut away), backdrop (no collision, kept out of every
 ##   stretch's corridor), screen (only on the sides Sightline counts on, never thinned), low (grows
-##   in the open places RallyDressing keeps clear of trees too), collision {shape: cylinder|sphere|box, radius, height, lift, size, offset,
+##   in the open places RallyDressing keeps clear of trees too), fine (the mirrors leave it out, as they do
+##   whatever is low, backdrop or has no collision), collision {shape: cylinder|sphere|box, radius, height, lift, size, offset,
 ##   yaw (degrees: the box's turn about the trunk)} in metres at scale 1.
 ## Every asset listed here must have a row in ASSET_LICENSES.md. The Poly Haven scans and the
 ## conifer pack are in real-world metres; the birch set is in centimetres (unit 0.01).
@@ -83,10 +84,10 @@ static func entries() -> Array[Dictionary]:
 		{"id": "rooibos", "path": _model("wild_rooibos_bush"), "biomes": [DESERT], "variants": true, "foliage": true, "black_ground": true,
 			"density": 12.0, "near": 3.0, "far": 30.5, "scale": [1.2, 2.4], "sink": 0.04, "range": 180.0},
 		# --- obstacles: collide (and hurt, spec §8.2) ---
-		{"id": "stump", "path": _model("tree_stump_01"), "biomes": [FOREST],
+		{"id": "stump", "path": _model("tree_stump_01"), "biomes": [FOREST], "fine": true,
 			"density": 2.0, "near": 4.0, "far": 28.5, "scale": [0.8, 1.3], "sink": 0.0, "range": 220.0,
 			"collision": {"shape": "cylinder", "radius": 0.55, "height": 0.6}},
-		{"id": "boulder", "path": _model("boulder_01"), "biomes": [FOREST, MOUNTAIN],
+		{"id": "boulder", "path": _model("boulder_01"), "biomes": [FOREST, MOUNTAIN], "fine": true,
 			"density": 2.6, "near": 3.5, "far": 34.5, "scale": [0.6, 1.7], "sink": 0.15, "range": 320.0,
 			"collision": {"shape": "sphere", "radius": 0.75, "lift": 0.35}, "biome_density": {MOUNTAIN: 2.2}},
 		{"id": "desert_boulder", "path": _model("namaqualand_boulder_04"), "biomes": [DESERT, MOUNTAIN],
@@ -129,21 +130,21 @@ static func entries() -> Array[Dictionary]:
 		_tree("noble_fir", CONIFERS, "NobleFirTree_2", [FOREST, MOUNTAIN], 10.0, 4.5, 28.5, [0.8, 1.5], 0.18),
 		_tree("sapling", CONIFERS, "Coniferous Sapling_4", [FOREST, MOUNTAIN], 14.0, 3.0, 18.5, [0.7, 1.4], 0.0,
 			{"range": 260.0, "shadows": false, "biome_density": {MOUNTAIN: 0.6}}),
-		_tree("conifer_bush", CONIFERS, "ConiferousShrub_3", [FOREST], 1.5, 8.5, 32.5, [0.45, 0.7], 0.25),
+		_tree("conifer_bush", CONIFERS, "ConiferousShrub_3", [FOREST], 1.5, 8.5, 32.5, [0.45, 0.7], 0.25, {"fine": true}),
 		_tree("dead_conifer", CONIFERS, "Coniferous Dead Tree_6", [FOREST, MOUNTAIN], 0.8, 6.5, 32.5, [0.8, 1.1], 0.3,
 			{"biome_density": {MOUNTAIN: 1.5}}),
 		_tree("snag", CONIFERS, "Coniferous Dead Tree 2_7", [FOREST, MOUNTAIN], 1.0, 4.5, 28.5, [0.8, 1.2], 0.2),
 		_tree("log", CONIFERS, "Coniferous Dead Log_5", [FOREST], 1.2, 4.0, 26.5, [0.8, 1.1], 0.0,
-			{"sink": 0.1, "range": 260.0, "collision": {"shape": "box", "size": Vector3(7.4, 0.6, 0.75), "yaw": 41.8}}),
+			{"sink": 0.1, "range": 260.0, "fine": true, "collision": {"shape": "box", "size": Vector3(7.4, 0.6, 0.75), "yaw": 41.8}}),
 		_tree("mossy_boulder", CONIFERS, "BoulderMossyLarge_8", [FOREST], 1.4, 4.5, 32.5, [0.5, 0.9], 0.0,
-			{"sink": 0.3, "foliage": false, "collision": {"shape": "sphere", "radius": 1.5, "lift": 0.2}}),
+			{"sink": 0.3, "foliage": false, "fine": true, "collision": {"shape": "sphere", "radius": 1.5, "lift": 0.2}}),
 		_tree("mossy_outcrop", CONIFERS, "BoulderOutcropMossyMedium_10", [FOREST, MOUNTAIN], 0.5, 10.5, 36.5, [0.6, 1.0], 0.0,
-			{"sink": 0.5, "foliage": false, "collision": {"shape": "sphere", "radius": 2.4, "lift": 0.1}}),
+			{"sink": 0.5, "foliage": false, "fine": true, "collision": {"shape": "sphere", "radius": 2.4, "lift": 0.1}}),
 		_tree("birch_a", BIRCHES, "birch-1", [FOREST], 2.4, 5.5, 32.5, [0.8, 1.15], 0.13, {"unit": 0.01}),
-		_tree("birch_b", BIRCHES, "birch-2", [FOREST], 1.8, 6.5, 32.5, [0.7, 1.0], 0.15, {"unit": 0.01}),
-		_tree("birch_c", BIRCHES, "birch-3", [FOREST], 2.6, 4.0, 24.5, [0.9, 1.4], 0.08, {"unit": 0.01}),
-		_tree("birch_d", BIRCHES, "birch-4", [FOREST], 1.8, 6.5, 32.5, [0.75, 1.05], 0.14, {"unit": 0.01}),
-		_tree("birch_e", BIRCH, "bark11_0", [FOREST], 2.4, 4.5, 30.5, [1.0, 1.5], 0.12),
+		_tree("birch_b", BIRCHES, "birch-2", [FOREST], 1.8, 6.5, 32.5, [0.7, 1.0], 0.15, {"unit": 0.01, "fine": true}),
+		_tree("birch_c", BIRCHES, "birch-3", [FOREST], 2.6, 4.0, 24.5, [0.9, 1.4], 0.08, {"unit": 0.01, "fine": true}),
+		_tree("birch_d", BIRCHES, "birch-4", [FOREST], 1.8, 6.5, 32.5, [0.75, 1.05], 0.14, {"unit": 0.01, "fine": true}),
+		_tree("birch_e", BIRCH, "bark11_0", [FOREST], 2.4, 4.5, 30.5, [1.0, 1.5], 0.12, {"fine": true}),
 		# The wall beside the road: trunks shoulder to shoulder from just past the road's side.
 		_tree("row_fir", CONIFERS, "FirTree_0", [FOREST, MOUNTAIN], 20.0, 2.9, 9.0, [0.55, 0.95], 0.3,
 			{"bias": 1.0, "biome_density": {MOUNTAIN: 0.5}}),

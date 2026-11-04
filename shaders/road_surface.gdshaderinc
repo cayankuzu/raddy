@@ -7,6 +7,10 @@
 // camera; further away `loose` also comes at FAR_SCALE times the size, so no pattern repeats down the road.
 // The including shader declares `macro_noise`.
 
+// 1 where the screen-space reflections run (GraphicsQuality): standing water can then be the mirror it is,
+// showing what is really there; without them it mirrors only the sky, and must do so faintly under trees.
+global uniform float wet_mirror;
+
 uniform sampler2D loose_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D loose_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D loose_arm : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -112,19 +116,18 @@ RoadSample road_sample(vec2 uv, float half_width, float ruts, float view_distanc
 	float rain = wet * porosity;
 	albedo *= mix(1.0, 0.6, rain);
 	arm.g = mix(arm.g, 0.45, rain * 0.9);
-	// Water stands in long patches along the wheel tracks in rain; mud always holds some. It mirrors the
-	// sky at half strength: under trees most of the sky is not there to mirror.
-	float pool = smoothstep(0.5, 0.7, texture(macro_noise, uv * vec2(0.19, 0.075) + vec2(0.23, 0.47)).r + ragged * 0.25);
+	// Water stands in long patches along the wheel tracks in rain; mud always holds some.
+	float pool = smoothstep(0.43, 0.6, texture(macro_noise, uv * vec2(0.19, 0.075) + vec2(0.23, 0.47)).r + ragged * 0.25);
 	float gloss = max(rut_gloss, rain * rain) * track * pool;
 	albedo *= mix(1.0, 0.72, gloss);
-	arm.g = mix(arm.g, 0.16, gloss);
-	nrm = mix(nrm, vec2(0.5), gloss * 0.75);
+	arm.g = mix(arm.g, mix(0.16, 0.05, wet_mirror), gloss);
+	nrm = mix(nrm, vec2(0.5), gloss * mix(0.75, 0.97, wet_mirror));
 
 	RoadSample s;
 	s.albedo = albedo;
 	s.normal_rg = nrm;
 	s.ao = arm.r;
 	s.roughness = arm.g;
-	s.specular = mix(0.5, 0.14, gloss);
+	s.specular = mix(0.5, mix(0.14, 0.5, wet_mirror), gloss);
 	return s;
 }

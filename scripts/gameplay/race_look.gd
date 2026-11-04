@@ -124,8 +124,18 @@ static func create(biome: int, weather: int, dusk := false) -> Node3D:
 	sun.directional_shadow_split_3 = 0.45
 	sun.directional_shadow_blend_splits = true
 	sun.layers = SUN_LAYER
+	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 	sun.add_to_group(SUN_GROUP)
 	root.add_child(sun)
+	# What the sky itself shows of the sun, the same for every camera. If a mirror's camera saw other lights in the
+	# sky than the main view, the sky's reflections would be built anew each time the view changed.
+	var in_the_sky := DirectionalLight3D.new()
+	in_the_sky.name = "SunInTheSky"
+	in_the_sky.transform = sun.transform
+	in_the_sky.light_color = sun.light_color
+	in_the_sky.light_energy = sun.light_energy
+	in_the_sky.sky_mode = DirectionalLight3D.SKY_MODE_SKY_ONLY
+	root.add_child(in_the_sky)
 	GraphicsQuality.apply_look(env, sun, GraphicsQuality.current())
 	return root
 

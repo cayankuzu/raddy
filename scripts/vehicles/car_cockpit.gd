@@ -62,6 +62,10 @@ func build(parts: Dictionary) -> void:
 	for part: StringName in _pedal_at:
 		_pedals[part] = _add_moving(parts[part], _pedal_hinge(parts[part]))
 	_lever = _add_moving(parts[&"gear_lever"], LEVER_HINGE)
+	var column_end := _quiet_mesh(parts[&"column_end"])
+	column_end.name = "ColumnEnd"
+	column_end.position = CarModel.WHEEL_SET_IN
+	add_child(column_end)
 	_build_handbrake()
 
 

@@ -21,3 +21,34 @@ func test_the_shade_takes_the_colour_of_the_biome() -> void:
 		var env := _environment(biome, RaceSettings.Weather.CLEAR)
 		assert_eq(env.ambient_light_color, RaceLook.BOUNCE[biome])
 		assert_almost_eq(env.ambient_light_sky_contribution, 1.0 - RaceLook.BOUNCE_SHARE, 0.001, "the sky lights the rest")
+
+
+func test_the_sky_sees_the_same_sun_from_every_camera() -> void:
+	var look := RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR)
+	add_child_autofree(look)
+	var sun: DirectionalLight3D = look.get_node(^"Sun")
+	var in_the_sky: DirectionalLight3D = look.get_node(^"SunInTheSky")
+	assert_eq(sun.sky_mode, DirectionalLight3D.SKY_MODE_LIGHT_ONLY, "the sun that lights the world stays out of the sky")
+	assert_eq(sun.layers, RaceLook.SUN_LAYER, "and on its own layer, which the mirrors leave out")
+	assert_eq(in_the_sky.sky_mode, DirectionalLight3D.SKY_MODE_SKY_ONLY)
+	assert_eq(in_the_sky.layers & CarMirrors.CAMERA_MASK, in_the_sky.layers, "the mirrors' cameras see the same sky")
+	assert_false(in_the_sky.shadow_enabled)
+	assert_true(in_the_sky.transform.is_equal_approx(sun.transform), "in the same place")
+	assert_eq(in_the_sky.light_energy, sun.light_energy)
+
+
+func test_dusk_takes_most_of_the_light_and_the_headlights_come_on() -> void:
+	var day := RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR)
+	add_child_autofree(day)
+	var day_sun: DirectionalLight3D = day.get_node(^"Sun")
+	assert_eq(RaceLook.daylight, 1.0)
+	var dusk := RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR, true)
+	add_child_autofree(dusk)
+	var dusk_sun: DirectionalLight3D = dusk.get_node(^"Sun")
+	assert_lt(dusk_sun.light_energy, day_sun.light_energy * 0.5)
+	assert_lt(RaceLook.daylight, 0.5)
+	assert_true(RaceLook.headlights_on(RaceSettings.Weather.CLEAR, true))
+	assert_false(RaceLook.headlights_on(RaceSettings.Weather.CLEAR))
+	assert_true(RaceLook.headlights_on(RaceSettings.Weather.RAIN))
+	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR).free()
+	assert_eq(RaceLook.daylight, 1.0, "the next race is back in daylight")

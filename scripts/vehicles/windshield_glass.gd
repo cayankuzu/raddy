@@ -9,6 +9,8 @@ const SHADER := preload("res://shaders/windshield.gdshader")
 const WIPER_PERIOD := 1.1
 ## Wiper sweep, degrees from parked (flat along the bottom of the glass).
 const WIPER_SWEEP := 95.0
+## Further away than this nobody can make out a wiper.
+const DRAW_RANGE := 60.0
 ## How quickly the corners lose dirt that the wipers do not reach (per second).
 const EDGE_CLEAR_RATE := 0.015
 ## The wipers' hinges in car space (the thin ends of the arms), with their cut parts (CarParts).
@@ -136,12 +138,13 @@ func _build_wipers() -> void:
 		wiper.name = "Wiper%d" % i
 		wiper.position = hinge
 		holder.add_child(wiper)
-		for part: StringName in [spec.arm, spec.blade]:
-			var piece := MeshInstance3D.new()
-			piece.name = String(part)
-			piece.mesh = parts[part]
-			piece.position = -hinge
-			wiper.add_child(piece)
+		var piece := MeshInstance3D.new()
+		piece.name = "ArmAndBlade"
+		piece.mesh = CarParts.joined(spec.arm, spec.blade)
+		piece.position = -hinge
+		piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		piece.visibility_range_end = DRAW_RANGE
+		wiper.add_child(piece)
 		_wipers.append(wiper)
 		_tell_shader(i, parts[spec.blade], hinge, to_mesh)
 

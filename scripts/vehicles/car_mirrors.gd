@@ -24,6 +24,8 @@ const REAR_WINDOW := Vector3(0.0, 0.62, 1.55)
 const FLANK_SHARE := 0.2
 const FLANK_CORNER := {Slot.LEFT: Vector3(-0.81, 0.3, 1.5), Slot.RIGHT: Vector3(0.81, 0.3, 1.5)}
 const DOOR_DOWN := 1.5
+## Further away than this nobody can make out a mirror (one draw call less per part per car).
+const FAR_ENOUGH := 60.0
 ## Where the stalk holds the head, where a door mirror's arm meets the door.
 const HEAD_JOINT := Vector3(0.006, 0.75, -0.283)
 const ARM_ROOT := {Slot.LEFT: Vector3(-0.69, 0.40, -0.6), Slot.RIGHT: Vector3(0.69, 0.39, -0.6)}
@@ -37,8 +39,8 @@ const HANG_FLAP_SPEED := 25.0
 ## How much of the windshield's dirt lands on a mirror's glass.
 const DIRT_SHARE := 0.45
 const DISPLAY_SHADER := preload("res://shaders/mirror_glass.gdshader")
-## The render layer of glass, head and housings: no mirror's camera sees them (a mirror's own glass stands
-## at its near plane, the rim of its housing just past it).
+## The render layer of what no mirror's camera sees: glass, head and housings (a mirror's own glass stands at its
+## near plane, the rim of its housing just past it), and the main view's motion blur.
 const SELF_LAYER := 1 << 19
 ## Mirrors have a sun of their own without shadows, on this layer: another shadow pass per mirror would cost
 ## more than all the rest of the picture. Only the mirrors' cameras see this layer.
@@ -111,6 +113,8 @@ func _add_part(pivot: Node3D, part_name: String, mesh: Mesh, origin: Vector3) ->
 	instance.mesh = mesh
 	instance.position = -origin
 	instance.layers = SELF_LAYER
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	instance.visibility_range_end = FAR_ENOUGH
 	pivot.add_child(instance)
 	return instance
 
@@ -120,7 +124,6 @@ func _add_mirror(slot: int, pivot: Node3D, mesh: Mesh, pane: MirrorMath, origin:
 	mirror.slot = slot
 	mirror.pivot = pivot
 	mirror.glass = _add_part(pivot, "Glass", mesh, origin)
-	mirror.glass.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mirror.glass.material_override = _plain()
 	mirror.rest = pane
 	mirror.now = MirrorMath.new(pane.center, pane.normal, pane.half_size, Vector3.UP, pane.convex)
@@ -244,7 +247,8 @@ func _add_sun() -> void:
 	_sun.light_color = race_sun.light_color
 	# Without shadows the road would lie in full sun: the lower the sun, the more of it the forest stops.
 	_sun.light_energy = race_sun.light_energy * clampf(sin(deg_to_rad(-race_sun.rotation_degrees.x)) * SUN_THROUGH_TREES, 0.1, 0.9)
-	_sun.light_specular = 0.3
+	_sun.light_specular = 0.0  # a door mirror sees its own flank at a grazing angle: no glint would be that bright
+	_sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 	_sun.shadow_enabled = false
 	add_child(_sun)
 	_sun.global_transform = race_sun.global_transform
@@ -260,6 +264,7 @@ func _release() -> void:
 	for slot: int in _mirrors:
 		var mirror: Mirror = _mirrors[slot]
 		if mirror.viewport != null:
+			remove_child(mirror.viewport)
 			mirror.viewport.queue_free()
 			mirror.viewport = null
 			mirror.camera = null
@@ -300,13 +305,15 @@ func _update_processing() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	_hang_broken()
-	if _seat == null or not _seat.current or car == null:
+	if _seat == null:
 		return
-	_shake_head()
 	# Whatever camera shows the main view never sees the mirrors' sun.
 	var viewing := get_viewport().get_camera_3d()
 	if viewing != null:
 		viewing.cull_mask &= ~MIRROR_SUN_LAYER
+	if not _seat.current:
+		return
+	_shake_head()
 	var mirror := _next_turn()
 	if mirror != null:
 		_shoot(mirror)
@@ -343,7 +350,6 @@ func _next_turn() -> Mirror:
 
 ## Whether the seat can see the glass: anywhere in its view, its middle not behind a map held up.
 func _in_view(mirror: Mirror) -> bool:
-	var to_world := car.global_transform * mirror.glass.transform
 	var rest := mirror.rest
 	if _cabin != null and _cabin.paper_map != null and _cabin.paper_map.covers(_seat.global_position, mirror.glass.global_transform * rest.center):
 		return false

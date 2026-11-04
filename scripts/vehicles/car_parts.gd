@@ -161,6 +161,18 @@ static func _part_mesh(arrays: Array, taken: PackedInt32Array, to_car: Transform
 	return mesh
 
 
+## Two cut parts as one mesh, for what moves together (one draw call).
+static func joined(part_a: StringName, part_b: StringName) -> ArrayMesh:
+	var key := StringName("%s+%s" % [part_a, part_b])
+	if not _parts.has(key):
+		var surface := SurfaceTool.new()
+		surface.append_from(_parts[part_a], 0, Transform3D.IDENTITY)
+		surface.append_from(_parts[part_b], 0, Transform3D.IDENTITY)
+		surface.set_material((_parts[part_a] as Mesh).surface_get_material(0))
+		_parts[key] = surface.commit()
+	return _parts[key]
+
+
 ## The mirror a cut pane is, at rest, a copy for the caller: a rectangle fitted round it in its own plane. The
 ## first call maps the pane's UVs onto the rectangle.
 static func pane(part: StringName, convex: float) -> MirrorMath:

@@ -14,6 +14,10 @@ const SCENERY := {Level.LOW: 0.45, Level.MEDIUM: 0.75, Level.HIGH: 1.0}
 const RANGE := {Level.LOW: 0.6, Level.MEDIUM: 0.8, Level.HIGH: 1.0}
 ## Sun shadows: cascades and how far they reach (metres).
 const SHADOW_DISTANCE := {Level.LOW: 70.0, Level.MEDIUM: 110.0, Level.HIGH: 150.0}
+## Screen-space reflections from Medium up (water and wet roads mirror trees and cars; the GPU has room for them,
+## the frame's cost is draw submission): how far the ray marches. Water marches its own ray, this many steps.
+const SSR_STEPS := {Level.MEDIUM: 40, Level.HIGH: 64}
+const WATER_RAY_STEPS := {Level.LOW: 0, Level.MEDIUM: 24, Level.HIGH: 36}
 ## The render layer of what the mirrors leave out: ground cover and the far forest. Their cost is draw calls and
 ## triangles; in a small picture of the road behind nobody misses them.
 const FINE_SCENERY_LAYER := 1 << 16
@@ -53,6 +57,10 @@ static func range_scale(level: int) -> float:
 	return RANGE.get(level, 1.0)
 
 
+static func water_ray_steps(level: int) -> int:
+	return WATER_RAY_STEPS.get(level, WATER_RAY_STEPS[Level.HIGH])
+
+
 static func mirror_height(level: int, interior: bool) -> int:
 	var heights: Vector2i = MIRROR_HEIGHT.get(level, MIRROR_HEIGHT[Level.HIGH])
 	return heights.x if interior else heights.y
@@ -67,6 +75,13 @@ static func apply_look(env: Environment, sun: DirectionalLight3D, level: int) ->
 	sun.directional_shadow_max_distance = SHADOW_DISTANCE.get(level, 150.0)
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS if level == Level.HIGH \
 		else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	env.ssr_enabled = SSR_STEPS.has(level)
+	RenderingServer.global_shader_parameter_set(&"wet_mirror", 1.0 if env.ssr_enabled else 0.0)
+	if env.ssr_enabled:
+		env.ssr_max_steps = SSR_STEPS[level]
+		env.ssr_fade_in = 0.1
+		env.ssr_fade_out = 1.6
+		env.ssr_depth_tolerance = 0.35
 	if level == Level.LOW:
 		env.ssao_enabled = false
 		env.glow_enabled = false
