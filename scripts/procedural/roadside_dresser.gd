@@ -14,6 +14,9 @@ class_name RoadsideDresser
 ## Chunk edge for a batch: about 40 % of its visibility range, within these bounds (metres).
 const CHUNK_MIN := 48.0
 const CHUNK_MAX := 192.0
+## What grows low comes in many kinds with short ranges: bigger chunks, far fewer objects and draw calls
+## for a few more of its thin triangles.
+const LOW_CHUNK := 96.0
 ## Distance along the road between placement tries, per side.
 const STEP := 4.0
 ## Metres from the road's edge: undergrowth may grow from here (in the ditch), and hard things keep
@@ -391,7 +394,7 @@ static func _add_to_batches(batches: Dictionary, entry: Dictionary, parts: Array
 			shadows, roundi(range_end)]
 		if not batches.has(key):
 			batches[key] = {"name": "%s_%d" % [entry.id, batches.size()], "mesh": part.mesh, "material": material,
-				"shadows": shadows, "range": range_end, "chunk": clampf(range_end * 0.4, CHUNK_MIN, CHUNK_MAX), "cells": {}}
+				"shadows": shadows, "range": range_end, "chunk": LOW_CHUNK if entry.get("low", false) else clampf(range_end * 0.4, CHUNK_MIN, CHUNK_MAX), "cells": {}}
 		var batch: Dictionary = batches[key]
 		var placed: Transform3D = transform * part.transform
 		var chunk: float = batch.chunk

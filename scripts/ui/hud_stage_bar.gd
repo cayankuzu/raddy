@@ -64,13 +64,12 @@ func _draw() -> void:
 		draw_colored_polygon(points, TeamColors.paint(team))
 
 
-## A small marker on a staff: the flag at the start, a chequered board at the finish.
+## A small marker: the flag on its staff at the start, a chequered line across the bar at the finish.
 func _flag(at: Vector2, chequered: bool) -> void:
-	draw_line(at + Vector2(0, 6), at + Vector2(0, -17), Color.WHITE, 2.0)
-	var origin := at + Vector2(1, -17)
 	if not chequered:
-		draw_texture_rect(TurkishFlag.texture(), Rect2(origin, Vector2(15, 10)), false)
+		draw_line(at + Vector2(0, 6), at + Vector2(0, -17), Color.WHITE, 2.0)
+		draw_texture_rect(TurkishFlag.texture(), Rect2(at + Vector2(1, -17), Vector2(15, 10)), false)
 		return
-	for row in 2:
-		for col in 3:
-			draw_rect(Rect2(origin + Vector2(col * 4.0, row * 4.0), Vector2(4, 4)), Color.WHITE if (row + col) % 2 == 0 else Color(0.08, 0.08, 0.08))
+	for row in 5:
+		for col in 2:
+			draw_rect(Rect2(at + Vector2(col * 4.0 - 4.0, row * 4.0 - 10.0), Vector2(4, 4)), Color.WHITE if (row + col) % 2 == 0 else Color(0.08, 0.08, 0.08))

@@ -26,7 +26,8 @@ const CAR_EDGE := RoadBuilder.POST_OFFSET + 13.0
 const BACK_EDGE := RoadBuilder.POST_OFFSET + 16.0
 ## Where the boards go along the road (m): at the start line, in view from every row of the grid
 ## (the time control just before it on the left, the red flag just past it on the right), before the
-## finish line (the warning, the line's own board), before the road's end; a split has a board each side.
+## finish line (the warning, the line's own board), before the road's end; a split has a board each side,
+## just before its line.
 const KM_STEP := 1000.0
 const TC_BOARD_BEFORE := 3.0
 const START_BOARD_PAST := 6.0
@@ -208,7 +209,7 @@ static func _plan_boards(context: Dictionary, items: Array[Dictionary]) -> void:
 	items.append(_board(context, "start", start + START_BOARD_PAST, 1.0))
 	for gate in graph.checkpoints.slice(1, -1):
 		for side: float in [-1.0, 1.0]:
-			var split := _board_at(context, "split", gate.distance, side, gate.distance - VIEW_FROM)
+			var split := _board(context, "split", gate.distance - GATE_QUIET, side)
 			split.text = "MAP_SPLIT"
 			split.split = gate.index
 			items.append(split)

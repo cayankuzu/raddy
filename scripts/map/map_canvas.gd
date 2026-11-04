@@ -34,10 +34,12 @@ const END_BAR_WIDTH := 8.0
 const CROSS_FROM_MOUTH := 54.0
 const CROSS_RADIUS := 19.0
 const CROSS_LINE := 5.5
-## Rings and labels keep off everything else: how far from the road they may go to find room. A ring
-## pushed further than the first step gets a thin line back to the road.
+## Rings and labels keep off everything else: how far from the road they may go to find room, and how
+## far along it. A ring pushed off its place gets a thin line back to the road.
 const SPOT_REACHES: Array[float] = [24.0, 33.0, 44.0, 56.0, 70.0, 86.0]
+const SPOT_SLIDES: Array[float] = [0.0, 16.0, -16.0, 30.0, -30.0]
 const NOTE_RADIUS := 13.0
+const LEADER_FROM := 8.0
 const GATE_LABEL_RADIUS := 34.0
 const GATE_BAR := Vector2(9.0, 36.0)
 const WATER := Color("3b6f9e")
@@ -520,12 +522,15 @@ func _road_lines() -> PackedVector2Array:
 ## The nearest free place for something `radius` round beside the road at `at`: along `side`, on the
 ## `way` side first (-1 or 1).
 func _free_spot(at: Vector2, side: Vector2, radius: float, way: float) -> Vector2:
+	var along := Vector2(side.y, -side.x)
+	var extra := maxf(radius - NOTE_RADIUS, 0.0)
 	for reach in SPOT_REACHES:
 		for sign_of: float in [way, -way]:
-			var spot := at + side * sign_of * (reach + maxf(radius - NOTE_RADIUS, 0.0))
-			if _is_free(spot, radius):
-				return spot
-	return at + side * way * (SPOT_REACHES[0] + maxf(radius - NOTE_RADIUS, 0.0))
+			for slide in SPOT_SLIDES:
+				var spot := at + side * sign_of * (reach + extra) + along * slide
+				if _is_free(spot, radius):
+					return spot
+	return at + side * way * (SPOT_REACHES[0] + extra)
 
 
 func _is_free(spot: Vector2, radius: float) -> bool:
@@ -551,7 +556,7 @@ func _add_note_numbers(notes: Array[Dictionary]) -> void:
 		var at := _free_spot(on_road, Vector2(-dir.y, dir.x), NOTE_RADIUS, -1.0 if note.side == "right" else 1.0)
 		_taken.append(Vector3(at.x, at.y, NOTE_RADIUS))
 		var color: Color = HAZARD if note.caution or note.junction != "" or note.kind in [&"jump", &"water", &"cliff"] else INK
-		if at.distance_to(on_road) > SPOT_REACHES[0] + 0.5:
+		if at.distance_to(on_road) > SPOT_REACHES[0] + LEADER_FROM:
 			numbers.add_child(_line(PackedVector2Array([on_road, at]), 1.5, color))
 		var ring := Polygon2D.new()
 		ring.name = "Note%d" % note.number
