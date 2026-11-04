@@ -25,8 +25,6 @@ const LIP_DROP := 0.15
 const APRON := 2.0
 const ROAD_LIFT := 0.02
 const GATE_HEIGHT := 14.0
-## How far posts beside the road reach below road level (the ground lies FLOOR_DROP below it).
-const POST_FOOT := 1.5
 ## Wrong ways lie just under the stage road where they meet it, and the mouth's filler under both.
 const SPUR_LIFT := 0.008
 const MOUTH_LIFT := 0.004
@@ -70,13 +68,6 @@ static func build(graph: RouteGraph, terrain: TerrainField, palette := {}) -> No
 		gates.add_child(_build_gate(graph, checkpoint, index))
 	root.add_child(TrackFeatures.build(graph, terrain, _biome))
 	return root
-
-
-static func _material(color: Color, roughness := 0.95) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = roughness
-	return material
 
 
 # --- terrain ---
@@ -449,17 +440,4 @@ static func _build_gate(graph: RouteGraph, checkpoint: RouteGraph.Gate, index: R
 	shape.shape = box
 	shape.position = Vector3((reach[1] - reach[0]) * 0.5, GATE_HEIGHT * 0.5 - 2.0, 0.0)
 	gate.add_child(shape)
-	# The start and finish have arches (TrackFeatures); a split gets two marker posts.
-	if checkpoint.index == 0 or checkpoint.index == graph.checkpoints.size() - 1:
-		return gate
-	var color := Color("ffd23f")
-	for side in [-1.0, 1.0]:
-		var post := MeshInstance3D.new()
-		var post_mesh := BoxMesh.new()
-		# Down past the ditch and into the ground below the road.
-		post_mesh.size = Vector3(0.3, 3.5 + POST_FOOT, 0.3)
-		post_mesh.material = _material(color, 0.6)
-		post.mesh = post_mesh
-		post.position = Vector3(side * (edge.width * 0.5 + POST_OFFSET + 0.5), (3.5 - POST_FOOT) * 0.5, 0.0)
-		gate.add_child(post)
 	return gate

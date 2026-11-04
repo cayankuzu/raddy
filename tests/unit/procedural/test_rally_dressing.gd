@@ -225,6 +225,17 @@ func _check_on_the_ground(world: Dictionary) -> void:
 	assert_gte(closest, RoadBuilder.SHOULDER, "%s: the shoulder stays clear" % graph.stage_id)
 
 
+func test_every_split_has_a_board_on_each_side_of_the_road() -> void:
+	for world in _worlds:
+		var graph: RouteGraph = world.graph
+		var boards := _of(world, ["split"])
+		assert_eq(boards.size(), (graph.checkpoints.size() - 2) * 2, "%s: two per split" % graph.stage_id)
+		for board in boards:
+			assert_true(String(board.text).contains(str(1)) or String(board.text).contains(str(2)), "the board says which split")
+			assert_gt(_toward_driver(world, board, float(board.at) - 30.0), 0.7, "%s: it faces the driver" % graph.stage_id)
+			assert_gte((world.terrain as TerrainField).distance_to_road(_flat(board)), RoadBuilder.POST_OFFSET, "%s: past the ditch" % graph.stage_id)
+
+
 func test_every_flag_is_the_turkish_flag_in_its_own_proportions() -> void:
 	assert_almost_eq(RallyProps.FLAG_SIZE.x / RallyProps.FLAG_SIZE.y, 1.5, 0.001, "3:2")
 	var parts := RallyProps.flag_parts()
@@ -333,7 +344,7 @@ func test_the_real_node_has_every_item() -> void:
 	var solid := _of(world, ["bale", "car", "bench", "table", "chair"]).size()
 	assert_eq(rally.get_node(^"Props").get_child_count(), solid, "what collides")
 	assert_eq(rally.find_children("Tape*", "MeshInstance3D", false, false).size(), _of(world, ["tape"]).size())
-	assert_eq(rally.find_children("*", "Label3D", false, false).size(), _of(world, ["km"]).size() + 1, "the numbers and the STOP")
+	assert_eq(rally.find_children("*", "Label3D", false, false).size(), _of(world, ["km", "split"]).size() + 1, "the numbers, the splits and the STOP")
 	assert_eq((rally.get_meta(&"spectator_spots") as Array).size(), _of(world, ["spot"]).size(), "ready for the crowd")
 
 

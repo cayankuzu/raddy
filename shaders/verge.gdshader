@@ -26,7 +26,7 @@ void fragment() {
 	float ragged = (texture(macro_noise, UV * vec2(0.35, 0.05)).r - 0.5) * 0.8;
 	float t = smoothstep(shoulder * 0.5, ditch_in, UV.x + ragged);
 	float damp = smoothstep(shoulder, ditch_in, UV.x) * (1.0 - smoothstep(ditch_out, ditch_end, UV.x));
-	ALBEDO = mix(r.albedo, g.albedo, t) * mix(1.0, 0.68, damp);
+	ALBEDO = mix(r.albedo, g.albedo, t) * mix(1.0, 0.86, damp);
 	ROUGHNESS = mix(mix(r.roughness, g.roughness, t), 0.55, damp * 0.6);
 	METALLIC = 0.0;
 	AO = mix(r.ao, g.ao, t);

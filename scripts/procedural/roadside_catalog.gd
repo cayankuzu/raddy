@@ -61,6 +61,11 @@ static func entries() -> Array[Dictionary]:
 			"density": 60.0, "near": 1.2, "far": 22.5, "bias": 1.2, "scale": [2.5, 4.5], "sink": 0.02, "range": 85.0, "shadows": false, "biome_density": {MOUNTAIN: 0.6}},
 		{"id": "tuft_c", "path": _model("grass_medium_01"), "node": "grass_medium_01_mid_c_LOD0", "foliage": true, "low": true, "biomes": [FOREST, MOUNTAIN],
 			"density": 30.0, "near": 1.2, "far": 22.5, "bias": 1.2, "scale": [2.2, 4.0], "sink": 0.02, "range": 85.0, "shadows": false, "biome_density": {MOUNTAIN: 0.6}},
+		# ...and more of them along the road's side, so its edge is never a ruled line.
+		{"id": "verge_tuft_a", "path": _model("grass_medium_01"), "node": "grass_medium_01_small_a_LOD0", "foliage": true, "low": true, "biomes": [FOREST, MOUNTAIN],
+			"density": 70.0, "near": 1.2, "far": 3.6, "bias": 1.0, "scale": [2.4, 4.2], "sink": 0.02, "range": 85.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}},
+		{"id": "verge_tuft_b", "path": _model("grass_medium_01"), "node": "grass_medium_01_mid_c_LOD0", "foliage": true, "low": true, "biomes": [FOREST, MOUNTAIN],
+			"density": 40.0, "near": 1.2, "far": 3.6, "bias": 1.0, "scale": [2.2, 3.8], "sink": 0.02, "range": 85.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}},
 		{"id": "creeper", "path": _model("shrub_04"), "foliage": true, "low": true, "biomes": [FOREST, MOUNTAIN],
 			"density": 4.0, "near": 2.0, "far": 18.5, "bias": 1.4, "scale": [1.6, 3.0], "sink": 0.02, "range": 110.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}},
 		{"id": "stones", "path": _model("namaqualand_boulders_01"), "biomes": [DESERT, MOUNTAIN], "variants": true,

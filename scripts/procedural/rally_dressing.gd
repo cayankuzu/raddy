@@ -16,7 +16,7 @@ const BARRIER_TAPE_HEIGHT := 1.05
 const LOG_PILE_SIZE := Vector3(6.0, 1.4, 2.4)
 const BOARD_HEIGHT := 1.5
 
-const BOARD_KINDS: Array[String] = ["km", "time_control", "start", "finish_warning", "finish", "stop", "chevron_left", "chevron_right", "caution"]
+const BOARD_KINDS: Array[String] = ["km", "time_control", "start", "finish_warning", "finish", "stop", "chevron_left", "chevron_right", "caution", "split"]
 ## Metres from the road's edge: boards, the tape, the bales in front of it, the middle of a parked
 ## car, and the back of a place for the crowd.
 const BOARD_EDGE := RoadBuilder.POST_OFFSET + 0.6
@@ -26,7 +26,7 @@ const CAR_EDGE := RoadBuilder.POST_OFFSET + 13.0
 const BACK_EDGE := RoadBuilder.POST_OFFSET + 16.0
 ## Where the boards go along the road (m): at the start line, in view from every row of the grid
 ## (the time control just before it on the left, the red flag just past it on the right), before the
-## finish line (the warning, the line's own board), before the road's end.
+## finish line (the warning, the line's own board), before the road's end; a split has a board each side.
 const KM_STEP := 1000.0
 const TC_BOARD_BEFORE := 3.0
 const START_BOARD_PAST := 6.0
@@ -91,6 +91,8 @@ const SPOT_PITCH := Vector2(1.3, 2.6)
 const SPOT_ROOM := 0.9
 ## The ribs of a clearing (capsules across the road's side): their radius and spacing along the road.
 const CLEARING_RIB := 3.5
+## The size of the words on the boards (m per pixel of the font's 96).
+const TEXT_SIZES := {"km": 0.0078, "stop": 0.0034, "split": 0.0044}
 ## How far grass keeps from what stands in a clearing (m).
 const FOOTPRINTS := {"car": 2.8, "table": 1.9, "bench": 1.0, "chair": 0.6, "bale": 1.1, "stake": 0.2, "flag": 0.25}
 ## How far the batches are drawn (m): what catches the eye far away, what stands in a place, and
@@ -203,6 +205,11 @@ static func _plan_boards(context: Dictionary, items: Array[Dictionary]) -> void:
 	var finish := graph.checkpoints[-1].distance
 	items.append(_board(context, "time_control", start - TC_BOARD_BEFORE, -1.0))
 	items.append(_board(context, "start", start + START_BOARD_PAST, 1.0))
+	for gate in graph.checkpoints.slice(1, -1):
+		for side: float in [-1.0, 1.0]:
+			var split := _board_at(context, "split", gate.distance, side, gate.distance - VIEW_FROM)
+			split.text = TranslationServer.translate("MAP_SPLIT").format({"n": gate.index})
+			items.append(split)
 	var km := 1
 	while start + km * KM_STEP < finish:
 		var board := _board(context, "km", start + km * KM_STEP, 1.0 if km % 2 == 1 else -1.0)
@@ -595,12 +602,12 @@ static func _board_text(item: Dictionary, placed: Transform3D) -> Label3D:
 	label.text = item.text
 	label.font = UiTheme.hud_font(800, 100)
 	label.font_size = 96
-	label.pixel_size = 0.0034 if stop else 0.0078
+	label.pixel_size = TEXT_SIZES.get(item.kind, TEXT_SIZES["km"])
 	label.modulate = Color(0.97, 0.97, 0.95) if stop else Color(0.04, 0.04, 0.04)
 	label.outline_size = 0
 	label.shaded = true
 	label.alpha_cut = Label3D.ALPHA_CUT_DISCARD
-	label.transform = placed * Transform3D(Basis.IDENTITY, Vector3(0.0, float(item.panel) - (0.0 if stop else 0.16), 0.012))
+	label.transform = placed * Transform3D(Basis.IDENTITY, Vector3(0.0, float(item.panel) - (0.16 if item.kind == "km" else 0.0), 0.012))
 	label.visibility_range_end = BOARD_RANGE
 	return label
 

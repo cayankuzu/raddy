@@ -38,6 +38,8 @@ const END_ROW_ID := 9000
 
 ## How much sunlight comes through a leaf from behind.
 const LEAF_BACKLIGHT := Color(0.26, 0.3, 0.14)
+## Leaves of a pack whose colour its textures overdo: birches come far too blue a green beside the firs.
+const LEAF_TINT := {RoadsideCatalog.BIRCHES: Color(0.86, 0.8, 0.52), RoadsideCatalog.BIRCH: Color(0.86, 0.8, 0.52)}
 
 enum Kind { TREE, BUSH, ROCK, GROUND }
 
@@ -308,7 +310,7 @@ static func _parts_of(entry: Dictionary) -> Array:
 			part.transform = recentre * part.transform
 	if entry.get("foliage", false):
 		for part in parts:
-			part.mesh = _scissored(part.mesh)
+			part.mesh = _scissored(part.mesh, LEAF_TINT.get(path, Color.WHITE))
 	_part_cache[cache_key] = parts
 	return parts
 
@@ -321,8 +323,8 @@ static func clear_cache() -> void:
 	_part_cache.clear()
 
 
-## A copy of `mesh` whose blended (leaf) materials use alpha scissor instead.
-static func _scissored(mesh: Mesh) -> Mesh:
+## A copy of `mesh` whose blended (leaf) materials use alpha scissor instead, tinted.
+static func _scissored(mesh: Mesh, tint: Color) -> Mesh:
 	var copy := mesh.duplicate() as Mesh
 	for s in copy.get_surface_count():
 		var material := copy.surface_get_material(s) as BaseMaterial3D
@@ -337,6 +339,7 @@ static func _scissored(mesh: Mesh) -> Mesh:
 		leaf.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 		leaf.backlight_enabled = true
 		leaf.backlight = LEAF_BACKLIGHT
+		leaf.albedo_color *= tint
 		copy.surface_set_material(s, leaf)
 	return copy
 

@@ -28,6 +28,8 @@ uniform float rut_width = 0.5;
 // How porous the surface is: how much rain darkens it (mud and dirt more than tarmac).
 uniform float porosity = 1.0;
 uniform float saturation = 1.0;
+// Nothing of the textures is darker than this (the snow scan's dark hairlines read as worms).
+uniform float darkest = 0.0;
 // Wet in the wheel tracks even under a dry sky (mud).
 uniform float rut_gloss : hint_range(0.0, 1.0) = 0.0;
 
@@ -71,14 +73,14 @@ RoadSample road_sample(vec2 uv, float half_width, float ruts, float view_distanc
 	vec2 near_uv = uv / loose_tile;
 	vec2 far_uv = uv.yx / (loose_tile * FAR_SCALE) + vec2(0.19, 0.53);
 	float far = smoothstep(FAR_FROM, FAR_TO, view_distance);
-	vec3 loose = mix(texture(loose_albedo, near_uv).rgb, texture(loose_albedo, far_uv).rgb, far) * loose_tint;
+	vec3 loose = max(mix(texture(loose_albedo, near_uv).rgb, texture(loose_albedo, far_uv).rgb, far) * loose_tint, vec3(darkest));
 	vec2 nrm = mix(texture(loose_normal, near_uv).rg, texture(loose_normal, far_uv).rg, far);
 	vec3 arm = texture(loose_arm, near_uv).rgb;
 
 	// Two sizes at once: no stain of the packed tracks comes back every few metres.
 	vec2 packed_uv = uv / packed_tile + vec2(0.41, 0.07);
 	vec2 packed_far_uv = uv.yx / (packed_tile * PACKED_FAR_SCALE) + vec2(0.71, 0.29);
-	vec3 hard = mix(texture(packed_albedo, packed_uv).rgb, texture(packed_albedo, packed_far_uv).rgb, 0.5) * packed_tint;
+	vec3 hard = max(mix(texture(packed_albedo, packed_uv).rgb, texture(packed_albedo, packed_far_uv).rgb, 0.5) * packed_tint, vec3(darkest));
 	vec2 hard_nrm = texture(packed_normal, packed_uv).rg;
 	float hard_share = max(track, (1.0 - loose_share) * 0.75);
 	vec3 albedo = mix(loose, hard, hard_share);

@@ -31,7 +31,7 @@ const ROAD_SETS := {
 		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(1.0, 0.95, 0.88), "stones_amount": 0.12, "porosity": 0.6},
 	Surface.SNOW: {"loose": "snow_02", "loose_tile": 3.5, "loose_tint": Color(1.35, 1.36, 1.38),
 		"packed": "snow_02", "packed_tile": 2.4, "packed_tint": Color(1.12, 1.14, 1.18),
-		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(0.6, 0.58, 0.56), "stones_amount": 0.0, "porosity": 0.2},
+		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(0.6, 0.58, 0.56), "stones_amount": 0.0, "porosity": 0.2, "darkest": 0.45},
 	Surface.TARMAC: {"loose": "asphalt_02", "loose_tile": 4.0, "loose_tint": Color(1.0, 1.0, 1.0),
 		"packed": "asphalt_02", "packed_tile": 3.0, "packed_tint": Color(0.86, 0.86, 0.86),
 		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(1.0, 1.0, 1.0), "stones_amount": 0.0, "porosity": 0.5},
@@ -39,7 +39,7 @@ const ROAD_SETS := {
 ## Ground layers per biome: two sets mixed by noise, a third in patches and the rock that shows on slopes.
 const BIOME_GROUND := {
 	RaceSettings.Biome.FOREST: {"ground": "forrest_ground_01", "ground2": "sparse_grass", "ground3": "brown_mud_leaves_01", "rock": "rock_face_03",
-		"ground_tile": 5.0, "ground2_tile": 6.0, "ground3_tile": 4.5, "tint": Color(0.74, 0.76, 0.68), "ground2_amount": 0.45, "ground3_amount": 0.35},
+		"ground_tile": 5.0, "ground2_tile": 6.0, "ground3_tile": 4.5, "tint": Color(0.84, 0.84, 0.74), "ground2_amount": 0.45, "ground3_amount": 0.35},
 	RaceSettings.Biome.DESERT: {"ground": "sand_01", "ground2": "dry_ground_01", "ground3": "gravelly_sand", "rock": "rock_face_03",
 		"ground_tile": 6.0, "ground2_tile": 5.0, "ground3_tile": 4.0, "tint": Color(1.0, 0.95, 0.88), "ground2_amount": 0.45, "ground3_amount": 0.3},
 	RaceSettings.Biome.MOUNTAIN: {"ground": "rocky_terrain_02", "ground2": "gravel_ground_01", "ground3": "sparse_grass", "rock": "rock_face_03",
@@ -141,6 +141,7 @@ static func _set_road_layers(material: ShaderMaterial, spec: Dictionary) -> void
 	material.set_shader_parameter(&"porosity", spec.porosity)
 	material.set_shader_parameter(&"rut_gloss", spec.get("rut_gloss", 0.0))
 	material.set_shader_parameter(&"saturation", spec.get("saturation", 1.0))
+	material.set_shader_parameter(&"darkest", spec.get("darkest", 0.0))
 
 
 static func _set_ground_layers(material: ShaderMaterial, biome: int) -> void:

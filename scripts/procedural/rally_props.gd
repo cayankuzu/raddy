@@ -15,6 +15,7 @@ const BOARD_SIZES := {
 	"km": Vector2(0.9, 1.15), "time_control": Vector2(1.0, 1.0), "start": Vector2(1.0, 1.0),
 	"finish_warning": Vector2(1.0, 1.0), "finish": Vector2(1.0, 1.0), "stop": Vector2(1.1, 1.1),
 	"chevron_left": Vector2(1.0, 1.25), "chevron_right": Vector2(1.0, 1.25), "caution": Vector2(1.2, 1.2),
+	"split": Vector2(1.2, 0.8),
 }
 const POST_RADIUS := 0.035
 ## Posts reach this far into the ground (it slopes under them).
@@ -222,6 +223,9 @@ static func _draw(kind: String) -> Image:
 					return BLACK
 				# "KM" small at the top; RallyDressing writes the number under it.
 				return BLACK if u.y < -0.4 and _on_km(u) else WHITE)
+		"split":
+			return _sign(func(u: Vector2) -> Color:
+				return BLACK if absf(u.x) > 0.94 or absf(u.y) > 0.91 else YELLOW)
 		"time_control":
 			return _sign(func(u: Vector2) -> Color:
 				var d := u.length()
