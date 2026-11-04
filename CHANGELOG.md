@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased (Phase A3: stages 2.0)
+- **Flags:** every flag is the flag of Turkey, in its exact geometry and 3:2 proportions, waving on the
+  crowd's poles, flying from the arches, printed on their banners and on the start's board.
+- **Start and finish:** real rally gantries with steel truss towers, a printed banner and concrete blocks;
+  the grid stands far enough back to see them. Splits have their own yellow boards.
+- **Guard rails:** a corrugated, worn W-beam with real posts and bolts, ends turned into the ground, torn
+  and bent where something went through.
+- **Roads:** fine loose gravel with stones scattered on it and two packed wheel tracks, on every surface;
+  lumpy mud with water standing in the tracks; packed snow without odd marks.
+- **Ground and plants:** no more lawn in the forest: leaf litter in patches, hummocks, tufts of grass, ferns
+  and new bushes, grass along the road's edge. The desert's bushes were black shapes and are real shrubs now.
+- **Sky and light:** clouds in every weather, a warmer shade, soft leaves that let the light through.
+- **Car glass:** really clear from the seats, no haze over a dark forest; it mirrors the sky from outside.
+- **Paper map:** wrong ways are red dashes crossed out by their junction, the road stands out, the numbers no
+  longer lie on top of each other, the sheet no longer runs into the pillar.
+
 ## 0.2.0 — test build (2026-10-19)
 Direction change after the first look: a mix of "Left! Left! LEFT!" (asymmetric co-op, cabin
 chaos) and "Half Grip" (driving feel) with a realistic-leaning look, fixed named stages instead of

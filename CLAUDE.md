@@ -88,23 +88,40 @@ No Blender; model in Godot only as a last resort.
   the road + cliff drops / bank walls from the features, pressed into a 12 cm trench under the road.
   `RoadBuilder.build(graph, terrain, palette)` → `Track` (rectangular HeightMapShape3D terrain, Roads/Road<n>
   ribbons + verges with `surface` metadata, Checkpoints spanning the corridor without reaching another
-  stretch, `TrackFeatures`: water pools + `WaterSplash` areas, steel rails with one gap on cliffs, start/finish
-  arches, invisible walls 36 m out and end caps). Face winding for anything hit from above: origin → +X → +Z.
+  stretch, `TrackFeatures`: water pools + `WaterSplash` areas, `GuardRail` on cliffs (corrugated W-beam, one mesh
+  per rail + one batch of posts, ends turned down, one gap with torn ends, `shaders/guard_rail.gdshader`),
+  `RallyArch` over the start and finish lines (box truss on plates behind concrete blocks, a banner printed in code
+  with the word from the strings, a flag on each tower), invisible walls 36 m out and end caps). The grid's first row
+  stands `StageBuilder.GRID_BEFORE_LINE` before the line, in sight of the banner. Face winding for anything hit from
+  above: origin → +X → +Z.
+- What the ground is: `shaders/road_surface.gdshaderinc` (road and verge, no seam): fine `loose` material, two wandering
+  `packed` wheel tracks, scattered `stones`, per surface in `SurfaceMaterials.ROAD_SETS`; `ground_common.gdshaderinc`: two
+  sets, a third in patches, hummocks that only tilt the light. A scan's flaw is fixed in the shader (snow's hollows:
+  `darkest`, `relief`). `RaceLook` adds clouds (`sky_cover`, noise) and a shade lit by the biome's bounce as well as the sky.
+  Car glass is premultiplied (`car_glass.gdshader`, `windshield.gdshader`): only mud and cracks scatter light, so nothing
+  hazes a dark forest seen through it.
 - On a switchback the next leg is uphill on the side the hairpin turns to: bank on that side, cliff on the
   other (the terrain test probes only open ground).
 - `RoadsideDresser` (+ `RoadsideCatalog`): Poly Haven scans and the Sketchfab conifer/birch packs (`node` picks
-  one tree from a pack, `unit` 0.01 for the centimetre birches, `foliage` = alpha scissor), a thick edge band
+  one tree from a pack, `unit` 0.01 for the centimetre birches, `foliage` = alpha scissor, `black_ground` = a scan
+  whose JPEG atlas has no alpha but a black ground, cut away by `shaders/cut_out_leaf.gdshader`: check a new plant's
+  atlas, those cards are opaque black otherwise; `low` = grows in the clearings too), a thick edge band
   before the walls and a backdrop beyond (`backdrop` entries stay outside the corridor); nothing on a cliff's
-  lip. Scenery is batched by mesh into MultiMeshInstance3D chunks (48-192 m) with visibility ranges: the
+  lip. Scenery is batched by mesh into MultiMeshInstance3D chunks (48-192 m, 96 m for `low`) with visibility ranges: the
   frame cost on this laptop is CPU draw submission, not triangles. `GraphicsQuality` (Settings
   `graphics_quality`, AUTO = Low on integrated GPUs) scales scenery density/range, shadows, SSAO/glow and
   the render scale; dev scenes take `--quality=0|1|2`.
+- Every flag in the game is the flag of Turkey: `TurkishFlag` (the law's geometry as a signed distance, `color_at`,
+  `image`, `texture`, unit-tested), on the crowd's poles, the arches and their banners, the start's board and the HUD's
+  start marker; 3:2 always, the hoist at the pole, never on the ground, nothing printed over it. The finish is chequered
+  (boards, banner panels), not a flag.
 - Rally dressing: `RallyDressing.plan(graph, terrain)` says where everything goes, as data (km boards, time
-  control, start, finish warning, finish, STOP, end bales, chevrons on every hairpin and caution corner except where
+  control, start, split boards, finish warning, finish, STOP, end bales, chevrons on every hairpin and caution corner except where
   a wrong way leaves it, caution boards, a bale before each rail, tape, flags, parked cars, seats, `spot`s for
   people); `build()` makes `Features/Rally` (batched by mesh, one chunk per place; `Props` collides; meta
-  `spectator_spots` for A5), `clearings()` is where `RoadsideDresser` plants nothing (a place's ribs, the road's end,
-  the view onto each board). `RallyProps` is how it looks: generated signs, straw, tape and flags
+  `spectator_spots` for A5), `clearings()` is where `RoadsideDresser` plants nothing tall (a place's ribs, the road's end,
+  the view onto each board; `bare` capsules: the footprints of what stands there, not even grass). `RallyProps` is how it
+  looks: generated signs, straw and tape
   (`shaders/board.gdshader`, `cloth.gdshader`), Poly Haven seats and covered car, the Milano '95 as an ordinary car.
   Places: recipe key `"spectators": "left"|"right"` (`StageDesignRules`: at least 2, inside of a corner, never over a
   cliff, beside a wrong way or under an event; `Sightline.screens` opens the side, 10 m past the segment) and `crowd`
@@ -124,8 +141,10 @@ No Blender; model in Godot only as a last resort.
 ## Paper map and pace notes (scripts/map)
 - `PaceNotes.build(graph, detail)` → numbered rally calls in stage order ("Sol 3", "Saç tokası sağ", "Kör tepe!",
   "Atlama!", "Su geçişi!", "Uçurum solda!", cautions; Explore adds distances, Redline only the dangers).
-  `MapCanvas` (SubViewport, 1792×1152) draws the stage (turned sideways when it runs north-south), hazards,
-  numbered rings beside the road and the notes column; `MapCanvas.contour_for` is computed once per race. `PaperMap` (created by `Cabin._ready`) is the 3D sheet; `Cabin` holds
+  `MapCanvas` (SubViewport, 1792×1152) draws the stage (turned sideways when it runs north-south), hazards, every wrong
+  way as red dashes with a crossed-out disc by its mouth, gates as lines across the road, numbered rings and gate labels
+  on free paper (`_free_spot`: never on each other, the road or a cross) and the notes column;
+  `MapCanvas.contour_for` is computed once per race. `PaperMap` (created by `Cabin._ready`) is the 3D sheet; `Cabin` holds
   `map_state` (CLOSED/OPEN/GONE), the host-side wind risk, the 6 s replacement and the map RPCs.
   Dev: `route_test.tscn --navigator --map-open --autodrive`; input actions `map_toggle` (M), `map_reset` (Home).
 

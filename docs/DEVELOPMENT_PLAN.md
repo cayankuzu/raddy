@@ -246,4 +246,22 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   fall in front of the bots, no damage, 2:14.7 / 2:20.4 on Kara Çam Geçidi), headless bot runs through every
   event on every stage (no recovery needed), screenshots `reports/screenshots/event_tree_*.png`.
   Not yet: crew bodies/hands, human play tests (feel, voice, internet), relay for CGNAT homes.
+- 2026-11-04: A3 real details, step A3.12 (no-login part): DONE and verified.
+  - Flags: every flag is the flag of Turkey (`TurkishFlag`, exact geometry, unit-tested sample points), on the poles, arches,
+    banners, the start's board and the HUD's start marker.
+  - Start and finish: real gantries (`RallyArch`), the grid moved back so its driver sees the banner. Splits: yellow boards.
+  - Rails: a corrugated, worn W-beam with real posts (`GuardRail`, one mesh + one batch per rail).
+  - Road: fine loose gravel, two packed wheel tracks, scattered stones, per surface (`road_surface.gdshaderinc`). Ground:
+    a third layer in patches, hummocks, tufts, ferns and branches in the clearings too. Clouds; warmer shade; clear glass.
+  - Found by looking: the grass and rooibos scans have no alpha, their cards showed a black ground (the desert's bushes
+    were black blobs): `cut_out_leaf.gdshader`. The snow scan's hollows read as worms: clamped, relief cut.
+  - Paper map: wrong ways are red dashes crossed out by their mouth; rings never lie on each other (tested on all stages).
+  - Assets: `shrub_02`, `shrub_04`, single tufts of `grass_medium_01` in `RoadsideCatalog` and `ASSET_LICENSES.md`.
+  - Perf (`tools\perf.ps1 -Stage 0 -Quality 1`, 26 s, three alternating rounds on the loaded PC, 1920x1080). After this step
+    fps 38.8/36.0/36.5/35.3, 34.1/32.0/27.1/29.6, 32.3/28.4/27.9/29.5 (mean 32.3); before (c4b23dd) 36.3/32.9/32.0/31.4,
+    38.1/34.6/30.2/24.9, 30.1/24.3/26.5/25.6 (mean 30.6). Draw calls 897/983/831/955 against 893/965/823/956, primitives
+    3.65/3.75/3.30/3.32 M against 3.52/3.60/3.20/3.18 M, physics unchanged, stage build 3.2-4.3 s against 2.4-2.9 s. No fps loss
+    beyond the PC's own noise.
+  Verified: full GUT, `tools\nettest.ps1`, `tools\flowtest.ps1 -Stage 0` and `-Stage 4`, shots of every surface, biome and weather
+  in `reports/screenshots/a312/`.
 

@@ -64,6 +64,9 @@ void fragment() {
 	roughness = mix(roughness, 0.9, dusty);
 	metallic = mix(metallic, 0.0, dusty);
 
+	// Grime settles in the valley between the ridges: this is what says W-beam from a moving car.
+	albedo *= mix(0.55, 1.0, smoothstep(0.0, 0.55, ridge));
+
 	// Scrapes: long bright lines along the ridges where a car has leaned on the rail.
 	float scrape_band = texture(noise, vec2(UV.x * 0.03, UV.y * 2.2 + 0.61)).r;
 	float scrape = smoothstep(0.6, 0.66, scrape_band) * smoothstep(0.75, 0.95, ridge) * smoothstep(0.3, 0.55, texture(noise, vec2(UV.x * 0.8, UV.y * 7.0)).r);

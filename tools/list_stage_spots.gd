@@ -13,7 +13,7 @@ func _init() -> void:
 		if only >= 0 and i != only:
 			continue
 		var graph := StageBuilder.build(StageCatalog.get_stage(i))
-		var spots: Array = [[graph.checkpoints[0].distance - 6.0, "grid"]]
+		var spots: Array = [[graph.checkpoints[0].distance - StageBuilder.GRID_BEFORE_LINE, "grid"]]
 		for note in PaceNotes.build(graph, PaceNotes.DETAIL_FULL):
 			if note.get("hairpin", false) or note.get("caution", false):
 				spots.append([float(note.distance) - 40.0, "corner"])

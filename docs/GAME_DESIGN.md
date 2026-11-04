@@ -47,7 +47,8 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
 - Corner rhythm: a hairpin or a "danger" every 300-500 m; each stage has 2-3 *signature moments*
   (a jump with spectators, a wooden bridge, a water splash, a cliff with a rail gap, a village street).
 - Dressing that says "rally": km boards, stage start/finish boards, chevrons, marshal tape, hay bales,
-  spectators at the signature moments, parked cars, flags.
+  spectators at the signature moments, parked cars, flags. Every flag is the flag of Turkey, in its exact
+  geometry and proportions, treated with respect (never on the ground, nothing printed over it).
 - 2-4 km per stage (2-3 minutes), 3 biomes x 2-3 stages, times of day including night with headlights.
 
 ## 5. Driving feel targets
