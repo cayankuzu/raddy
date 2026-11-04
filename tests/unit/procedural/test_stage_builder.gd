@@ -179,3 +179,55 @@ func test_route_sampling_round_trips() -> void:
 	var edge := graph.edges[spot.edge]
 	assert_almost_eq(graph.distance_of(spot.edge, spot.index), 500.0, StageBuilder.POINT_SPACING + 0.01)
 	assert_true(edge.point_3d(spot.index).is_equal_approx(spot.position))
+
+
+func _rule_problems(segments: Array) -> Array[String]:
+	return StageDesignRules.check(StageBuilder.build({"id": &"t", "seed": 3, "biome": RaceSettings.Biome.FOREST, "segments": segments}))
+
+
+func _says(problems: Array[String], part: String) -> bool:
+	return problems.any(func(p: String) -> bool: return p.contains(part))
+
+
+func test_a_spectators_key_makes_a_place_and_opens_its_side() -> void:
+	var graph := StageBuilder.build({"id": &"t", "seed": 3, "biome": RaceSettings.Biome.FOREST, "segments": [
+		{"len": 300}, {"len": 40, "jump": 1.5, "spectators": "right"}, {"len": 300}]})
+	var zones := graph.features_of(&"spectators")
+	assert_eq(zones.size(), 1)
+	assert_eq(int(zones[0].side), 1)
+	assert_almost_eq(float(zones[0].from), 300.0, 0.01)
+	assert_almost_eq(float(zones[0].to), 340.0, 0.01)
+	var sides := Sightline.screens(graph)
+	var inside := graph.route_index_at(300.0 - Sightline.ZONE_MARGIN + 1.0)
+	assert_eq(sides[1][inside], 0, "its side is open from the margin on")
+	assert_eq(sides[0][inside], 1, "the other side keeps its forest")
+	assert_eq(sides[1][graph.route_index_at(250.0)], 1, "forest again before it")
+
+
+func test_every_stage_has_a_crowd_at_its_start_and_finish() -> void:
+	for graph in _stages():
+		var crowds := graph.features_of(&"crowd")
+		assert_eq(crowds.size(), 4, "%s: both sides of both lines" % graph.stage_id)
+		for crowd in crowds:
+			var near_start := absf(float(crowd.at) - graph.checkpoints[0].distance) < 1.0
+			var near_finish := absf(float(crowd.at) - graph.checkpoints[-1].distance) < 1.0
+			assert_true(near_start or near_finish, "%s: at a line" % graph.stage_id)
+
+
+func test_the_rules_for_places_for_spectators() -> void:
+	# Too few: one is not enough.
+	assert_true(_says(_rule_problems([{"len": 200}, {"len": 40, "spectators": "left"}, {"len": 200}]), "places for spectators"))
+	# Over a drop, also past the segment's own ends.
+	assert_true(_says(_rule_problems([{"len": 200}, {"len": 40, "spectators": "right"}, {"len": 40, "cliff": "right"}, {"len": 200}]), "over a cliff"))
+	assert_false(_says(_rule_problems([{"len": 200}, {"len": 40, "spectators": "right"}, {"len": 40, "cliff": "left"}, {"len": 200}]), "over a cliff"))
+	# A car that runs wide runs to the outside.
+	assert_true(_says(_rule_problems([{"len": 200}, {"len": 40, "turn": 60, "spectators": "left"}, {"len": 200}]), "outside of a corner"))
+	assert_false(_says(_rule_problems([{"len": 200}, {"len": 40, "turn": 60, "spectators": "right"}, {"len": 200}]), "outside of a corner"))
+	assert_false(_says(_rule_problems([{"len": 200}, {"len": 40, "turn": 20, "spectators": "left"}, {"len": 200}]), "outside of a corner"))
+	# A gap in the forest beside a wrong way would say which way the road goes.
+	assert_true(_says(_rule_problems([{"len": 200}, {"len": 40, "spectators": "left"},
+		{"len": 40, "decoy": {"side": "left", "at": 0.5, "len": 70}}, {"len": 200}]), "beside the wrong way"))
+	assert_false(_says(_rule_problems([{"len": 200}, {"len": 40, "spectators": "left"}, {"len": 40},
+		{"len": 40, "decoy": {"side": "left", "at": 0.5, "len": 70}}, {"len": 200}]), "beside the wrong way"))
+	# Nobody stands where a tree comes down.
+	assert_true(_says(_rule_problems([{"len": 200}, {"len": 40, "spectators": "left", "falling_tree": "left"}, {"len": 200}]), "comes down"))

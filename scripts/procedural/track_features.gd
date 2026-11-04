@@ -17,6 +17,8 @@ const WALL_OVERRUN := 4.0
 const POST_SPACING := 3.2
 const RAIL_OUTSIDE := 0.35
 const RAIL_HEIGHT := 0.75
+## A rail starts and ends this far past its cliff.
+const RAIL_OVERRUN := 12.0
 ## How much of a water feature's dip is filled with water.
 const WATER_FILL := 0.55
 const ARCH_HEIGHT := 5.2
@@ -37,6 +39,7 @@ static func build(graph: RouteGraph, terrain: TerrainField, biome: int) -> Node3
 		root.add_child(event)
 	for furniture in RallyDressing.junction_furniture(graph, terrain):
 		root.add_child(furniture)
+	root.add_child(RallyDressing.build(graph, terrain))
 	if graph.checkpoints.size() >= 2:
 		root.add_child(_build_arch(graph, graph.checkpoints[0], "START", Color("c8202a")))
 		root.add_child(_build_arch(graph, graph.checkpoints[-1], "FINISH", Color("1d1d1f")))
@@ -152,8 +155,8 @@ static func _build_rail(graph: RouteGraph, feature: Dictionary) -> StaticBody3D:
 	body.name = "Rail%d" % roundi(feature.from)
 	body.set_meta(&"surface", Surface.TARMAC)
 	var side := float(feature.side)
-	var from: float = maxf(feature.from - 12.0, 0.0)
-	var to: float = minf(feature.to + 12.0, graph.main_route_length())
+	var from: float = maxf(feature.from - RAIL_OVERRUN, 0.0)
+	var to: float = minf(feature.to + RAIL_OVERRUN, graph.main_route_length())
 	# One gap per rail, a third of the way along: the barrier is old and something went through.
 	var gap_at := lerpf(from, to, 0.35 + fposmod(float(graph.seed) * 0.137 + feature.from * 0.011, 0.3))
 	var posts: Array[Transform3D] = []

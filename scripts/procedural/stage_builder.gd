@@ -12,7 +12,8 @@ class_name StageBuilder
 ## "decoy": a wrong way off the road (only the map tells): {"side": "straight" | "left" | "right",
 ## "len": m to the dead end or barrier (60-250), "end": "dead_end" | "barrier", "at": 0..1 along the
 ## segment (0 for straight, where the road starts to turn; 0.5 otherwise), "angle": degrees off the
-## road for left/right, "bend": degrees it turns after its mouth, "rise": m over its length}.
+## road for left/right, "bend": degrees it turns after its mouth, "rise": m over its length},
+## "spectators" ("left" | "right": a fenced place for the crowd, the forest opened for it: RallyDressing).
 
 ## The inside of every corner of at least SCREEN_TURN degrees gets a screen (trees, rocks: you
 ## cannot see round it), from SCREEN_LEAD metres before it to as far after, unless that side is a cliff.
@@ -42,6 +43,10 @@ const QUIET_ENDS := 60.0
 const START_GATE := 40.0
 const FINISH_RUNOFF := 70.0
 const SPLITS := 2
+## A crowd on both sides of the start and the finish lines (RallyDressing, as for "spectators"): metres
+## before and past each line, without the margin every such place has.
+const CROWD_START := Vector2(12.0, 20.0)
+const CROWD_FINISH := Vector2(6.0, 30.0)
 const DEFAULT_DROP := 16.0
 const DEFAULT_WALL := 9.0
 ## How far a water splash sinks the road (its deepest point sits under the water).
@@ -146,6 +151,7 @@ static func build(stage: Dictionary) -> RouteGraph:
 			edge_heights = PackedFloat32Array([heights[i]])
 
 	_place_gates(graph)
+	_add_crowds(graph)
 	if not decoys.is_empty():
 		var index := RouteIndex.new(graph)
 		for request in decoys:
@@ -265,6 +271,9 @@ static func _add_features(graph: RouteGraph, segment: Dictionary, from: float, t
 				"side": -1 if segment[String(kind)] == "left" else 1, "value": 0.0})
 	if segment.get("caution", false):
 		graph.features.append({"kind": &"caution", "from": from, "to": to, "at": from, "side": 0, "value": 0.0})
+	if segment.has("spectators"):
+		graph.features.append({"kind": &"spectators", "from": from, "to": to, "at": middle,
+			"side": -1 if segment.spectators == "left" else 1, "value": 0.0})
 	var turn := float(segment.get("turn", 0.0))
 	var cliff := str(segment.get("cliff", ""))
 	var inside := "right" if turn > 0.0 else "left"
@@ -330,6 +339,14 @@ static func _place_gates(graph: RouteGraph) -> void:
 		gate.direction = spot.direction
 		gate.distance = graph.distance_of(spot.edge, spot.index)
 		graph.checkpoints.append(gate)
+
+
+## The crowd's places at the start and the finish, once their lines are known.
+static func _add_crowds(graph: RouteGraph) -> void:
+	for side in [-1, 1]:
+		for line in [{"at": graph.checkpoints[0].distance, "reach": CROWD_START}, {"at": graph.checkpoints[-1].distance, "reach": CROWD_FINISH}]:
+			var reach: Vector2 = line.reach
+			graph.features.append({"kind": &"crowd", "from": float(line.at) - reach.x, "to": float(line.at) + reach.y, "at": float(line.at), "side": side, "value": 0.0})
 
 
 static func _measure(graph: RouteGraph) -> void:

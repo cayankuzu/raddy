@@ -5,6 +5,9 @@ extends Node3D
 ##   --start=M       put the car M metres along the stage (default: the start grid)
 ##   --autodrive     a RouteFollower bot drives the stage
 ##   --overview      look down on the whole stage from above (layout checks)
+##   --view=M+E+H    a fixed camera beside road metre M, E metres right of the centre (negative: left),
+##                   H metres up, looking along the road (screenshots); --view-at=M+E+H looks at that point
+##                   instead
 ##   --chase         start on the chase camera instead of the driver's seat
 ##   --navigator     sit in the navigator's seat (M map, Q/E windows); pair with --autodrive
 ##   --map-open      open the map right away (screenshots)
@@ -137,6 +140,8 @@ func _ready() -> void:
 		overview.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 		add_child(overview)
 		overview.make_current()
+	if _args.has("view"):
+		_add_view_camera(_args["view"].split("+"))
 	var hardest: Array[float] = [0.0]
 	_car.impact.connect(func(strength: float, _direction: Vector3) -> void: hardest[0] = maxf(hardest[0], strength))
 	if _args.has("quit-after-seconds"):
@@ -145,6 +150,25 @@ func _ready() -> void:
 				print("ROUTE bot at %.0f m, %d recoveries, hardest impact %.1f m/s" % [_follower.progress, _follower.recoveries, hardest[0]])
 			print("ROUTE quitting")
 			get_tree().quit())
+
+
+func _add_view_camera(view: PackedStringArray) -> void:
+	var spot := graph.sample(float(view[0]))
+	var dir: Vector2 = spot.direction
+	var right := Vector3(-dir.y, 0.0, dir.x)
+	var camera := Camera3D.new()
+	camera.name = "ViewCamera"
+	camera.far = 1500.0
+	add_child(camera)
+	camera.global_position = (spot.position as Vector3) + right * float(view[1]) + Vector3.UP * float(view[2])
+	var target: Vector3 = camera.global_position + Vector3(dir.x, 0.0, dir.y)
+	if _args.has("view-at"):
+		var parts: PackedStringArray = _args["view-at"].split("+")
+		var look := graph.sample(float(parts[0]))
+		var look_dir: Vector2 = look.direction
+		target = (look.position as Vector3) + Vector3(-look_dir.y, 0.0, look_dir.x) * float(parts[1]) + Vector3.UP * float(parts[2])
+	camera.look_at(target)
+	camera.make_current()
 
 
 func _on_checkpoint_passed(index: int, _car_hit: RallyCar) -> void:

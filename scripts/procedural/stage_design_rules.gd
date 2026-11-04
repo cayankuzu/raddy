@@ -1,7 +1,7 @@
 class_name StageDesignRules
 ## What makes a stage a good rally stage (GAME_DESIGN §4), on top of RouteValidator's hard
-## playability checks: its length, the rhythm of its dangers and (later steps) its sightlines and
-## junctions. Returns a list of problems; empty = the stage meets the design. Every stage in
+## playability checks: its length, the rhythm of its dangers, its sightlines, its junctions and its
+## places for spectators. Returns a list of problems; empty = the stage meets the design. Every stage in
 ## StageCatalog must pass (tests/unit/procedural/test_stage_builder.gd).
 
 const MIN_STAGE_LENGTH := 2000.0
@@ -22,6 +22,12 @@ const JUNCTION_SPACING := 150.0
 const FORK_BEFORE := 10.0
 const FORK_AHEAD := 40.0
 const FORK_TURN := deg_to_rad(20.0)
+## Places for spectators per stage. They stand on the inside of a real corner (a car that runs wide
+## goes the other way), never over a drop, and leave a junction alone: an open forest beside a wrong
+## way would tell which way the road goes.
+const MIN_SIGNATURE_ZONES := 2
+const ZONE_CORNER := deg_to_rad(25.0)
+const ZONE_JUNCTION_CLEAR := 30.0
 
 
 static func check(graph: RouteGraph) -> Array[String]:
@@ -30,6 +36,7 @@ static func check(graph: RouteGraph) -> Array[String]:
 	_check_rhythm(graph, problems)
 	_check_sightlines(graph, problems)
 	_check_junctions(graph, problems)
+	_check_spectators(graph, problems)
 	return problems
 
 
@@ -83,3 +90,25 @@ static func _check_junctions(graph: RouteGraph, problems: Array[String]) -> void
 			if before.angle_to(after) * side > FORK_TURN:
 				problems.append("the wrong way at %.0f m leaves on the side the road itself turns to" % spur.at)
 
+
+static func _check_spectators(graph: RouteGraph, problems: Array[String]) -> void:
+	var zones := graph.features_of(&"spectators")
+	if zones.size() < MIN_SIGNATURE_ZONES:
+		problems.append("%d places for spectators, fewer than %d" % [zones.size(), MIN_SIGNATURE_ZONES])
+	for zone in zones:
+		var from := float(zone.from) - Sightline.ZONE_MARGIN
+		var to := float(zone.to) + Sightline.ZONE_MARGIN
+		var side := int(zone.side)
+		var at := float(zone.at)
+		for other in graph.features:
+			if int(other.side) == side and float(other.from) < to and float(other.to) > from:
+				if other.kind == &"cliff":
+					problems.append("the spectators at %.0f m stand over a cliff" % at)
+				elif other.kind in [&"falling_tree", &"rockfall"]:
+					problems.append("the spectators at %.0f m stand where a %s comes down" % [at, other.kind])
+		var turn: float = (graph.sample(float(zone.from)).direction as Vector2).angle_to(graph.sample(float(zone.to)).direction)
+		if absf(turn) >= ZONE_CORNER and signf(turn) != side:
+			problems.append("the spectators at %.0f m stand on the outside of a corner" % at)
+		for spur in graph.spurs:
+			if spur.at + ZONE_JUNCTION_CLEAR > from and spur.at - ZONE_JUNCTION_CLEAR < to:
+				problems.append("the spectators at %.0f m stand beside the wrong way at %.0f m" % [at, spur.at])

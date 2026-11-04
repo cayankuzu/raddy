@@ -181,6 +181,7 @@ HUD_NEXT_SPLIT,Ara nokta {split}/{splits},Split {split}/{splits}
 HUD_TO_FINISH,Bitişe {km} km,{km} km to go
 RESULTS_SPLITS,Kapı,Gates
 RESULTS_NEXT_STAGE,Sonraki etap,Next stage
+BOARD_STOP,DUR,STOP
 STAGE_BLACK_PINE,Kara Çam Geçidi,Black Pine Pass
 STAGE_BLACK_PINE_DESC,"Hızlı orman çakılı: göremediğin tepeler, iki atlama, bir su geçişi ve ortada çamurlu bir saç tokası.","Fast forest gravel: crests you cannot see over, two jumps, a water splash and a muddy hairpin in the middle."
 STAGE_MISTY_CREEK,Sisli Dere,Misty Creek

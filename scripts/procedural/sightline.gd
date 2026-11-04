@@ -13,11 +13,13 @@ const STATION_STEP := 10.0
 const PROBE := 260.0
 ## Past this angle off the road's direction at the eye the road is behind the driver's shoulder.
 const MAX_ANGLE := PI * 0.6
+## A place for spectators opens its side this far past its segment's ends.
+const ZONE_MARGIN := 10.0
 
 
 ## Per stage road point: [left, right], each 1 where that side is screened. Forest and mountain
-## sides are, desert sides only by a bank or a corner's auto screen; cliffs and spectator zones are
-## open.
+## sides are, desert sides only by a bank or a corner's auto screen; cliffs and places for the crowd
+## are open.
 static func screens(graph: RouteGraph) -> Array[PackedByteArray]:
 	var along := graph.route_distances()
 	var left := PackedByteArray()
@@ -30,12 +32,12 @@ static func screens(graph: RouteGraph) -> Array[PackedByteArray]:
 	for phase in 2:
 		for feature in graph.features:
 			# Screening first, opening after: an open side wins.
-			var opens: bool = feature.kind in [&"cliff", &"spectators"]
+			var opens: bool = feature.kind in [&"cliff", &"spectators", &"crowd"]
 			var closes: bool = feature.kind in [&"screen", &"bank"]
 			if (phase == 0 and not closes) or (phase == 1 and not opens):
 				continue
 			var value := 0 if opens else 1
-			var margin := 10.0 if feature.kind == &"spectators" else 0.0
+			var margin := ZONE_MARGIN if feature.kind in [&"spectators", &"crowd"] else 0.0
 			var i := graph.route_index_at(float(feature.from) - margin)
 			while i < along.size() and along[i] <= float(feature.to) + margin:
 				if int(feature.side) <= 0:

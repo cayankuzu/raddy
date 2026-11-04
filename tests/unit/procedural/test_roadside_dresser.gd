@@ -216,3 +216,49 @@ func test_the_real_forest_loads_and_stands_on_the_ground() -> void:
 	assert_gt(trees, 600, "a forest")
 	assert_gt(dressing.get_node(^"Obstacles").get_child_count(), 500, "trunks you can hit")
 	dressing.free()
+
+
+func test_no_tree_inside_a_clearing() -> void:
+	# The real forest, on a stage with places for spectators and a road's end.
+	var graph := StageBuilder.build(StageCatalog.get_stage(StageCatalog.index_of(&"black_pine")))
+	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(RaceSettings.Biome.FOREST))
+	terrain.set_roads(graph)
+	var dressing := RoadsideDresser.dress(graph, terrain, RaceSettings.Biome.FOREST)
+	var capsules := RallyDressing.clearings(graph, terrain)
+	assert_gt(capsules.size(), 40, "places, the road's end and the boards")
+	var placements: Dictionary = dressing.get_meta(&"placements")
+	var checked := 0
+	var inside := 0
+	for id in placements:
+		var all: Array = placements[id]
+		for k in range(0, all.size(), 3):
+			var origin: Vector3 = all[k].origin
+			var p := Vector2(origin.x, origin.z)
+			checked += 1
+			for capsule in capsules:
+				if Geometry2D.get_closest_point_to_segment(p, capsule.a, capsule.b).distance_to(p) < float(capsule.radius) - 0.01:
+					inside += 1
+					break
+	gut.p("%d of the forest's placements checked against %d capsules" % [checked, capsules.size()])
+	assert_eq(inside, 0, "the forest stands back")
+	dressing.free()
+
+
+func test_the_forest_closes_the_view_past_the_road_end() -> void:
+	var graph := StageBuilder.build(StageCatalog.get_stage(StageCatalog.index_of(&"black_pine")))
+	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(RaceSettings.Biome.FOREST))
+	terrain.set_roads(graph)
+	var dressing := RoadsideDresser.dress(graph, terrain, RaceSettings.Biome.FOREST)
+	var end := graph.sample(graph.main_route_length())
+	var dir: Vector2 = end.direction
+	var centre := Vector2(end.position.x, end.position.z)
+	var beyond := 0
+	var placements: Dictionary = dressing.get_meta(&"placements")
+	for id in ["fir", "pine", "noble_fir", "row_fir", "row_noble", "edge_fir", "far_fir", "far_pine"]:
+		for t in placements.get(id, []):
+			var offset := Vector2(t.origin.x, t.origin.z) - centre
+			if offset.dot(dir) > 2.0 and offset.dot(dir) < 40.0 and absf(offset.dot(Vector2(-dir.y, dir.x))) < 20.0:
+				beyond += 1
+	gut.p("%d trees in the 40 x 40 m past the road's end" % beyond)
+	assert_gt(beyond, 15, "the road does not end in an empty field")
+	dressing.free()

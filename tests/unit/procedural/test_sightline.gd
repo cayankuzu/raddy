@@ -44,16 +44,17 @@ func test_a_desert_side_sees_further_than_a_screened_one() -> void:
 	assert_gt(desert, forest, "open land sees further")
 
 
-func test_every_corner_has_its_inside_screened_unless_a_cliff() -> void:
+func test_every_corner_has_its_inside_screened_unless_a_cliff_or_a_crowd() -> void:
 	for i in StageCatalog.count():
 		var graph := StageBuilder.build(StageCatalog.get_stage(i))
 		var sides := Sightline.screens(graph)
 		var along := graph.route_distances()
 		for feature in graph.features_of(&"screen"):
 			var k := graph.route_index_at(float(feature.at))
-			var cliff_there := graph.features_of(&"cliff").any(func(c: Dictionary) -> bool:
-				return int(c.side) == int(feature.side) and along[k] >= float(c.from) and along[k] <= float(c.to))
-			if not cliff_there:
+			var opened := graph.features.any(func(c: Dictionary) -> bool:
+				var margin := Sightline.ZONE_MARGIN if c.kind in [&"spectators", &"crowd"] else 0.0
+				return c.kind in [&"cliff", &"spectators", &"crowd"] and int(c.side) == int(feature.side) and along[k] >= float(c.from) - margin and along[k] <= float(c.to) + margin)
+			if not opened:
 				assert_eq(sides[0 if int(feature.side) < 0 else 1][k], 1, "%s: corner at %.0f m is screened" % [graph.stage_id, feature.at])
 
 

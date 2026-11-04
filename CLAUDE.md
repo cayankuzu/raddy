@@ -99,6 +99,17 @@ No Blender; model in Godot only as a last resort.
   frame cost on this laptop is CPU draw submission, not triangles. `GraphicsQuality` (Settings
   `graphics_quality`, AUTO = Low on integrated GPUs) scales scenery density/range, shadows, SSAO/glow and
   the render scale; dev scenes take `--quality=0|1|2`.
+- Rally dressing: `RallyDressing.plan(graph, terrain)` says where everything goes, as data (km boards, time
+  control, start, finish warning, finish, STOP, end bales, chevrons on every hairpin and caution corner except where
+  a wrong way leaves it, caution boards, a bale before each rail, tape, flags, parked cars, seats, `spot`s for
+  people); `build()` makes `Features/Rally` (batched by mesh, one chunk per place; `Props` collides; meta
+  `spectator_spots` for A5), `clearings()` is where `RoadsideDresser` plants nothing (a place's ribs, the road's end,
+  the view onto each board). `RallyProps` is how it looks: generated signs, straw, tape and flags
+  (`shaders/board.gdshader`, `cloth.gdshader`), Poly Haven seats and covered car, the Milano '95 as an ordinary car.
+  Places: recipe key `"spectators": "left"|"right"` (`StageDesignRules`: at least 2, inside of a corner, never over a
+  cliff, beside a wrong way or under an event; `Sightline.screens` opens the side, 10 m past the segment) and `crowd`
+  features `StageBuilder` adds on both sides of the start and finish lines. The forest also closes the view past the
+  road's end.
 - Stage events: `StageEventBuilder` (from `TrackFeatures`) puts `Event<n>` bodies with a trigger area
   before the spot (a fir that falls across the road, rocks off a bank); `StageEvents` (child of the race)
   lets the host decide and every peer play it (`_rpc_stage_event`); boulders are host-simulated props like
@@ -107,7 +118,8 @@ No Blender; model in Godot only as a last resort.
   `obstacles` Callable → steers around fallen trunks/boulders at `AVOID_SPEED`) drives a `RallyCar`:
   `--autodrive`, tests, flow-test bots (which also confirm their own recovery offers). `RaceProgress` is the host's gate accounting.
 - Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N`
-  `--quit-after-seconds=N`. `RaceSession.settings.stage` builds the same stage on every peer.
+  `--view=M+E+H [--view-at=M+E+H]` (a fixed camera E m right of road metre M, H m up) `--quit-after-seconds=N`.
+  `RaceSession.settings.stage` builds the same stage on every peer.
 
 ## Paper map and pace notes (scripts/map)
 - `PaceNotes.build(graph, detail)` → numbered rally calls in stage order ("Sol 3", "Saç tokası sağ", "Kör tepe!",

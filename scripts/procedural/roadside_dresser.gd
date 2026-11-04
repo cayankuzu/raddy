@@ -2,9 +2,10 @@ class_name RoadsideDresser
 ## Dresses a stage with trees, bushes, rocks and ground cover from RoadsideCatalog (spec §13):
 ## deterministic per seed so every peer gets the same world. Undergrowth grows into the ditch; hard
 ## things (trunks, rocks) start beyond the road's side, a car's width apart, and nothing stands on
-## the lip of a cliff. The forest is a wall beside the road (GAME_DESIGN §4: the road ahead is never
-## readable), "screen" entries close the sides Sightline counts on, a thick band stands where the
-## stage ends and a backdrop beyond it. Trees and rocks get real collision (spec §8.2).
+## the lip of a cliff nor in RallyDressing's clearings. The forest is a wall beside the road
+## (GAME_DESIGN §4: the road ahead is never readable), "screen" entries close the sides Sightline
+## counts on, a thick band stands where the stage ends and a backdrop beyond it, past the road's
+## end as well. Trees and rocks get real collision (spec §8.2).
 ## Drawing: every instance of one mesh with the same shadow and range settings goes into one
 ## batch, whichever entry placed it (a fir by the road and a fir in the backdrop share it), split
 ## into chunks sized to its visibility range. The renderer's cost here is the number of objects and
@@ -27,6 +28,13 @@ const EVENT_CLEAR := 4.0
 const START_CLEAR := 30.0
 ## Nothing on a cliff's lip: the drop stays in view.
 const CLIFF_LIP := 12.0
+## Cell of the grid that finds RallyDressing's clearings near a placement (m).
+const CLEARING_CELL := 24.0
+## Where the forest closes the view past the road's end: a line across it, this far past and this
+## long either side.
+const END_ROW_PAST := 8.0
+const END_ROW_REACH := 60.0
+const END_ROW_ID := 9000
 
 enum Kind { TREE, BUSH, ROCK, GROUND }
 
@@ -62,14 +70,17 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 	var expanded: Array = []
 	for entry in entries:
 		expanded.append_array(_expand_variants(entry))
+	var rows := graph.road_edges()
+	if not graph.main_route.is_empty():
+		rows.append(_end_row(graph))
 	var context := {"graph": graph, "terrain": terrain, "start": start_xz, "screens": Sightline.screens(graph),
-		"hard": {}, "event_bases": StageEventBuilder.tree_bases(graph, terrain)}
+		"hard": {}, "event_bases": StageEventBuilder.tree_bases(graph, terrain), "clearings": _clearing_cells(graph, terrain)}
 	for entry in expanded:
 		var parts: Array = entry.get("_parts", [])
 		if parts.is_empty():
 			continue
 		var all: Array[Transform3D] = []
-		for edge in graph.road_edges():
+		for edge in rows:
 			var travelled := 0.0
 			for i in range(1, edge.points.size()):
 				travelled += edge.points[i].distance_to(edge.points[i - 1])
@@ -92,6 +103,21 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 	root.set_meta(&"placed", placed)
 	root.set_meta(&"placements", placements)
 	return root
+
+
+## The road's end: forest and rocks grow past it too, along a line across it, so a stage does not
+## end in an empty field. Its id is a wrong way's (not a road of the stage), and it has no width.
+static func _end_row(graph: RouteGraph) -> RouteGraph.RouteEdge:
+	var here := graph.sample(graph.main_route_length())
+	var dir: Vector2 = here.direction
+	var edge := RouteGraph.RouteEdge.new()
+	edge.id = END_ROW_ID
+	edge.width = 0.0
+	var lateral := -END_ROW_REACH
+	while lateral <= END_ROW_REACH:
+		edge.points.append(Vector2(here.position.x, here.position.z) + dir * END_ROW_PAST + Vector2(-dir.y, dir.x) * lateral)
+		lateral += StageBuilder.POINT_SPACING
+	return edge
 
 
 ## How far a hard entry's surface reaches from its centre at scale `s` (m), or -1 when it is soft.
@@ -140,6 +166,8 @@ static func _try_place(entry: Dictionary, context: Dictionary, edge: RouteGraph.
 	var road := terrain.distance_to_road(p)
 	if road < (HARD_CLEAR + reach if reach >= 0.0 else SOFT_CLEAR):
 		return null
+	if _in_clearing(context.clearings, p):
+		return null
 	var start_xz: Vector2 = context.start
 	if reach >= 0.0:
 		if _too_close(context.hard, p):
@@ -164,6 +192,31 @@ static func _try_place(entry: Dictionary, context: Dictionary, edge: RouteGraph.
 	if tilt > 0.0:
 		basis = Basis(Vector3(rng.randf() - 0.5, 0.0, rng.randf() - 0.5).normalized(), rng.randf() * deg_to_rad(tilt)) * basis
 	return Transform3D(basis, Vector3(p.x, y, p.y))
+
+
+## RallyDressing's clearings by grid cell.
+static func _clearing_cells(graph: RouteGraph, terrain: TerrainField) -> Dictionary:
+	var cells := {}
+	for capsule in RallyDressing.clearings(graph, terrain):
+		var a: Vector2 = capsule.a
+		var b: Vector2 = capsule.b
+		var reach := Vector2.ONE * float(capsule.radius)
+		var lo := Vector2i(((a.min(b) - reach) / CLEARING_CELL).floor())
+		var hi := Vector2i(((a.max(b) + reach) / CLEARING_CELL).floor())
+		for x in range(lo.x, hi.x + 1):
+			for z in range(lo.y, hi.y + 1):
+				var cell := Vector2i(x, z)
+				if not cells.has(cell):
+					cells[cell] = []
+				cells[cell].append(capsule)
+	return cells
+
+
+static func _in_clearing(cells: Dictionary, p: Vector2) -> bool:
+	for capsule in cells.get(Vector2i((p / CLEARING_CELL).floor()), []):
+		if Geometry2D.get_closest_point_to_segment(p, capsule.a, capsule.b).distance_to(p) < float(capsule.radius):
+			return true
+	return false
 
 
 static func _too_close(hard: Dictionary, p: Vector2) -> bool:
@@ -303,7 +356,8 @@ static func _collect_meshes(node: Node, parent: Transform3D, parts: Array, only 
 		_collect_meshes(child, here, parts, only, inside, found)
 
 
-## Files each part of one placed instance under its batch and chunk.
+## Files each part of one placed instance under its batch and chunk: the chunk it stands in, or the
+## one of the entry's "anchor" (what belongs together shares a chunk: fewer draw calls).
 static func _add_to_batches(batches: Dictionary, entry: Dictionary, parts: Array, transform: Transform3D) -> void:
 	var range_end: float = entry.get("range", 250.0)
 	var shadows: bool = entry.get("shadows", true)
@@ -317,7 +371,8 @@ static func _add_to_batches(batches: Dictionary, entry: Dictionary, parts: Array
 		var batch: Dictionary = batches[key]
 		var placed: Transform3D = transform * part.transform
 		var chunk: float = batch.chunk
-		var cell := Vector2i(floori(transform.origin.x / chunk), floori(transform.origin.z / chunk))
+		var at: Vector3 = entry.get("anchor", transform.origin)
+		var cell := Vector2i(floori(at.x / chunk), floori(at.z / chunk))
 		if not batch.cells.has(cell):
 			batch.cells[cell] = []
 		batch.cells[cell].append(placed)

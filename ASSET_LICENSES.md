@@ -52,6 +52,8 @@ glTF with 1k textures in `assets/models/<id>/`, downloaded with `tools/fetch_pol
 | Concrete Road Barrier 02 | Amal Kumar | race furniture (barriers) | https://polyhaven.com/a/concrete_road_barrier_02 |
 | Wooden Picnic Table | Ulan Cabanilla | spectator areas | https://polyhaven.com/a/wooden_picnic_table |
 | Painted Wooden Bench | Kirill Sannikov | spectator areas | https://polyhaven.com/a/painted_wooden_bench |
+| Plastic Monobloc Chair 01 | Kuutti Siitonen | spectator areas | https://polyhaven.com/a/plastic_monobloc_chair_01 |
+| Covered Car | MP | cars parked behind the tape | https://polyhaven.com/a/covered_car |
 
 ## Sketchfab models (CC BY 4.0, credit required)
 Downloaded 2026-10-13 with the user's approval from their logged-in Sketchfab session; licence and
