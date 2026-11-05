@@ -1,7 +1,7 @@
 extends SceneTree
 ## Prints "SPOT <stage> <metres along> <kind>" for the places worth a screenshot on every stage
 ## (tools\stage_shots.ps1): the grid, hairpins and caution corners, cliffs, jumps, water, the
-## events, the places for spectators, the km boards and the finish; and "WEATHERS <stage> <w> <w>.."
+## events, the wrong ways, the places for spectators, the km boards and the finish; and "WEATHERS <stage> <w> <w>.."
 ## for the weathers a stage comes in. `--stage=N` limits it to one stage.
 
 
@@ -32,6 +32,8 @@ func _init() -> void:
 					spots.append([float(feature.at) - 70.0, String(feature.kind)])
 				&"spectators":
 					spots.append([float(feature.from) - 50.0, "spectators"])
+		for spur in graph.spurs:
+			spots.append([spur.at - 30.0, "junction"])
 		var km := graph.checkpoints[0].distance + RallyDressing.KM_STEP
 		while km < graph.checkpoints[-1].distance:
 			spots.append([km - 40.0, "km"])

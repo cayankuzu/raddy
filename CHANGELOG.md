@@ -1,6 +1,21 @@
 # Changelog
 
-## Unreleased (Phase A3: stages 2.0)
+## Unreleased (Phases A0, A2, A3, A6: solid ground, driving feel, stages 2.0, the shock gun)
+- **Narrow rally roads:** 3.6-5.0 m wide (Explore 0.8 m wider, Redline 0.2 m narrower), a gravel shoulder you can use,
+  a real ditch beside it and a bank a car can drive back up. Every stage is over 2 km long, with a danger at least every 500 m.
+- **A forest like a wall:** trunks from 3 m off the road, undergrowth in the ditch, the inside of every corner screened. You see
+  about 60 m of road ahead, so the map and the voice matter.
+- **Wrong ways:** four or five junctions per stage, dead-end logging tracks with room to turn and closed roads with barriers deep in
+  the track. They look like the road carrying on: only the map and the notes ("Kavşak: Sol 3, düz değil!") tell which way.
+- **A real rally around you:** km boards, time control, split, finish and STOP boards, chevrons on the hairpins and caution corners,
+  hay bales before the rails, marshal tape, parked cars, benches and places for the crowd at the jumps and splashes.
+- **Steering per device:** keys ramp in by speed and come back faster, a gamepad gets a soft centre and full lock at the end of the
+  stick, wheels are passed through. Driving assist off / normal / high, gamepad softness and vibration in the settings. Gamepad rumble with the road,
+  slides and crashes.
+- **A livelier car:** more power (0-100 km/h in 5.4 s on gravel, was 6.3 s) and a handbrake that really swings the rear round a hairpin.
+- **Shock gun:** every player carries one (right mouse to aim, left mouse to fire): two darts a stage, refilled at each split, 8 m,
+  through an open window or a missing windshield; a hit faints the seat for 6 s, then 4 s of immunity. An aiming driver steers one-handed, an aiming
+  navigator folds the map. Room rule: off, rivals only or everyone.
 - **Mirrors that really reflect:** the interior mirror and both door mirrors show what is really behind you, live, from
   either seat: the road, the dust, a following car and its headlights, in the right place and the right way round. A hard
   side hit breaks a door mirror (it hangs by its wires, black and cracked); a recovery restores it.
@@ -24,6 +39,13 @@
 - **Car glass:** really clear from the seats, no haze over a dark forest; it mirrors the sky from outside.
 - **Paper map:** wrong ways are red dashes crossed out by their junction, the road stands out, the numbers no
   longer lie on top of each other, the sheet no longer runs into the pillar.
+- **Clean edges:** the picture has no jagged edges on any graphics level any more (it had no smoothing at all), High also catches
+  what is thinner than a pixel, and the road stays sharp far ahead.
+- **Fixes found by looking at every stage:** posts no longer poke through the middle of the boards; the rock slabs that stuck up from the
+  desert like wings now lie on the ground as shelves of rock, with collision where the rock is; a low sun ahead no longer turns the gravel white; fog and dust in the
+  mirrors are as dim as what you see through the windshield, and on Low fog and dust look like they do on High.
+- **Fixes:** rockfalls start only on ground above the road, recoveries never land on a trunk or a boulder, finished crews get no recovery offer,
+  bots dodge only what is next and stay on the road, bot runs never write records, times and medals are compared as the screen shows them.
 
 ## 0.2.0 — test build (2026-10-19)
 Direction change after the first look: a mix of "Left! Left! LEFT!" (asymmetric co-op, cabin

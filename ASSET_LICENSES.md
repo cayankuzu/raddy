@@ -95,7 +95,16 @@ Cut and mixed into `assets/audio/` by `tools/cut_audio.py` from the raw files th
 | Kenney "Impact Sounds" and "Interface Sounds" | CC0 1.0 (https://kenney.nl) | small knocks, UI clicks | `assets/audio/impacts/impact*.ogg`, `assets/audio/ui/*.ogg` |
 
 Synthesised by `tools/cut_audio.py` (no source recording): gravel crunch, tyre rumble, wind,
-water slosh and the splash. By `tools/make_exhaust_pops.py`: the exhaust's pops.
+water slosh and the splash. By `tools/make_exhaust_pops.py`: the exhaust's pops. By `tools/make_shock_sounds.py`: the shock
+gun's pop and crackle (`assets/audio/shock/`).
+
+## Fonts and icons (fetched by `tools/fetch_assets.py` for the UI of phase A7; they ship with the build)
+| Source | Licence | Files |
+|---|---|---|
+| Saira, The Saira Project Authors | SIL OFL 1.1 (`assets/fonts/saira/OFL.txt`) | `assets/fonts/saira/Saira-Variable.ttf` |
+| Inter, The Inter Project Authors | SIL OFL 1.1 (`assets/fonts/inter/OFL.txt`) | `assets/fonts/inter/Inter-Variable.ttf` |
+| JetBrains Mono, The JetBrains Mono Project Authors | SIL OFL 1.1 (`assets/fonts/jetbrains_mono/OFL.txt`) | `assets/fonts/jetbrains_mono/JetBrainsMono-Variable.ttf` |
+| Tabler Icons, Pawel Kuna | MIT (`assets/icons/tabler/LICENSE`) | `assets/icons/tabler/*.svg` |
 
 ## Generated in the project
 Terrain, road ribbons, the paper map drawing, particle puffs, the puddle ripples and the noise

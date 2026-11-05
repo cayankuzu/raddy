@@ -8,8 +8,9 @@ class_name RoadsideCatalog
 ##   no alpha but a black ground round every leaf, to be cut away), backdrop (no collision, kept out of every
 ##   stretch's corridor), screen (only on the sides Sightline counts on, never thinned), low (grows
 ##   in the open places RallyDressing keeps clear of trees too), fine (the mirrors leave it out, as they do
-##   whatever is low, backdrop or has no collision), collision {shape: cylinder|sphere|box, radius, height, lift, size, offset,
-##   yaw (degrees: the box's turn about the trunk)} in metres at scale 1.
+##   whatever is low, backdrop or has no collision), lay (degrees about the model's X axis, re-centred on its footprint),
+##   collision {shape: cylinder|sphere|box, radius, height, lift, size, offset, yaw (degrees: the box's turn about the trunk)}
+##   in metres at scale 1.
 ## Every asset listed here must have a row in ASSET_LICENSES.md. The Poly Haven scans and the
 ## conifer pack are in real-world metres; the birch set is in centimetres (unit 0.01).
 ##
@@ -41,6 +42,12 @@ static func _tree(id: String, path: String, node: String, biomes: Array, density
 		entry.collision = {"shape": "cylinder", "radius": trunk, "height": 6.0}
 	entry.merge(extra, true)
 	return entry
+
+
+## The rock face scan is a thin slab leaning 42 degrees, made to lie against a hill. On open ground it stuck up like a
+## wing, its low end on the ground and its high end in the air: this lays it down to a tilted shelf of rock, this size.
+const ROCK_SHELF_LAY := -38.0
+const ROCK_SHELF := Vector3(4.6, 1.2, 4.6)
 
 
 ## Entries are built per call (paths are computed), so they are a function, not a constant.
@@ -93,9 +100,9 @@ static func entries() -> Array[Dictionary]:
 		{"id": "desert_boulder", "path": _model("namaqualand_boulder_04"), "biomes": [DESERT, MOUNTAIN],
 			"density": 3.0, "near": 4.5, "far": 38.5, "scale": [0.5, 1.4], "sink": 0.2, "range": 380.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}, "biome_density": {MOUNTAIN: 0.6}},
-		{"id": "rock_face", "path": _model("rock_face_01"), "biomes": [FOREST, DESERT, MOUNTAIN],
-			"density": 0.7, "near": 10.5, "far": 50.5, "scale": [0.8, 1.6], "sink": 0.5, "range": 500.0,
-			"collision": {"shape": "sphere", "radius": 2.0, "lift": 0.3}, "biome_density": {MOUNTAIN: 3.5, DESERT: 1.2}},
+		{"id": "rock_face", "path": _model("rock_face_01"), "biomes": [FOREST, DESERT, MOUNTAIN], "lay": ROCK_SHELF_LAY,
+			"density": 0.7, "near": 10.5, "far": 50.5, "scale": [0.8, 1.6], "sink": 0.4, "range": 500.0,
+			"collision": {"shape": "box", "size": ROCK_SHELF}, "biome_density": {MOUNTAIN: 3.5, DESERT: 1.2}},
 		{"id": "dead_tree", "path": _model("dead_quiver_trunk"), "biomes": [DESERT],
 			"density": 1.6, "near": 5.5, "far": 38.5, "scale": [1.3, 2.5], "sink": 0.05, "tilt": 6.0, "range": 380.0,
 			"collision": {"shape": "cylinder", "radius": 0.16, "height": 2.0}},
@@ -103,9 +110,9 @@ static func entries() -> Array[Dictionary]:
 		{"id": "edge_rocks", "path": _model("namaqualand_boulder_04"), "biomes": [DESERT],
 			"density": 7.0, "near": 24.5, "far": 36.5, "bias": 1.0, "scale": [1.0, 2.2], "sink": 0.3, "range": 500.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}},
-		{"id": "edge_faces", "path": _model("rock_face_01"), "biomes": [DESERT, MOUNTAIN],
-			"density": 2.5, "near": 26.5, "far": 42.5, "bias": 1.0, "scale": [1.2, 2.2], "sink": 0.6, "range": 700.0,
-			"collision": {"shape": "sphere", "radius": 2.0, "lift": 0.3}, "biome_density": {MOUNTAIN: 1.6}},
+		{"id": "edge_faces", "path": _model("rock_face_01"), "biomes": [DESERT, MOUNTAIN], "lay": ROCK_SHELF_LAY,
+			"density": 2.5, "near": 26.5, "far": 42.5, "bias": 1.0, "scale": [1.2, 2.2], "sink": 0.4, "range": 700.0,
+			"collision": {"shape": "box", "size": ROCK_SHELF}, "biome_density": {MOUNTAIN: 1.6}},
 	]
 	# --- screens from the scans ---
 	out.append_array([

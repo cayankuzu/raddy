@@ -34,3 +34,35 @@ func test_screen_space_reflections_from_medium_up() -> void:
 		GraphicsQuality.apply_look(env, sun, level)
 		assert_eq(env.ssr_enabled, level != GraphicsQuality.Level.LOW, "level %d" % level)
 		assert_eq(GraphicsQuality.water_ray_steps(level) > 0, level != GraphicsQuality.Level.LOW, "the water's own ray too")
+
+
+func test_every_level_smooths_its_edges_and_keeps_the_road_sharp() -> void:
+	var viewport := SubViewport.new()
+	autofree(viewport)
+	var sharpest := -1
+	for level: int in GraphicsQuality.Level.values():
+		GraphicsQuality.apply_viewport(viewport, level)
+		assert_ne(viewport.screen_space_aa, Viewport.SCREEN_SPACE_AA_DISABLED, "level %d has no jagged edges" % level)
+		assert_gt(int(viewport.anisotropic_filtering_level), sharpest, "level %d is sharper at a low angle" % level)
+		sharpest = int(viewport.anisotropic_filtering_level)
+		assert_eq(viewport.msaa_3d != Viewport.MSAA_DISABLED, level == GraphicsQuality.Level.HIGH, "multisampling is for High")
+		assert_eq(viewport.scaling_3d_scale < 1.0, level == GraphicsQuality.Level.LOW, "Low draws fewer pixels")
+
+
+## Low has no volume of fog: it must not see further than High, nor shine brighter.
+func test_low_flattens_a_volume_of_fog_as_dense_and_as_dim() -> void:
+	var sun := DirectionalLight3D.new()
+	autofree(sun)
+	var env := Environment.new()
+	env.fog_density = 0.02
+	env.fog_light_energy = 1.0
+	env.fog_aerial_perspective = 0.45
+	env.fog_sky_affect = 0.6
+	env.volumetric_fog_enabled = true
+	env.volumetric_fog_density = 0.025
+	GraphicsQuality.apply_look(env, sun, GraphicsQuality.Level.LOW)
+	assert_false(env.volumetric_fog_enabled)
+	assert_almost_eq(env.fog_density, 0.045, 0.0001)
+	assert_lt(env.fog_light_energy, 1.0, "as dim as the volume")
+	assert_eq(env.fog_aerial_perspective, 0.0, "no sky in it")
+	assert_eq(env.fog_sky_affect, 1.0, "the sky behind it gone")

@@ -25,8 +25,16 @@ const FINE_SCENERY_LAYER := 1 << 16
 const MIRROR_HEIGHT := {Level.LOW: Vector2i(96, 96), Level.MEDIUM: Vector2i(132, 136), Level.HIGH: Vector2i(200, 208)}
 ## ...and whose turn it is on each frame, one mirror per frame at most: CarMirrors.Slot, -1 = none.
 const MIRROR_TURNS := {Level.LOW: [0, 1, -1, 0, 2, -1], Level.MEDIUM: [0, 1, 0, 2], Level.HIGH: [0, 1, 0, 2]}
+## How much of its own light flat fog keeps when it stands in for a volume of fog.
+const FLAT_FOG_LIGHT := 0.45
 ## 3D resolution scale (FSR upscales the rest) per level.
 const RENDER_SCALE := {Level.LOW: 0.77, Level.MEDIUM: 1.0, Level.HIGH: 1.0}
+## Edges. SMAA keeps the detail FXAA blurs away, and neither leaves the trails TAA would round a cabin that stands
+## still while the world flies past. Only multisampling catches what is thinner than a pixel: a gantry's truss, far rails.
+const SCREEN_AA := {Level.LOW: Viewport.SCREEN_SPACE_AA_FXAA, Level.MEDIUM: Viewport.SCREEN_SPACE_AA_SMAA, Level.HIGH: Viewport.SCREEN_SPACE_AA_SMAA}
+const MSAA := {Level.LOW: Viewport.MSAA_DISABLED, Level.MEDIUM: Viewport.MSAA_DISABLED, Level.HIGH: Viewport.MSAA_2X}
+## How sharp a texture stays at a low angle, which is how a driver sees the road.
+const ANISOTROPY := {Level.LOW: Viewport.ANISOTROPY_4X, Level.MEDIUM: Viewport.ANISOTROPY_8X, Level.HIGH: Viewport.ANISOTROPY_16X}
 
 
 ## Dev scenes (--quality) force a level here, whatever the player's setting says.
@@ -91,15 +99,26 @@ static func apply_look(env: Environment, sun: DirectionalLight3D, level: int) ->
 	if level == Level.LOW:
 		env.ssao_enabled = false
 		env.glow_enabled = false
-		# Volumetric fog is part of how far you see in fog and dust: fold it into the depth fog so
-		# Low never sees further than High.
+		# Volumetric fog is part of how far you see in fog and dust: Low must never see further than High.
 		if env.volumetric_fog_enabled:
-			env.fog_density += env.volumetric_fog_density
-			env.volumetric_fog_enabled = false
+			flatten_fog(env)
 
 
-## The 3D resolution for `viewport` at `level` (FSR 1 when below native).
+## Depth fog in place of a volume of fog (Low, a mirror's small picture): as dense, and as dim. A volume scatters only
+## the sun behind the clouds into the view and covers the sky as well; flat fog with its own light and the sky's would shine.
+static func flatten_fog(env: Environment) -> void:
+	env.fog_density += env.volumetric_fog_density
+	env.fog_light_energy *= FLAT_FOG_LIGHT
+	env.fog_aerial_perspective = 0.0
+	env.fog_sky_affect = 1.0
+	env.volumetric_fog_enabled = false
+
+
+## The main view at `level`: its 3D resolution (FSR 1 when below native), edges and texture sharpness.
 static func apply_viewport(viewport: Viewport, level: int) -> void:
 	var scale: float = RENDER_SCALE.get(level, 1.0)
 	viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if scale < 1.0 else Viewport.SCALING_3D_MODE_BILINEAR
 	viewport.scaling_3d_scale = scale
+	viewport.screen_space_aa = SCREEN_AA.get(level, Viewport.SCREEN_SPACE_AA_SMAA)
+	viewport.msaa_3d = MSAA.get(level, Viewport.MSAA_DISABLED)
+	viewport.anisotropic_filtering_level = ANISOTROPY.get(level, Viewport.ANISOTROPY_4X)

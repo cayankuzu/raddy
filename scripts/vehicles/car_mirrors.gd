@@ -228,8 +228,7 @@ func _mirror_environment() -> Environment:
 	environment.glow_enabled = false
 	environment.ssr_enabled = false
 	if environment.volumetric_fog_enabled:
-		environment.fog_density += environment.volumetric_fog_density
-		environment.volumetric_fog_enabled = false
+		GraphicsQuality.flatten_fog(environment)
 	environment.adjustment_enabled = false
 	environment.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	environment.tonemap_exposure = 1.0

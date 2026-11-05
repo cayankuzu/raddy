@@ -37,19 +37,22 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   fainted navigator drops the map (out of an open window if the wind takes it).
 
 ## 4. Stages (real rally, unpredictable)
-- Road width 3.6-5.0 m (Explore +0.8 m), gravel shoulder 0.5-1 m, ditches; trees and undergrowth from
-  1.5 m off the edge; the inside of every corner is screened by trees or a bank.
+- Road width 3.6-5.0 m (Explore +0.8 m, Redline -0.2 m), a drivable gravel shoulder of 0.8 m, a ditch 0.4 m deep
+  (none beside a drop or at a splash); undergrowth from 1.2 m off the edge (in the ditch), trunks and rocks from
+  2.6 m; the inside of every corner is screened by trees, rocks or a bank.
 - **Sightline budget:** at stage speed the driver sees at most ~80 m of road ahead (corners, crests,
   trees, fog); straights longer than 250 m are broken by a crest or a kink.
 - **Junctions with wrong ways:** 3-6 per stage (farm and logging tracks, a closed road with a
-  barrier, a long loop that rejoins later). Only the map tells which way; a wrong way costs time,
-  never the run (dead ends have room to turn).
+  barrier, a long track that bends out of sight; loops that rejoin later come when the tracker can follow two roads). Only the
+  map tells which way; a wrong way costs time, never the run (dead ends have room to turn).
 - Corner rhythm: a hairpin or a "danger" every 300-500 m; each stage has 2-3 *signature moments*
-  (a jump with spectators, a wooden bridge, a water splash, a cliff with a rail gap, a village street).
+  (a jump with spectators, a water splash, a cliff with a rail gap; a wooden bridge and a village street
+  come later, with their assets).
 - Dressing that says "rally": km boards, stage start/finish boards, chevrons, marshal tape, hay bales,
   spectators at the signature moments, parked cars, flags. Every flag is the flag of Turkey, in its exact
   geometry and proportions, treated with respect (never on the ground, nothing printed over it).
-- 2-4 km per stage (2-3 minutes), 3 biomes x 2-3 stages, times of day including night with headlights.
+- 2-4 km per stage (2-3 minutes), 3 biomes x 2-3 stages, times of day including night with headlights
+  (the room's time of day comes with phase A4).
 
 ## 5. Driving feel targets
 - Between arcade and sim (Half Grip's own description): readable slides, weight you can feel,
@@ -68,7 +71,7 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
 - **Shock gun** (never called "Taser", a trademark): one per player, 2 darts per stage, refilled at
   each split; range 8 m; through an open/broken window or a missing windshield for rivals, always
   inside your own cabin; 6 s faint, then 4 s immunity; the host validates line of sight, range,
-  ammo and cooldown. Room setting: friendly fire on / off / rivals only.
+  ammo and cooldown. Room setting: off / rivals only / everyone (friendly fire).
 - Existing: windows, windshield kick-out, mud on the glass and wipers, map blown away, cans thrown,
   falling trees, rockfalls, visible damage, joint recovery.
 - Next: doors that pop open on impacts (close them or lose things), helmet intercom that breaks and

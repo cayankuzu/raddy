@@ -122,3 +122,18 @@ func test_a_look_to_the_side_moves_the_eyes_and_so_the_picture() -> void:
 	var glass := _now(CarMirrors.Slot.INTERIOR)
 	assert_gt(glass.seen_at(Vector3(0.0, 0.6, 9.0), _car.to_local(ahead)).distance_to(glass.seen_at(Vector3(0.0, 0.6, 9.0), _car.to_local(aside))), 0.05,
 		"what the mirror shows moves across the glass")
+
+
+## A volume of fog in the main view shows dim; the flat fog a mirror has instead may not shine, nor see the sky through it.
+func test_a_mirror_sees_a_volume_of_fog_as_dim_flat_fog() -> void:
+	var look := RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.FOG)
+	add_child_autofree(look)
+	var world: Environment = (look.get_node(^"WorldEnvironment") as WorldEnvironment).environment
+	assert_true(world.volumetric_fog_enabled, "headless counts as High")
+	var mirror := _mirrors._mirror_environment()
+	assert_false(mirror.volumetric_fog_enabled, "no volume in a small picture")
+	assert_almost_eq(mirror.fog_density, world.fog_density + world.volumetric_fog_density, 0.0001, "as far as the main view sees")
+	assert_lt(mirror.fog_light_energy, world.fog_light_energy)
+	assert_eq(mirror.fog_aerial_perspective, 0.0)
+	assert_eq(mirror.fog_sky_affect, 1.0)
+	SurfaceMaterials.set_weather(RaceSettings.Weather.CLEAR)

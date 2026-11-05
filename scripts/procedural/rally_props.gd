@@ -18,6 +18,8 @@ const BOARD_SIZES := {
 	"split": Vector2(1.2, 0.8),
 }
 const POST_RADIUS := 0.035
+## A post's centre stands this far behind its board's face, clear of it.
+const POST_BEHIND := POST_RADIUS + 0.012
 ## Posts reach this far into the ground (it slopes under them).
 const POST_SINK := 0.3
 ## A round bale lying on its side (its axis is local X).
@@ -55,7 +57,7 @@ static func board_parts(kind: String, panel: float) -> Array:
 	var size: Vector2 = BOARD_SIZES[kind]
 	var top := panel + size.y * 0.35
 	return [_part(_face_mesh(kind), Transform3D(Basis.IDENTITY, Vector3.UP * panel)),
-		_part(_post_mesh(), Transform3D(Basis.IDENTITY.scaled(Vector3(1.0, top + POST_SINK, 1.0)), Vector3(0.0, -POST_SINK, -0.03)))]
+		_part(_post_mesh(), Transform3D(Basis.IDENTITY.scaled(Vector3(1.0, top + POST_SINK, 1.0)), Vector3(0.0, -POST_SINK, -POST_BEHIND)))]
 
 
 ## A sign on a post as nodes (a junction's barrier), its face toward +Z of the parent, its middle `at`.
@@ -71,7 +73,7 @@ static func board(kind: String, at: Vector3, size := 0.8) -> Node3D:
 	node.add_child(face)
 	var post := MeshInstance3D.new()
 	post.mesh = _post_mesh()
-	post.transform = Transform3D(Basis.IDENTITY.scaled(Vector3(1.0, at.y + 0.5, 1.0)), Vector3(0.0, -at.y - 0.5, -0.03))
+	post.transform = Transform3D(Basis.IDENTITY.scaled(Vector3(1.0, at.y + 0.5, 1.0)), Vector3(0.0, -at.y - 0.5, -POST_BEHIND))
 	node.add_child(post)
 	return node
 

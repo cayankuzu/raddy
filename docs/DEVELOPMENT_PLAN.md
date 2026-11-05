@@ -246,6 +246,31 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   fall in front of the bots, no damage, 2:14.7 / 2:20.4 on Kara Çam Geçidi), headless bot runs through every
   event on every stage (no recovery needed), screenshots `reports/screenshots/event_tree_*.png`.
   Not yet: crew bodies/hands, human play tests (feel, voice, internet), relay for CGNAT homes.
+- 2026-10-19: A0 solid ground: DONE. Review findings fixed: rockfalls start only on ground above the road (Eagle's Nest's moved to a
+  real bank), boulders settle into one static rock on every peer, recoveries never land on a trunk or a boulder, bots dodge only
+  the next group of obstacles and stay on the road, finished teams get no offers, snapshots stop when the race ends, torn-off parts leave clear
+  of the car, records and medals compare at screen precision, bot runs never write records, the camera key left the player's bindings.
+  `tools\ci.ps1` runs everything in one go; `GAME_DESIGN.md` written (A1). Verified: 182 GUT tests, nettest, flow test with 3 crews.
+- 2026-10-19: A2 driving feel 2.0: DONE in code and benchmarks; a human's feel check is still to come. `SteeringInput` per device, assist levels,
+  gamepad softness and rumble, analog deadzone 0.08 (was 0.2). Measured on flat gravel (`test_handling_benchmarks.gd`, deterministic): 0-100 km/h 5.36 s
+  (was 6.3 s), 100-0 km/h 48.0 m at 0.82 g, half lock at 70 km/h answers in 0.10 s and settles at 25.7 deg/s and 0.92 g, keyboard to full lock
+  0.21 s at 20 km/h, 0.33 s at 100 km/h, handbrake hairpin of 150 degrees from 45 km/h in 2.97 s (was 3.35 s), a 0.8 m drop at 80 km/h lands with 5.4 degrees of
+  pitch. Verified: 186 GUT tests, nettest, flow test.
+- 2026-10-19: A6, first item: the shock gun DONE (doors, intercom, gestures, more events, awards and room modes are still to come). Rules, feed, wires,
+  sparks, sounds, one-handed steering, map folding, room rule (off / rivals / everyone). Verified: `test_shock_gun.gd` (openings, aim, the spec's 6 s faint and 4 s
+  immunity), `tests/unit/test_scripts_compile.gd`, 191 GUT tests, nettest (the navigator shocks its own driver at 28 s, the host validates, every peer sees the driver faint).
+  Not tested with people yet: whether 8 m and two darts make a good duel.
+- 2026-11-04: A3 stages 2.0, steps A3.0 to A3.11: DONE and verified (screens and numbers from the current build; the last gate is further down).
+  - Narrow roads: 3.6-5.0 m wide, a drivable 0.8 m shoulder, a 0.4 m ditch, a bank a car can drive back up; records kept per road layout (`LAYOUT` 2).
+    The ground grid lies 0.7 m under all that: smallest margin to the road's sides 0.30 m. A bot steering by the road's curvature keeps its wheels on
+    the shoulder on every Redline road.
+  - Stage design (`StageDesignRules`): lengths 2218, 2034, 2316, 2130, 2152, 2154 m; worst gap between dangers 368, 323, 308, 396, 228, 258 m; 5, 5, 4, 4, 4, 5 wrong ways.
+  - Sightline (`test_sightline.gd`, in stage order): median 62, 54, 68, 54, 60, 62 m; longest 150, 124, 168, 140, 152, 146 m; over 150 m on at most 1.0 % of a road.
+  - Forest: 24.8 trunks per 100 m per side within 2.6-10 m of the road (the wall of the plan), trunks at least 1.89 m apart, 94-100 % of the screened 10 m stretches hold 2+
+    occluders, 5062 obstacle shapes on Kara Çam; rows share batches, no new draw calls.
+  - Wrong ways: U-turn on the 9 m turning area in 5.1 s with no knock; barrier roads closed deep in the track; 4-5 notes "Kavşak: Sol 3, düz değil!" per stage; the map dashes them.
+  - Rally dressing: 491-570 items per stage on the ground within 0.000 m, nothing nearer than 0.99 m to a road's edge; at least 2 places for spectators per stage, with `spectator_spots` for A5.
+  Bridge and village street wait for their assets; real loops wait until the tracker can follow two roads.
 - 2026-11-04: A3 real details, step A3.12 (no-login part): DONE and verified.
   - Flags: every flag is the flag of Turkey (`TurkishFlag`, exact geometry, unit-tested sample points), on the poles, arches,
     banners, the start's board and the HUD's start marker.

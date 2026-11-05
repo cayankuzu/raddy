@@ -51,6 +51,7 @@ func _ready() -> void:
 	BiomeRules.apply_to_graph(graph, settings)
 	if _args.has("quality"):
 		GraphicsQuality.forced = int(_args["quality"])
+		GraphicsQuality.apply_viewport(get_tree().root, GraphicsQuality.forced)
 	var palette := BiomeRules.palette(settings.biome, settings.weather)
 	# The race's own sky, sun and fog recipe replaces the scene's placeholder ones.
 	$WorldEnvironment.free()
@@ -149,6 +150,7 @@ func _ready() -> void:
 		overview.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
 		add_child(overview)
 		overview.make_current()
+		$HUD.visible = false
 	if _args.has("view"):
 		_add_view_camera(_args["view"].split("+"))
 	var hardest: Array[float] = [0.0]

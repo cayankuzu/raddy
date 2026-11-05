@@ -218,6 +218,30 @@ func test_the_real_forest_loads_and_stands_on_the_ground() -> void:
 	dressing.free()
 
 
+## The rock face scan is a slab leaning 42 degrees: on open ground it has to lie down, its bottom on the ground
+## and nothing of it high in the air, and its collider has to be where it is.
+func test_rock_shelves_lie_on_the_ground_inside_their_collider() -> void:
+	for entry in RoadsideCatalog.entries():
+		if entry.id not in ["rock_face", "edge_faces"]:
+			continue
+		var part: Dictionary = RoadsideDresser._parts_of(entry)[0]
+		var low := Vector3.INF
+		var high := -Vector3.INF
+		for vertex in (part.mesh as Mesh).get_faces():
+			var at: Vector3 = (part.transform as Transform3D) * vertex
+			low = low.min(at)
+			high = high.max(at)
+		gut.p("%s: %s to %s" % [entry.id, low, high])
+		assert_almost_eq(low.y, 0.0, 0.001, "its lowest point on the ground")
+		assert_almost_eq((low.x + high.x) * 0.5, 0.0, 0.001, "centred on its footprint")
+		assert_almost_eq((low.z + high.z) * 0.5, 0.0, 0.001, "centred on its footprint")
+		assert_lt(high.y, 1.5, "no slab standing up in the air at scale 1")
+		var box: Vector3 = entry.collision.size
+		assert_lt(absf(box.x - (high.x - low.x)), 0.5, "the collider is as wide as the rock")
+		assert_lt(absf(box.z - (high.z - low.z)), 0.5, "the collider is as long as the rock")
+		assert_lt(absf(box.y - high.y), 0.2, "the collider is as high as the rock")
+
+
 func test_grass_and_ferns_grow_in_a_clearing_but_not_under_what_stands_there() -> void:
 	var stage := StageCatalog.get_stage(0)
 	var graph := StageBuilder.build(stage)

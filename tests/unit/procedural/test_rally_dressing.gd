@@ -362,3 +362,11 @@ func test_bales_show_their_outside() -> void:
 		if front.dot(normals[indices[k]]) < 0.0:
 			inward += 1
 	assert_eq(inward, 0, "no face of the %d looks inward" % (indices.size() / 3))
+
+
+func test_a_post_stands_clear_behind_its_board() -> void:
+	for kind in RallyDressing.BOARD_KINDS:
+		var parts := RallyProps.board_parts(kind, 1.5)
+		var face: Transform3D = parts[0].transform
+		var post: Transform3D = parts[1].transform
+		assert_lt(post.origin.z + RallyProps.POST_RADIUS, face.origin.z, "%s: nothing of the post in front of the face" % kind)

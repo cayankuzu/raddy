@@ -29,7 +29,18 @@ No Blender; model in Godot only as a last resort.
   `scenes/dev/net_test.tscn` with scripted actions, then the `NET ...` log lines are asserted). Exit 0 = pass.
 - `tools\flowtest.ps1 [-Clients 1] [-Seconds 300] [-Stage 0]`: end-to-end check of the real game from the main
   menu: host creates a room, clients join by room code, seats + ready, start, bots drive the whole stage,
-  results, back to the room, quit (`--flow-test`, see `scripts/core/flow.gd`). Exit 0 = pass (~3.5 min).
+  results, back to the room, quit (`--flow-test`, see `scripts/core/flow.gd`). Exit 0 = pass (~3.5 min). Prints each
+  bot's average over the stage's length, what `StageRecords.MEDAL_SPEEDS` is judged against.
+- `tools\ci.ps1 [-AllStages] [-SkipExport] [-SkipFlow]`: GUT, nettest, flow test (all six with -AllStages), a headless bot
+  through every stage event (`tools/list_stage_events.gd`), export; stops at the first failure. Takes longer than one
+  foreground call may (about 20 min with -AllStages): run its steps one by one or in the background.
+- `tools\perf.ps1 [-Stage 0] [-Quality 1] [-Seconds 30] [-Start 0]`: the bot drives, windowed at 1920x1080, vsync off
+  (`tools/perf_probe.gd`): build ms, then `PERF fps_avg p95_ms p99_ms draw_calls primitives physics_ms` lines; its cpu/gpu render
+  times read 0 here. This PC's fps wander run to run: compare alternating runs, never one run each.
+- `tools\stage_shots.ps1 [-Stage n] [-Quality 1] [-Weather 0 | -OwnWeathers] [-Tag now] [-Chase]`: every place worth a
+  look (`tools/list_stage_spots.gd`) from the driver's seat, one process per stage and weather (`tools/stage_shots.gd`, about
+  a minute each), plus an overview per stage, into `reports\screenshots\stages\<Tag>\<stage>\w<weather>\`. The overview is a
+  check of the road's layout: straight down and orthographic, it shows hardly any trees.
 - `tools\capture_window.ps1 -Instance N -Out reports\screenshots\x.png`: PNG of a windowed instance even when
   covered (PrintWindow); use it for multi-window visual checks since Beckett sees one game only.
 - `tools\screenshot.ps1 -Scene res://x.tscn -Frames 120 -Out reports\screenshots\x.png [-ExtraArgs "--a,--b"]`:
@@ -40,12 +51,17 @@ No Blender; model in Godot only as a last resort.
 - `tools\export_windows.ps1 [-Debug]`: `builds\windows\RADDY.exe` via the "Windows Desktop" preset.
 - `tools\editor.ps1 [-Headless | -Stop]`: open the editor (Beckett MCP runs inside it).
 - `tools\mic_check.ps1 [-Device <name>]`: input level per microphone (user speaks while it listens).
-- Baked assets: `tools/make_gauge_face.gd` (needs a window), `tools/make_clouds.gd`, `tools/make_exhaust_pops.py`.
+- Baked assets: `tools/make_gauge_face.gd` (needs a window), `tools/make_clouds.gd`, `tools/make_exhaust_pops.py`,
+  `tools/make_shock_sounds.py`. Downloads, all free and no login: `tools/fetch_polyhaven.py`, `fetch_ambientcg.py`,
+  `fetch_assets.py`, `fetch_audio.py` (only what the owner approved; `ASSET_LICENSES.md` gets a row);
+  `tools/texture_imports.py` sets 3D import options on new textures.
 
 ## Specs and plan
 - `docs/RADDY_MEGA_MASTER_PROMPT_FINAL.md` is the main spec; `docs/RADDY_SUPPLEMENT_*.md` add art direction,
   engineering and MCP rules. `docs/DEVELOPMENT_PLAN.md` merges them into phases and tracks status; update it
-  when a feature is verified. `docs/ART_DIRECTION.md` and `docs/REFERENCE_RESEARCH.md` hold the research.
+  when a feature is verified. `docs/GAME_DESIGN.md` is the design bible: pillars, the rules every phase builds against,
+  the 9.8 quality bar; it records the decisions taken since the spec. `docs/ART_DIRECTION.md` and
+  `docs/REFERENCE_RESEARCH.md` hold the research. `CHANGELOG.md` is for players, `TEST_PLAN.md` holds what only people can check.
 
 ## Vehicle code (scripts/vehicles)
 - `RallyCar` (RigidBody3D) simulates in `_integrate_forces`: ray wheels cast by the car, spring/damper/bump stop,
@@ -53,6 +69,15 @@ No Blender; model in Godot only as a last resort.
   oversteer assist, impact and recovery detection. It never reads Input.
 - Whoever owns the car writes `car.controls` (`VehicleControls`) before each tick: `PlayerCarInput` locally,
   later the network layer, and tests. Tunables live in `VehicleConfig` (`data/vehicles/rally_hatch.tres`).
+- Steering (GAME_DESIGN §5): `SteeringInput` (pure, tested) turns the raw axis into the steer command per device: a key
+  ramps in by speed (0.21 s to lock at 20 km/h, 0.33 s at 100 km/h) and comes back faster, with a counter-steer assist while
+  no key is held; a gamepad gets a response curve (`linearity`) and light smoothing; a wheel (`device_for_joypad`, by its
+  name) passes through. `PlayerCarInput` follows the device last touched, sets the assist level (Settings `driving_assist` 0-2 →
+  `RallyCar.assist_scale`, the stability help, which yields after a handbrake pull while the driver steers into the rotation; on
+  a gamepad counter-steer only at level 2), the gamepad's `steer_linearity`, the rumble (`vibration`: road and slides on the
+  weak motor, crashes on the strong one) and one hand on the wheel while the driver aims the shock gun (`ONE_HAND_LOCK`,
+  `ONE_HAND_RATE`). `tests/unit/vehicles/test_handling_benchmarks.gd` pins what a feel change is judged by: 0-100, 100-0,
+  turn-in, keyboard ramp, handbrake hairpin, pulling away on full lock, landing.
 - Surfaces: colliders set metadata `surface` (see `Surface`); untagged ground is gravel.
 - Dev scene `scenes/dev/vehicle_test_track.tscn` (`--autodrive` user arg circles) for car tuning.
 - Everything on the car works, on every peer. `CarParts` cuts what moves out of the Milano's one-piece meshes (by the
@@ -77,16 +102,17 @@ No Blender; model in Godot only as a last resort.
   for every camera: different sky lights per camera would rebuild the sky's reflections every time the view changes.
 
 ## Screens and flow (scripts/core, scripts/ui, scripts/gameplay/race.gd)
-- Autoloads: `Settings` (user://settings.cfg: language, volumes, voice, effects, key bindings; tests set
+- Autoloads: `Settings` (user://settings.cfg: language, volumes, voice, effects, driving assist, graphics, key bindings; tests set
   `Settings.save_path`), `Flow` (menu → lobby → race → results → lobby; leaves dev scenes alone).
 - `RoomCode` packs IPv4 + port into a checked `XXXX-XXXX-XXXX` code; `PortOpener` (UPnP, thread) gives the
   internet code when the router allows it (CGNAT detected). `RaceSettings` resolves Random / Surprise Rally
-  (keys `stage`, `difficulty`, `weather`; the stage gives `biome` and `seed`); `BiomeRules` applies
+  (keys `stage`, `difficulty`, `weather`, `shock`; the stage gives `biome` and `seed`); `BiomeRules` applies
   weather/difficulty to the stage. UI strings: `data/locale/strings.csv` (TR/EN).
 - Race start: `Net.report_race_loaded()` from every player; the host spawns only when `Net.all_players_loaded()`
   (scene changes are deferred: spawn RPCs sent earlier are lost), then a 3 s countdown with `car.input_locked`.
   Results: host clock + recovery penalty, `RaceResults.rows()`, published when all finished/left or 120 s after
-  the first finisher. `StageRecords` (user://records.cfg, per PC) keeps the best time per stage and gives
+  the first finisher. `StageRecords` (user://records.cfg, per PC, section `best_v<StageCatalog.LAYOUT>`: bump `LAYOUT` when
+  the roads change so much that old times mean nothing) keeps the best time per stage and gives
   bronze/silver/gold from the stage length (`MEDAL_SPEEDS`); results show the medal and a new record,
   the room shows the medal times and the record. Host buttons: same stage / next stage (`Net.start_race(settings, true)`) / back to room.
 - UI is built in code with `UiTheme` (static helpers must use `TranslationServer.translate`, not `tr`).
@@ -96,19 +122,46 @@ No Blender; model in Godot only as a last resort.
   (`CockpitCamera.look`) unless a menu is open or it is a flow test.
 
 ## Stages (scripts/procedural)
-- Six named point-to-point stages in `StageCatalog` (two per biome; names `STAGE_<ID>` in strings.csv). A recipe
-  is segments (`len`, `turn`, `rise`, `crest`/`jump`/`dip`, `water`, `cliff`/`bank` left|right|both, `surface`,
-  `width`, `caution`, `falling_tree`/`rockfall` left|right); `StageBuilder.build(stage)` → `RouteGraph` (START → WAYPOINT(s) where surface/width change →
+- Six named point-to-point stages in `StageCatalog` (two per biome; names `STAGE_<ID>` in strings.csv; `weathers` lists the
+  ones a stage comes in). A recipe is segments (`len`, `turn`, `rise`, `crest`/`jump`/`dip`, `water`, `cliff`/`bank`
+  left|right|both with `drop`/`wall`, `surface`, `caution`, `falling_tree`/`rockfall` left|right, `decoy`, `spectators`
+  left|right); `StageBuilder.build(stage)` → `RouteGraph` (START → WAYPOINT(s) where the surface changes →
   FINISH, 2 m polylines + heights, `features` by distance, gates: start line at 40 m, two splits, finish 70 m
   before the end). `graph.sample(distance)`, `route_distances()`, `RouteIndex` (nearest road point + distance
-  along) and `RouteTracker` (follows a car along the stage) work in metres along the road.
-  `RouteValidator.validate()` (length, radius >= 11 m, grade <= 30 %, no crossing, stretches >= 30 m apart) must
-  stay empty for every stage (tests/unit/procedural/test_stage_builder.gd). Preview layouts with a script that
-  draws `graph.main_route_points()` into an Image.
+  along) and `RouteTracker` (follows a car along the stage; progress counts only within `ON_ROAD` 14 m of it) work in
+  metres along the road. Preview layouts with a script that draws `graph.main_route_points()` into an Image.
+- Two judges, both must stay empty for every stage (tests/unit/procedural/test_stage_builder.gd). `RouteValidator.validate()`,
+  playable: length, radius >= 11 m, grade <= 30 %, no crossing, stretches >= 30 m apart, width >= 3.6 m and never stepping
+  along a stage (ditches run unbroken), `_check_spurs`. `StageDesignRules.check()`, a good rally stage (GAME_DESIGN §4): 2-4 km,
+  a danger at least every 500 m (`worst_danger_gap`, on the summary notes), the sightline budget, 3-6 junctions 150 m apart and
+  never on the side the road itself turns to, at least 2 places for spectators. When a stage fails, fix the recipe, never the
+  threshold. Width: the stage's own (3.6-5.0 m) + `RaceSettings.WIDTH_OFFSET` (Explore +0.8, Redline -0.2), set by
+  `BiomeRules.apply_to_graph`; one width per stage, a segment's `width` would fail the validator.
+- `Sightline`: how far ahead the road is readable from the eye (`ahead`, `survey`), ended by a crest or a side `screens(graph)`
+  calls screened: forest and mountain sides are, desert sides only by a bank or a corner's screen; cliffs and places for the
+  crowd are open. `StageBuilder` adds a `screen` feature on the inside of every corner of `SCREEN_TURN` 25 degrees or more and
+  `RoadsideDresser` plants `screen` catalog entries there, never thinned (Low must not see further). Budget: median at most 80 m,
+  at most 3 % of the road over 150 m, never past 200 m (real: medians 54-68 m, longest 168 m).
+- Wrong ways: a segment's `decoy` {`side` straight|left|right, `len` 60-250, `end` dead_end|barrier, `at`, `angle`, `bend`,
+  `rise`} makes a `RouteGraph.Spur` in `graph.spurs`, apart from `edges` (edge ids from `SPUR_EDGE_BASE` 1000): whatever
+  follows the stage (tracker, follower, recovery, gates, notes) sees one road, only what builds the world reads `road_edges()`.
+  It looks like the road carrying on (same width and surface, no warning at the mouth); `RouteValidator._check_spurs`: never
+  near a gate, on a jump or under a surprise, never a way through to another part of the road, never over a cliff. World:
+  `Track/Spurs/Spur<id>` (`Road<id>`, the `Landing` turning area of `LANDING_RADIUS` 9 m, the `Mouth` filler),
+  `RallyDressing.junction_furniture` (a log pile, or barriers and tape deep in the track). Paper: `MapCanvas`, junction notes.
 - `TerrainField(seed, relief).set_roads(graph)`: IDW surface through the road heights + hills growing away from
-  the road + cliff drops / bank walls from the features, pressed into a 12 cm trench under the road.
+  the road + cliff drops / bank walls from the features. It owns the ground grid (`CELL` 4 m, `MARGIN` 140 m, `grid_at`), the
+  mesh and collision `RoadBuilder` makes: within `FLAT_BAND` 8.5 m of a road's edge it lies flat, `FLOOR_DROP` 0.7 m under the
+  lowest road height within `FLOOR_WINDOW` 6 m along the road, so its triangles never poke through a shoulder or a ditch
+  (smallest margin 0.30 m, tested). `height()` is the surface you see: `cross_section(e, d)` out to `RoadBuilder.ROADSIDE`, the grid beyond.
+- The road's cross-section (`RoadBuilder`, metres from the edge, heights below the road): `SHOULDER` 0.8 drivable gravel down to
+  `SHOULDER_DROP` 0.05, a V ditch with its bottom from `DITCH_IN` 1.3 to `DITCH_OUT` 1.6 (`DITCH_DEPTH` 0.4, dirt, mud or snow by the
+  weather), the lip at `DITCH_END` 2.1 (`LIP_DROP` 0.15), a gentle bank to the ground at `ROADSIDE` 4.6 (a car in the trees drives back
+  up). `POST_OFFSET` 2.6: where anything standing beside the road starts (hard scenery: `RoadsideDresser.HARD_CLEAR`; undergrowth from
+  `SOFT_CLEAR` 1.2, in the ditch). The ditch fades over `DITCH_FADE` 8 m to nothing on cliff sides, at water, on a rockfall's side, within
+  `DITCH_CLEAR_ENDS` 15 m of a road's end and `MOUTH_CLEAR` 12 m of a junction (`ditch_at`). Road ends slope away over `APRON` 2 m.
   `RoadBuilder.build(graph, terrain, palette)` → `Track` (rectangular HeightMapShape3D terrain, Roads/Road<n>
-  ribbons + verges with `surface` metadata, Checkpoints spanning the corridor without reaching another
+  ribbons + shoulders + a `Ditch` body with `surface` metadata, Spurs, Checkpoints spanning the corridor without reaching another
   stretch, `TrackFeatures`: water pools + `WaterSplash` areas, `GuardRail` on cliffs (corrugated W-beam, one mesh
   per rail + one batch of posts, ends turned down, one gap with torn ends, `shaders/guard_rail.gdshader`),
   `RallyArch` over the start and finish lines (box truss on plates behind concrete blocks, a banner printed in code
@@ -130,8 +183,11 @@ No Blender; model in Godot only as a last resort.
   before the walls and a backdrop beyond (`backdrop` entries stay outside the corridor); nothing on a cliff's
   lip. Scenery is batched by mesh into MultiMeshInstance3D chunks (48-192 m, 96 m for `low`) with visibility ranges: the
   frame cost on this laptop is CPU draw submission, not triangles. `GraphicsQuality` (Settings
-  `graphics_quality`, AUTO = Low on integrated GPUs) scales scenery density/range, shadows, SSAO/glow and
-  the render scale; dev scenes take `--quality=0|1|2`.
+  `graphics_quality`, AUTO = Low on integrated GPUs) scales scenery density/range, shadows, SSAO/glow,
+  the render scale, the edges (`SCREEN_AA`: FXAA on Low, SMAA from Medium, `MSAA` 2x on High; no TAA: trails round a cabin that
+  stands still while the world flies past) and `ANISOTROPY`; Low and the mirrors draw a volume of fog as flat fog (`flatten_fog`:
+  as dense and as dim); dev scenes take `--quality=0|1|2`. The rock face scan is a slab leaning 42 degrees: `lay` in the catalog
+  turns it into a low shelf on open ground, with a box collider where the rock is.
 - Every flag in the game is the flag of Turkey: `TurkishFlag` (the law's geometry as a signed distance, `color_at`,
   `image`, `texture`, unit-tested), on the crowd's poles, the arches and their banners, the start's board and the HUD's
   start marker; 3:2 always, the hoist at the pole, never on the ground, nothing printed over it. The finish is chequered
@@ -152,7 +208,8 @@ No Blender; model in Godot only as a last resort.
   before the spot (a fir that falls across the road, rocks off a bank); `StageEvents` (child of the race)
   lets the host decide and every peer play it (`_rpc_stage_event`); boulders are host-simulated props like
   the cans (`_rpc_spawn_boulder`). Offline (route_test) the trigger plays locally.
-- `RouteFollower` (pure pursuit + corner speed planner, `start_delay`, stops at the end of an open path,
+- `RouteFollower` (the path's own curvature ahead + heading and line corrections: pure pursuit cuts corners by more than a rally
+  road is wide; a corner speed planner, `start_delay`, stops at the end of an open path,
   `obstacles` Callable → steers around fallen trunks/boulders at `AVOID_SPEED`) drives a `RallyCar`:
   `--autodrive`, tests, flow-test bots (which also confirm their own recovery offers). `RaceProgress` is the host's gate accounting.
 - Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N --quality=N`
@@ -190,6 +247,14 @@ No Blender; model in Godot only as a last resort.
   the RPC everywhere or just locally offline. `SeatEffects` (CanvasLayer) shows the local seat's view of it.
   Input: Q/E windows, F kick windshield (navigator), T wipers (driver), M map, L dome lamp, LMB throw. Fainted seats are
   checked by `PlayerCarInput`, `RouteFollower` and `CabinInput` via `cabin.is_fainted(role)`.
+- Shock gun (GAME_DESIGN §6, `scripts/gameplay/shock_*.gd`): `ShockRules` (pure, tested, kept by the host): 2 darts a stage,
+  refilled at each split, 1.2 s reload, 8 m range; between cars the dart leaves and enters through an opening (`Cabin.is_open_for_shot`);
+  inside one cabin it always reaches. Room rule `settings.shock` (`Mode`: off, rivals only, everyone). `ShockInput` (the local seat): hold
+  `shock_aim` (right mouse, right stick click) to raise it (crosshair with the darts left), `cabin_throw` fires along the view and
+  picks the first head near the line → `RaceSession.request_shock` → the host's `_handle_shock` checks the seat, darts, openings, range, line
+  of sight and immunity; a hit is `Cabin.host_shock`: the same 6 s faint, then 4 s immune. Every peer: `_rpc_shock_fx` → `ShockFx`
+  (wires, sparks, flash, pop and crackle), `_rpc_shock_darts`, `shock_landed` → the HUD's feed; the victim's view flickers
+  (`SeatEffects`). The hands: `Cabin.aiming[role]`: an aiming driver steers one-handed, an aiming navigator folds the map and throws no cans.
 - Damage (spec §8): the driver's `RallyCar.impact` (body contact; a landing on the wheels does not count) is
   judged by the host (`_rpc_report_impact` from a client driver), which keeps a `VehicleDamage` per team, sends
   crash sounds + a camera jolt (`_rpc_crash_fx`) and `_rpc_set_damage`; every peer calls `RallyCar.apply_damage`,
@@ -224,6 +289,7 @@ No Blender; model in Godot only as a last resort.
 - Spec numbers (3 s recovery delay, etc.) are asserted against the spec value, not the config value,
   so a tuning change cannot silently break the spec.
 - Print measured values with `gut.p()` so tuning changes are visible in the output.
+- `tests/unit/test_scripts_compile.gd` compiles every game script: most are only loaded by the scenes that use them.
 
 ## Beckett MCP (addons/beckett)
 - The editor plugin is the MCP server: `http://127.0.0.1:8770/mcp/<token>`, token auth on. It only runs while an

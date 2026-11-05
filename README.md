@@ -46,7 +46,11 @@ Windows x64 · Godot 4.7.2 (GDScript) · test build 0.2.0
 | Q | Sol cam | F | Ön camı tekmele |
 | T | Silecekler | L | Tavan lambası |
 
-Gamepad: tetikler gaz/fren, sol çubuk direksiyon.
+Şok tabancası (ikiniz de; oda ayarından kapatılabilir): **sağ tık basılı** nişan al, **sol tık** ateş. Etap başına iki iğne,
+her ara noktada dolar. Nişan alan sürücü tek elle sürer; nişan alan navigatör haritayı katlar.
+
+Gamepad: tetikler gaz/fren, sol çubuk direksiyon, sağ çubuğa bas nişan, X ateş. Ayarlar → Kontroller: sürüş yardımı,
+direksiyon yumuşaklığı, titreşim.
 
 ### Bilinen kısıtlar (test sürümü)
 - İnternetten bağlanmak için host'un modemi UPnP'ye izin vermeli ya da herkes Radmin VPN
@@ -75,11 +79,11 @@ Gamepad: tetikler gaz/fren, sol çubuk direksiyon.
 Controls: see the Turkish table above (Settings → Controls rebinds every action).
 
 ### Stages
-Six fixed, named point-to-point stages (1.9-2.3 km), two per biome: Kara Çam Geçidi / Black Pine
+Six fixed, named point-to-point stages (2.0-2.3 km), two per biome: Kara Çam Geçidi / Black Pine
 Pass and Sisli Dere / Misty Creek (forest), Kızıl Kanyon / Red Canyon and Akrep Tepeleri / Scorpion
-Hills (desert), Kartal Yuvası / Eagle's Nest and Buzul Sırtı / Glacier Ridge (mountain). Crests,
-jumps, water splashes, cliffs with rails, switchbacks; leave the road and you meet trees and,
-36 m out, the stage's wall.
+Hills (desert), Kartal Yuvası / Eagle's Nest and Buzul Sırtı / Glacier Ridge (mountain). Narrow roads
+with shoulders and ditches, crests, jumps, water splashes, cliffs with rails, switchbacks, wrong ways only the map
+gives away; leave the road and you meet trees and, 36 m out, the stage's wall.
 
 ### Known limitations
 - Internet play needs UPnP on the host's router or a shared VPN (Radmin); no relay server yet.
@@ -93,14 +97,17 @@ jumps, water splashes, cliffs with rails, switchbacks; leave the road and you me
 ## Development
 
 Requirements: Godot 4.7.2 at `C:\Tools\Godot\4.7.2\` (or `GODOT_DIR`), export templates 4.7.2,
-PowerShell 7, Python 3 with numpy (asset tools only). Everything is free; see `ASSET_LICENSES.md`.
+PowerShell 7, Python 3 (asset tools only). Everything is free; see `ASSET_LICENSES.md`.
 
 | Command (repo root) | What it does |
 |---|---|
 | `pwsh -NoProfile -File tools\import.ps1` | Headless import (after new assets or class_name scripts) |
 | `pwsh -NoProfile -File tools\test.ps1` | GUT unit and physics tests (`reports\junit.xml`) |
 | `pwsh -NoProfile -File tools\nettest.ps1` | Host + 3 clients, scripted multiplayer checks |
-| `pwsh -NoProfile -File tools\flowtest.ps1` | Menu → room → whole stage with bots → results → room |
+| `pwsh -NoProfile -File tools\flowtest.ps1 [-Stage n]` | Menu → room → whole stage with bots → results → room |
+| `pwsh -NoProfile -File tools\ci.ps1 [-AllStages]` | All of the above, every stage event, the export |
+| `pwsh -NoProfile -File tools\perf.ps1 [-Stage n] [-Quality q]` | Frame times while the bot drives a stage |
+| `pwsh -NoProfile -File tools\stage_shots.ps1 [-Stage n] [-Quality q] [-OwnWeathers] [-Tag t]` | Every place worth a look on a stage, as PNGs |
 | `pwsh -NoProfile -File tools\export_windows.ps1` | `builds\windows\RADDY.exe` |
 | `tools\launch.ps1 -Clients N [-Server]` | Several game windows on one PC |
 | `tools\screenshot.ps1 -Scene res://... -Out reports\screenshots\x.png` | Movie Maker screenshot |

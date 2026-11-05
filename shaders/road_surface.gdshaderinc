@@ -46,6 +46,8 @@ const float STONES_FADE_FROM = 28.0;
 const float STONES_FADE_TO = 70.0;
 const float GROOVE_DEPTH = 0.06;
 const float PACKED_FAR_SCALE = 2.7;
+// Dry gravel and dirt shadow themselves at every grain: without this a low sun ahead turned the whole road white.
+const float DRY_SPECULAR = 0.2;
 
 struct RoadSample {
 	vec3 albedo;
@@ -128,6 +130,6 @@ RoadSample road_sample(vec2 uv, float half_width, float ruts, float view_distanc
 	s.normal_rg = nrm;
 	s.ao = arm.r;
 	s.roughness = arm.g;
-	s.specular = mix(0.5, mix(0.14, 0.5, wet_mirror), gloss);
+	s.specular = mix(mix(DRY_SPECULAR, 0.5, rain), mix(0.14, 0.5, wet_mirror), gloss);
 	return s;
 }
