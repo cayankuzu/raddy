@@ -14,8 +14,9 @@ const REVERSE_GLOW := 3.0
 const BLINK_GLOW := 3.5
 const DOME_GLOW := 2.5
 ## The dome lamp on the headliner, and the light it gives.
-const DOME_LENS_AT := Vector3(0.0, 0.852, 0.02)
-const DOME_LENS_SIZE := Vector3(0.095, 0.008, 0.04)
+const DOME_LENS_AT := Vector3(0.0, 0.856, 0.02)
+const DOME_LENS_RADIUS := 0.038
+const DOME_LENS_DEPTH := 0.016
 const DOME_LIGHT_AT := Vector3(0.0, 0.8, 0.02)
 const DOME_RANGE := 1.45
 const DOME_ENERGY := 1.1
@@ -24,7 +25,6 @@ const REAR_GLOW_AT := Vector3(0.0, 0.25, 1.95)
 
 var car: RallyCar
 var headlights := false
-var dome_on := false
 
 var _brake: StandardMaterial3D
 var _reverse: StandardMaterial3D
@@ -64,7 +64,7 @@ func build(model: Node3D) -> void:
 		_beams.append(beam)
 	_build_dome()
 	set_headlights(headlights)
-	set_dome(dome_on)
+	set_dome(false)
 
 
 ## A soft cone from the tail, backwards and a little down: it lights the road behind and a follower, not the cabin.
@@ -90,8 +90,11 @@ func _build_dome() -> void:
 	_dome_lens.roughness = 0.5
 	_dome_lens.emission_enabled = true
 	_dome_lens.emission = Color(1.0, 0.86, 0.62)
-	var mesh := BoxMesh.new()
-	mesh.size = DOME_LENS_SIZE
+	var mesh := SphereMesh.new()
+	mesh.radius = DOME_LENS_RADIUS
+	mesh.height = DOME_LENS_DEPTH
+	mesh.radial_segments = 20
+	mesh.rings = 6
 	mesh.material = _dome_lens
 	var lens := MeshInstance3D.new()
 	lens.name = "DomeLens"
@@ -141,10 +144,8 @@ func set_headlights(on: bool) -> void:
 
 
 func set_dome(on: bool) -> void:
-	dome_on = on
-	if _dome_light != null:
-		_dome_light.visible = on
-		_dome_lens.emission_energy_multiplier = DOME_GLOW if on else 0.0
+	_dome_light.visible = on
+	_dome_lens.emission_energy_multiplier = DOME_GLOW if on else 0.0
 
 
 func _process(delta: float) -> void:

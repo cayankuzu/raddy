@@ -272,6 +272,8 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     road, the same load of the PC): Medium +1.08 and +1.15 ms a frame (draw +0.92 and +1.04 ms), +60 and +64 draw calls, +0.34 M
     triangles; Low +1.62 ms, +34 calls; High +1.45 ms, +57 calls. First version, before leaving things out: +4.8 ms, +290 calls.
     What did it: no shadow pass per mirror (+2.8 ms), a sky that stays one sky for every camera, no fine scenery.
+    `tools\perf.ps1 -Stage 0 -Quality 1` with it all in (--quality now sets the whole level, so not comparable with the runs
+    above, which had High's light on Medium's scenery): fps 33.7/30.2/34.2/34.5, draw calls 826/810/780/840, 2.7-3.0 M triangles.
   - Reflections: SSR from Medium up, +0.28 ms on Medium (toggled the same way), +0.6 to +0.95 ms on High. Standing water on a wet
     road is a real mirror where it runs; water pools march their own ray (the engine's only sees opaque surfaces).
   - Audit of everything in the car. Made to work: speed, rev, temperature, oil, fuel and volt needles, six warning lamps,

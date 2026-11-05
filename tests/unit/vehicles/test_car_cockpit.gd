@@ -165,10 +165,9 @@ func test_hazards_blink_on_a_stuck_car() -> void:
 func test_the_dome_lamp_is_the_map_holders_switch_and_lights_the_glass() -> void:
 	var cabin: Cabin = _car.get_node(^"Cabin")
 	var pane: MeshInstance3D = _car.get_node(^"Cabin/WindowLeft")
-	assert_false(_model.lamps.dome_on)
+	assert_false(_model.lamps._dome_light.visible)
 	cabin.request_dome(true)
 	assert_true(cabin.dome_on)
-	assert_true(_model.lamps.dome_on, "the lamp is on")
 	assert_true(_model.lamps._dome_light.visible, "it lights the cabin")
 	assert_eq(pane.get_instance_shader_parameter(&"cabin_glow"), 1.0, "and shows in the glass")
 	cabin.request_dome(false)

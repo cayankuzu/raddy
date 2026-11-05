@@ -111,6 +111,7 @@ static func create(biome: int, weather: int, dusk := false) -> Node3D:
 	sun.rotation_degrees = Vector3(-(DUSK_SUN_ELEVATION if dusk else SUN_ELEVATION.get(biome, 32.0)), 35.0, 0.0)
 	sun.light_color = DUSK_SUN_COLOR if dusk else SUN_COLOR.get(biome, Color.WHITE)
 	sun.light_energy = (0.45 if overcast else 1.15) * daylight
+	sun.light_specular = 0.25 if overcast else 1.0  # no sun to glint off the paint behind the clouds
 	sun.shadow_enabled = true
 	sun.shadow_blur = 1.5 if overcast else 1.0
 	sun.directional_shadow_max_distance = 150.0
@@ -130,6 +131,7 @@ static func create(biome: int, weather: int, dusk := false) -> Node3D:
 	in_the_sky.light_color = sun.light_color
 	in_the_sky.light_energy = sun.light_energy
 	in_the_sky.sky_mode = DirectionalLight3D.SKY_MODE_SKY_ONLY
+	in_the_sky.visible = not overcast
 	root.add_child(in_the_sky)
 	GraphicsQuality.apply_look(env, sun, GraphicsQuality.current())
 	return root
