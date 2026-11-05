@@ -1,7 +1,8 @@
 extends SceneTree
 ## Prints "SPOT <stage> <metres along> <kind>" for the places worth a screenshot on every stage
 ## (tools\stage_shots.ps1): the grid, hairpins and caution corners, cliffs, jumps, water, the
-## events, the places for spectators, the km boards and the finish. `--stage=N` limits it to one stage.
+## events, the places for spectators, the km boards and the finish; and "WEATHERS <stage> <w> <w>.."
+## for the weathers a stage comes in. `--stage=N` limits it to one stage.
 
 
 func _init() -> void:
@@ -12,7 +13,9 @@ func _init() -> void:
 	for i in StageCatalog.count():
 		if only >= 0 and i != only:
 			continue
-		var graph := StageBuilder.build(StageCatalog.get_stage(i))
+		var stage := StageCatalog.get_stage(i)
+		print("WEATHERS %d %s" % [i, " ".join((stage.weathers as Array).map(func(w: int) -> String: return str(w)))])
+		var graph := StageBuilder.build(stage)
 		var spots: Array = [[graph.checkpoints[0].distance - StageBuilder.GRID_BEFORE_LINE, "grid"]]
 		for note in PaceNotes.build(graph, PaceNotes.DETAIL_FULL):
 			if note.get("hairpin", false) or note.get("caution", false):

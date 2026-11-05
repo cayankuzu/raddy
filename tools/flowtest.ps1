@@ -63,6 +63,12 @@ foreach ($i in 0..$Clients) {
 if ($failures.Count -eq 0) {
     $host_log = Join-Path $ProjectDir "logs\instance_0.log"
     (Select-String -Path $host_log -Pattern "NET team \d+ finished in|FLOW results" | ForEach-Object { $_.Line }) | Write-Host
+    # The bots' average over the stage's length, what StageRecords.MEDAL_SPEEDS is judged against.
+    $length = [double](Select-String -Path $host_log -Pattern "NET stage \S+ (\d+) m" | Select-Object -First 1).Matches[0].Groups[1].Value
+    Select-String -Path $host_log -Pattern "NET team (\d+) finished in (\d+):(\d+\.\d)" | ForEach-Object {
+        $g = $_.Matches[0].Groups
+        "team {0}: {1:N1} m/s over {2} m" -f $g[1].Value, ($length / ([int]$g[2].Value * 60 + [double]$g[3].Value)), $length
+    } | Write-Host
     Write-Host "FLOW TEST PASSED ($players players)" -ForegroundColor Green
     exit 0
 }

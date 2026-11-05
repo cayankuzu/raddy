@@ -20,7 +20,7 @@ const GRIP_SCALE := {Weather.CLEAR: 1.0, Weather.RAIN: 0.8, Weather.FOG: 1.0, We
 ## Fog density for the environment: how far you see.
 const FOG_DENSITY := {Weather.CLEAR: 0.0015, Weather.RAIN: 0.004, Weather.FOG: 0.02, Weather.SNOW: 0.008, Weather.DUST_STORM: 0.014}
 
-## Road width multiplier: Explore is wider, Redline narrower and more technical.
+## Metres added to the road's width: Explore is wider, Redline narrower and more technical.
 const WIDTH_OFFSET := {Difficulty.EXPLORE: 0.8, Difficulty.RALLY: 0.0, Difficulty.REDLINE: -0.2}
 ## Time added to a team's result per recovery (spec 16.3: small, testable, not punishing).
 const RECOVERY_PENALTY_MS := {Difficulty.EXPLORE: 0, Difficulty.RALLY: 3000, Difficulty.REDLINE: 6000}
