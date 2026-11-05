@@ -171,7 +171,8 @@ No Blender; model in Godot only as a last resort.
 - What the ground is: `shaders/road_surface.gdshaderinc` (road and verge, no seam): fine `loose` material, two wandering
   `packed` wheel tracks, scattered `stones`, per surface in `SurfaceMaterials.ROAD_SETS`; `ground_common.gdshaderinc`: two
   sets, a third in patches, hummocks that only tilt the light. A scan's flaw is fixed in the shader (snow's hollows:
-  `darkest`, `relief`). `RaceLook` adds clouds (`sky_cover`, noise) and a shade lit by the biome's bounce as well as the sky.
+  `darkest`, `relief`); a dry road keeps `DRY_SPECULAR` (a low sun ahead turned it white). `RaceLook` adds clouds (`sky_cover`, baked by
+  `tools/make_clouds.gd`) and a shade lit by the biome's bounce as well as the sky.
   Car glass is premultiplied (`car_glass.gdshader`, `windshield.gdshader`): only mud and cracks scatter light, so nothing
   hazes a dark forest seen through it.
 - On a switchback the next leg is uphill on the side the hairpin turns to: bank on that side, cliff on the
@@ -290,6 +291,10 @@ No Blender; model in Godot only as a last resort.
   so a tuning change cannot silently break the spec.
 - Print measured values with `gut.p()` so tuning changes are visible in the output.
 - `tests/unit/test_scripts_compile.gd` compiles every game script: most are only loaded by the scenes that use them.
+- `ResultsPanel` writes finishes into user://records.cfg unless `Flow.args` has `autodrive` (bots) or it is a flow test: a test or
+  a scratch script that opens it sets that first.
+- A label from `UiTheme.label` wraps, and asks a container for no width of its own: give it a width (a `custom_minimum_size`, a full-width
+  column) or turn wrapping off. In a grid it came out a letter a line (`tests/unit/ui/test_results_panel.gd`). Look at every screen you touch.
 
 ## Beckett MCP (addons/beckett)
 - The editor plugin is the MCP server: `http://127.0.0.1:8770/mcp/<token>`, token auth on. It only runs while an

@@ -8,8 +8,9 @@ extends RefCounted
 enum Medal { NONE, BRONZE, SILVER, GOLD }
 
 const PATH := "user://records.cfg"
-## Average speed (m/s over the stage's length) a crew needs for each medal, from bronze to gold:
-## the flow-test bots average ~17 m/s, careful humans less, flat-out crews more.
+## Average speed (m/s over the stage's length) a crew needs for each medal, from bronze to gold: the flow-test
+## bots average 15-18.5 m/s (tools\flowtest.ps1 prints it), careful humans less, flat-out crews more. The final
+## values come after the owner's playtest (TEST_PLAN.md).
 const MEDAL_SPEEDS: Array[float] = [14.0, 17.5, 20.5]
 const MEDAL_KEYS := ["", "MEDAL_BRONZE", "MEDAL_SILVER", "MEDAL_GOLD"]
 

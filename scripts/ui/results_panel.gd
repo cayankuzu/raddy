@@ -40,7 +40,7 @@ func _ready() -> void:
 	grid.add_theme_constant_override(&"h_separation", 28)
 	column.add_child(grid)
 	for header in ["RESULTS_PLACE", "RESULTS_TEAM", "RESULTS_TIME", "RESULTS_MEDAL", "RESULTS_SPLITS", "RESULTS_RECOVERIES", "RESULTS_STATUS"]:
-		grid.add_child(UiTheme.label(tr(header), 18, UiTheme.MUTED))
+		grid.add_child(_cell(tr(header), 18, UiTheme.MUTED))
 	var my_team: int = Net.local_entry().get("team", 0)
 	var stage := int(settings.get("stage", 0))
 	var stage_id: StringName = StageCatalog.get_stage(stage).id
@@ -55,16 +55,18 @@ func _ready() -> void:
 				new_record = tr("RESULTS_NEW_RECORD").format({"team": tr(TeamColors.name_key(row.team)), "time": RaceResults.format_time(row.time_ms)})
 	for row in rows:
 		var color := Color("ffe08a") if row.team == my_team else UiTheme.PAPER
-		grid.add_child(UiTheme.label(str(row.place), 22, color))
-		grid.add_child(UiTheme.label("%s %d — %s" % [tr("RESULTS_TEAM"), row.team, ", ".join(row.players)], 20, color))
-		grid.add_child(UiTheme.label(RaceResults.format_time(row.time_ms), 22, color))
+		grid.add_child(_cell(str(row.place), 22, color))
+		var crew := _cell("%s %d\n%s" % [tr("RESULTS_TEAM"), row.team, ", ".join(row.players)], 20, color)
+		crew.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(crew)
+		grid.add_child(_cell(RaceResults.format_time(row.time_ms), 22, color))
 		var medal := StageRecords.medal(stage, int(row.time_ms)) if row.finished else StageRecords.Medal.NONE
-		grid.add_child(UiTheme.label(tr(StageRecords.MEDAL_KEYS[medal]) if medal != StageRecords.Medal.NONE else "—", 20,
+		grid.add_child(_cell(tr(StageRecords.MEDAL_KEYS[medal]) if medal != StageRecords.Medal.NONE else "—", 20,
 			MEDAL_COLORS[medal] if medal != StageRecords.Medal.NONE else color))
-		grid.add_child(UiTheme.label(str(row.gates), 20, color))
-		grid.add_child(UiTheme.label(str(row.recoveries), 20, color))
+		grid.add_child(_cell(str(row.gates), 20, color))
+		grid.add_child(_cell(str(row.recoveries), 20, color))
 		var status := tr("RESULTS_FINISHED") if row.finished else (tr("RESULTS_LEFT") if row.left else tr("RESULTS_DNF"))
-		grid.add_child(UiTheme.label(status, 20, color))
+		grid.add_child(_cell(status, 20, color))
 
 	if new_record != "":
 		var banner := UiTheme.label(new_record, 24, Color("ffd23f"))
@@ -82,6 +84,13 @@ func _ready() -> void:
 	print("FLOW results %s" % str(rows.map(func(r: Dictionary) -> String: return "%d:%s" % [r.team, RaceResults.format_time(r.time_ms)])))
 	if Flow.is_flow_test() and Net.is_host() and not Flow.args.has("hold-results"):
 		get_tree().create_timer(3.0).timeout.connect(func() -> void: Net.end_race())
+
+
+## A cell of the table, as wide as its text: a label that may wrap asks a grid for no width and comes out a letter a line.
+static func _cell(text: String, font_size: int, color: Color) -> Label:
+	var cell := UiTheme.label(text, font_size, color)
+	cell.autowrap_mode = TextServer.AUTOWRAP_OFF
+	return cell
 
 
 func _rematch() -> void:
