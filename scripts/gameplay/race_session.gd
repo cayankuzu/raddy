@@ -451,6 +451,7 @@ func _rpc_recover_car(team: int, target: Transform3D, count: int) -> void:
 		return
 	if car.simulated:
 		car.reset_to(target)
+	(car.get_node(^"Model") as CarModel).cockpit.turn_key()  # the crew starts it again: the sweep, the bulb check
 	print("NET recovered car team %d to %s (recovery %d)" % [team, target.origin.round(), count])
 
 

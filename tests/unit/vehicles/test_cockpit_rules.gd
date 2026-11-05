@@ -116,3 +116,34 @@ func test_the_clutch_goes_down_for_a_shift_and_pulling_away() -> void:
 	assert_eq(CockpitRules.clutch(box, 20.0), 0.0, "nothing cruising")
 	box.shifting = 0.1
 	assert_eq(CockpitRules.clutch(box, 20.0), 1.0, "down through a shift")
+
+
+func test_the_exhaust_pops_when_lifting_off_at_high_revs() -> void:
+	assert_eq(CockpitRules.pops_on_lift(3000.0, 0.0), 0, "not at low revs")
+	assert_eq(CockpitRules.pops_on_lift(CockpitRules.POP_FROM_RPM, 0.0), 1, "one from here on")
+	assert_gt(CockpitRules.pops_on_lift(CockpitRules.POP_RUN_RPM, 0.0), 1, "a run of them near the top")
+	assert_eq(CockpitRules.pops_on_lift(CockpitRules.POP_RUN_RPM, 0.99), 0, "and not every time")
+
+
+func test_only_really_hard_braking_makes_the_discs_glow() -> void:
+	var heat := 0.0
+	# One hard stop from 90 km/h.
+	var speed := 25.0
+	while speed > 0.0:
+		heat = CockpitRules.brake_heat(heat, 1.0, speed, 0.05)
+		speed -= 8.0 * 0.05
+	gut.p("one hard stop from 90 km/h: heat %.2f" % heat)
+	assert_eq(CockpitRules.disc_glow(heat), 0.0, "one stop does not")
+	# Stop after stop from 160 km/h, with a little road between.
+	for run in 4:
+		speed = 45.0
+		while speed > 10.0:
+			heat = CockpitRules.brake_heat(heat, 1.0, speed, 0.05)
+			speed -= 8.0 * 0.05
+		for i in 60:
+			heat = CockpitRules.brake_heat(heat, 0.0, 35.0, 0.05)
+	gut.p("four hard stops from 160 km/h: heat %.2f" % heat)
+	assert_gt(CockpitRules.disc_glow(heat), 0.0, "this does")
+	for i in 1200:
+		heat = CockpitRules.brake_heat(heat, 0.0, 25.0, 0.05)
+	assert_eq(heat, 0.0, "and a minute of driving cools them")

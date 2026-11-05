@@ -1,6 +1,15 @@
 # Changelog
 
 ## Unreleased (Phase A3: stages 2.0)
+- **Mirrors that really reflect:** the interior mirror and both door mirrors show what is really behind you, live, from
+  either seat: the road, the dust, a following car and its headlights, in the right place and the right way round. A hard
+  side hit breaks a door mirror (it hangs by its wires, black and cracked); a recovery restores it.
+- **Everything in the car works:** real needles for speed, revs, temperature, oil, fuel and volts, sweeping up at the key;
+  warning lamps; dials that light up with the headlights; pedals, gear lever and a handbrake that move; tail, brake and
+  reversing lights, hazards on a stuck car; a dome lamp (L) to read the map by, which half blinds the driver at
+  night; windows that slide into the doors, cracks that look like cracks; the car's own wipers, which clean only where they
+  pass; pops and a flame on the overrun; brake discs that glow after really hard use.
+- **Water and wet roads** mirror the trees, the sky and the cars (Medium and High).
 - **Flags:** every flag is the flag of Turkey, in its exact geometry and 3:2 proportions, waving on the
   crowd's poles, flying from the arches, printed on their banners and on the start's board.
 - **Start and finish:** real rally gantries with steel truss towers, a printed banner and concrete blocks;

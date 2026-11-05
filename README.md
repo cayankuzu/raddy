@@ -44,7 +44,7 @@ Windows x64 · Godot 4.7.2 (GDScript) · test build 0.2.0
 | Boşluk | El freni | Q / E | Sol / sağ cam |
 | H | Korna | Sol tık | Pencereden kutu at |
 | Q | Sol cam | F | Ön camı tekmele |
-| T | Silecekler | | |
+| T | Silecekler | L | Tavan lambası |
 
 Gamepad: tetikler gaz/fren, sol çubuk direksiyon.
 

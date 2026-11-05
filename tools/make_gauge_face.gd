@@ -19,9 +19,9 @@ const TEMP_HINGE := Vector2(92, 175)
 const OIL_HINGE := Vector2(92, 505)
 const FUEL_HINGE := Vector2(1956, 175)
 const VOLTS_HINGE := Vector2(1956, 505)
-## The six warning lamps, three a row, at the top of the middle (the steering wheel's rim hides the rest).
-const LAMP_ORIGIN := Vector2(918, 24)
-const LAMP_CELL := 71.0
+## The six warning lamps, three a row, in the middle between the dials, low enough to show through the rim.
+const LAMP_ORIGIN := Vector2(932, 330)
+const LAMP_CELL := 64.0
 const LAMP_LEVEL := 0.26
 const WHITE := Color(0.95, 0.95, 0.92)
 const DIM := Color(0.62, 0.63, 0.62)

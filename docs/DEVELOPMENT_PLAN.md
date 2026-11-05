@@ -264,4 +264,24 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     beyond the PC's own noise.
   Verified: full GUT, `tools\nettest.ps1`, `tools\flowtest.ps1 -Stage 0` and `-Stage 4`, shots of every surface, biome and weather
   in `reports/screenshots/a312/`.
+- 2026-11-05: A3 real details, mirrors, reflections and a car where everything works: DONE and verified.
+  - Mirrors (`CarMirrors`, `MirrorMath`, `CarParts`): real planar reflections from both seats, in place and the right way round
+    (a car on the left shows on the left of the picture: unit test against the engine's projection, and by eye), a follower and
+    its headlights at dusk, aimed per seat, door mirrors convex, dirt on them, a door mirror breaks and a recovery restores it.
+  - Cost, measured by switching the mirrors every second in one process while the bot drives stage 0 at 1920x1080 (the same
+    road, the same load of the PC): Medium +1.08 and +1.15 ms a frame (draw +0.92 and +1.04 ms), +60 and +64 draw calls, +0.34 M
+    triangles; Low +1.62 ms, +34 calls; High +1.45 ms, +57 calls. First version, before leaving things out: +4.8 ms, +290 calls.
+    What did it: no shadow pass per mirror (+2.8 ms), a sky that stays one sky for every camera, no fine scenery.
+  - Reflections: SSR from Medium up, +0.28 ms on Medium (toggled the same way), +0.6 to +0.95 ms on High. Standing water on a wet
+    road is a real mirror where it runs; water pools march their own ray (the engine's only sees opaque surfaces).
+  - Audit of everything in the car. Made to work: speed, rev, temperature, oil, fuel and volt needles, six warning lamps,
+    ignition sweep, backlight; pedals, gear lever; handbrake (fitted, the model has none); tail, brake, reversing lights, hazards
+    (the model's blinkers), dome lamp; wipers (the model's own now, they were parked decoration beside fitted blades); side
+    panes slide; the wheel turns about its real column (it wobbled about a straight axis) the right way; rear and small side
+    glass clear; exhaust pop and flame; discs. Checked, already right: wheels spin, steer and travel; horn. Left as they are,
+    nothing there pretends to act: door pulls, sun visors, glovebox lid, radio and vents (printed), suspension and engine meshes.
+  - Also found: brake glow tinted the cabin red (now cones backwards), motion blur was running inside the mirror pictures,
+    clouds met in a star at the zenith that paint mirrored (clouds baked with a clear zenith by `tools/make_clouds.gd`).
+  Verified: full GUT, `tools\nettest.ps1`, `tools\flowtest.ps1 -Stage 0` and `-Stage 4`, shots in `reports/screenshots/a3_real/`.
+  Not yet: the partner in the interior mirror (crew bodies come with A5), dusk in the room's settings (A4's night lights).
 

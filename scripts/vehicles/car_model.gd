@@ -41,6 +41,7 @@ var paint_material: StandardMaterial3D
 var mirrors: CarMirrors
 var cockpit: CarCockpit
 var lamps: CarLamps
+var heat: CarHeat
 
 var _steering: Node3D
 var _glass_panes: Array[MeshInstance3D] = []
@@ -83,6 +84,10 @@ func _ready() -> void:
 	var cabin := car.get_node_or_null(^"Cabin") as Cabin
 	if cabin != null:
 		cabin.dome_changed.connect(_on_dome)
+	heat = CarHeat.new()
+	heat.name = "Heat"
+	add_child(heat)
+	heat.build()
 	var damage_fx := CarDamageFx.new()
 	damage_fx.name = "DamageFx"
 	add_child(damage_fx)

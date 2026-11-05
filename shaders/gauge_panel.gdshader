@@ -29,8 +29,8 @@ const vec2 TEMP_HINGE = vec2(92.0, 175.0);
 const vec2 OIL_HINGE = vec2(92.0, 505.0);
 const vec2 FUEL_HINGE = vec2(1956.0, 175.0);
 const vec2 VOLTS_HINGE = vec2(1956.0, 505.0);
-const vec2 LAMP_ORIGIN = vec2(918.0, 24.0);
-const float LAMP_CELL = 71.0;
+const vec2 LAMP_ORIGIN = vec2(932.0, 330.0);
+const float LAMP_CELL = 64.0;
 // A lamp's symbol is baked this bright (linear), unlit.
 const float LAMP_INK = 0.055;
 const vec3 NEEDLE = vec3(1.0, 0.34, 0.06);

@@ -19,12 +19,8 @@ const BOUNCE := {
 }
 const BOUNCE_SHARE := 0.5
 const OVERCAST := [RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG, RaceSettings.Weather.SNOW, RaceSettings.Weather.DUST_STORM]
-## Clouds across the sky (an equirectangular picture of noise, made once per kind of weather): the noise
-## up to where they begin and where they are thick, and how bright they are. Square, so that spread over
-## twice as many degrees across as up they lie flat like clouds.
-const CLOUDS_FROM := {false: 0.53, true: 0.3}
-const CLOUDS_THICK := {false: 0.72, true: 0.8}
-const CLOUDS_SIZE := 1024
+## Clouds across the sky, thicker under an overcast sky (baked by tools/make_clouds.gd), and how bright they are.
+const CLOUDS := {false: preload("res://assets/sky/clouds_clear.png"), true: preload("res://assets/sky/clouds_overcast.png")}
 const CLOUDS_LIGHT := {false: Color(1.0, 0.99, 0.97), true: Color(0.8, 0.81, 0.83)}
 ## The sun stands on a render layer of its own: what leaves it out of its mask (a mirror's camera) has no sun,
 ## and so no shadow pass of its own to pay for.
@@ -38,7 +34,6 @@ const DUSK_LIGHT := 0.2
 ## Weather in which the crews drive with their headlights on.
 const HEADLIGHT_WEATHER := [RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG, RaceSettings.Weather.SNOW, RaceSettings.Weather.DUST_STORM]
 
-static var _cloud_covers: Dictionary = {}
 ## How much daylight the last race look has (the car's cabin fill stands in for it).
 static var daylight := 1.0
 
@@ -68,7 +63,7 @@ static func create(biome: int, weather: int, dusk := false) -> Node3D:
 	sky_material.ground_bottom_color = horizon.darkened(0.45)
 	sky_material.sun_angle_max = 30.0
 	sky_material.sky_energy_multiplier = (0.8 if overcast else 1.0) * daylight
-	sky_material.sky_cover = _cloud_cover(overcast)
+	sky_material.sky_cover = CLOUDS[overcast]
 	sky_material.sky_cover_modulate = CLOUDS_LIGHT[overcast]
 	var sky := Sky.new()
 	sky.sky_material = sky_material
@@ -138,28 +133,3 @@ static func create(biome: int, weather: int, dusk := false) -> Node3D:
 	root.add_child(in_the_sky)
 	GraphicsQuality.apply_look(env, sun, GraphicsQuality.current())
 	return root
-
-
-## Soft clouds with a few holes in them.
-static func _cloud_cover(overcast: bool) -> Texture2D:
-	if not _cloud_covers.has(overcast):
-		var noise := FastNoiseLite.new()
-		noise.seed = 41
-		noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-		noise.frequency = 0.0085
-		noise.fractal_octaves = 6
-		noise.fractal_gain = 0.55
-		var ramp := Gradient.new()
-		ramp.set_color(0, Color(1.0, 1.0, 1.0, 0.0))
-		ramp.set_color(1, Color.WHITE)
-		ramp.set_offset(0, CLOUDS_FROM[overcast])
-		ramp.set_offset(1, CLOUDS_THICK[overcast])
-		var cover := NoiseTexture2D.new()
-		cover.width = CLOUDS_SIZE
-		cover.height = CLOUDS_SIZE
-		cover.seamless = true
-		cover.generate_mipmaps = true
-		cover.color_ramp = ramp
-		cover.noise = noise
-		_cloud_covers[overcast] = cover
-	return _cloud_covers[overcast]

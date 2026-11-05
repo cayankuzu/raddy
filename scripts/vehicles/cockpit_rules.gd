@@ -2,7 +2,7 @@ class_name CockpitRules
 extends RefCounted
 ## What every needle, lamp and lever in the car shows, from what the car is really doing: speed, the
 ## Gearbox's revs and gear, the pedals, the damage. Pure, so every peer shows the same from the same state and
-## tests can check it; CarCockpit and CarLamps put it on the real car.
+## tests can check it; CarCockpit, CarLamps and CarHeat put it on the real car.
 
 enum Lamp { HANDBRAKE, CHARGE, OIL, ENGINE, BEAM, HAZARD }
 
@@ -30,6 +30,17 @@ const FUEL_FULL := 0.92
 const FUEL_PER_KM := 0.05
 ## Hazards blink with this period (seconds) when the car needs recovering or is badly hurt.
 const HAZARD_PERIOD := 0.72
+## Lifting off at high revs: pops from these revs on (one, then a run of them), this often.
+const POP_FROM_RPM := 4600.0
+const POP_RUN_RPM := 5800.0
+const POP_CHANCE := 0.7
+## The brakes' heat, 0..1: what a full stop adds per second at BRAKE_HEAT_SPEED, what it loses standing and per
+## m/s of cooling air. The discs start to glow at DISC_GLOW_FROM: only after really hard use.
+const BRAKE_HEAT_RATE := 0.3
+const BRAKE_HEAT_SPEED := 40.0
+const BRAKE_COOL := 0.025
+const BRAKE_COOL_PER_MPS := 0.0022
+const DISC_GLOW_FROM := 0.65
 ## Gear lever: across and fore-aft, -1..1, an H gate; the lever goes through neutral.
 const GATES := {1: Vector2(-1.0, -1.0), 2: Vector2(-1.0, 1.0), 3: Vector2(0.0, -1.0), 4: Vector2(0.0, 1.0), 5: Vector2(1.0, -1.0), -1: Vector2(1.0, 1.0)}
 
@@ -133,3 +144,23 @@ static func lever_step(at: Vector2, gate: Vector2, step: float) -> Vector2:
 	else:
 		next.y = move_toward(at.y, gate.y, step)
 	return next
+
+
+## How many pops the exhaust gives for a lift at `rpm`; `roll` is a random 0..1.
+static func pops_on_lift(rpm: float, roll: float) -> int:
+	if rpm < POP_FROM_RPM or roll > POP_CHANCE:
+		return 0
+	return 3 if rpm >= POP_RUN_RPM else 1
+
+
+## The brakes' heat after `delta` seconds of `brake` (0..1) at `speed_mps`.
+static func brake_heat(heat: float, brake: float, speed_mps: float, delta: float) -> float:
+	var speed := absf(speed_mps)
+	var warming := clampf(brake, 0.0, 1.0) * speed / BRAKE_HEAT_SPEED * BRAKE_HEAT_RATE
+	var cooling := BRAKE_COOL + speed * BRAKE_COOL_PER_MPS
+	return clampf(heat + (warming - cooling) * delta, 0.0, 1.0)
+
+
+## How brightly the discs glow at `heat`, 0..1.
+static func disc_glow(heat: float) -> float:
+	return clampf((heat - DISC_GLOW_FROM) / (1.0 - DISC_GLOW_FROM), 0.0, 1.0)

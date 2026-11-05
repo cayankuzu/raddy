@@ -15,7 +15,7 @@ const BLINK_GLOW := 3.5
 const DOME_GLOW := 2.5
 ## The dome lamp on the headliner, and the light it gives.
 const DOME_LENS_AT := Vector3(0.0, 0.852, 0.02)
-const DOME_LENS_SIZE := Vector3(0.13, 0.012, 0.055)
+const DOME_LENS_SIZE := Vector3(0.095, 0.008, 0.04)
 const DOME_LIGHT_AT := Vector3(0.0, 0.8, 0.02)
 const DOME_RANGE := 1.45
 const DOME_ENERGY := 1.1
@@ -86,8 +86,8 @@ func _rear_glow(light_name: String, color: Color, reach: float, energy: float) -
 
 func _build_dome() -> void:
 	_dome_lens = StandardMaterial3D.new()
-	_dome_lens.albedo_color = Color(0.75, 0.72, 0.62)
-	_dome_lens.roughness = 0.55
+	_dome_lens.albedo_color = Color(0.3, 0.29, 0.26)
+	_dome_lens.roughness = 0.5
 	_dome_lens.emission_enabled = true
 	_dome_lens.emission = Color(1.0, 0.86, 0.62)
 	var mesh := BoxMesh.new()

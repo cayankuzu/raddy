@@ -40,6 +40,7 @@ No Blender; model in Godot only as a last resort.
 - `tools\export_windows.ps1 [-Debug]`: `builds\windows\RADDY.exe` via the "Windows Desktop" preset.
 - `tools\editor.ps1 [-Headless | -Stop]`: open the editor (Beckett MCP runs inside it).
 - `tools\mic_check.ps1 [-Device <name>]`: input level per microphone (user speaks while it listens).
+- Baked assets: `tools/make_gauge_face.gd` (needs a window), `tools/make_clouds.gd`, `tools/make_exhaust_pops.py`.
 
 ## Specs and plan
 - `docs/RADDY_MEGA_MASTER_PROMPT_FINAL.md` is the main spec; `docs/RADDY_SUPPLEMENT_*.md` add art direction,
@@ -54,6 +55,26 @@ No Blender; model in Godot only as a last resort.
   later the network layer, and tests. Tunables live in `VehicleConfig` (`data/vehicles/rally_hatch.tres`).
 - Surfaces: colliders set metadata `surface` (see `Surface`); untagged ground is gravel.
 - Dev scene `scenes/dev/vehicle_test_track.tscn` (`--autodrive` user arg circles) for car tuning.
+- Everything on the car works, on every peer. `CarParts` cuts what moves out of the Milano's one-piece meshes (by the
+  island inside a box, test_car_parts.gd pins the triangle counts; meshes shared by every car, in car space). `CockpitRules`
+  (pure) says what every needle, lamp and lever shows; `CarCockpit` puts it on the car near the camera: the instrument
+  panel (`shaders/gauge_panel.gdshader` over a face baked by `tools/make_gauge_face.gd`, keep both layouts in step),
+  pedals, H-gate lever, fitted handbrake. `CarLamps`: tail lights only with the headlights, brake, reversing, hazards
+  on a stuck or critical car, the dome lamp (`Cabin.dome_on`, L, the map holder's; shows in the glass through
+  `shaders/glass_ghost.gdshaderinc`). `CarHeat`: pops and flame on a lift at high revs, front discs that glow after
+  really hard braking. The wheel turns about `CarModel.WHEEL_AXIS` and is set in so the dials show through the rim.
+  `Cabin` slides the side panes into the doors; `WindshieldGlass` sweeps the model's own wipers on their hinges and
+  tells the shader the ring each blade passes. The handbrake comes with the snapshot extras; gear and revs come
+  from each peer's `CarAudio.gearbox`.
+- Mirrors: `CarMirrors` on every car, plain glass until `CarModel.bind_seat(camera)` (local seat only, never
+  headless). Each mirror is a `SubViewport` + camera at the eye reflected in the glass, frustum fitted to the glass
+  (`MirrorMath`, tested against the engine's projection; the picture is flipped by the display, `mirror_glass.gdshader`).
+  Linear HDR picture, no tone mapping: the main view grades it with the world. Turns and sizes per level in
+  `GraphicsQuality`; at most one mirror a frame, only those the seat can see. A mirror's camera leaves out
+  `CarMirrors.SELF_LAYER` (glass, housings, the motion blur), `GraphicsQuality.FINE_SCENERY_LAYER` (`RoadsideDresser`: low,
+  backdrop, no collision, or `fine` in the catalog) and `RaceLook.SUN_LAYER`: it has a shadowless sun of its own
+  (`MIRROR_SUN_LAYER`, which it clears from the main camera). `RaceLook`'s `SunInTheSky` is what the sky shows, the same
+  for every camera: different sky lights per camera would rebuild the sky's reflections every time the view changes.
 
 ## Screens and flow (scripts/core, scripts/ui, scripts/gameplay/race.gd)
 - Autoloads: `Settings` (user://settings.cfg: language, volumes, voice, effects, key bindings; tests set
@@ -134,7 +155,8 @@ No Blender; model in Godot only as a last resort.
 - `RouteFollower` (pure pursuit + corner speed planner, `start_delay`, stops at the end of an open path,
   `obstacles` Callable → steers around fallen trunks/boulders at `AVOID_SPEED`) drives a `RallyCar`:
   `--autodrive`, tests, flow-test bots (which also confirm their own recovery offers). `RaceProgress` is the host's gate accounting.
-- Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N`
+- Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N --quality=N`
+  (forces the whole graphics level) `--dusk --follower=D` (a second car D m behind, for the mirrors)
   `--view=M+E+H [--view-at=M+E+H]` (a fixed camera E m right of road metre M, H m up) `--quit-after-seconds=N`.
   `RaceSession.settings.stage` builds the same stage on every peer.
 
@@ -166,7 +188,7 @@ No Blender; model in Godot only as a last resort.
 - Cabin (spec §9-10): `Cabin` is the one state system for windows (state + cracked), windshield, dirt,
   wipers, per-seat exposure and faints, the map and the cans; host authority, `_broadcast(rpc, args)` runs
   the RPC everywhere or just locally offline. `SeatEffects` (CanvasLayer) shows the local seat's view of it.
-  Input: Q/E windows, F kick windshield (navigator), T wipers (driver), M map, LMB throw. Fainted seats are
+  Input: Q/E windows, F kick windshield (navigator), T wipers (driver), M map, L dome lamp, LMB throw. Fainted seats are
   checked by `PlayerCarInput`, `RouteFollower` and `CabinInput` via `cabin.is_fainted(role)`.
 - Damage (spec §8): the driver's `RallyCar.impact` (body contact; a landing on the wheels does not count) is
   judged by the host (`_rpc_report_impact` from a client driver), which keeps a `VehicleDamage` per team, sends
@@ -185,6 +207,9 @@ No Blender; model in Godot only as a last resort.
   plus gravel crunch / rumble / squeal by surface and slide, water, wind for the crew, crashes and the horn (H).
   Assets come from `tools/cut_audio.py` (raw files in git-ignored `raw_assets/audio/`, fetched by
   `tools/fetch_audio.py`); loops carry a smpl chunk. Players do not play headless.
+- Reflections: `Environment.ssr_*` from Medium up (`GraphicsQuality.apply_look`, also the global `wet_mirror` that lets
+  standing water on the road be a real mirror); it only sees opaque surfaces, so water pools march their own ray
+  (`puddle.gdshader`, `reflection_steps`, 0 on Low).
 - Glass: `WindshieldGlass` puts the Cabin's dirt, crack and wipers on the windshield mesh (its own plane is
   measured from the triangles); `SeatEffects` keeps only the face-hit flash and the faint.
 - Editor-launched games need `--accessibility disabled` too on this PC: set once via Beckett

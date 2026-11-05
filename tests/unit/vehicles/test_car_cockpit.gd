@@ -259,3 +259,63 @@ func test_the_rear_glow_points_backwards_and_low_quality_has_none() -> void:
 	var forward := -_model.lamps._brake_light.global_basis.z
 	var along := _car.global_basis.inverse() * forward
 	assert_gt(along.z, 0.8, "it shines out of the back of the car, not through the cabin")
+
+
+func test_a_lift_at_high_revs_spits_a_flame_and_it_goes_out() -> void:
+	var heat := _model.heat
+	heat._audio = _audio
+	heat._rng.seed = 3
+	_audio.gearbox.rpm = 7000.0
+	var flames := 0
+	for attempt in 12:
+		_car.controls.throttle = 1.0
+		heat._physics_process(0.016)
+		_car.controls.throttle = 0.0
+		for i in 60:
+			heat._physics_process(0.016)
+			if heat._flame.visible:
+				flames += 1
+			heat._process(0.016)
+	gut.p("frames with a flame over 12 lifts: %d" % flames)
+	assert_gt(flames, 0, "lifting at 7000 rpm pops")
+	assert_false(heat._flame.visible, "and the flame goes out")
+	flames = 0
+	_audio.gearbox.rpm = 2500.0
+	for attempt in 12:
+		_car.controls.throttle = 1.0
+		heat._physics_process(0.016)
+		_car.controls.throttle = 0.0
+		for i in 30:
+			heat._physics_process(0.016)
+			if heat._flame.visible:
+				flames += 1
+			heat._process(0.016)
+	assert_eq(flames, 0, "nothing at low revs")
+
+
+func test_the_discs_show_only_when_hot() -> void:
+	var heat := _model.heat
+	heat._audio = _audio
+	heat._physics_process(0.016)
+	assert_false(heat._discs[0].visible, "cold: nothing to draw")
+	heat.brake_heat = 0.95
+	heat._physics_process(0.016)
+	assert_true(heat._discs[0].visible, "glowing")
+	assert_gt(heat._disc_material.emission_energy_multiplier, 1.0)
+
+
+func test_the_wheels_spin_at_the_real_speed_steer_and_travel() -> void:
+	_car.steer_angle = 0.2
+	var front: RallyCar.CarWheel = _car._wheels[0]
+	var rear: RallyCar.CarWheel = _car._wheels[2]
+	front.rolling_speed = 10.0
+	front.in_contact = true
+	front.compression = 0.1
+	rear.rolling_speed = 10.0
+	front.spin = 0.0
+	var dt := 0.01
+	_car._physics_process(dt)
+	assert_almost_eq(front.visual.rotation.x, -10.0 / _car.config.wheel_radius * dt, 0.0001, "spin = speed / radius")
+	assert_almost_eq(front.visual.rotation.y, -0.2, 0.0001, "a front wheel steers")
+	assert_eq(rear.visual.rotation.y, 0.0, "a rear one does not")
+	assert_almost_eq(front.visual.position.y, -(_car.config.rest_length - 0.1), 0.0001, "the suspension moves it")

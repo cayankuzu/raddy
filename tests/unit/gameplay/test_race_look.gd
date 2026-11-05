@@ -9,11 +9,24 @@ func _environment(biome: int, weather: int) -> Environment:
 	return (look.get_node(^"WorldEnvironment") as WorldEnvironment).environment
 
 
+## How much of a row of the picture is cloud, 0..1; `at` 0 is the zenith, 1 straight down.
+func _cover(picture: Image, at: float) -> float:
+	var y := int(at * (picture.get_height() - 1))
+	var sum := 0.0
+	for x in range(0, picture.get_width(), 8):
+		sum += picture.get_pixel(x, y).a
+	return sum / (picture.get_width() / 8.0)
+
+
 func test_every_weather_has_clouds_and_overcast_has_more() -> void:
 	for weather in RaceSettings.Weather.values():
 		var sky := _environment(RaceSettings.Biome.FOREST, weather).sky.sky_material as ProceduralSkyMaterial
 		assert_not_null(sky.sky_cover, "weather %d has clouds" % weather)
-	assert_lt(RaceLook.CLOUDS_FROM[true], RaceLook.CLOUDS_FROM[false], "an overcast sky has less blue in it")
+	var clear: Image = (RaceLook.CLOUDS[false] as Texture2D).get_image()
+	var overcast: Image = (RaceLook.CLOUDS[true] as Texture2D).get_image()
+	assert_gt(_cover(overcast, 0.5), _cover(clear, 0.5), "an overcast sky has less blue in it")
+	assert_lt(_cover(clear, 0.0), 0.02, "nothing at the zenith, where clouds would meet in a star that paint mirrors")
+	assert_lt(_cover(overcast, 0.0), 0.02)
 
 
 func test_the_shade_takes_the_colour_of_the_biome() -> void:

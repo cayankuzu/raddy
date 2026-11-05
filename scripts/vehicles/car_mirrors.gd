@@ -37,7 +37,7 @@ const HANG_DEGREES := 58.0
 const HANG_FLAP := 16.0
 const HANG_FLAP_SPEED := 25.0
 ## How much of the windshield's dirt lands on a mirror's glass.
-const DIRT_SHARE := 0.45
+const DIRT_SHARE := 0.6
 const DISPLAY_SHADER := preload("res://shaders/mirror_glass.gdshader")
 ## The render layer of what no mirror's camera sees: glass, head and housings (a mirror's own glass stands at its
 ## near plane, the rim of its housing just past it), and the main view's motion blur.
@@ -273,8 +273,9 @@ func _release() -> void:
 	_seat = null
 
 
+## The door mirrors stand outside, in what the road throws up.
 func _on_dirt(level: float) -> void:
-	for slot: int in _mirrors:
+	for slot: int in [Slot.LEFT, Slot.RIGHT]:
 		(_mirrors[slot] as Mirror).material.set_shader_parameter(&"dirt", level * DIRT_SHARE)
 
 

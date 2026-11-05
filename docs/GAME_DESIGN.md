@@ -58,6 +58,11 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   gamepad, wheel), selectable assists (off / low / high).
 - Feedback layers: g-force head motion, surface rumble in the camera and gamepad vibration, tyre and
   gravel sound tied to slip, dashboard needles that match the HUD.
+- **Everything on the car works.** Nothing that looks functional is decoration: three mirrors that truly reflect from
+  either seat (a door mirror breaks in a hard side hit, a recovery restores it), needles and warning lamps that read the
+  real speed, revs and engine damage and sweep at the key, pedals, gear lever and handbrake that move, tail, brake and
+  reversing lights, hazards on a stuck car, a dome lamp to read the map by at night that half blinds the driver, windows
+  that slide, wipers that clean only where they pass, pops and a flame on the overrun, discs that glow after hard use.
 
 ## 6. Chaos mechanics (the fun list)
 - **Shock gun** (never called "Taser", a trademark): one per player, 2 darts per stage, refilled at
