@@ -30,9 +30,9 @@ uniform float wipe_sweep = 1.658;
 
 // How thick the dust gets, and the mud's specks: above which value of the noise there is one on clean glass, how much dirt
 // brings that down, how sharp a speck's edge is.
-const float FILM = 0.62;
-const float SPECKS_FROM = 0.71;
-const float SPECKS_PER_DIRT = 0.15;
+const float FILM = 0.7;
+const float SPECKS_FROM = 0.74;
+const float SPECKS_PER_DIRT = 0.1;
 const float SPECK_EDGE = 0.03;
 
 varying vec3 local_pos;
@@ -62,8 +62,8 @@ void fragment() {
 	float film = clamp(d * (FILM + (patches - 0.5) * 0.3 + (streak - 0.5) * 0.5 + (0.4 - uv.y) * 0.3), 0.0, 1.0);
 	// Stretched up the glass by the wind, slanted and thinned out by a slower noise, or the repeats of one texture show.
 	float thins = texture(dirt_noise, uv * vec2(5.3, 3.7) + vec2(0.41, 0.19)).r;
-	float drops = texture(dirt_noise, vec2(uv.x * 37.0 + uv.y * 5.0, uv.y * 9.0) + vec2(0.13, 0.71)).r;
-	float droplets = texture(dirt_noise, vec2(uv.x * 89.0 - uv.y * 11.0, uv.y * 23.0) + vec2(0.57, 0.29)).r;
+	float drops = texture(dirt_noise, vec2(uv.x * 53.0 + uv.y * 3.0, uv.y * 8.0) + vec2(0.13, 0.71)).r;
+	float droplets = texture(dirt_noise, vec2(uv.x * 113.0 - uv.y * 7.0, uv.y * 19.0) + vec2(0.57, 0.29)).r;
 	float reached = SPECKS_FROM - SPECKS_PER_DIRT * d - (patches - 0.5) * 0.06;
 	float specks = max(smoothstep(reached, reached + SPECK_EDGE, drops * 0.7 + thins * 0.3),
 		smoothstep(reached, reached + SPECK_EDGE, droplets * 0.7 + thins * 0.3));

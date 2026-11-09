@@ -50,6 +50,9 @@
   a door mirror lies under it; the mirrors show the saplings and birches beside the road and no words floating without their boards; reflections in the
   pools no longer break into slivers; spray flies off the car's flanks instead of standing in the cabin; a side window no longer slides out through the door;
   guard rails stand on evenly spaced posts; a recovery no longer cools the temperature gauge; a car rolling back by itself no longer shows reversing lights.
+- **Rev counter:** it no longer goes nearly invisible whenever the car is moving; it steps aside only when the right door mirror is really under it.
+- **A dirty windshield looks dirty:** a film of dust with the runs the wind draws and small specks of mud, instead of big brown blotches like camouflage; at its worst you can only guess the road.
+- **Pools:** the trees mirrored in the water are whole, not cut into bands.
 - **Results screen:** the table came out a letter per line and could not be read; now it is a proper table with the medal beside each time.
 - **Fixes found by looking at every stage:** posts no longer poke through the middle of the boards; the rock slabs that stuck up from the
   desert like wings are gone, whole boulders sit down on the slopes in their place; a low sun ahead no longer turns the gravel white; fog and dust in the

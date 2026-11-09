@@ -9,11 +9,11 @@ func test_monitor_level_moves_while_not_transmitting() -> void:
 	capture.fake_tone_hz = 440.0
 	capture.start()
 	capture.transmitting = false
-	await wait_frames(10)
+	await wait_physics_frames(10)
 	gut.p("fake tone: monitor %.3f, transmit level %.3f" % [capture.monitor_level, capture.level])
 	assert_gt(capture.monitor_level, 0.1, "the monitor hears the input")
 	assert_eq(capture.level, 0.0, "nothing is sent while not transmitting")
 	capture.transmitting = true
-	await wait_frames(10)
+	await wait_physics_frames(10)
 	assert_gt(capture.level, 0.1, "transmitting frames carry the level too")
 	capture.stop()

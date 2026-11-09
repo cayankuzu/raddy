@@ -120,7 +120,8 @@ No Blender; model in Godot only as a last resort.
   the room shows the medal times and the record. Host buttons: same stage / next stage (`Net.start_race(settings, true)`) / back to room.
 - UI is built in code with `UiTheme` (static helpers must use `TranslationServer.translate`, not `tr`).
   Canvas layers: SeatEffects 5, RaceHud 8, ResultsPanel 12, PauseMenu 15, SettingsMenu 20.
-- `RaceHud` is drawn in code (`HudStageBar`, `HudCluster` rev counter/gear/speed: the driver's, fading over the right door mirror) in `UiTheme.hud_font()`
+- `RaceHud` is drawn in code (`HudStageBar`, `HudCluster` rev counter/gear/speed: the driver's, fading over the right door mirror; it runs after the cameras and `CarMirrors.glass_center` is where the
+  glass is drawn, a tick's difference moved the mirror under it at speed) in `UiTheme.hud_font()`
   (Windows' Bahnschrift via SystemFont, nothing shipped). The race captures the mouse for free look
   (`CockpitCamera.look`) unless a menu is open or it is a flow test.
 
@@ -280,8 +281,8 @@ No Blender; model in Godot only as a last resort.
 - Reflections: `Environment.ssr_*` from Medium up (`GraphicsQuality.apply_look`, also the global `wet_mirror` that lets
   standing water on the road be a real mirror); it only sees opaque surfaces, so water pools march their own ray
   (`puddle.gdshader`, `reflection_steps`, 0 on Low).
-- Glass: `WindshieldGlass` puts the Cabin's dirt, crack and wipers on the windshield mesh (its own plane is
-  measured from the triangles); `SeatEffects` keeps only the face-hit flash and the faint.
+- Glass: `WindshieldGlass` puts the Cabin's dirt (`windshield.gdshader`: a film of dust plus specks that stay apart; a threshold of noise that joins up reads as camouflage), crack and wipers on the
+  windshield mesh (its own plane is measured from the triangles); `SeatEffects` keeps only the face-hit flash and the faint.
 - Editor-launched games need `--accessibility disabled` too on this PC: set once via Beckett
   `call_method target=res://tools/editor_run_args.gd method=apply` (editor setting `run/main_run_args`).
 

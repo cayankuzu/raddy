@@ -337,4 +337,13 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   - Final numbers, `tools\perf.ps1 -Stage 0`, alternating runs of 30 s, the sections of the road: Medium 35.0/32.1/32.8/32.6 fps and, with other programs loading the PC, 23.0/19.4/19.2/19.9,
     draw calls 791-864, 2.7-3.0 M triangles; High 34.5/29.6/29.0/26.2 fps and 27.8/21.6/22.4/20.3, draw calls 1021-1138, 3.7-4.3 M triangles. The gate's Medium was 33.7/30.2/34.2/34.5, 780-840 draw calls: no worse.
   Verified: 372 GUT tests, `tools\nettest.ps1`, `tools\flowtest.ps1 -Clients 1 -Stage 2` (2:06.3 / 2:16.9, 18.3 / 16.9 m/s: the same as the gate's averages, 18.5 / 17.1).
+- 2026-11-10: A3 final check, the finished phase looked at once more from the real game and the stage shots (Black Pine, Red Canyon, Glacier Ridge in snow, mirrors by day and dusk, the HUD, the map, the results): DONE.
+  - Found and fixed: the rev counter sat at 18 % for most of a drive (36 of 47 one-second samples on Black Pine, every speed over 50 km/h): the HUD read a camera that had not moved yet this frame against
+    a mirror a physics tick ahead, which put the right door mirror under it. Now 0 of 47: the HUD runs after the cameras, `CarMirrors.glass_center` is where the glass is drawn (tested at 30 m/s).
+    Dirt on the windshield was a threshold of big noise, a camouflage net: now a film of dust with the wind's runs and small specks of mud stretched up the glass (`windshield.gdshader`), 35 %, 70 %, 100 % looked at against a dark forest and an open sky.
+    A pool's mirrored ray steps a little differently per pixel: whole trees instead of bands, on Medium and High.
+  - Cost of the two shaders, `tools\perf.ps1 -Stage 0 -Quality 1`, 30 s, two alternating rounds at 1920x1080 with another project's tests loading the PC: before 35.7/36.7/37.5/36.7 and 25.4/25.5/23.0/22.0 fps, after 34.8/36.0/36.0/37.3 and
+    37.2/32.0/31.2/30.4; draw calls 797-863 and 778-852 before, 797-862 and 794-863 after; 2.7-3.0 M triangles, physics 1.3-1.8 ms (up to 3.6 under the load): no change beyond the PC's noise.
+  - Known and left for their phases: firs stay green in snow (A4), crew bodies (A5), the menus are still plain (A7), 30-37 fps on this laptop against the 60 of the quality bar (A9), a stone chip cracks the windshield on most gravel stages (0.012 a second at 20 m/s: judged with people at the wheel, `TEST_PLAN.md`).
+  Verified: 375 GUT tests (10369 asserts, one Jolt job-system warning under load), `tools\nettest.ps1`, `tools\flowtest.ps1 -Clients 1 -Stage 2` (2:05.2 / 2:15.3, 18.5 / 17.1 m/s), no script or shader error in their logs.
 
