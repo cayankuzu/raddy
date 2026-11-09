@@ -1,16 +1,19 @@
 # Frame times on one stage, windowed, the bot driving: one summary line (build time, average fps,
 # p95/p99 frame time, draw calls, primitives, physics ms) from tools\perf_probe.gd.
-#   tools\perf.ps1 [-Stage 0] [-Quality 1] [-Seconds 30] [-Start 0]
+#   tools\perf.ps1 [-Stage 0] [-Quality 1] [-Seconds 30] [-Start 0] [-ExtraArgs "--a,--b"]
 param(
     [string]$Stage = "0",
     [int]$Quality = 1,
     [int]$Seconds = 30,
-    [int]$Start = 0
+    [int]$Start = 0,
+    [string[]]$ExtraArgs = @()
 )
+# From a command line only the first token after -ExtraArgs binds: callers pass one comma-joined string.
+$ExtraArgs = @($ExtraArgs | ForEach-Object { $_ -split '[ ,]+' } | Where-Object { $_ })
 . "$PSScriptRoot\godot.ps1"
 
 $args = @("--path", $ProjectDir) + $GodotWindowArgs + @("--resolution", "1920x1080", "-s", "res://tools/perf_probe.gd", "--",
-    "--stage=$Stage", "--quality=$Quality", "--start=$Start", "--autodrive", "--perf-seconds=$Seconds")
+    "--stage=$Stage", "--quality=$Quality", "--start=$Start", "--autodrive", "--perf-seconds=$Seconds") + $ExtraArgs
 $out = & $GodotConsole @args 2>&1
 $built = ($out | Select-String "ROUTE built in (\d+) ms" | Select-Object -Last 1)
 $perf = @($out | Select-String "^PERF ")

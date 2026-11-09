@@ -71,6 +71,48 @@ func test_a_slow_can_marks_a_window_a_fast_one_breaks_it_and_broken_stays_open()
 	assert_eq(_cabin.window_state[Cabin.Side.LEFT], Cabin.WindowState.BROKEN, "fast enough to break outright")
 
 
+## Right behind another car at speed the stones come quickly.
+func _follow_until_hit(hits: int) -> void:
+	_car.forward_speed = 30.0
+	_cabin.gap_ahead = 1.0
+	var elapsed := 0.0
+	while _cabin.stone_hits < hits and elapsed < 60.0:
+		await wait_ticks(12)
+		elapsed += 0.1
+
+
+func test_the_first_stone_leaves_a_bullseye_and_the_second_cracks_the_glass() -> void:
+	await _spawn(Surface.GRAVEL)
+	var seen: Array[int] = []
+	_cabin.stone_chipped.connect(func(hits: int) -> void: seen.append(hits))
+	var glass: WindshieldGlass = _car.get_node(^"Model/WindshieldGlass")
+	assert_eq(glass._material.get_shader_parameter(&"chipped"), 0.0, "clean glass")
+	await _follow_until_hit(1)
+	assert_eq(_cabin.stone_hits, 1)
+	assert_eq(_cabin.windshield, Cabin.Windshield.INTACT, "a bullseye is not a crack")
+	assert_eq(glass._material.get_shader_parameter(&"chipped"), 1.0, "the bullseye shows on the glass")
+	assert_eq(_cabin._opening_for(RosterRules.Role.DRIVER), 0.0, "and lets nothing in")
+	await _follow_until_hit(StoneChipRules.CRACKS_AT)
+	assert_eq(_cabin.windshield, Cabin.Windshield.CRACKED, "the second one cracks it")
+	await _follow_until_hit(StoneChipRules.MOST_HITS)
+	await _seconds(1.0)
+	assert_eq(_cabin.stone_hits, StoneChipRules.MOST_HITS, "the worst it gets")
+	assert_eq(seen, [1, 2, 3, 4, 5, 6], "every stone told")
+
+
+func test_no_stone_marks_a_windshield_that_is_gone_or_a_car_alone_on_mud() -> void:
+	await _spawn(Surface.GRAVEL)
+	_cabin.request_kick_windshield()
+	await _follow_until_hit(1)
+	assert_eq(_cabin.stone_hits, 0, "no glass to mark")
+	_world.free()
+	_world = Node3D.new()
+	add_child_autofree(_world)
+	await _spawn(Surface.MUD)
+	await _follow_until_hit(1)
+	assert_eq(_cabin.stone_hits, 0, "mud throws no stones")
+
+
 func test_dirt_builds_on_mud_and_the_wipers_clear_it() -> void:
 	await _spawn(Surface.MUD)
 	assert_eq(_car.wheel_surface(0), Surface.MUD)

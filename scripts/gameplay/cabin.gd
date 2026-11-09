@@ -16,6 +16,8 @@ signal map_warning(active: bool)
 signal map_lost(side: int)
 signal window_state_changed(side: int, state: int, cracked: bool)
 signal windshield_changed(state: int)
+## A stone off the road marked the windshield: `hits` so far (every peer).
+signal stone_chipped(hits: int)
 signal dirt_changed(level: float)
 signal wipers_changed(on: bool)
 signal dome_changed(on: bool)
@@ -42,8 +44,6 @@ const EXPOSURE_SPEED_FULL := 25.0
 ## Chance per second of a stone in the face at full exposure rate.
 const FACE_HIT_CHANCE := 0.3
 const FACE_HIT_EXPOSURE := 0.12
-## Chance per second of a stone chip cracking an intact windshield at 20 m/s on gravel.
-const STONE_CHIP_CHANCE := 0.012
 const WIPER_CLEAR_RATE := 0.22
 ## A side window slides this way into its door (car space, the glass's own slant) and this far, in this long. What
 ## has gone below its lower edge when closed, the door's sill, is cut away: the door is more upright than the glass.
@@ -80,6 +80,10 @@ var window_open: Array[bool] = [false, false]
 var window_state: Array[int] = [WindowState.CLOSED, WindowState.CLOSED]
 var window_cracked: Array[bool] = [false, false]
 var windshield := Windshield.INTACT
+## How many stones have marked this windshield (StoneChipRules).
+var stone_hits := 0
+## Host: metres along the road to the next car in front, set by the race (StoneChipRules).
+var gap_ahead := StoneChipRules.NOBODY_AHEAD
 var dirt := 0.0
 var wipers_on := false
 ## The cabin's dome lamp (the map holder's switch, CarLamps shows it).
@@ -340,9 +344,11 @@ func _update_cabin_weather(delta: float) -> void:
 	if absf(dirt - _dirt_sent) >= 0.04 or (dirt == 0.0 and _dirt_sent > 0.0):
 		_dirt_sent = dirt
 		_broadcast(_rpc_set_dirt, [dirt])
-	# Stone chips on loose surfaces.
-	if windshield == Windshield.INTACT and speed > 12.0 and Surface.grit(surface) >= 0.8:
-		if _rng.randf() < STONE_CHIP_CHANCE * (speed / 20.0) * delta:
+	# Stones off the road: rare alone, the price of following someone close.
+	if windshield != Windshield.REMOVED and stone_hits < StoneChipRules.MOST_HITS \
+			and _rng.randf() < StoneChipRules.chance_per_second(speed, surface, gap_ahead) * delta:
+		_broadcast(_rpc_stone_chip, [stone_hits + 1])
+		if stone_hits >= StoneChipRules.CRACKS_AT and windshield == Windshield.INTACT:
 			_broadcast(_rpc_set_windshield, [Windshield.CRACKED])
 	# Exposure per seat (spec §9.3-9.4).
 	var wind := clampf((speed - EXPOSURE_SPEED_FLOOR) / (EXPOSURE_SPEED_FULL - EXPOSURE_SPEED_FLOOR), 0.0, 1.3)
@@ -589,6 +595,13 @@ func _rpc_set_windshield(state: int) -> void:
 		dirt_changed.emit(dirt)
 	windshield_changed.emit(state)
 	print("NET windshield %s team %d" % [Windshield.keys()[state].to_lower(), team])
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_stone_chip(hits: int) -> void:
+	stone_hits = hits
+	stone_chipped.emit(hits)
+	print("NET stone chip %d team %d" % [hits, team])
 
 
 @rpc("authority", "call_local", "reliable")

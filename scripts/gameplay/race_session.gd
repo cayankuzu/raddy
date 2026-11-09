@@ -221,6 +221,8 @@ func _physics_process(delta: float) -> void:
 		var tracked: RallyCar = _team_cars.get(team)
 		if tracked != null:
 			(_trackers[team] as RouteTracker).update(tracked.global_position)
+	if Net.is_host():
+		_measure_gaps()
 	if countdown_left > 0.0:
 		countdown_left -= delta
 		if countdown_left <= 0.0:
@@ -240,6 +242,18 @@ func _physics_process(delta: float) -> void:
 				var car: RallyCar = _team_cars[team]
 				if not car.needs_recovery:
 					car.needs_recovery = true
+
+
+## Host: how far behind the next car each car is on the road, for the stones it throws at them (StoneChipRules).
+func _measure_gaps() -> void:
+	for team in _trackers:
+		var ahead: Array[float] = []
+		for other in _trackers:
+			var tracker: RouteTracker = _trackers[other]
+			var car: RallyCar = _team_cars[other]
+			if other != team and tracker.off_road <= RouteTracker.ON_ROAD and absf(car.forward_speed) >= StoneChipRules.THROWING_SPEED:
+				ahead.append(tracker.distance)
+		(_team_cars[team].get_node(^"Cabin") as Cabin).gap_ahead = StoneChipRules.gap_ahead((_trackers[team] as RouteTracker).distance, ahead)
 
 
 # --- recovery (spec §16): the host judges "stuck", counts confirmations and places the car ---

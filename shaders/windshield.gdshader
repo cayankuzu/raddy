@@ -12,6 +12,9 @@ uniform float edge_dirt = 0.0;
 uniform sampler2D dirt_noise : filter_linear_mipmap, repeat_enable;
 uniform sampler2D crack_texture : filter_linear_mipmap, repeat_disable;
 uniform float cracked = 0.0;
+// A stone's bullseye: whether there is one, and where (metres in u, v).
+uniform float chipped = 0.0;
+uniform vec2 chip_at = vec2(0.5);
 // The glass's plane in mesh space: bottom-left corner, unit axes and size in metres.
 uniform vec3 plane_origin = vec3(0.0);
 uniform vec3 plane_u = vec3(1.0, 0.0, 0.0);
@@ -35,7 +38,19 @@ const float SPECKS_FROM = 0.74;
 const float SPECKS_PER_DIRT = 0.1;
 const float SPECK_EDGE = 0.03;
 
+// A bullseye's radius (m).
+const float CHIP_RADIUS = 0.011;
+
 varying vec3 local_pos;
+
+// A stone's bullseye: a small crater, its rim and a speck in its heart catching the light, the glass inside it hazed.
+float bullseye(vec2 from_chip) {
+	float r = length(from_chip) / CHIP_RADIUS;
+	float rim = smoothstep(0.62, 0.82, r) * (1.0 - smoothstep(0.86, 1.05, r));
+	float heart = 1.0 - smoothstep(0.1, 0.3, r);
+	float haze = (1.0 - smoothstep(0.3, 1.0, r)) * 0.35;
+	return max(max(rim * 0.85, heart * 0.95), haze);
+}
 
 // 1 where a blade passes on its way, soft at the edges.
 float swept_by(vec2 from_hinge, vec3 wipe) {
@@ -69,7 +84,7 @@ void fragment() {
 		smoothstep(reached, reached + SPECK_EDGE, droplets * 0.7 + thins * 0.3));
 	specks *= smoothstep(0.02, 0.2, d);
 	float mud = clamp(film + specks * (0.92 - film), 0.0, 0.94);
-	float crack = cracked * texture(crack_texture, uv).a;
+	float crack = max(cracked * texture(crack_texture, uv).a, chipped * bullseye(metres - chip_at));
 	// Only mud and cracks scatter light, clean glass adds what it mirrors (car_glass.gdshader says why
 	// it mirrors nothing from a seat), so ALBEDO counts how much of them covers the glass.
 	float outside = smoothstep(2.0, 3.0, length(VERTEX));

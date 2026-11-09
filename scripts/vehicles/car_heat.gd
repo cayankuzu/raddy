@@ -56,7 +56,7 @@ func _build_flame() -> void:
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material.albedo_texture = RallyCar._soft_puff()
+	material.albedo_texture = RoadFxPool.soft_puff()
 	material.albedo_color = Color(3.0, 1.35, 0.42)
 	var card := QuadMesh.new()
 	card.size = Vector2(FLAME_SIZE.y, FLAME_SIZE.x)

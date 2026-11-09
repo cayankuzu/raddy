@@ -3,7 +3,7 @@ extends Node
 ## Puts the Cabin's dirt, cracks and wipers onto the real windshield (shaders/windshield.gdshader)
 ## instead of over the player's screen: mud gathers on the glass in blotches, the car's own two wipers
 ## sweep it (cut out of the model, each turning about its hinge), only where a blade really passes the glass
-## comes clean, and a stone leaves a crack star where it hit. Every peer sees every car's glass the same way.
+## comes clean, and a stone leaves a bullseye where it hit, then a crack star from there. Every peer sees every car's glass the same way.
 
 const SHADER := preload("res://shaders/windshield.gdshader")
 const WIPER_PERIOD := 1.1
@@ -52,8 +52,10 @@ func _ready() -> void:
 	_build_wipers()
 	cabin.dirt_changed.connect(_on_dirt)
 	cabin.windshield_changed.connect(_on_windshield)
+	cabin.stone_chipped.connect(_on_stone_chipped)
 	_on_dirt(cabin.dirt)
 	_on_windshield(cabin.windshield)
+	_on_stone_chipped(cabin.stone_hits)
 
 
 ## The plane from the mesh's own triangles: its average normal (pointing out of the car), the
@@ -102,9 +104,19 @@ func _on_windshield(state: int) -> void:
 	var cracked := state == Cabin.Windshield.CRACKED
 	_material.set_shader_parameter(&"cracked", 1.0 if cracked else 0.0)
 	if cracked:
-		_material.set_shader_parameter(&"crack_texture", crack_texture(cabin.team * 31 + 7))
+		_material.set_shader_parameter(&"crack_texture", crack_texture(_seed()))
 	if state == Cabin.Windshield.REMOVED:
 		_edge_dirt = 0.0
+
+
+func _on_stone_chipped(hits: int) -> void:
+	_material.set_shader_parameter(&"chipped", 1.0 if hits > 0 else 0.0)
+	_material.set_shader_parameter(&"chip_at", crack_center(_seed()) * _size)
+
+
+## What makes this car's cracks its own.
+func _seed() -> int:
+	return cabin.team * 31 + 7
 
 
 func _process(delta: float) -> void:
@@ -185,14 +197,21 @@ static func dirt_noise() -> NoiseTexture2D:
 	return _noise_texture
 
 
+## Where on the glass a car's first stone lands and its crack starts (0..1 across and up the glass), seeded per car.
+static func crack_center(seed: int) -> Vector2:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed
+	return Vector2(rng.randf_range(0.3, 0.7), rng.randf_range(0.45, 0.75))
+
+
 ## A star of jagged crack lines in a transparent image (alpha = crack), seeded per car.
 static func crack_texture(seed: int) -> ImageTexture:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = seed + 1
 	var size := 512
 	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
 	image.fill(Color(1, 1, 1, 0))
-	var center := Vector2(rng.randf_range(0.3, 0.7), rng.randf_range(0.45, 0.75)) * size
+	var center := crack_center(seed) * size
 	for i in rng.randi_range(6, 9):
 		var angle := TAU * i / 8.0 + rng.randf_range(-0.3, 0.3)
 		var p := center

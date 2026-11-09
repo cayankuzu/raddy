@@ -11,11 +11,14 @@ extends Node3D
 ##   --chase         start on the chase camera instead of the driver's seat
 ##   --navigator     sit in the navigator's seat (M map, Q/E windows); pair with --autodrive
 ##   --map-open      open the map right away (screenshots)
-##   --windshield=cracked|removed  --dirt=0.4   start with that glass state (screenshots)
+##   --windshield=cracked|removed  --chips=N  --dirt=0.4   start with that glass state (screenshots)
 ##   --weather=0..4 --difficulty=0..2   race settings (default clear, rally)
 ##   --dusk          the sun low, headlights on, dials lit
 ##   --quality=0..2  graphics level (default: the player's setting)
 ##   --follower=D    a second car D metres behind, driven by a bot when --autodrive is on (mirrors)
+##   --follower-delay=S  it leaves S seconds after the first car (a time gap to the car in front)
+##   --ride-follower the camera and the mirrors go to that second car
+##   --no-road-fx    the cars throw nothing into the air (perf comparisons)
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (gates, finish) that tools and tests can read.
 
@@ -49,6 +52,7 @@ func _ready() -> void:
 		"difficulty": int(_args.get("difficulty", "1"))}
 	graph = StageBuilder.build(stage)
 	BiomeRules.apply_to_graph(graph, settings)
+	RoadFxPool.off = _args.has("no-road-fx")
 	if _args.has("quality"):
 		GraphicsQuality.forced = int(_args["quality"])
 		GraphicsQuality.apply_viewport(get_tree().root, GraphicsQuality.forced)
@@ -88,12 +92,13 @@ func _ready() -> void:
 		for part in String(_args["hide"]).split("+"):
 			for node in _car.find_children("*" + part + "*", "Node3D", true, false):
 				(node as Node3D).visible = false
-	var navigator := _args.has("navigator")
-	_driver_camera = _car.get_node(^"NavigatorCamera" if navigator else ^"DriverCamera")
-	_driver_camera.make_current()
-	(_car.get_node(^"Model") as CarModel).bind_seat(_driver_camera as CockpitCamera)
 	if _args.has("follower"):
 		_add_follower(float(_args["follower"]))
+	var navigator := _args.has("navigator")
+	var ridden := follower if _args.has("ride-follower") else _car
+	_driver_camera = ridden.get_node(^"NavigatorCamera" if navigator else ^"DriverCamera")
+	_driver_camera.make_current()
+	(ridden.get_node(^"Model") as CarModel).bind_seat(_driver_camera as CockpitCamera)
 
 	_player_input = PlayerCarInput.new()
 	_player_input.name = "PlayerCarInput"
@@ -121,11 +126,13 @@ func _ready() -> void:
 			cabin._rpc_set_windshield(Cabin.Windshield.CRACKED)
 		"removed":
 			cabin._rpc_set_windshield(Cabin.Windshield.REMOVED)
+	if _args.has("chips"):
+		cabin._rpc_stone_chip(int(_args["chips"]))
 	if _args.has("dirt"):
 		cabin._rpc_set_dirt(float(_args["dirt"]))
 	_chase = ChaseCamera.new()
 	_chase.name = "ChaseCamera"
-	_chase.target = _car
+	_chase.target = ridden
 	add_child(_chase)
 
 	if _args.has("autodrive"):
@@ -179,6 +186,7 @@ func _add_follower(behind: float) -> void:
 		bot.car = follower
 		bot.set_path(graph.main_route_points())
 		bot.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER
+		bot.start_delay = float(_args.get("follower-delay", "0"))
 		add_child(bot)
 
 
@@ -217,6 +225,8 @@ func _physics_process(delta: float) -> void:
 	_elapsed += delta
 	if _car.global_position.y < FALL_LIMIT:
 		_car.reset_to(_start_pose)
+	if follower != null:
+		(follower.get_node(^"Cabin") as Cabin).gap_ahead = follower.global_position.distance_to(_car.global_position)
 
 
 func _unhandled_input(event: InputEvent) -> void:

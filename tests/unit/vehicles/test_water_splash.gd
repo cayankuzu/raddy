@@ -65,8 +65,7 @@ func test_water_slows_the_car_and_sprays() -> void:
 		_car.controls.brake = 0.0
 		await wait_ticks(1)
 		saw_water = saw_water or _car.water_contacts > 0
-		var spray := _car.get_node_or_null(^"SplashLeft") as GPUParticles3D
-		sprayed = sprayed or (spray != null and spray.emitting)
+		sprayed = sprayed or _pool().puffs_thrown > 0
 	var wet := before - _car.forward_speed
 	assert_true(sprayed, "spray from the wheels")
 	gut.p("speed lost over 40 m: dry %.2f m/s, through 12 m of water %.2f m/s" % [dry, wet])
@@ -75,16 +74,14 @@ func test_water_slows_the_car_and_sprays() -> void:
 	assert_eq(_car.water_contacts, 0, "out of the water again")
 
 
+func _pool() -> RoadFxPool:
+	return get_tree().get_first_node_in_group(RoadFxPool.GROUP) as RoadFxPool
+
+
 func test_the_spray_flies_off_the_flanks_and_never_stands_in_the_cabin() -> void:
-	_car.water_contacts = 1
-	_car.forward_speed = 15.0
-	_car._update_splash()
-	for spray_name: NodePath in [^"SplashLeft", ^"SplashRight"]:
-		var spray := _car.get_node(spray_name) as GPUParticles3D
-		var material := spray.process_material as ParticleProcessMaterial
-		var side := signf(spray.position.x)
-		assert_gt(absf(spray.position.x) - material.emission_box_extents.x, 0.9, "%s starts beside the body" % spray_name)
-		var from_out := rad_to_deg(material.direction.normalized().angle_to(Vector3.RIGHT * side))
-		assert_lt(from_out + material.spread, 90.0, "%s: none of it flies back in" % spray_name)
-		assert_true(spray.emitting)
-	_car.water_contacts = 0
+	for side: float in [-1.0, 1.0]:
+		for step in 40:
+			var direction := RoadFxRules.splash_direction(side, step / 40.0, fmod(step * 0.37, 1.0))
+			assert_gt(direction.x * side, 0.0, "side %d: none of it flies back in" % side)
+			assert_gt(direction.y, 0.0, "side %d: it goes up" % side)
+	assert_gt(RoadFxRules.SPLASH_OUT, 0.9, "it starts beside the body")

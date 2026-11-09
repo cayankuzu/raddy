@@ -23,10 +23,6 @@ const AIR_WHEEL_DECEL := 8.0
 const UNSTUCK_DISTANCE := 2.0
 ## Deceleration per m/s of speed while ploughing through a water splash (1/s).
 const WATER_DRAG := 0.6
-## The spray of a water splash leaves this far from the car's centre line (just past the body) and spreads this much
-## (degrees) round a way that takes it out and up, never back in.
-const SPLASH_OUT := 1.05
-const SPLASH_SPREAD := 30.0
 
 @export var config: VehicleConfig
 
@@ -61,7 +57,6 @@ var water_contacts := 0
 var water_level := 0.0
 
 var _wheels: Array[CarWheel] = []
-var _splashes: Array[GPUParticles3D] = []
 var _drive := 0.0
 var _brake_input := 0.0
 var _stuck_time := 0.0
@@ -112,6 +107,9 @@ func _ready() -> void:
 	var audio := CarAudio.new()
 	audio.name = "Audio"
 	add_child(audio)
+	var road_fx := CarRoadFx.new()
+	road_fx.name = "RoadFx"
+	add_child(road_fx)
 
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
@@ -145,8 +143,6 @@ func _physics_process(delta: float) -> void:
 	if _reset_interpolation:
 		_reset_interpolation = false
 		reset_physics_interpolation()
-	_update_dust()
-	_update_splash()
 	for wheel in _wheels:
 		if wheel.visual == null:
 			continue
@@ -231,152 +227,14 @@ func wheel_surface(index: int) -> StringName:
 	return _wheels[index].surface
 
 
+## Where a wheel touches the road, or would if it hung in the air.
+func wheel_contact(index: int) -> Vector3:
+	var wheel := _wheels[index]
+	return global_transform * (wheel.mount.position + Vector3.DOWN * (config.rest_length + config.wheel_radius - wheel.compression))
+
+
 func wheels_in_contact() -> int:
 	return _wheels.filter(func(w: CarWheel) -> bool: return w.in_contact).size()
-
-
-## Dust, mud or sand thrown up behind the car, by speed and surface (spec §9.3). Placeholder
-## look until the art pass; GPU particles do nothing headless, which is fine.
-func _update_dust() -> void:
-	var dust := get_node_or_null(^"Dust") as GPUParticles3D
-	if dust == null:
-		dust = GPUParticles3D.new()
-		dust.name = "Dust"
-		dust.position = Vector3(0.0, 0.0, 1.5)
-		dust.amount = 64
-		dust.lifetime = 1.4
-		dust.local_coords = false
-		var material := ParticleProcessMaterial.new()
-		material.direction = Vector3(0.0, 0.6, 1.0)
-		material.spread = 35.0
-		material.initial_velocity_min = 1.0
-		material.initial_velocity_max = 3.0
-		material.gravity = Vector3(0.0, -0.4, 0.0)
-		material.scale_min = 0.6
-		material.scale_max = 1.4
-		material.color = Color(0.75, 0.68, 0.55, 0.45)
-		# Puffs grow and fade out over their life.
-		var grow := Curve.new()
-		grow.add_point(Vector2(0.0, 0.35))
-		grow.add_point(Vector2(1.0, 1.0))
-		var grow_texture := CurveTexture.new()
-		grow_texture.curve = grow
-		material.scale_curve = grow_texture
-		var fade := Gradient.new()
-		fade.set_color(0, Color(1, 1, 1, 0.0))
-		fade.set_color(1, Color(1, 1, 1, 0.0))
-		fade.add_point(0.12, Color(1, 1, 1, 1.0))
-		var fade_texture := GradientTexture1D.new()
-		fade_texture.gradient = fade
-		material.color_ramp = fade_texture
-		dust.process_material = material
-		var mesh := QuadMesh.new()
-		mesh.size = Vector2(1.6, 1.6)
-		var sprite := StandardMaterial3D.new()
-		sprite.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-		sprite.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		sprite.vertex_color_use_as_albedo = true
-		sprite.albedo_texture = _soft_puff()
-		sprite.albedo_color = Color(1, 1, 1, 0.55)
-		# Lit, so dust is darker in shade and in bad weather; soft so it does not cut the ground.
-		sprite.proximity_fade_enabled = true
-		sprite.proximity_fade_distance = 0.8
-		mesh.material = sprite
-		dust.draw_pass_1 = mesh
-		add_child(dust)
-	var speed := absf(forward_speed)
-	var on_ground := wheels_in_contact() > 0
-	var surface := _wheels[0].surface if not _wheels.is_empty() else Surface.GRAVEL
-	dust.emitting = on_ground and speed > 4.0
-	dust.amount_ratio = clampf((speed - 4.0) / 20.0, 0.0, 1.0) * clampf(Surface.grit(surface), 0.0, 1.0)
-	var material := dust.process_material as ParticleProcessMaterial
-	match surface:
-		Surface.MUD:
-			material.color = Color(0.3, 0.22, 0.14, 0.6)
-		Surface.SAND:
-			material.color = Color(0.85, 0.75, 0.5, 0.5)
-		Surface.SNOW:
-			material.color = Color(0.95, 0.97, 1.0, 0.45)
-		Surface.WET:
-			material.color = Color(0.45, 0.45, 0.42, 0.4)
-		_:
-			material.color = Color(0.75, 0.68, 0.55, 0.45)
-
-
-## Spray thrown up from the wheels in a water splash.
-func _update_splash() -> void:
-	var speed := absf(forward_speed)
-	var wet := water_contacts > 0 and speed > 2.0
-	if _splashes.is_empty():
-		if not wet:
-			return
-		_splashes = [_make_splash("SplashLeft", -1.0), _make_splash("SplashRight", 1.0)]
-	for splash in _splashes:
-		splash.emitting = wet
-		splash.amount_ratio = clampf(speed / 18.0, 0.15, 1.0)
-		(splash.process_material as ParticleProcessMaterial).initial_velocity_max = 4.0 + speed * 0.35
-
-
-## One flank's spray. It leaves from beside the body and flies away from it: thrown particles stay where they are thrown,
-## so from under the car they would stand in the cabin as it drives through them.
-func _make_splash(node_name: String, side: float) -> GPUParticles3D:
-	var splash := GPUParticles3D.new()
-	splash.name = node_name
-	splash.position = Vector3(side * SPLASH_OUT, -0.35, 0.0)
-	splash.amount = 80
-	splash.lifetime = 1.1
-	splash.local_coords = false
-	var material := ParticleProcessMaterial.new()
-	material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	material.emission_box_extents = Vector3(0.1, 0.08, 1.5)
-	material.direction = Vector3(side * 0.75, 1.0, 0.2)
-	material.spread = SPLASH_SPREAD
-	material.initial_velocity_min = 3.0
-	material.initial_velocity_max = 8.0
-	material.gravity = Vector3(0.0, -9.8, 0.0)
-	material.scale_min = 0.25
-	material.scale_max = 0.9
-	var fade := Gradient.new()
-	fade.set_color(0, Color(1, 1, 1, 0.9))
-	fade.set_color(1, Color(1, 1, 1, 0.0))
-	var fade_texture := GradientTexture1D.new()
-	fade_texture.gradient = fade
-	material.color_ramp = fade_texture
-	material.color = Color(0.55, 0.5, 0.42, 0.8)
-	splash.process_material = material
-	var mesh := QuadMesh.new()
-	mesh.size = Vector2(0.7, 0.7)
-	var sprite := StandardMaterial3D.new()
-	sprite.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	sprite.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	sprite.vertex_color_use_as_albedo = true
-	sprite.albedo_texture = _soft_puff()
-	sprite.roughness = 0.2
-	mesh.material = sprite
-	splash.draw_pass_1 = mesh
-	add_child(splash)
-	return splash
-
-
-## A round, soft-edged puff for dust particles, made once.
-static var _puff: Texture2D
-
-
-static func _soft_puff() -> Texture2D:
-	if _puff == null:
-		var gradient := Gradient.new()
-		gradient.set_color(0, Color(1, 1, 1, 1))
-		gradient.set_color(1, Color(1, 1, 1, 0))
-		gradient.add_point(0.45, Color(1, 1, 1, 0.55))
-		var texture := GradientTexture2D.new()
-		texture.gradient = gradient
-		texture.fill = GradientTexture2D.FILL_RADIAL
-		texture.fill_from = Vector2(0.5, 0.5)
-		texture.fill_to = Vector2(1.0, 0.5)
-		texture.width = 64
-		texture.height = 64
-		_puff = texture
-	return _puff
 
 
 ## The race layer applies the host's damage state here: effects for the simulation and a

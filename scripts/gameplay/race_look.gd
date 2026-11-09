@@ -34,8 +34,23 @@ const DUSK_LIGHT := 0.2
 ## Weather in which the crews drive with their headlights on.
 const HEADLIGHT_WEATHER := [RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG, RaceSettings.Weather.SNOW, RaceSettings.Weather.DUST_STORM]
 
+## The way the wind blows over a stage (the same way as a dust storm's), how hard (m/s) in each weather, and what the dust of this
+## biome's ground adds to the colour of its surface (RoadFxRules).
+const WIND_FROM := Vector3(0.96, 0.0, 0.29)
+const WIND_SPEED := {
+	RaceSettings.Weather.CLEAR: 1.1, RaceSettings.Weather.RAIN: 1.6, RaceSettings.Weather.FOG: 0.4, RaceSettings.Weather.SNOW: 1.2,
+	RaceSettings.Weather.DUST_STORM: 7.0,
+}
+const DUST_TINT := {
+	RaceSettings.Biome.FOREST: Color(0.93, 0.89, 0.82), RaceSettings.Biome.DESERT: Color(1.06, 0.96, 0.83),
+	RaceSettings.Biome.MOUNTAIN: Color(0.93, 0.94, 0.96),
+}
+
 ## How much daylight the last race look has (the car's cabin fill stands in for it).
 static var daylight := 1.0
+## The last race look's wind (m/s) and dust colour, for what the cars throw into the air (RoadFxPool).
+static var wind := WIND_FROM * 1.1
+static var dust_tint := Color.WHITE
 
 
 ## Whether the cars run with their headlights on.
@@ -48,6 +63,8 @@ static func create(biome: int, weather: int, dusk := false) -> Node3D:
 	var palette := BiomeRules.palette(biome, weather)
 	var overcast := weather in OVERCAST
 	daylight = DUSK_LIGHT if dusk else 1.0
+	wind = WIND_FROM * float(WIND_SPEED.get(weather, 1.0))
+	dust_tint = DUST_TINT.get(biome, Color.WHITE)
 	SurfaceMaterials.set_weather(weather)
 
 	var sky_material := ProceduralSkyMaterial.new()

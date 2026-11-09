@@ -48,6 +48,21 @@ const SLOSH_GAIN := 0.7
 const CRASH_LIGHT_AT := 3.5
 const CRASH_HEAVY_AT := 9.0
 const ONE_SHOTS := 4
+## Stones on the floor (RoadFxRules.pings_per_second), heard by the crew only; how loud, how high (random) and how many at once.
+const PINGS: Array[AudioStream] = [
+	preload("res://assets/audio/impacts/impactMetal_light_0.ogg"), preload("res://assets/audio/impacts/impactMetal_light_1.ogg"),
+	preload("res://assets/audio/impacts/impactMetal_light_2.ogg"),
+]
+const PING_LEVEL := Vector2(0.1, 0.32)
+const PING_PITCH := Vector2(0.85, 1.7)
+const PING_VOICES := 2
+## A stone on the windshield, and the same stone cracking it.
+const STONE_ON_GLASS: Array[AudioStream] = [
+	preload("res://assets/audio/car/stone_glass_0.wav"), preload("res://assets/audio/car/stone_glass_1.wav"),
+	preload("res://assets/audio/car/stone_glass_2.wav"),
+]
+const GLASS_AT := Vector3(0.0, 0.55, -0.75)
+const STONE_LEVEL := 0.8
 
 var car: RallyCar
 var gearbox := Gearbox.new()
@@ -66,6 +81,8 @@ var _wind: AudioStreamPlayer3D
 var _slosh: AudioStreamPlayer3D
 var _horn: AudioStreamPlayer3D
 var _one_shots: Array[AudioStreamPlayer3D] = []
+var _pings: Array[AudioStreamPlayer3D] = []
+var _next_ping := 0
 var _next_shot := 0
 var _was_wet := false
 var _rng := RandomNumberGenerator.new()
@@ -89,9 +106,18 @@ func _ready() -> void:
 		shot.max_distance = 300.0
 		add_child(shot)
 		_one_shots.append(shot)
+	for i in PING_VOICES:
+		var ping := AudioStreamPlayer3D.new()
+		ping.bus = &"Game"
+		ping.unit_size = 2.0
+		ping.max_distance = 12.0
+		add_child(ping)
+		_pings.append(ping)
 	if car != null:
 		car.impact.connect(_on_impact)
 		_cabin = car.get_node_or_null(^"Cabin") as Cabin
+		if _cabin != null:
+			_cabin.stone_chipped.connect(_on_stone_chipped)
 
 
 ## A looping layer that keeps playing silently until its level comes up (no restart clicks).
@@ -132,6 +158,7 @@ func _physics_process(delta: float) -> void:
 	gearbox.update(delta, car.forward_speed, throttle, grounded == 0.0, car.is_backing_up())
 	_update_engine()
 	_update_road(speed, grounded)
+	_update_pings(delta, speed, throttle, grounded)
 	_update_water(speed)
 	_set_level(_horn, 1.0 if car.controls.horn else 0.0, 0.9)
 	var wind := clampf((speed - 6.0) / 35.0, 0.0, 1.0)
@@ -179,6 +206,27 @@ func _update_road(speed: float, grounded: float) -> void:
 	_rumble.pitch_scale = 0.7 + roll * 0.5
 	_set_level(_skid, slide * float(profile[3]) * grounded * SKID_GAIN, 0.8)
 	_skid.pitch_scale = 0.92 + slide * 0.15
+
+
+## Stones the tyres throw against the floor: inside the car only, as many as the road gives.
+func _update_pings(delta: float, speed: float, throttle: float, grounded: float) -> void:
+	if not occupied or grounded == 0.0 or DisplayServer.get_name() == "headless":
+		return
+	if _rng.randf() >= RoadFxRules.pings_per_second(car.wheel_surface(0), speed, throttle) * delta:
+		return
+	var ping := _pings[_next_ping]
+	_next_ping = (_next_ping + 1) % _pings.size()
+	ping.stream = PINGS[_rng.randi() % PINGS.size()]
+	ping.position = Vector3(_rng.randf_range(-0.6, 0.6), -0.4, _rng.randf_range(-0.9, 1.2))
+	ping.pitch_scale = _rng.randf_range(PING_PITCH.x, PING_PITCH.y)
+	ping.volume_db = linear_to_db(_rng.randf_range(PING_LEVEL.x, PING_LEVEL.y))
+	ping.play()
+
+
+## A stone hit the windshield: heard in this car.
+func _on_stone_chipped(_hits: int) -> void:
+	if occupied:
+		play_one_shot(STONE_ON_GLASS[_rng.randi() % STONE_ON_GLASS.size()], STONE_LEVEL, GLASS_AT, _rng.randf_range(0.92, 1.1))
 
 
 func _update_water(speed: float) -> void:

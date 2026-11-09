@@ -194,7 +194,7 @@ func _update_smoke(level: int) -> void:
 		sprite.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 		sprite.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		sprite.vertex_color_use_as_albedo = true
-		sprite.albedo_texture = RallyCar._soft_puff()
+		sprite.albedo_texture = RoadFxPool.soft_puff()
 		quad.material = sprite
 		_smoke.draw_pass_1 = quad
 		add_child(_smoke)
