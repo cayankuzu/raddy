@@ -96,3 +96,15 @@ func test_revs_freely_in_the_air() -> void:
 	assert_gt(box.rpm, 6000.0, "flat out in the air: the engine screams")
 	assert_eq(box.gear, 3, "no shifting in the air")
 	assert_eq(Gearbox.firing_hz(3000.0), 100.0)
+
+
+func test_only_the_driver_puts_it_in_reverse() -> void:
+	var box := Gearbox.new()
+	box.update(DT, -3.0, 0.0, false)
+	assert_eq(box.gear, 1, "a car rolling back down a hill stays in its gear")
+	box.update(DT, -3.0, 0.0, false, true)
+	assert_eq(box.gear, -1, "the driver backing up is in reverse")
+	box.update(DT, -1.0, 0.0, false)
+	assert_eq(box.gear, -1, "still, while it rolls back")
+	box.update(DT, 0.5, 0.0, false)
+	assert_eq(box.gear, 1, "and out of it once it has stopped")

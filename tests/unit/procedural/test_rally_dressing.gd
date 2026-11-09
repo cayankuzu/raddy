@@ -348,6 +348,19 @@ func test_the_real_node_has_every_item() -> void:
 	assert_eq((rally.get_meta(&"spectator_spots") as Array).size(), _of(world, ["spot"]).size(), "ready for the crowd")
 
 
+func test_what_the_mirrors_leave_out_goes_with_its_words_and_its_tape() -> void:
+	var world: Dictionary = _worlds[0]
+	var node := RallyDressing.build(world.graph, world.terrain)
+	add_child_autofree(node)
+	var words := node.find_children("*", "Label3D", false, false)
+	var tapes := node.find_children("Tape*", "MeshInstance3D", false, false)
+	assert_gt(words.size(), 3)
+	assert_gt(tapes.size(), 0)
+	for piece in words + tapes:
+		assert_eq((piece as VisualInstance3D).layers, GraphicsQuality.FINE_SCENERY_LAYER, "%s: boards and stakes are on that layer" % piece.name)
+		assert_eq((piece as VisualInstance3D).layers & CarMirrors.CAMERA_MASK, 0, "%s: no word in a mirror without its board" % piece.name)
+
+
 func test_bales_show_their_outside() -> void:
 	var mesh := RallyProps.bale_parts()[0].mesh as Mesh
 	var arrays := mesh.surface_get_arrays(0)

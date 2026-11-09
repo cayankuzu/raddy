@@ -18,6 +18,7 @@ func before_each() -> void:
 	_audio = _car.get_node(^"Audio") as CarAudio
 	_audio.set_physics_process(false)
 	_cockpit.since_ignition = 100.0
+	_cockpit.engine_seconds = 100.0
 
 
 func _panel(parameter: StringName) -> Variant:
@@ -65,6 +66,17 @@ func test_engine_damage_moves_temperature_and_oil_and_lights_the_lamp() -> void:
 	assert_gt(float(_panel(&"temp")), cool, "runs hot")
 	assert_lt(float(_panel(&"oil")), oil, "loses pressure")
 	assert_eq((_panel(&"lamps_b") as Vector3).x, 1.0, "the engine lamp is on")
+
+
+func test_a_recovery_turns_the_key_but_the_engine_stays_hot() -> void:
+	_car.damage_level = VehicleDamage.Level.MEDIUM
+	_audio.gearbox.rpm = Gearbox.IDLE
+	_steps(1)
+	var hot := float(_panel(&"temp"))
+	_cockpit.turn_key()
+	_cockpit.since_ignition = CockpitRules.SWEEP_SECONDS + 0.5
+	_steps(1)
+	assert_almost_eq(float(_panel(&"temp")), hot, 0.001, "the needle comes back from the sweep to where it was")
 
 
 func test_the_handbrake_lamp_and_lever_follow_the_handbrake() -> void:
@@ -143,9 +155,26 @@ func test_the_rear_lamps_light_with_what_the_car_does() -> void:
 	lamps._process(0.016)
 	assert_almost_eq(lamps._brake.emission_energy_multiplier, CarLamps.BRAKE_GLOW, 0.001, "bright under the pedal")
 	_car.forward_speed = -3.0
-	_car.controls.brake = 0.0
+	_car.controls.brake = 1.0
 	lamps._process(0.016)
-	assert_almost_eq(lamps._reverse.emission_energy_multiplier, CarLamps.REVERSE_GLOW, 0.001, "reversing lights going backwards")
+	assert_almost_eq(lamps._reverse.emission_energy_multiplier, CarLamps.REVERSE_GLOW, 0.001, "reversing lights when the driver backs up")
+	assert_almost_eq(lamps._brake.emission_energy_multiplier, CarLamps.TAIL_GLOW, 0.001, "the pedal is the reverse here, not the brake")
+
+
+func test_a_car_rolling_back_by_itself_is_not_reversing() -> void:
+	var lamps := _model.lamps
+	_car.controls.throttle = 0.0
+	_car.controls.brake = 0.0
+	_car.forward_speed = -3.0
+	lamps._process(0.016)
+	_audio.gearbox.update(0.016, _car.forward_speed, 0.0, false, _car.is_backing_up())
+	assert_eq(lamps._reverse.emission_energy_multiplier, 0.0, "no reversing lights")
+	assert_eq(_audio.gearbox.gear, 1, "and the lever stays in its gate")
+	_car.controls.brake = 1.0
+	lamps._process(0.016)
+	_audio.gearbox.update(0.016, _car.forward_speed, 0.0, false, _car.is_backing_up())
+	assert_almost_eq(lamps._reverse.emission_energy_multiplier, CarLamps.REVERSE_GLOW, 0.001, "they light when the driver backs up")
+	assert_eq(_audio.gearbox.gear, -1, "and the lever goes to R")
 
 
 func test_hazards_blink_on_a_stuck_car() -> void:
@@ -318,3 +347,104 @@ func test_the_wheels_spin_at_the_real_speed_steer_and_travel() -> void:
 	assert_almost_eq(front.visual.rotation.y, -0.2, 0.0001, "a front wheel steers")
 	assert_eq(rear.visual.rotation.y, 0.0, "a rear one does not")
 	assert_almost_eq(front.visual.position.y, -(_car.config.rest_length - 0.1), 0.0001, "the suspension moves it")
+
+
+## What is solid in the car (not its glass) near `box`, as triangles in car space.
+func _solid_triangles(box: AABB) -> PackedVector3Array:
+	var to_car := _car.global_transform.affine_inverse()
+	var out := PackedVector3Array()
+	for node in _model.find_children("*", "MeshInstance3D", true, false):
+		var part := node as MeshInstance3D
+		if part.mesh == null or not part.is_visible_in_tree() or String(part.name).to_lower().contains("glass"):
+			continue
+		var faces := part.mesh.get_faces()
+		var to_here := to_car * part.global_transform
+		for t in range(0, faces.size(), 3):
+			var a := to_here * faces[t]
+			var b := to_here * faces[t + 1]
+			var c := to_here * faces[t + 2]
+			if AABB(a, Vector3.ZERO).expand(b).expand(c).intersects(box):
+				out.append_array([a, b, c])
+	return out
+
+
+func test_the_map_held_up_is_clear_of_the_pillars_and_the_mirror() -> void:
+	var sheet := Transform3D(Basis.from_euler(PaperMap.HELD_ROTATION_DEG * PI / 180.0), PaperMap.HELD_POSITION)
+	var eye := (_car.get_node(^"NavigatorCamera") as CockpitCamera).seat_position()
+	var half := PaperMap.SHEET_SIZE * 0.5
+	var rim: Array[Vector3] = []
+	for k in 9:
+		var t := float(k) / 8.0 * 2.0 - 1.0
+		rim.append(sheet * Vector3(t * half.x, half.y, 0.0))
+		rim.append(sheet * Vector3(t * half.x, -half.y, 0.0))
+		rim.append(sheet * Vector3(half.x, t * half.y, 0.0))
+		rim.append(sheet * Vector3(-half.x, t * half.y, 0.0))
+	var box := AABB(eye, Vector3.ZERO)
+	for point in rim:
+		box = box.expand(point)
+	var solid := _solid_triangles(box.grow(0.08))
+	gut.p("%d triangles near the line of sight" % (solid.size() / 3))
+	assert_gt(solid.size(), 300, "the cabin is there")
+	var hidden := 0
+	# The head leans with the corners: the sheet stays whole from wherever it can be.
+	for lean: float in [-0.04, 0.0, 0.04]:
+		var from := eye + Vector3.RIGHT * lean
+		for point in rim:
+			for t in range(0, solid.size(), 3):
+				if Geometry3D.segment_intersects_triangle(from, point, solid[t], solid[t + 1], solid[t + 2]) != null:
+					hidden += 1
+					break
+	assert_eq(hidden, 0, "every point round the sheet's edge is in sight")
+
+
+func test_no_lamp_shines_on_the_inside_of_a_car() -> void:
+	var lamps := _model.lamps
+	for beam in lamps._beams:
+		assert_eq(beam.light_cull_mask & GraphicsQuality.CABIN_LAYER, 0, "a headlight leaves the cabins out")
+	for glow: SpotLight3D in [lamps._brake_light, lamps._reverse_light]:
+		assert_eq(glow.light_cull_mask & GraphicsQuality.CABIN_LAYER, 0, "so does the glow of the rear lamps")
+	var inside: Array[MeshInstance3D] = [_car.find_child(CarParts.INTERIOR, true, false), _model._steering.get_child(0), _cockpit._panel,
+		_car.get_node(^"Cabin/PaperMap/Sheet"), _model.get_node(^"Lamps/DomeLens")]
+	for part in inside:
+		assert_eq(part.layers, GraphicsQuality.CABIN_LAYER, "%s is inside" % part.name)
+	assert_ne(lamps._dome_light.light_cull_mask & GraphicsQuality.CABIN_LAYER, 0, "the dome lamp does light it")
+	assert_ne(CarMirrors.CAMERA_MASK & GraphicsQuality.CABIN_LAYER, 0, "and the interior mirror still shows it")
+
+
+func test_a_pane_goes_down_behind_the_sill_and_keeps_to_the_glass() -> void:
+	var cabin: Cabin = _car.get_node(^"Cabin")
+	for side: int in [Cabin.Side.LEFT, Cabin.Side.RIGHT]:
+		var pane: MeshInstance3D = _car.get_node(NodePath("Cabin/WindowRight" if side == Cabin.Side.RIGHT else "Cabin/WindowLeft"))
+		# Where the cut is, as a plane in car space: it must not move while the glass does.
+		var cut := func() -> Plane:
+			var sill: Vector4 = pane.get_instance_shader_parameter(&"sill")
+			var normal := Vector3(sill.x, sill.y, sill.z)
+			return Plane((pane.basis * normal).normalized(), pane.transform * (normal * sill.w))
+		var faces := pane.mesh.get_faces()
+		cabin.request_window(side, true)
+		var at_rest: Plane = cut.call()
+		assert_gt(at_rest.normal.y, 0.9, "it is the side of the sill that shows")
+		var lowest := Vector3.UP * INF
+		var highest := Vector3.DOWN * INF
+		for v in faces:
+			var at := pane.transform * v
+			lowest = at if at.y < lowest.y else lowest
+			highest = at if at.y > highest.y else highest
+		for v in faces:
+			assert_gte(at_rest.distance_to(pane.transform * v), -0.003, "closed, nothing of the pane is cut")
+		cabin._process(Cabin.PANE_SECONDS * 0.6)
+		var part_way: Plane = cut.call()
+		assert_almost_eq(part_way.d, at_rest.d, 0.001, "the sill stays where it is")
+		assert_true(part_way.normal.is_equal_approx(at_rest.normal))
+		var below := 0
+		for v in faces:
+			if at_rest.distance_to(pane.transform * v) < -0.003:
+				below += 1
+		assert_gt(below, 3, "and the glass goes on down behind it")
+		# Where its top edge goes in: the glass runs down its own slant, so it comes to the sill where the closed pane stands.
+		var travel := at_rest.distance_to(highest) / -Cabin.PANE_SLIDE[side].dot(at_rest.normal)
+		assert_lt(travel, Cabin.PANE_TRAVEL, "it goes all the way in")
+		assert_almost_eq(highest.x + Cabin.PANE_SLIDE[side].x * travel, lowest.x, 0.05, "the top edge reaches the sill in the door's line, not outside the door")
+		cabin._process(Cabin.PANE_SECONDS)
+		cabin.request_window(side, false)
+		cabin._process(Cabin.PANE_SECONDS * 2.0)

@@ -41,6 +41,8 @@ const HANDBRAKE_RATE := 11.0
 var car: RallyCar
 ## Seconds since the key was turned: the sweep and the bulb check run from it.
 var since_ignition := 0.0
+## Seconds the engine has been warming up: a key turned again after a recovery finds it as hot as it was.
+var engine_seconds := 0.0
 
 var _panel: MeshInstance3D
 var _material: ShaderMaterial
@@ -84,6 +86,7 @@ func _add_moving(mesh: Mesh, hinge: Vector3) -> Node3D:
 func _quiet_mesh(mesh: Mesh) -> MeshInstance3D:
 	var instance := MeshInstance3D.new()
 	instance.mesh = mesh
+	instance.layers = GraphicsQuality.CABIN_LAYER
 	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	instance.visibility_range_end = NEAR_CAMERA
 	return instance
@@ -190,6 +193,7 @@ func _process(delta: float) -> void:
 ## Everything in the cabin follows the car for one frame.
 func update(delta: float) -> void:
 	since_ignition += delta
+	engine_seconds += delta
 	_time += delta
 	if _audio == null:
 		_audio = car.get_node_or_null(^"Audio") as CarAudio
@@ -219,7 +223,7 @@ func _update_panel() -> void:
 	var oil := CockpitRules.oil_pressure(rpm, level)
 	_material.set_shader_parameter(&"speed", CockpitRules.with_sweep(CockpitRules.speed_needle(car.forward_speed), since_ignition))
 	_material.set_shader_parameter(&"rpm", CockpitRules.with_sweep(CockpitRules.rpm_needle(rpm), since_ignition))
-	_material.set_shader_parameter(&"temp", CockpitRules.with_sweep(CockpitRules.coolant(since_ignition, level), since_ignition))
+	_material.set_shader_parameter(&"temp", CockpitRules.with_sweep(CockpitRules.coolant(engine_seconds, level), since_ignition))
 	_material.set_shader_parameter(&"oil", CockpitRules.with_sweep(oil, since_ignition))
 	_material.set_shader_parameter(&"fuel", CockpitRules.with_sweep(CockpitRules.fuel(_km), since_ignition))
 	_material.set_shader_parameter(&"volts", CockpitRules.with_sweep(CockpitRules.volts(since_ignition, level), since_ignition))

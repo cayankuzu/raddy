@@ -593,6 +593,7 @@ static func _tape_node(item: Dictionary) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Tape%d" % int(item.zone)
 	mesh.mesh = RallyProps.tape_mesh(item.posts)
+	mesh.layers = GraphicsQuality.FINE_SCENERY_LAYER
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mesh.visibility_range_end = SMALL_RANGE
 	return mesh
@@ -602,6 +603,7 @@ static func _tape_node(item: Dictionary) -> MeshInstance3D:
 static func _board_text(item: Dictionary, placed: Transform3D) -> Label3D:
 	var stop: bool = item.kind == "stop"
 	var label := Label3D.new()
+	label.layers = GraphicsQuality.FINE_SCENERY_LAYER  # the boards are too: no word in a mirror without its board
 	var font := UiTheme.hud_font(800, 100)
 	label.text = TranslationServer.translate(item.text).format({"n": item.get("split", 0)})
 	label.font = font

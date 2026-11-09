@@ -22,6 +22,8 @@ const DOME_RANGE := 1.45
 const DOME_ENERGY := 1.1
 ## Where the rear lamps' glow starts.
 const REAR_GLOW_AT := Vector3(0.0, 0.25, 1.95)
+## What the lamps that shine out of a car light: everything but the inside of a car.
+const OUTSIDE_THE_CABINS := 0xFFFFFFFF & ~GraphicsQuality.CABIN_LAYER
 
 var car: RallyCar
 var headlights := false
@@ -57,6 +59,7 @@ func build(model: Node3D) -> void:
 		beam.spot_angle = 28.0
 		beam.spot_attenuation = 0.7
 		beam.shadow_enabled = false
+		beam.light_cull_mask = OUTSIDE_THE_CABINS
 		beam.light_specular = 0.25  # a car's flank at a grazing angle would mirror it blindingly into its own door mirror
 		beam.position = Vector3(side, -0.05, -2.0)
 		beam.rotation_degrees = Vector3(-4.0, 0.0, 0.0)
@@ -79,6 +82,7 @@ func _rear_glow(light_name: String, color: Color, reach: float, energy: float) -
 	light.spot_angle = 62.0
 	light.spot_attenuation = 1.2
 	light.shadow_enabled = false
+	light.light_cull_mask = OUTSIDE_THE_CABINS
 	light.visible = false
 	add_child(light)
 	return light
@@ -100,6 +104,7 @@ func _build_dome() -> void:
 	lens.name = "DomeLens"
 	lens.mesh = mesh
 	lens.position = DOME_LENS_AT
+	lens.layers = GraphicsQuality.CABIN_LAYER
 	lens.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	lens.visibility_range_end = CarCockpit.NEAR_CAMERA
 	add_child(lens)
@@ -155,7 +160,7 @@ func _process(delta: float) -> void:
 	var braking := car.controls.brake > 0.1 and car.forward_speed > -0.5
 	if _brake != null:
 		_brake.emission_energy_multiplier = BRAKE_GLOW if braking else (TAIL_GLOW if headlights else 0.0)
-	var reversing := car.forward_speed < -0.5
+	var reversing := car.is_backing_up()
 	if _reverse != null:
 		_reverse.emission_energy_multiplier = REVERSE_GLOW if reversing else 0.0
 	if _brake_light != null:

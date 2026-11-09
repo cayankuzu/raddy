@@ -218,28 +218,66 @@ func test_the_real_forest_loads_and_stands_on_the_ground() -> void:
 	dressing.free()
 
 
-## The rock face scan is a slab leaning 42 degrees: on open ground it has to lie down, its bottom on the ground
-## and nothing of it high in the air, and its collider has to be where it is.
-func test_rock_shelves_lie_on_the_ground_inside_their_collider() -> void:
+## Edges of `mesh` that only one triangle has: the rim of a shell.
+func _open_edges(mesh: Mesh) -> int:
+	var open := 0
+	for s in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(s)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var welded := {}
+		var ids := PackedInt32Array()
+		ids.resize(vertices.size())
+		for i in vertices.size():
+			ids[i] = welded.get_or_add(vertices[i].snappedf(0.0005), welded.size())
+		var edges := {}
+		for t in range(0, indices.size(), 3):
+			for k in 3:
+				var a := ids[indices[t + k]]
+				var b := ids[indices[t + (k + 1) % 3]]
+				var edge := Vector2i(mini(a, b), maxi(a, b))
+				edges[edge] = int(edges.get(edge, 0)) + 1
+		for edge in edges:
+			if edges[edge] == 1:
+				open += 1
+	return open
+
+
+## A scanned rock face is a shell with no back: on open ground it showed as torn strips in the sky.
+func test_every_rock_is_a_whole_stone() -> void:
+	var seen := {}
 	for entry in RoadsideCatalog.entries():
-		if entry.id not in ["rock_face", "edge_faces"]:
+		if not entry.get("weathered", false) or seen.has(entry.path):
 			continue
-		var part: Dictionary = RoadsideDresser._parts_of(entry)[0]
-		var low := Vector3.INF
-		var high := -Vector3.INF
-		for vertex in (part.mesh as Mesh).get_faces():
-			var at: Vector3 = (part.transform as Transform3D) * vertex
-			low = low.min(at)
-			high = high.max(at)
-		gut.p("%s: %s to %s" % [entry.id, low, high])
-		assert_almost_eq(low.y, 0.0, 0.001, "its lowest point on the ground")
-		assert_almost_eq((low.x + high.x) * 0.5, 0.0, 0.001, "centred on its footprint")
-		assert_almost_eq((low.z + high.z) * 0.5, 0.0, 0.001, "centred on its footprint")
-		assert_lt(high.y, 1.5, "no slab standing up in the air at scale 1")
-		var box: Vector3 = entry.collision.size
-		assert_lt(absf(box.x - (high.x - low.x)), 0.5, "the collider is as wide as the rock")
-		assert_lt(absf(box.z - (high.z - low.z)), 0.5, "the collider is as long as the rock")
-		assert_lt(absf(box.y - high.y), 0.2, "the collider is as high as the rock")
+		seen[entry.path] = true
+		for part in RoadsideDresser._parts_of(entry):
+			var open := _open_edges(part.mesh)
+			gut.p("%s: %d open edges" % [entry.id, open])
+			assert_eq(open, 0, "%s has a back and a bottom" % entry.id)
+	assert_gt(seen.size(), 2)
+
+
+## What the mirrors leave out is ground cover and the far forest: whatever stands above a car by the road is in them.
+func test_the_mirrors_show_what_stands_tall_by_the_road() -> void:
+	var tall := 0
+	for entry in RoadsideCatalog.entries():
+		var parts: Array = RoadsideDresser._parts_of(entry)
+		if parts.is_empty() or entry.get("backdrop", false):
+			continue
+		var top := -INF
+		var bottom := INF
+		for part in parts:
+			var box: AABB = (part.transform as Transform3D) * (part.mesh as Mesh).get_aabb()
+			top = maxf(top, box.end.y)
+			bottom = minf(bottom, box.position.y)
+		if (top - bottom) * float(entry.scale[0]) < 2.0:
+			continue
+		tall += 1
+		assert_false(RoadsideDresser.is_fine(entry), "%s stands %.1f m tall" % [entry.id, (top - bottom) * float(entry.scale[0])])
+	assert_gt(tall, 15)
+	for entry in RoadsideCatalog.entries():
+		if entry.id in ["fern", "tuft_a", "creeper", "far_fir"]:
+			assert_true(RoadsideDresser.is_fine(entry), "%s stays out of the mirrors" % entry.id)
 
 
 func test_the_weather_reaches_the_rocks() -> void:

@@ -14,7 +14,8 @@ uniform float edge_shade = 0.25;
 uniform float brightest = 1.6;
 uniform float dirt = 0.0;
 uniform float broken = 0.0;
-uniform vec3 dirt_color : source_color = vec3(0.28, 0.24, 0.18);
+// What a film of road dirt lets through.
+uniform vec3 dirt_filter : source_color = vec3(0.62, 0.55, 0.44);
 
 void fragment() {
 	if (broken > 0.5) {
@@ -25,7 +26,7 @@ void fragment() {
 		vec2 from_edge = min(UV, 1.0 - UV);
 		colour *= 1.0 - edge_shade * (1.0 - smoothstep(0.0, 0.12, min(from_edge.x, from_edge.y * 2.0)));
 		float blotch = texture(dirt_noise, UV * vec2(1.6, 0.7) + vec2(0.31, 0.13)).r;
-		float mud = smoothstep(0.0, 0.5, dirt * 1.4 - (1.0 - blotch)) * 0.8 + dirt * 0.25;
-		ALBEDO = mix(colour, dirt_color * 0.35, clamp(mud, 0.0, 0.9));
+		float film = smoothstep(0.0, 0.5, dirt * 1.4 - (1.0 - blotch)) * 0.75 + dirt * 0.4;
+		ALBEDO = colour * mix(vec3(1.0), dirt_filter, clamp(film, 0.0, 1.0));
 	}
 }

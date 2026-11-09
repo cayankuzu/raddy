@@ -10,6 +10,9 @@ render_mode blend_premul_alpha, cull_disabled, depth_draw_opaque, specular_schli
 
 uniform sampler2D crack_texture : filter_linear_mipmap, repeat_disable;
 uniform float cracked = 0.0;
+// The door's sill as a plane in the pane's mesh space (normal, distance): what has slid below it is inside the door.
+// Fixed panes keep the default, which cuts nothing.
+instance uniform vec4 sill = vec4(0.0, 0.0, 0.0, -1.0);
 
 varying vec3 local_pos;
 
@@ -18,6 +21,9 @@ void vertex() {
 }
 
 void fragment() {
+	if (dot(local_pos, sill.xyz) < sill.w) {
+		discard;
+	}
 	float outside = smoothstep(2.0, 3.0, length(VERTEX));
 	float crack = cracked * texture(crack_texture, vec2(local_pos.x * 1.05 + 0.5, 1.0 - local_pos.y * 1.9)).a;
 	ALBEDO = vec3(0.93, 0.96, 1.0) * crack * 0.85;

@@ -278,8 +278,7 @@ static func _expand_variants(entry: Dictionary) -> Array:
 ## "unit" scales a model made in other units (centimetres: 0.01); a "node" entry is re-centred on
 ## its first mesh's footprint (the trunk) with its lowest point on the ground; "foliage" turns
 ## blended leaf materials into alpha-scissor ones (cheap, sorted right, cast shadows), "black_ground"
-## cuts leaves out of an atlas that has no alpha; "lay" turns the model about its X axis and re-centres it on
-## its footprint, "weathered" lets the weather on it (rain, snow).
+## cuts leaves out of an atlas that has no alpha, "weathered" lets the weather on it (rain, snow).
 ## Missing files are skipped with a note.
 static func _parts_of(entry: Dictionary) -> Array:
 	if entry.has("mesh"):
@@ -288,7 +287,7 @@ static func _parts_of(entry: Dictionary) -> Array:
 	if path == "" or not ResourceLoader.exists(path):
 		print("DRESS skipping %s: %s not found" % [entry.get("id", "?"), path])
 		return []
-	var cache_key := "%s|%s|%s|%s|%s" % [path, entry.get("node", ""), entry.get("unit", 1.0), entry.get("lay", 0.0), entry.get("weathered", false)]
+	var cache_key := "%s|%s|%s|%s" % [path, entry.get("node", ""), entry.get("unit", 1.0), entry.get("weathered", false)]
 	if _part_cache.has(cache_key):
 		return _part_cache[cache_key]
 	var scene: PackedScene = load(path)
@@ -315,14 +314,6 @@ static func _parts_of(entry: Dictionary) -> Array:
 		var recentre := Transform3D(Basis.IDENTITY, -Vector3(axis.x, bottom, axis.z))
 		for part in parts:
 			part.transform = recentre * part.transform
-	if entry.has("lay"):
-		for part in parts:
-			var laid := Transform3D(Basis(Vector3.RIGHT, deg_to_rad(float(entry.lay))), Vector3.ZERO) * (part.transform as Transform3D)
-			# From its vertices: a turned box is far bigger than what it holds, and the rock would float.
-			var box := AABB((laid * (part.mesh as Mesh).get_aabb()).get_center(), Vector3.ZERO)
-			for vertex in (part.mesh as Mesh).get_faces():
-				box = box.expand(laid * vertex)
-			part.transform = Transform3D(Basis.IDENTITY, -Vector3(box.get_center().x, box.position.y, box.get_center().z)) * laid
 	if entry.get("foliage", false):
 		for part in parts:
 			part.mesh = _scissored(part.mesh, LEAF_TINT.get(path, Color.WHITE), entry.get("black_ground", false))
@@ -410,6 +401,11 @@ static func _collect_meshes(node: Node, parent: Transform3D, parts: Array, only 
 		_collect_meshes(child, here, parts, only, inside, found)
 
 
+## Whether the mirrors leave this out (GraphicsQuality.FINE_SCENERY_LAYER): ground cover and the far forest, not what stands tall by the road.
+static func is_fine(entry: Dictionary) -> bool:
+	return entry.get("fine", false) or entry.get("low", false) or entry.get("backdrop", false) or not (entry.has("collision") or entry.get("tall", false))
+
+
 ## Files each part of one placed instance under its batch and chunk: the chunk it stands in, or the
 ## one of the entry's "anchor" (what belongs together shares a chunk: fewer draw calls).
 static func _add_to_batches(batches: Dictionary, entry: Dictionary, parts: Array, transform: Transform3D) -> void:
@@ -417,7 +413,7 @@ static func _add_to_batches(batches: Dictionary, entry: Dictionary, parts: Array
 	var shadows: bool = entry.get("shadows", true)
 	for part in parts:
 		var material: Material = part.material
-		var fine: bool = entry.get("fine", false) or entry.get("low", false) or entry.get("backdrop", false) or not entry.has("collision")
+		var fine := is_fine(entry)
 		var key := "%d|%d|%s|%d|%s" % [(part.mesh as Mesh).get_instance_id(), material.get_instance_id() if material != null else 0,
 			shadows, roundi(range_end), fine]
 		if not batches.has(key):

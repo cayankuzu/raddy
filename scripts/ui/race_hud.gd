@@ -10,6 +10,8 @@ const SHADOW := Color(0, 0, 0, 0.75)
 const SPLIT_SECONDS := 6.0
 const FEED_SECONDS := 5.0
 const KEYS_SECONDS := 25.0
+## How fast the rev counter makes way for a mirror (alpha per second).
+const CLUSTER_FADE := 5.0
 
 var session: RaceSession
 
@@ -165,7 +167,10 @@ func _pulse() -> void:
 func _process(delta: float) -> void:
 	var car := session.local_car
 	var team := _my_team()
-	_cluster.visible = car != null
+	var role: int = Net.local_entry().get("role", RosterRules.Role.NONE)
+	_cluster.visible = shows_cluster(car != null, role)
+	if _cluster.visible:
+		_cluster.modulate.a = move_toward(_cluster.modulate.a, _cluster_alpha(car), delta * CLUSTER_FADE)
 	if car != null:
 		_time.text = RaceResults.format_time(session.finished_teams.get(team, session.race_time_ms()))
 		var standings := session.standings()
@@ -207,7 +212,6 @@ func _process(delta: float) -> void:
 			feed.append(line[0])
 	_feed_lines = _feed_lines.filter(func(line: Array) -> bool: return line[1] > 0.0)
 	_feed.text = "\n".join(feed)
-	var role: int = Net.local_entry().get("role", RosterRules.Role.NONE)
 	_keys.text = tr("HUD_KEYS_DRIVER") if role == RosterRules.Role.DRIVER else (tr("HUD_KEYS_NAVIGATOR") if role == RosterRules.Role.NAVIGATOR else "")
 	if session.racing:
 		_keys_left -= delta
@@ -215,6 +219,22 @@ func _process(delta: float) -> void:
 	if _summary_left > 0.0:
 		_summary_left -= delta
 		_summary.modulate.a = clampf(_summary_left, 0.0, 1.0)
+
+
+## Who gets the rev counter: the driver. The navigator has the dials in front of him, and his door mirror would lie under it.
+static func shows_cluster(has_car: bool, role: int) -> bool:
+	return has_car and role != RosterRules.Role.NAVIGATOR
+
+
+## The rev counter makes way for the right door mirror when the driver looks that way.
+func _cluster_alpha(car: RallyCar) -> float:
+	var mirrors := (car.get_node(^"Model") as CarModel).mirrors
+	var camera := get_viewport().get_camera_3d()
+	if mirrors == null or camera == null or camera.is_position_behind(mirrors.glass_center(CarMirrors.Slot.RIGHT)):
+		return 1.0
+	# unproject_position gives window pixels; the HUD's pixels are stretched.
+	var on_hud := get_viewport().get_stretch_transform().affine_inverse() * camera.unproject_position(mirrors.glass_center(CarMirrors.Slot.RIGHT))
+	return HudCluster.alpha_over(on_hud, _cluster.get_global_rect())
 
 
 func _status_text(car: RallyCar, team: int) -> String:

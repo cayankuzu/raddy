@@ -13,6 +13,9 @@ const FILL := Color("f3efe6")
 const HOT := Color("ff7a2f")
 const RED := Color("e8322b")
 const BACK := Color(0.05, 0.05, 0.06, 0.55)
+## How much of it shows while the right door mirror lies under it (HUD pixels round the glass's middle).
+const OVER_A_MIRROR := 0.18
+const MIRROR_REACH := 34.0
 
 var car: RallyCar
 
@@ -25,6 +28,11 @@ var _blink := 0.0
 func _init() -> void:
 	custom_minimum_size = Vector2(250, 250)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+## How much of the cluster, whose rectangle is `rect`, shows over a mirror whose glass has its middle at `glass`.
+static func alpha_over(glass: Vector2, rect: Rect2) -> float:
+	return OVER_A_MIRROR if rect.grow(MIRROR_REACH).has_point(glass) else 1.0
 
 
 func _process(delta: float) -> void:

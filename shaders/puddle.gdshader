@@ -20,6 +20,10 @@ uniform int reflection_steps = 28;
 uniform float reflection_reach = 45.0;
 // How thick things are taken to be, per metre of the ray: behind them it passes on.
 const float RAY_THICKNESS = 0.08;
+// How much of the ripples' slope bends a mirrored ray, looking across the water (the lowest angle) and straight at it:
+// all of it is for the glint, a ray bent that much lands somewhere else on every pixel and the picture falls apart in slivers.
+const float RAY_RIPPLE_ACROSS = 0.1;
+const float RAY_RIPPLE_DOWN = 0.32;
 
 // Where in the view a point at view-space `p` lies in the picture; the scene's depth there, as a view-space z.
 vec2 to_screen(vec3 p, mat4 projection) {
@@ -46,24 +50,23 @@ vec4 mirrored(vec3 from, vec3 dir, mat4 projection, mat4 inv_projection) {
 		float scene = scene_z_at(uv, inv_projection);
 		if (p.z < scene) {
 			// Passed behind something: a hit if it is near enough, found closer by halving the step.
-			if (scene - p.z > RAY_THICKNESS * travelled + 0.4) {
-				return vec4(0.0);
-			}
-			float low = travelled - step_length;
-			float high = travelled;
-			for (int k = 0; k < 4; k++) {
-				float middle = (low + high) * 0.5;
-				vec3 q = from + dir * middle;
-				if (q.z < scene_z_at(to_screen(q, projection), inv_projection)) {
-					high = middle;
-				} else {
-					low = middle;
+			if (scene - p.z <= RAY_THICKNESS * travelled + 0.4) {
+				float low = travelled - step_length;
+				float high = travelled;
+				for (int k = 0; k < 4; k++) {
+					float middle = (low + high) * 0.5;
+					vec3 q = from + dir * middle;
+					if (q.z < scene_z_at(to_screen(q, projection), inv_projection)) {
+						high = middle;
+					} else {
+						low = middle;
+					}
 				}
+				vec2 at = to_screen(from + dir * high, projection);
+				vec2 edge = min(at, 1.0 - at);
+				float fade = smoothstep(0.0, 0.08, min(edge.x, edge.y)) * (1.0 - smoothstep(reflection_reach * 0.6, reflection_reach, high));
+				return vec4(textureLod(screen_texture, at, 1.0).rgb, fade);
 			}
-			vec2 at = to_screen(from + dir * high, projection);
-			vec2 edge = min(at, 1.0 - at);
-			float fade = smoothstep(0.0, 0.08, min(edge.x, edge.y)) * (1.0 - smoothstep(reflection_reach * 0.6, reflection_reach, high));
-			return vec4(textureLod(screen_texture, at, 0.0).rgb, fade);
 		}
 		travelled += step_length;
 		step_length *= 1.14;
@@ -73,6 +76,11 @@ vec4 mirrored(vec3 from, vec3 dir, mat4 projection, mat4 inv_projection) {
 		}
 	}
 	return vec4(0.0);
+}
+
+// The way a ray leaves the water at `vertex` when ripples of slope `slope` bend it.
+vec3 bounced(vec3 to_eye, vec2 slope, mat4 view) {
+	return reflect(-to_eye, normalize((view * vec4(slope.x, 1.0, slope.y, 0.0)).xyz));
 }
 
 void fragment() {
@@ -99,7 +107,11 @@ void fragment() {
 		vec3 to_eye = normalize(-VERTEX);
 		float cosine = clamp(dot(NORMAL, to_eye), 0.0, 1.0);
 		float fresnel = 0.02 + 0.98 * pow(1.0 - cosine, 5.0);
-		vec4 found = mirrored(VERTEX, reflect(-to_eye, NORMAL), PROJECTION_MATRIX, INV_PROJECTION_MATRIX);
+		// Two rays, one per set of ripples: where only one finds something, the picture fades out instead of breaking off.
+		float bend = mix(RAY_RIPPLE_ACROSS, RAY_RIPPLE_DOWN, smoothstep(0.0, 0.5, cosine)) * ripple;
+		vec4 a = mirrored(VERTEX, bounced(to_eye, n1.xy * bend, VIEW_MATRIX), PROJECTION_MATRIX, INV_PROJECTION_MATRIX);
+		vec4 b = mirrored(VERTEX, bounced(to_eye, n2.xy * bend, VIEW_MATRIX), PROJECTION_MATRIX, INV_PROJECTION_MATRIX);
+		vec4 found = vec4((a.rgb * a.a + b.rgb * b.a) / max(a.a + b.a, 0.001), (a.a + b.a) * 0.5);
 		// The picture of what is mirrored takes the place of that much of the water's own colour.
 		float amount = clamp(fresnel * 1.6, 0.0, 0.85) * found.a;
 		ALBEDO *= 1.0 - amount;

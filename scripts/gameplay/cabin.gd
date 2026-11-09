@@ -45,9 +45,11 @@ const FACE_HIT_EXPOSURE := 0.12
 ## Chance per second of a stone chip cracking an intact windshield at 20 m/s on gravel.
 const STONE_CHIP_CHANCE := 0.012
 const WIPER_CLEAR_RATE := 0.22
-## A side window slides this way into its door (car space, the glass's own slant) and this far, in this long.
+## A side window slides this way into its door (car space, the glass's own slant) and this far, in this long. What
+## has gone below its lower edge when closed, the door's sill, is cut away: the door is more upright than the glass.
 const PANE_SLIDE: Array[Vector3] = [Vector3(-0.42, -0.907, 0.0), Vector3(0.42, -0.907, 0.0)]
 const PANE_TRAVEL := 0.5
+const SILL_MARGIN := 0.002
 const PANE_SECONDS := 0.9
 const RUSTLE: Array[AudioStream] = [preload("res://assets/audio/car/map_rustle_0.ogg"), preload("res://assets/audio/car/map_rustle_1.ogg")]
 ## Glass dirt per second while driving through a water splash (at 15 m/s), and how often an open
@@ -106,6 +108,7 @@ var paper_map: PaperMap
 ## How far down each side pane is, 0 closed .. 1 inside the door.
 var _pane_down: Array[float] = [0.0, 0.0]
 var _pane_closed: Array[Vector3] = []
+var _pane_sills: Array[Plane] = []
 
 @onready var _window_meshes: Array[MeshInstance3D] = [$WindowLeft, $WindowRight]
 @onready var _windshield_mesh: MeshInstance3D = $Windshield
@@ -121,6 +124,7 @@ func _ready() -> void:
 		car.impact.connect(_on_impact)
 	for mesh in _window_meshes:
 		_pane_closed.append(mesh.position)
+		_pane_sills.append(_sill_of(mesh))
 
 
 ## Slides the side panes towards where their state says, as far as they can go: a broken one is gone.
@@ -135,8 +139,35 @@ func _process(delta: float) -> void:
 
 func _show_pane(side: int) -> void:
 	var mesh := _window_meshes[side]
-	mesh.position = _pane_closed[side] + PANE_SLIDE[side] * PANE_TRAVEL * _pane_down[side]
+	var moved := PANE_SLIDE[side] * PANE_TRAVEL * _pane_down[side]
+	mesh.position = _pane_closed[side] + moved
 	mesh.visible = window_state[side] == WindowState.CLOSED or (window_state[side] == WindowState.OPEN and _pane_down[side] < 1.0)
+	# The sill stays where it is while the glass moves past it.
+	var sill := _pane_sills[side]
+	mesh.set_instance_shader_parameter(&"sill", Vector4(sill.normal.x, sill.normal.y, sill.normal.z, sill.d - sill.normal.dot(mesh.basis.inverse() * moved)))
+
+
+## The plane of a closed pane's lower edge in its mesh's space, its normal pointing up the glass.
+static func _sill_of(pane: MeshInstance3D) -> Plane:
+	var up := pane.basis.inverse() * Vector3.UP
+	var along := pane.basis.inverse() * Vector3.BACK
+	var faces := pane.mesh.get_faces()
+	var least := INF
+	var most := -INF
+	for v in faces:
+		least = minf(least, v.dot(along))
+		most = maxf(most, v.dot(along))
+	var front := Vector3.INF
+	var rear := Vector3.INF
+	for v in faces:
+		var t := (v.dot(along) - least) / maxf(most - least, 0.001)
+		if t < 0.25 and (front == Vector3.INF or v.dot(up) < front.dot(up)):
+			front = v
+		elif t > 0.75 and (rear == Vector3.INF or v.dot(up) < rear.dot(up)):
+			rear = v
+	var edge := rear - front
+	var normal := edge.cross(up).cross(edge).normalized()
+	return Plane(normal, front.dot(normal) - SILL_MARGIN)
 
 
 ## Gives the map its drawing; RaceSession (or a dev scene) calls it once the route exists.

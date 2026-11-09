@@ -21,6 +21,9 @@ const WATER_RAY_STEPS := {Level.LOW: 0, Level.MEDIUM: 24, Level.HIGH: 36}
 ## The render layer of what the mirrors leave out: ground cover and the far forest. Their cost is draw calls and
 ## triangles; in a small picture of the road behind nobody misses them.
 const FINE_SCENERY_LAYER := 1 << 16
+## The render layer of what is inside a car. A car's lamps leave it out: they cast no shadows (far too dear), so a
+## follower's headlights would shine through the bodywork in front of them onto the dash and the map.
+const CABIN_LAYER := 1 << 15
 ## Mirrors (CarMirrors): picture height in pixels, interior and door mirror.
 const MIRROR_HEIGHT := {Level.LOW: Vector2i(96, 96), Level.MEDIUM: Vector2i(132, 136), Level.HIGH: Vector2i(200, 208)}
 ## ...and whose turn it is on each frame, one mirror per frame at most: CarMirrors.Slot, -1 = none.

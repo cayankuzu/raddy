@@ -6,9 +6,9 @@ extends Node3D
 ## window when it does. The Cabin owns the state (host authority); this node shows it on every
 ## peer and turns the local navigator's mouse into zoom/pan.
 
-const SHEET_SIZE := Vector2(0.62, 0.40)
-## Poses relative to the car: held up in front of the navigator's seat, and folded on the lap.
-const HELD_POSITION := Vector3(0.27, 0.55, -0.3)
+const SHEET_SIZE := Vector2(0.58, 0.373)
+## Poses relative to the car: held up in front of the navigator's seat, clear of the A pillar and the mirror, and folded on the lap.
+const HELD_POSITION := Vector3(0.25, 0.54, -0.25)
 const HELD_ROTATION_DEG := Vector3(-24.0, 0.0, 0.0)
 const LAP_POSITION := Vector3(0.38, 0.42, -0.18)
 const LAP_ROTATION_DEG := Vector3(-72.0, 0.0, 0.0)
@@ -44,6 +44,7 @@ func _ready() -> void:
 	_sheet = MeshInstance3D.new()
 	_sheet.name = "Sheet"
 	_sheet.mesh = quad
+	_sheet.layers = GraphicsQuality.CABIN_LAYER
 	_sheet.visible = false
 	add_child(_sheet)
 	_sheet.position = LAP_POSITION

@@ -23,6 +23,10 @@ const AIR_WHEEL_DECEL := 8.0
 const UNSTUCK_DISTANCE := 2.0
 ## Deceleration per m/s of speed while ploughing through a water splash (1/s).
 const WATER_DRAG := 0.6
+## The spray of a water splash leaves this far from the car's centre line (just past the body) and spreads this much
+## (degrees) round a way that takes it out and up, never back in.
+const SPLASH_OUT := 1.05
+const SPLASH_SPREAD := 30.0
 
 @export var config: VehicleConfig
 
@@ -57,6 +61,7 @@ var water_contacts := 0
 var water_level := 0.0
 
 var _wheels: Array[CarWheel] = []
+var _splashes: Array[GPUParticles3D] = []
 var _drive := 0.0
 var _brake_input := 0.0
 var _stuck_time := 0.0
@@ -300,51 +305,57 @@ func _update_dust() -> void:
 
 ## Spray thrown up from the wheels in a water splash.
 func _update_splash() -> void:
-	var splash := get_node_or_null(^"Splash") as GPUParticles3D
 	var speed := absf(forward_speed)
 	var wet := water_contacts > 0 and speed > 2.0
-	if splash == null:
+	if _splashes.is_empty():
 		if not wet:
 			return
-		splash = GPUParticles3D.new()
-		splash.name = "Splash"
-		splash.position = Vector3(0.0, -0.2, -0.6)
-		splash.amount = 160
-		splash.lifetime = 1.1
-		splash.local_coords = false
-		var material := ParticleProcessMaterial.new()
-		material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-		material.emission_box_extents = Vector3(0.9, 0.1, 1.4)
-		material.direction = Vector3(0.0, 1.0, 0.25)
-		material.spread = 70.0
-		material.initial_velocity_min = 3.0
-		material.initial_velocity_max = 8.0
-		material.gravity = Vector3(0.0, -9.8, 0.0)
-		material.scale_min = 0.25
-		material.scale_max = 0.9
-		var fade := Gradient.new()
-		fade.set_color(0, Color(1, 1, 1, 0.9))
-		fade.set_color(1, Color(1, 1, 1, 0.0))
-		var fade_texture := GradientTexture1D.new()
-		fade_texture.gradient = fade
-		material.color_ramp = fade_texture
-		material.color = Color(0.55, 0.5, 0.42, 0.8)
-		splash.process_material = material
-		var mesh := QuadMesh.new()
-		mesh.size = Vector2(0.7, 0.7)
-		var sprite := StandardMaterial3D.new()
-		sprite.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-		sprite.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		sprite.vertex_color_use_as_albedo = true
-		sprite.albedo_texture = _soft_puff()
-		sprite.roughness = 0.2
-		mesh.material = sprite
-		splash.draw_pass_1 = mesh
-		add_child(splash)
-	splash.emitting = wet
-	splash.amount_ratio = clampf(speed / 18.0, 0.15, 1.0)
-	var spray := splash.process_material as ParticleProcessMaterial
-	spray.initial_velocity_max = 4.0 + speed * 0.35
+		_splashes = [_make_splash("SplashLeft", -1.0), _make_splash("SplashRight", 1.0)]
+	for splash in _splashes:
+		splash.emitting = wet
+		splash.amount_ratio = clampf(speed / 18.0, 0.15, 1.0)
+		(splash.process_material as ParticleProcessMaterial).initial_velocity_max = 4.0 + speed * 0.35
+
+
+## One flank's spray. It leaves from beside the body and flies away from it: thrown particles stay where they are thrown,
+## so from under the car they would stand in the cabin as it drives through them.
+func _make_splash(node_name: String, side: float) -> GPUParticles3D:
+	var splash := GPUParticles3D.new()
+	splash.name = node_name
+	splash.position = Vector3(side * SPLASH_OUT, -0.35, 0.0)
+	splash.amount = 80
+	splash.lifetime = 1.1
+	splash.local_coords = false
+	var material := ParticleProcessMaterial.new()
+	material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	material.emission_box_extents = Vector3(0.1, 0.08, 1.5)
+	material.direction = Vector3(side * 0.75, 1.0, 0.2)
+	material.spread = SPLASH_SPREAD
+	material.initial_velocity_min = 3.0
+	material.initial_velocity_max = 8.0
+	material.gravity = Vector3(0.0, -9.8, 0.0)
+	material.scale_min = 0.25
+	material.scale_max = 0.9
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 0.9))
+	fade.set_color(1, Color(1, 1, 1, 0.0))
+	var fade_texture := GradientTexture1D.new()
+	fade_texture.gradient = fade
+	material.color_ramp = fade_texture
+	material.color = Color(0.55, 0.5, 0.42, 0.8)
+	splash.process_material = material
+	var mesh := QuadMesh.new()
+	mesh.size = Vector2(0.7, 0.7)
+	var sprite := StandardMaterial3D.new()
+	sprite.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	sprite.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	sprite.vertex_color_use_as_albedo = true
+	sprite.albedo_texture = _soft_puff()
+	sprite.roughness = 0.2
+	mesh.material = sprite
+	splash.draw_pass_1 = mesh
+	add_child(splash)
+	return splash
 
 
 ## A round, soft-edged puff for dust particles, made once.
@@ -487,6 +498,12 @@ func _update_drivetrain() -> void:
 		_brake_input = 0.0
 	else:
 		_drive = 0.0
+
+
+## The driver is backing up (brake held at a standstill, _update_drivetrain) and the car has started to go that way.
+## A car rolling back down a hill by itself is not.
+func is_backing_up() -> bool:
+	return controls.throttle <= 0.0 and controls.brake > 0.0 and forward_speed < -0.5
 
 
 func _simulate_wheel(state: PhysicsDirectBodyState3D, space: PhysicsDirectSpaceState3D, wheel: CarWheel, dt: float) -> void:

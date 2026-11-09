@@ -70,6 +70,7 @@ func _ready() -> void:
 	_move_wheels(model)
 	_move_glass(model, parts)
 	_clear_fixed_glass(model)
+	(model.find_child(CarParts.INTERIOR, true, false) as MeshInstance3D).layers = GraphicsQuality.CABIN_LAYER
 	_setup_steering(model)
 	_add_cabin_light()
 	cockpit = CarCockpit.new()
@@ -253,6 +254,7 @@ func _setup_steering(model: Node3D) -> void:
 	if meshes.is_empty():
 		return
 	var mesh_instance := meshes[0] as MeshInstance3D
+	mesh_instance.layers = GraphicsQuality.CABIN_LAYER
 	var in_car := _car_space(mesh_instance)
 	var centre := in_car * mesh_instance.mesh.get_aabb().get_center()
 	_steering = Node3D.new()

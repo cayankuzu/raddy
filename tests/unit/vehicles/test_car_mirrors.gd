@@ -148,3 +148,17 @@ func test_the_housings_are_plastic_not_polished_metal() -> void:
 		assert_null(material.metallic_texture)
 		assert_gte(material.roughness, 0.5, "no white-hot glint in the sun")
 		assert_not_null(material.albedo_texture, "the model's own colours")
+
+
+func test_a_door_mirror_gathers_a_little_grime_and_no_wiper_reaches_it() -> void:
+	var grime := CarMirrors.grime_after(0.0, 0.0, 0.5)
+	assert_almost_eq(grime, 0.5 * CarMirrors.GRIME_SHARE, 0.001, "a small share of what lands on the windshield")
+	assert_eq(CarMirrors.grime_after(grime, 0.5, 0.1), grime, "the wipers clear the windshield, not the mirrors")
+	assert_gt(CarMirrors.grime_after(grime, 0.1, 0.6), grime, "and it goes on gathering")
+	assert_eq(CarMirrors.grime_after(CarMirrors.GRIME_MOST, 0.0, 1.0), CarMirrors.GRIME_MOST, "a film, never a wall")
+
+
+func test_the_middle_of_the_glass_is_where_the_rest_pose_says() -> void:
+	var mirror: CarMirrors.Mirror = _mirrors._mirrors[CarMirrors.Slot.RIGHT]
+	assert_almost_eq(_mirrors.glass_center(CarMirrors.Slot.RIGHT).distance_to(mirror.glass.global_transform * mirror.rest.center), 0.0, 0.0001)
+	assert_gt((_car.global_transform.affine_inverse() * _mirrors.glass_center(CarMirrors.Slot.RIGHT)).x, 0.6, "the right mirror stands on the right")

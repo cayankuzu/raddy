@@ -105,7 +105,7 @@ static func profile_depth(t: float) -> float:
 
 ## The rail's line beside road metre `distance` (where the posts stand): the road's height, past the shoulder.
 static func _line_at(graph: RouteGraph, distance: float, side: float) -> Vector3:
-	var here := graph.sample(distance)
+	var here := graph.sample_exact(distance)
 	var dir: Vector2 = here.direction
 	var half: float = graph.edges[here.edge].width * 0.5
 	return (here.position as Vector3) + Vector3(-dir.y, 0.0, dir.x) * side * (half + RoadBuilder.SHOULDER + TrackFeatures.RAIL_OUTSIDE)
@@ -116,7 +116,6 @@ static func _line_at(graph: RouteGraph, distance: float, side: float) -> Vector3
 static func _add_beam(surface: SurfaceTool, graph: RouteGraph, metres: Array, side: float, first_vertex: int, torn_start: bool, torn_end: bool) -> int:
 	# Each section: road metre, metres along the beam, how far out and down it is bent.
 	var sections: Array[Vector4] = []
-	var along := 0.0
 	var start: float = metres[0]
 	var end: float = metres[-1]
 	sections.append_array(_end_sections(start, -1.0, torn_start))
@@ -129,20 +128,18 @@ static func _add_beam(surface: SurfaceTool, graph: RouteGraph, metres: Array, si
 		k += 1
 	var tail := _end_sections(end, 1.0, torn_end)
 	tail.reverse()
-	for section in tail:
-		section.y += end - start
+	for i in tail.size():
+		tail[i].y += end - start
 	sections.append_array(tail)
 	for section in sections:
-		var here := graph.sample(section.x)
-		var dir: Vector2 = here.direction
+		var dir: Vector2 = graph.sample_exact(section.x).direction
 		var out := Vector3(-dir.y, 0.0, dir.x) * side
 		var line := _line_at(graph, section.x, side)
-		along = section.y
 		for row in PROFILE_ROWS:
 			var t := float(row) / (PROFILE_ROWS - 1)
 			var slope := PI * 2.0 * BEAM_DEPTH * sin(TAU * 2.0 * t) / BEAM_HEIGHT
 			surface.set_normal((-out + Vector3.UP * -slope).normalized())
-			surface.set_uv(Vector2(along, t))
+			surface.set_uv(Vector2(section.y, t))
 			surface.add_vertex(line + out * (section.z - BEAM_OFFSET - profile_depth(t)) + Vector3.UP * (BEAM_BOTTOM + BEAM_HEIGHT * t - section.w))
 	for s in sections.size() - 1:
 		for row in PROFILE_ROWS - 1:
@@ -186,7 +183,7 @@ static func _end_sections(end: float, way: float, torn: bool) -> Array[Vector4]:
 
 ## A post beside road metre `distance`, its flat back to the road; a post beside the gap leans out.
 static func _post_transform(graph: RouteGraph, distance: float, side: float, leaning: bool) -> Transform3D:
-	var dir: Vector2 = graph.sample(distance).direction
+	var dir: Vector2 = graph.sample_exact(distance).direction
 	var basis := Basis.looking_at(Vector3(dir.x, 0.0, dir.y) * side, Vector3.UP)
 	if leaning:
 		basis = Basis(Vector3(dir.x, 0.0, dir.y).normalized(), -LEANING_POST * side) * basis

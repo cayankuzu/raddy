@@ -94,7 +94,7 @@ HUD_MAP_WARNING,Harita uçmak üzere!,The map is about to fly!
 HUD_FAINTED,Baygınsın... {seconds} s,Out cold... {seconds} s
 HUD_SPEAKING,{name} konuşuyor,{name} is talking
 HUD_KEYS_DRIVER,W/S gaz-fren   A/D direksiyon   Boşluk el freni   Fare bak   H korna   Q cam   T silecek   V konuş,W/S throttle-brake   A/D steer   Space handbrake   Mouse look   H horn   Q window   T wipers   V talk
-HUD_KEYS_NAVIGATOR,Fare bak   M harita (sürükle / teker)   Q/E camlar   Sol tık kutu at   F ön camı tekmele   V konuş,Mouse look   M map (drag / wheel)   Q/E windows   LMB throw   F kick windshield   V talk
+HUD_KEYS_NAVIGATOR,Fare bak   M harita (sürükle / teker)   L tavan lambası   Q/E camlar   Sol tık kutu at   F ön camı tekmele   V konuş,Mouse look   M map (drag / wheel)   L dome lamp   Q/E windows   LMB throw   F kick windshield   V talk
 HUD_WINDSHIELD_CRACKED,Ön cam çatlak,Windshield cracked
 HUD_WINDSHIELD_REMOVED,Ön cam yok,No windshield
 HUD_FINISHED,Bitirdin! Diğerleri bekleniyor...,Finished! Waiting for the others...

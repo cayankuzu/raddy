@@ -8,8 +8,9 @@ class_name RoadsideCatalog
 ##   no alpha but a black ground round every leaf, to be cut away), backdrop (no collision, kept out of every
 ##   stretch's corridor), screen (only on the sides Sightline counts on, never thinned), low (grows
 ##   in the open places RallyDressing keeps clear of trees too), fine (the mirrors leave it out, as they do
-##   whatever is low, backdrop or has no collision), lay (degrees about the model's X axis, re-centred on its footprint),
-##   weathered (a rock: rain and snow reach it, the scan needs albedo, normal and ARM textures),
+##   whatever is low, backdrop or has no collision), tall (the mirrors show it though it has no collision),
+##   weathered (a rock: rain and snow reach it, the scan needs albedo, normal and ARM textures, and it must be a whole
+##   stone: from the seat nothing is behind it),
 ##   collision {shape: cylinder|sphere|box, radius, height, lift, size, offset, yaw (degrees: the box's turn about the trunk)}
 ##   in metres at scale 1.
 ## Every asset listed here must have a row in ASSET_LICENSES.md. The Poly Haven scans and the
@@ -43,12 +44,6 @@ static func _tree(id: String, path: String, node: String, biomes: Array, density
 		entry.collision = {"shape": "cylinder", "radius": trunk, "height": 6.0}
 	entry.merge(extra, true)
 	return entry
-
-
-## The rock face scan is a thin slab leaning 42 degrees, made to lie against a hill. On open ground it stuck up like a
-## wing, its low end on the ground and its high end in the air: this lays it down to a tilted shelf of rock, this size.
-const ROCK_SHELF_LAY := -38.0
-const ROCK_SHELF := Vector3(4.6, 1.2, 4.6)
 
 
 ## Entries are built per call (paths are computed), so they are a function, not a constant.
@@ -101,9 +96,13 @@ static func entries() -> Array[Dictionary]:
 		{"id": "desert_boulder", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT, MOUNTAIN],
 			"density": 3.0, "near": 4.5, "far": 38.5, "scale": [0.5, 1.4], "sink": 0.2, "range": 380.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}, "biome_density": {MOUNTAIN: 0.6}},
-		{"id": "rock_face", "path": _model("rock_face_01"), "weathered": true, "biomes": [FOREST, DESERT, MOUNTAIN], "lay": ROCK_SHELF_LAY,
-			"density": 0.7, "near": 10.5, "far": 50.5, "scale": [0.8, 1.6], "sink": 0.4, "range": 500.0,
-			"collision": {"shape": "box", "size": ROCK_SHELF}, "biome_density": {MOUNTAIN: 3.5, DESERT: 1.2}},
+		# Outcrops: the biggest stones, further out, what the land is made of.
+		{"id": "outcrop", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT],
+			"density": 0.85, "near": 10.5, "far": 50.5, "scale": [1.8, 3.0], "sink": 0.4, "range": 500.0,
+			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}},
+		{"id": "crag", "path": _model("boulder_01"), "weathered": true, "biomes": [MOUNTAIN],
+			"density": 1.8, "near": 10.5, "far": 50.5, "scale": [2.0, 3.4], "sink": 0.3, "range": 500.0,
+			"collision": {"shape": "sphere", "radius": 0.75, "lift": 0.35}},
 		{"id": "dead_tree", "path": _model("dead_quiver_trunk"), "biomes": [DESERT],
 			"density": 1.6, "near": 5.5, "far": 38.5, "scale": [1.3, 2.5], "sink": 0.05, "tilt": 6.0, "range": 380.0,
 			"collision": {"shape": "cylinder", "radius": 0.16, "height": 2.0}},
@@ -111,9 +110,12 @@ static func entries() -> Array[Dictionary]:
 		{"id": "edge_rocks", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT],
 			"density": 7.0, "near": 24.5, "far": 36.5, "bias": 1.0, "scale": [1.0, 2.2], "sink": 0.3, "range": 500.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}},
-		{"id": "edge_faces", "path": _model("rock_face_01"), "weathered": true, "biomes": [DESERT, MOUNTAIN], "lay": ROCK_SHELF_LAY,
-			"density": 2.5, "near": 26.5, "far": 42.5, "bias": 1.0, "scale": [1.2, 2.2], "sink": 0.4, "range": 700.0,
-			"collision": {"shape": "box", "size": ROCK_SHELF}, "biome_density": {MOUNTAIN: 1.6}},
+		{"id": "edge_outcrop", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT],
+			"density": 1.8, "near": 26.5, "far": 42.5, "bias": 1.0, "scale": [2.2, 3.4], "sink": 0.4, "range": 500.0,
+			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}},
+		{"id": "edge_crag", "path": _model("boulder_01"), "weathered": true, "biomes": [MOUNTAIN],
+			"density": 2.6, "near": 26.5, "far": 42.5, "bias": 1.0, "scale": [2.2, 3.8], "sink": 0.3, "range": 500.0,
+			"collision": {"shape": "sphere", "radius": 0.75, "lift": 0.35}},
 	]
 	# --- screens from the scans ---
 	out.append_array([
@@ -137,8 +139,8 @@ static func entries() -> Array[Dictionary]:
 			{"biome_density": {MOUNTAIN: 0.5}}),
 		_tree("noble_fir", CONIFERS, "NobleFirTree_2", [FOREST, MOUNTAIN], 10.0, 4.5, 28.5, [0.8, 1.5], 0.18),
 		_tree("sapling", CONIFERS, "Coniferous Sapling_4", [FOREST, MOUNTAIN], 14.0, 3.0, 18.5, [0.7, 1.4], 0.0,
-			{"range": 260.0, "shadows": false, "biome_density": {MOUNTAIN: 0.6}}),
-		_tree("conifer_bush", CONIFERS, "ConiferousShrub_3", [FOREST], 1.5, 8.5, 32.5, [0.45, 0.7], 0.25, {"fine": true}),
+			{"range": 260.0, "shadows": false, "tall": true, "biome_density": {MOUNTAIN: 0.6}}),
+		_tree("conifer_bush", CONIFERS, "ConiferousShrub_3", [FOREST], 1.5, 8.5, 32.5, [0.45, 0.7], 0.25),
 		_tree("dead_conifer", CONIFERS, "Coniferous Dead Tree_6", [FOREST, MOUNTAIN], 0.8, 6.5, 32.5, [0.8, 1.1], 0.3,
 			{"biome_density": {MOUNTAIN: 1.5}}),
 		_tree("snag", CONIFERS, "Coniferous Dead Tree 2_7", [FOREST, MOUNTAIN], 1.0, 4.5, 28.5, [0.8, 1.2], 0.2),
@@ -146,13 +148,13 @@ static func entries() -> Array[Dictionary]:
 			{"sink": 0.1, "range": 260.0, "fine": true, "collision": {"shape": "box", "size": Vector3(7.4, 0.6, 0.75), "yaw": 41.8}}),
 		_tree("mossy_boulder", CONIFERS, "BoulderMossyLarge_8", [FOREST], 1.4, 4.5, 32.5, [0.5, 0.9], 0.0,
 			{"sink": 0.3, "foliage": false, "fine": true, "collision": {"shape": "sphere", "radius": 1.5, "lift": 0.2}}),
-		_tree("mossy_outcrop", CONIFERS, "BoulderOutcropMossyMedium_10", [FOREST, MOUNTAIN], 0.5, 10.5, 36.5, [0.6, 1.0], 0.0,
-			{"sink": 0.5, "foliage": false, "fine": true, "collision": {"shape": "sphere", "radius": 2.4, "lift": 0.1}}),
+		_tree("mossy_outcrop", CONIFERS, "BoulderOutcropMossyMedium_10", [FOREST, MOUNTAIN], 1.2, 10.5, 36.5, [0.6, 1.0], 0.0,
+			{"sink": 0.5, "foliage": false, "collision": {"shape": "sphere", "radius": 2.4, "lift": 0.1}}),
 		_tree("birch_a", BIRCHES, "birch-1", [FOREST], 2.4, 5.5, 32.5, [0.8, 1.15], 0.13, {"unit": 0.01}),
-		_tree("birch_b", BIRCHES, "birch-2", [FOREST], 1.8, 6.5, 32.5, [0.7, 1.0], 0.15, {"unit": 0.01, "fine": true}),
-		_tree("birch_c", BIRCHES, "birch-3", [FOREST], 2.6, 4.0, 24.5, [0.9, 1.4], 0.08, {"unit": 0.01, "fine": true}),
-		_tree("birch_d", BIRCHES, "birch-4", [FOREST], 1.8, 6.5, 32.5, [0.75, 1.05], 0.14, {"unit": 0.01, "fine": true}),
-		_tree("birch_e", BIRCH, "bark11_0", [FOREST], 2.4, 4.5, 30.5, [1.0, 1.5], 0.12, {"fine": true}),
+		_tree("birch_b", BIRCHES, "birch-2", [FOREST], 1.8, 6.5, 32.5, [0.7, 1.0], 0.15, {"unit": 0.01}),
+		_tree("birch_c", BIRCHES, "birch-3", [FOREST], 2.6, 4.0, 24.5, [0.9, 1.4], 0.08, {"unit": 0.01}),
+		_tree("birch_d", BIRCHES, "birch-4", [FOREST], 1.8, 6.5, 32.5, [0.75, 1.05], 0.14, {"unit": 0.01}),
+		_tree("birch_e", BIRCH, "bark11_0", [FOREST], 2.4, 4.5, 30.5, [1.0, 1.5], 0.12),
 		# The wall beside the road: trunks shoulder to shoulder from just past the road's side.
 		_tree("row_fir", CONIFERS, "FirTree_0", [FOREST, MOUNTAIN], 20.0, 2.9, 9.0, [0.55, 0.95], 0.3,
 			{"bias": 1.0, "biome_density": {MOUNTAIN: 0.5}}),
@@ -164,7 +166,7 @@ static func entries() -> Array[Dictionary]:
 		_tree("mid_pine", CONIFERS, "PineTree_1", [FOREST], 12.0, 9.0, 24.0, [0.75, 1.05], 0.32, {"bias": 1.0, "shadows": false}),
 		# Screens: what closes a corner's inside and every side Sightline counts on (Low keeps them).
 		_tree("screen_sapling", CONIFERS, "Coniferous Sapling_4", [FOREST, MOUNTAIN], 50.0, 2.1, 6.5, [0.9, 1.5], 0.0,
-			{"bias": 1.0, "range": 260.0, "shadows": false, "screen": true, "biome_density": {MOUNTAIN: 0.7}}),
+			{"bias": 1.0, "range": 260.0, "shadows": false, "screen": true, "tall": true, "biome_density": {MOUNTAIN: 0.7}}),
 		# The edge band: a wall of trunks before the stage's wall.
 		# Their shadows rarely reach the road: no shadow casting (half the forest's draw calls).
 		_tree("edge_fir", CONIFERS, "FirTree_0", [FOREST], 10.0, 24.5, 36.5, [0.8, 1.15], 0.32, {"bias": 1.0, "shadows": false}),

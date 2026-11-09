@@ -36,8 +36,9 @@ const SHAKE_RATE := Vector2(47.0, 61.0)
 const HANG_DEGREES := 58.0
 const HANG_FLAP := 16.0
 const HANG_FLAP_SPEED := 25.0
-## How much of the windshield's dirt lands on a mirror's glass.
-const DIRT_SHARE := 0.6
+## A door mirror's grime: this share of what lands on the windshield, up to this much. No wiper reaches it.
+const GRIME_SHARE := 0.22
+const GRIME_MOST := 0.6
 const DISPLAY_SHADER := preload("res://shaders/mirror_glass.gdshader")
 ## A door mirror's housing: moulded plastic. The model's own material there is polished metal, a white-hot glint in the sun.
 const HOUSING_ROUGHNESS := 0.55
@@ -62,6 +63,8 @@ var _turns: Array = []
 var _turn := 0
 var _sun: DirectionalLight3D
 var _time := 0.0
+var _grime := 0.0
+var _dirt_seen := 0.0
 static var _plain_glass: StandardMaterial3D
 static var _housing: StandardMaterial3D
 static var _broken_glass: ShaderMaterial
@@ -290,10 +293,17 @@ func _release() -> void:
 	_seat = null
 
 
+## How grimy a door mirror is after the windshield's dirt went from `was` to `level`: only what lands counts.
+static func grime_after(grime: float, was: float, level: float) -> float:
+	return minf(grime + maxf(level - was, 0.0) * GRIME_SHARE, GRIME_MOST)
+
+
 ## The door mirrors stand outside, in what the road throws up.
 func _on_dirt(level: float) -> void:
+	_grime = grime_after(_grime, _dirt_seen, level)
+	_dirt_seen = level
 	for slot: int in [Slot.LEFT, Slot.RIGHT]:
-		(_mirrors[slot] as Mirror).material.set_shader_parameter(&"dirt", level * DIRT_SHARE)
+		(_mirrors[slot] as Mirror).material.set_shader_parameter(&"dirt", _grime)
 
 
 ## A door mirror breaks (hangs from its arm, black cracked glass) or is restored. The interior one never breaks.
@@ -308,6 +318,12 @@ func set_broken(slot: int, broken: bool) -> void:
 		mirror.glass.material_override = mirror.material if mirror.material != null else _plain()
 		mirror.arm.basis = Basis.IDENTITY
 	_update_processing()
+
+
+## The middle of a mirror's glass, in the world.
+func glass_center(slot: int) -> Vector3:
+	var mirror: Mirror = _mirrors[slot]
+	return mirror.glass.global_transform * mirror.rest.center
 
 
 func is_broken(slot: int) -> bool:

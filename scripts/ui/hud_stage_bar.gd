@@ -16,6 +16,7 @@ var my_team := 0
 func _init() -> void:
 	custom_minimum_size = Vector2(760, 64)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS  # the flag's big texture, a few pixels high here
 
 
 func _process(_delta: float) -> void:

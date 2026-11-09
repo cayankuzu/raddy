@@ -73,8 +73,8 @@ static func engine_running(since_ignition: float) -> bool:
 
 
 ## Temperature needle, 0..1 (1 is deep in the red): warms up, then what the damage does to it.
-static func coolant(since_ignition: float, damage_level: int) -> float:
-	var warm := clampf(since_ignition / COOLANT_WARMUP_SECONDS, 0.0, 1.0)
+static func coolant(engine_seconds: float, damage_level: int) -> float:
+	var warm := clampf(engine_seconds / COOLANT_WARMUP_SECONDS, 0.0, 1.0)
 	return lerpf(COOLANT_COLD, COOLANT_BY_DAMAGE[clampi(damage_level, 0, 3)], warm)
 
 

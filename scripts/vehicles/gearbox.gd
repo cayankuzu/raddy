@@ -38,9 +38,9 @@ var _limiter_cut := 0.0
 
 
 ## `speed` is the car's forward speed (m/s), `throttle` 0..1, `free` true when the driven wheels
-## are off the ground.
-func update(dt: float, speed: float, throttle: float, free: bool) -> void:
-	if speed < -0.5 and throttle <= 0.0:
+## are off the ground, `backing_up` true while the driver reverses: a car that only rolls backwards stays in its gear.
+func update(dt: float, speed: float, throttle: float, free: bool, backing_up := false) -> void:
+	if backing_up:
 		gear = -1
 	elif gear == -1 and speed > -0.2:
 		gear = 1

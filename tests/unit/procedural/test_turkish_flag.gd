@@ -89,3 +89,38 @@ func test_making_the_texture_is_quick_enough_for_a_stage_build() -> void:
 	gut.p("image(%d): %.0f ms" % [TurkishFlag.TEXTURE_HEIGHT, ms])
 	assert_lt(ms, 1500.0)
 	assert_eq(TurkishFlag.texture().get_width(), roundi(TurkishFlag.TEXTURE_HEIGHT * 1.5))
+
+
+func test_the_badges_on_the_car_carry_this_flag_and_no_other() -> void:
+	var model: Node3D = load("res://assets/vehicles/milano95/milano95.glb").instantiate()
+	var arrays: Array = (model.find_child("Milano95_Body_Badges_Carbadges_misc_U_0", true, false) as MeshInstance3D).mesh.surface_get_arrays(0)
+	model.free()
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var tile := Rect2(0.598, 0.787, 0.053, 0.037)
+	var triangles := 0
+	for t in range(0, indices.size(), 3):
+		if tile.has_point(uvs[indices[t]]) and tile.has_point(uvs[indices[t + 1]]) and tile.has_point(uvs[indices[t + 2]]):
+			triangles += 1
+	assert_eq(triangles, 4, "two quads use the flag's tile: by the FIDA badge at the front, by MILANO at the back")
+	var atlas := Image.new()
+	atlas.load_png_from_buffer(FileAccess.get_file_as_bytes("res://assets/vehicles/milano95/milano95_12.png"))
+	var pixels := Rect2i(tile.position * 2048.0, tile.size * 2048.0)
+	var field := 0
+	var figure := 0
+	var other_colours := 0
+	for y in range(pixels.position.y, pixels.end.y):
+		for x in range(pixels.position.x, pixels.end.x):
+			var color := atlas.get_pixel(x, y)
+			if color.a < 0.5:
+				continue
+			if color.g > color.r + 0.08 or color.b > color.r + 0.08:
+				other_colours += 1
+			elif color.r > 0.8 and color.g < 0.1:
+				field += 1
+			elif color.r > 0.95 and color.g > 0.95:
+				figure += 1
+	gut.p("the badge's tile: %d pixels of field, %d of figure" % [field, figure])
+	assert_eq(other_colours, 0, "nothing green or blue on it")
+	assert_gt(field, 3000, "the red field")
+	assert_between(float(figure) / field, 0.04, 0.1, "and the white crescent and star on it")

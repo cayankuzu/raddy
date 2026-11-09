@@ -193,6 +193,19 @@ func sample(distance: float) -> Dictionary:
 		"edge": edge.id, "index": _route_indices[i]}
 
 
+## `sample` at exactly `distance`, between the road's points, for what stands along the road at a spacing of its own:
+## `sample` stops at the points, 2 m apart.
+func sample_exact(distance: float) -> Dictionary:
+	var at := sample(distance)
+	var i := route_index_at(distance)
+	if i + 1 < _route_points.size():
+		var t := clampf((distance - _route_distances[i]) / (_route_distances[i + 1] - _route_distances[i]), 0.0, 1.0)
+		var next_direction := edges[_route_edges[i + 1]].direction_at(_route_indices[i + 1])
+		at.position = _route_points[i].lerp(_route_points[i + 1], t)
+		at.direction = (at.direction as Vector2).lerp(next_direction, t).normalized()
+	return at
+
+
 ## Index into main_route_points() of the last point at or before `distance`.
 func route_index_at(distance: float) -> int:
 	_index_route()

@@ -130,3 +130,54 @@ func test_the_gap_has_no_posts_and_its_ends_bend_out_over_the_drop() -> void:
 	for v in (rail.get_node(^"Beam") as MeshInstance3D).mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
 		near_gap = minf(near_gap, (v - line).length())
 	assert_gt(near_gap, 1.5, "the beam stops short of the gap's middle")
+
+
+func test_the_road_is_sampled_between_its_points_for_what_keeps_its_own_spacing() -> void:
+	var a := _graph.sample_exact(100.0)
+	var b := _graph.sample_exact(101.0)
+	var c := _graph.sample_exact(102.0)
+	assert_gt(Vector2(a.position.x, a.position.z).distance_to(Vector2(b.position.x, b.position.z)), 0.8, "a metre on is a metre on")
+	assert_gt(Vector2(b.position.x, b.position.z).distance_to(Vector2(c.position.x, c.position.z)), 0.8)
+	var end := _graph.sample_exact(_graph.main_route_length() + 5.0)
+	assert_eq(end.position, _graph.main_route_points()[-1], "past the end it stops at the end")
+
+
+func test_the_posts_stand_evenly_and_the_beam_comes_down_in_even_steps() -> void:
+	var run: Dictionary = TrackFeatures._cliff_runs(_graph)[0]
+	var rail := GuardRail.build(_graph, run)
+	add_child_autofree(rail)
+	var posts: Array = rail.get_meta(&"posts")
+	var last := -1.0
+	for k in range(1, posts.size()):
+		var a: Vector3 = (posts[k - 1] as Transform3D).origin
+		var b: Vector3 = (posts[k] as Transform3D).origin
+		var step := Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z))
+		if step > GuardRail.POST_SPACING * 2.0:
+			last = -1.0  # across the gap
+			continue
+		if last >= 0.0:
+			assert_almost_eq(step, last, 0.4, "post %d: no post jumps to the road's next point" % k)
+		last = step
+	var arrays: Array = (rail.get_node(^"Beam") as MeshInstance3D).mesh.surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var from: float = maxf(float(run.from) - TrackFeatures.RAIL_OVERRUN, 0.0)
+	var end_step := Vector2(vertices[GuardRail.PROFILE_ROWS].x - vertices[0].x, vertices[GuardRail.PROFILE_ROWS].z - vertices[0].z).length()
+	gut.p("from metre %.0f the turned-down end goes %.2f m per section" % [from, end_step])
+	assert_almost_eq(end_step, GuardRail.END_REACH / GuardRail.END_STEPS, 0.35, "the turned-down end has even steps, no cliff in the sheet")
+
+
+func test_the_texture_runs_along_the_whole_beam() -> void:
+	var run: Dictionary = TrackFeatures._cliff_runs(_graph)[0]
+	var rail := GuardRail.build(_graph, run)
+	add_child_autofree(rail)
+	var uvs: PackedVector2Array = (rail.get_node(^"Beam") as MeshInstance3D).mesh.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV]
+	var starts_again := 0
+	var longest := 0.0
+	for i in range(GuardRail.PROFILE_ROWS, uvs.size(), GuardRail.PROFILE_ROWS):
+		var step := uvs[i].x - uvs[i - GuardRail.PROFILE_ROWS].x
+		if step <= 0.0:
+			starts_again += 1
+		else:
+			longest = maxf(longest, step)
+	assert_eq(starts_again, 1, "it runs on to the very end of each piece and starts again only past the gap")
+	assert_lt(longest, GuardRail.POST_SPACING, "no span squeezes more texture than a span's worth")

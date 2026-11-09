@@ -129,7 +129,7 @@ func _physics_process(delta: float) -> void:
 		cabin_opening = clampf((0.3 if _cabin.window_open[0] else 0.0) + (0.3 if _cabin.window_open[1] else 0.0)
 			+ (0.6 if _cabin.windshield == Cabin.Windshield.REMOVED else 0.0), 0.0, 1.0)
 	var grounded := car.wheels_in_contact() / 4.0
-	gearbox.update(delta, car.forward_speed, throttle, grounded == 0.0)
+	gearbox.update(delta, car.forward_speed, throttle, grounded == 0.0, car.is_backing_up())
 	_update_engine()
 	_update_road(speed, grounded)
 	_update_water(speed)
