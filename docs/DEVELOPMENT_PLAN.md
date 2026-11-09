@@ -311,4 +311,14 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     clouds met in a star at the zenith that paint mirrored (clouds baked with a clear zenith by `tools/make_clouds.gd`).
   Verified: full GUT, `tools\nettest.ps1`, `tools\flowtest.ps1 -Stage 0` and `-Stage 4`, shots in `reports/screenshots/a3_real/`.
   Not yet: the partner in the interior mirror (crew bodies come with A5), dusk in the room's settings (A4's night lights).
+- 2026-11-05: A3 final gate (A3.13): DONE and verified.
+  - Medals: the bots' averages in the flow tests (two crews a stage, in m/s, stage order) 16.9/16.2, 15.8/15.3, 18.5/17.1, 17.4/16.7, 16.7/15.7,
+    17.5/16.8. All over the 15 m/s the plan set, so `MEDAL_SPEEDS` stays 14 / 17.5 / 20.5: a bot takes bronze or silver, gold is for people. The final
+    values come after a human playtest (TEST_PLAN.md).
+  - Every stage on Low and High in its own weathers (`tools\stage_shots.ps1`), looked at one by one. Found and fixed that way: no edge smoothing on
+    any level (`SCREEN_AA`, `MSAA` on High, `ANISOTROPY`), rock slabs standing up like wings (now shelves, with a collider where the rock is), posts through
+    boards, a low sun turning the gravel white, fog and dust per level, a results table of one letter per line, rain and snow not reaching rocks, door
+    mirror housings flashing like polished metal.
+  Verified: 348 GUT tests (9124 asserts), `tools\ci.ps1 -SkipFlow` green on the build before the rocks (GUT, nettest, every stage event, export: 104 MB
+  exe, 156 MB pck), `tools\flowtest.ps1` on all six stages.
 
