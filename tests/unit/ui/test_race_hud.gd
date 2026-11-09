@@ -24,8 +24,7 @@ func test_the_flag_on_the_stage_bar_is_scaled_down_with_its_mipmaps() -> void:
 func test_the_navigators_keys_name_the_dome_lamp_and_fit_the_screen() -> void:
 	var csv := FileAccess.get_file_as_string("res://data/locale/strings.csv")
 	var row := ""
-	for line in csv.split("
-"):
+	for line in csv.split("\n"):
 		if line.begins_with("HUD_KEYS_NAVIGATOR,"):
 			row = line
 	var columns := row.split(",")
