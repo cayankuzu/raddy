@@ -51,7 +51,7 @@ No Blender; model in Godot only as a last resort.
 - `tools\export_windows.ps1 [-Debug]`: `builds\windows\RADDY.exe` via the "Windows Desktop" preset.
 - `tools\editor.ps1 [-Headless | -Stop]`: open the editor (Beckett MCP runs inside it).
 - `tools\mic_check.ps1 [-Device <name>]`: input level per microphone (user speaks while it listens).
-- Baked assets: `tools/make_gauge_face.gd` (needs a window), `tools/make_clouds.gd`, `tools/make_exhaust_pops.py`,
+- Baked assets: `tools/make_gauge_face.gd` (needs a window), `tools/make_badge_flag.gd`, `tools/make_clouds.gd`, `tools/make_exhaust_pops.py`,
   `tools/make_shock_sounds.py`. Downloads, all free and no login: `tools/fetch_polyhaven.py`, `fetch_ambientcg.py`,
   `fetch_assets.py`, `fetch_audio.py` (only what the owner approved; `ASSET_LICENSES.md` gets a row);
   `tools/texture_imports.py` sets 3D import options on new textures.
@@ -88,7 +88,10 @@ No Blender; model in Godot only as a last resort.
   on a stuck or critical car, the dome lamp (`Cabin.dome_on`, L, the map holder's; shows in the glass through
   `shaders/glass_ghost.gdshaderinc`). `CarHeat`: pops and flame on a lift at high revs, front discs that glow after
   really hard braking. The wheel turns about `CarModel.WHEEL_AXIS` and is set in so the dials show through the rim.
-  `Cabin` slides the side panes into the doors; `WindshieldGlass` sweeps the model's own wipers on their hinges and
+  `Cabin` slides the side panes into the doors (along their own slant, cut at the door's sill: `sill` in `car_glass.gdshader`); the
+  sun visors come down for a low sun ahead, the glove box's lid opens when a can is taken, the radio's readout lights with the engine
+  (`CarCockpit`, `CockpitRules`); `GraphicsQuality.CABIN_LAYER` is what is inside a car, which the car lamps' shadowless beams leave out;
+  `WindshieldGlass` sweeps the model's own wipers on their hinges and
   tells the shader the ring each blade passes. The handbrake comes with the snapshot extras; gear and revs come
   from each peer's `CarAudio.gearbox`.
 - Mirrors: `CarMirrors` on every car, plain glass until `CarModel.bind_seat(camera)` (local seat only, never
@@ -96,8 +99,8 @@ No Blender; model in Godot only as a last resort.
   (`MirrorMath`, tested against the engine's projection; the picture is flipped by the display, `mirror_glass.gdshader`).
   Linear HDR picture, no tone mapping: the main view grades it with the world. Turns and sizes per level in
   `GraphicsQuality`; at most one mirror a frame, only those the seat can see. A mirror's camera leaves out
-  `CarMirrors.SELF_LAYER` (glass, housings, the motion blur), `GraphicsQuality.FINE_SCENERY_LAYER` (`RoadsideDresser`: low,
-  backdrop, no collision, or `fine` in the catalog) and `RaceLook.SUN_LAYER`: it has a shadowless sun of its own
+  `CarMirrors.SELF_LAYER` (glass, housings, the motion blur), `GraphicsQuality.FINE_SCENERY_LAYER` (`RoadsideDresser.is_fine`, and the boards' words and tape go with their boards: low,
+  backdrop, no collision unless `tall`, or `fine` in the catalog) and `RaceLook.SUN_LAYER`: it has a shadowless sun of its own
   (`MIRROR_SUN_LAYER`, which it clears from the main camera). `RaceLook`'s `SunInTheSky` is what the sky shows, the same
   for every camera: different sky lights per camera would rebuild the sky's reflections every time the view changes.
 
@@ -117,7 +120,7 @@ No Blender; model in Godot only as a last resort.
   the room shows the medal times and the record. Host buttons: same stage / next stage (`Net.start_race(settings, true)`) / back to room.
 - UI is built in code with `UiTheme` (static helpers must use `TranslationServer.translate`, not `tr`).
   Canvas layers: SeatEffects 5, RaceHud 8, ResultsPanel 12, PauseMenu 15, SettingsMenu 20.
-- `RaceHud` is drawn in code (`HudStageBar`, `HudCluster` rev counter/gear/speed) in `UiTheme.hud_font()`
+- `RaceHud` is drawn in code (`HudStageBar`, `HudCluster` rev counter/gear/speed: the driver's, fading over the right door mirror) in `UiTheme.hud_font()`
   (Windows' Bahnschrift via SystemFont, nothing shipped). The race captures the mouse for free look
   (`CockpitCamera.look`) unless a menu is open or it is a flow test.
 
@@ -188,11 +191,11 @@ No Blender; model in Godot only as a last resort.
   `graphics_quality`, AUTO = Low on integrated GPUs) scales scenery density/range, shadows, SSAO/glow,
   the render scale, the edges (`SCREEN_AA`: FXAA on Low, SMAA from Medium, `MSAA` 2x on High; no TAA: trails round a cabin that
   stands still while the world flies past) and `ANISOTROPY`; Low and the mirrors draw a volume of fog as flat fog (`flatten_fog`:
-  as dense and as dim); dev scenes take `--quality=0|1|2`. The rock face scan is a slab leaning 42 degrees: `lay` in the catalog
-  turns it into a low shelf on open ground, with a box collider where the rock is.
+  as dense and as dim); dev scenes take `--quality=0|1|2`. Every rock in the catalog is a whole stone (tested: a scan with no back
+  shows as torn strips in the sky); `seat` lets a big one down to the lowest ground round it.
 - Every flag in the game is the flag of Turkey: `TurkishFlag` (the law's geometry as a signed distance, `color_at`,
-  `image`, `texture`, unit-tested), on the crowd's poles, the arches and their banners, the start's board and the HUD's
-  start marker; 3:2 always, the hoist at the pole, never on the ground, nothing printed over it. The finish is chequered
+  `image`, `texture`, unit-tested), on the crowd's poles, the arches and their banners, the start's board, the HUD's
+  start marker and the car's badges (baked into the model's atlas by `tools/make_badge_flag.gd`); 3:2 always, the hoist at the pole, never on the ground, nothing printed over it. The finish is chequered
   (boards, banner panels), not a flag.
 - Rally dressing: `RallyDressing.plan(graph, terrain)` says where everything goes, as data (km boards, time
   control, start, split boards, finish warning, finish, STOP, end bales, chevrons on every hairpin and caution corner except where

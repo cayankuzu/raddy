@@ -10,7 +10,8 @@ class_name RoadsideCatalog
 ##   in the open places RallyDressing keeps clear of trees too), fine (the mirrors leave it out, as they do
 ##   whatever is low, backdrop or has no collision), tall (the mirrors show it though it has no collision),
 ##   weathered (a rock: rain and snow reach it, the scan needs albedo, normal and ARM textures, and it must be a whole
-##   stone: from the seat nothing is behind it),
+##   stone: from the seat nothing is behind it), seat (metres at scale 1: how far round a big stone the ground is read, it
+##   goes down to the lowest of it: no air under its downhill side),
 ##   collision {shape: cylinder|sphere|box, radius, height, lift, size, offset, yaw (degrees: the box's turn about the trunk)}
 ##   in metres at scale 1.
 ## Every asset listed here must have a row in ASSET_LICENSES.md. The Poly Haven scans and the
@@ -29,6 +30,9 @@ const MODEL := "res://assets/models/%s/%s_1k.gltf"
 const CONIFERS := "res://assets/models/sketchfab/conifer_pack.glb"
 const BIRCHES := "res://assets/models/sketchfab/birch_set.glb"
 const BIRCH := "res://assets/models/sketchfab/birch_treeit.glb"
+## How far round them the big stones of each scan rest on the ground.
+const BOULDER_SEAT := 0.75
+const GRANITE_SEAT := 1.05
 
 
 static func _model(id: String) -> String:
@@ -91,30 +95,30 @@ static func entries() -> Array[Dictionary]:
 			"density": 2.0, "near": 4.0, "far": 28.5, "scale": [0.8, 1.3], "sink": 0.0, "range": 220.0,
 			"collision": {"shape": "cylinder", "radius": 0.55, "height": 0.6}},
 		{"id": "boulder", "path": _model("boulder_01"), "weathered": true, "biomes": [FOREST, MOUNTAIN], "fine": true,
-			"density": 2.6, "near": 3.5, "far": 34.5, "scale": [0.6, 1.7], "sink": 0.15, "range": 320.0,
+			"seat": BOULDER_SEAT, "density": 2.6, "near": 3.5, "far": 34.5, "scale": [0.6, 1.7], "sink": 0.15, "range": 320.0,
 			"collision": {"shape": "sphere", "radius": 0.75, "lift": 0.35}, "biome_density": {MOUNTAIN: 2.2}},
 		{"id": "desert_boulder", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT, MOUNTAIN],
-			"density": 3.0, "near": 4.5, "far": 38.5, "scale": [0.5, 1.4], "sink": 0.2, "range": 380.0,
+			"seat": GRANITE_SEAT, "density": 3.0, "near": 4.5, "far": 38.5, "scale": [0.5, 1.4], "sink": 0.2, "range": 380.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}, "biome_density": {MOUNTAIN: 0.6}},
 		# Outcrops: the biggest stones, further out, what the land is made of.
 		{"id": "outcrop", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT],
-			"density": 0.85, "near": 10.5, "far": 50.5, "scale": [1.8, 3.0], "sink": 0.4, "range": 500.0,
+			"seat": GRANITE_SEAT, "density": 0.85, "near": 10.5, "far": 50.5, "scale": [1.8, 3.0], "sink": 0.4, "range": 500.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}},
 		{"id": "crag", "path": _model("boulder_01"), "weathered": true, "biomes": [MOUNTAIN],
-			"density": 1.8, "near": 10.5, "far": 50.5, "scale": [2.0, 3.4], "sink": 0.3, "range": 500.0,
+			"seat": BOULDER_SEAT, "density": 1.8, "near": 10.5, "far": 50.5, "scale": [2.0, 3.4], "sink": 0.3, "range": 500.0,
 			"collision": {"shape": "sphere", "radius": 0.75, "lift": 0.35}},
 		{"id": "dead_tree", "path": _model("dead_quiver_trunk"), "biomes": [DESERT],
 			"density": 1.6, "near": 5.5, "far": 38.5, "scale": [1.3, 2.5], "sink": 0.05, "tilt": 6.0, "range": 380.0,
 			"collision": {"shape": "cylinder", "radius": 0.16, "height": 2.0}},
 		# The desert's edge band: rock outcrops and boulders where the stage ends.
 		{"id": "edge_rocks", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT],
-			"density": 7.0, "near": 24.5, "far": 36.5, "bias": 1.0, "scale": [1.0, 2.2], "sink": 0.3, "range": 500.0,
+			"seat": GRANITE_SEAT, "density": 7.0, "near": 24.5, "far": 36.5, "bias": 1.0, "scale": [1.0, 2.2], "sink": 0.3, "range": 500.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}},
 		{"id": "edge_outcrop", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT],
-			"density": 1.8, "near": 26.5, "far": 42.5, "bias": 1.0, "scale": [2.2, 3.4], "sink": 0.4, "range": 500.0,
+			"seat": GRANITE_SEAT, "density": 1.8, "near": 26.5, "far": 42.5, "bias": 1.0, "scale": [2.2, 3.4], "sink": 0.4, "range": 500.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}},
 		{"id": "edge_crag", "path": _model("boulder_01"), "weathered": true, "biomes": [MOUNTAIN],
-			"density": 2.6, "near": 26.5, "far": 42.5, "bias": 1.0, "scale": [2.2, 3.8], "sink": 0.3, "range": 500.0,
+			"seat": BOULDER_SEAT, "density": 2.6, "near": 26.5, "far": 42.5, "bias": 1.0, "scale": [2.2, 3.8], "sink": 0.3, "range": 500.0,
 			"collision": {"shape": "sphere", "radius": 0.75, "lift": 0.35}},
 	]
 	# --- screens from the scans ---
@@ -122,12 +126,12 @@ static func entries() -> Array[Dictionary]:
 		{"id": "screen_shrub", "path": _model("shrub_03"), "biomes": [FOREST, MOUNTAIN], "variants": true, "screen": true,
 			"density": 50.0, "near": 2.1, "far": 6.5, "bias": 1.0, "scale": [2.0, 3.2], "sink": 0.05, "range": 260.0},
 		{"id": "screen_boulder", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT], "screen": true,
-			"density": 25.0, "near": 3.0, "far": 8.0, "bias": 1.0, "scale": [1.6, 2.4], "sink": 0.2, "range": 380.0,
+			"seat": GRANITE_SEAT, "density": 25.0, "near": 3.0, "far": 8.0, "bias": 1.0, "scale": [1.6, 2.4], "sink": 0.2, "range": 380.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}},
 		{"id": "screen_bush", "path": _model("wild_rooibos_bush"), "biomes": [DESERT], "variants": true, "foliage": true, "black_ground": true, "screen": true,
 			"density": 50.0, "near": 2.1, "far": 6.5, "bias": 1.0, "scale": [1.8, 2.6], "sink": 0.04, "range": 260.0},
 		{"id": "screen_rock", "path": _model("boulder_01"), "weathered": true, "biomes": [MOUNTAIN], "screen": true,
-			"density": 20.0, "near": 3.0, "far": 8.0, "bias": 1.0, "scale": [1.4, 2.2], "sink": 0.15, "range": 320.0,
+			"seat": BOULDER_SEAT, "density": 20.0, "near": 3.0, "far": 8.0, "bias": 1.0, "scale": [1.4, 2.2], "sink": 0.15, "range": 320.0,
 			"collision": {"shape": "sphere", "radius": 0.75, "lift": 0.35}},
 	])
 	# --- forest trees (CC BY: Dari's Coniferous Forest Assets Pack, Igor_K.'s birches) ---
@@ -147,9 +151,9 @@ static func entries() -> Array[Dictionary]:
 		_tree("log", CONIFERS, "Coniferous Dead Log_5", [FOREST], 1.2, 4.0, 26.5, [0.8, 1.1], 0.0,
 			{"sink": 0.1, "range": 260.0, "fine": true, "collision": {"shape": "box", "size": Vector3(7.4, 0.6, 0.75), "yaw": 41.8}}),
 		_tree("mossy_boulder", CONIFERS, "BoulderMossyLarge_8", [FOREST], 1.4, 4.5, 32.5, [0.5, 0.9], 0.0,
-			{"sink": 0.3, "foliage": false, "fine": true, "collision": {"shape": "sphere", "radius": 1.5, "lift": 0.2}}),
+			{"sink": 0.3, "foliage": false, "fine": true, "seat": 1.4, "collision": {"shape": "sphere", "radius": 1.5, "lift": 0.2}}),
 		_tree("mossy_outcrop", CONIFERS, "BoulderOutcropMossyMedium_10", [FOREST, MOUNTAIN], 1.2, 10.5, 36.5, [0.6, 1.0], 0.0,
-			{"sink": 0.5, "foliage": false, "collision": {"shape": "sphere", "radius": 2.4, "lift": 0.1}}),
+			{"sink": 0.5, "foliage": false, "seat": 2.5, "collision": {"shape": "sphere", "radius": 2.4, "lift": 0.1}}),
 		_tree("birch_a", BIRCHES, "birch-1", [FOREST], 2.4, 5.5, 32.5, [0.8, 1.15], 0.13, {"unit": 0.01}),
 		_tree("birch_b", BIRCHES, "birch-2", [FOREST], 1.8, 6.5, 32.5, [0.7, 1.0], 0.15, {"unit": 0.01}),
 		_tree("birch_c", BIRCHES, "birch-3", [FOREST], 2.6, 4.0, 24.5, [0.9, 1.4], 0.08, {"unit": 0.01}),

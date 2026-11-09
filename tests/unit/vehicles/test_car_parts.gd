@@ -7,6 +7,7 @@ const EXPECTED_TRIANGLES := {
 	&"pedal_clutch": 22, &"pedal_brake": 22, &"pedal_throttle": 22, &"gear_lever": 64, &"column_end": 22, &"mirror_glass": 12, &"mirror_head": 88,
 	&"door_glass_left": 19, &"door_mirror_left": 252, &"door_glass_right": 19, &"door_mirror_right": 252,
 	&"wiper_arm_a": 16, &"wiper_blade_a": 20, &"wiper_arm_b": 16, &"wiper_blade_b": 20,
+	&"visor_driver": 56, &"visor_navigator": 56, &"glovebox_lid": 15,
 }
 
 var _car: RallyCar
@@ -29,7 +30,7 @@ func test_each_part_is_exactly_its_piece_of_the_mesh() -> void:
 
 func test_the_mesh_keeps_everything_else() -> void:
 	var interior := _car.find_child("Milano95_interior_UCB_Interiors_2_0", true, false) as MeshInstance3D
-	assert_eq(interior.mesh.get_faces().size() / 3, 3745 - 22 * 3 - 64 - 22 - 100, "the interior without pedals, lever, column end and mirror head")
+	assert_eq(interior.mesh.get_faces().size() / 3, 3745 - 22 * 3 - 64 - 22 - 100 - 56 * 2 - EXPECTED_TRIANGLES[&"glovebox_lid"], "the interior without pedals, lever, column end, mirror head, visors and the glove box's lid")
 	var underbody := _car.find_child("Milano95_Bottom_UCB_BOTTOM_0", true, false) as MeshInstance3D
 	assert_eq(underbody.mesh.get_faces().size() / 3, 3646 - 271 * 2 - 72, "the underbody without door mirrors and wipers")
 

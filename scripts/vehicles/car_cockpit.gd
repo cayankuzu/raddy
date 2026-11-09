@@ -3,8 +3,9 @@ extends Node3D
 ## What the crew sees working inside the car, on every peer (the pedals and the revs come with the snapshots):
 ## the instrument panel with real needles and warning lamps (shaders/gauge_panel.gdshader, values from
 ## CockpitRules), the three pedals and the gear lever cut out of the model (CarParts), and the handbrake, which
-## the model does not have, fitted between the seats. A car far from the camera shows the model's own dash and
-## nothing here moves or draws.
+## the model does not have, fitted between the seats; the sun visors come down for a low sun ahead, the glove box
+## opens when a can is taken from it, the radio's readout lights with the engine. A car far from the camera shows the
+## model's own dash and nothing here moves or draws.
 
 ## Everything here draws and moves only this close to the camera.
 const NEAR_CAMERA := 9.0
@@ -37,6 +38,29 @@ const HANDBRAKE_LENGTH := 0.3
 const HANDBRAKE_REST := 7.0
 const HANDBRAKE_PULLED := 34.0
 const HANDBRAKE_RATE := 11.0
+## The sun visors hinge along the top of the windshield: how far they come down (degrees; further would hide the road),
+## how far they slide along their rods towards the doors as they do (they would hide the mirror), how fast (1/s).
+const VISOR_HINGE := Vector3(0.0, 0.782, -0.287)
+const VISOR_DOWN := 32.0
+const VISOR_SLIDE := 0.1
+const VISOR_RATE := 2.4
+## The glove box's lid opens about its lower edge when a can is taken: how far (degrees), how fast (1/s), for how long.
+## Behind it the box's dark inside. Seen through the windshield too, so it draws further than the rest.
+const LID_HINGE := Vector3(0.0, 0.264, -0.536)
+const LID_OPEN := 42.0
+const LID_RATE := 9.0
+const LID_SECONDS := 0.6
+const BOX_INSIDE_AT := Vector3(0.29, 0.325, -0.59)
+const BOX_INSIDE_SIZE := Vector2(0.48, 0.19)
+const LID_RANGE := 60.0
+## The radio's readout on the radio's face, and how big its digits are.
+const RADIO_RIGHT := Vector3(0.985, -0.023, 0.172)
+const RADIO_UP := Vector3(0.056, 0.96, -0.278)
+const RADIO_READOUT_AT := Vector3(-0.088, 0.2965, -0.4815)
+const RADIO_DIGIT_HEIGHT := 0.012
+const RADIO_GLOW := Color(1.0, 0.62, 0.18)
+## A sun at least this bright (per daylight) makes a clear sky: under an overcast one the visors stay up.
+const CLEAR_SUN := 0.8
 
 var car: RallyCar
 ## Seconds since the key was turned: the sweep and the bulb check run from it.
@@ -55,6 +79,13 @@ var _handbrake_at := 0.0
 var _km := 0.0
 var _time := 0.0
 var _audio: CarAudio
+var _visors: Array[Node3D] = []
+var _visor_at := 0.0
+var _sun: DirectionalLight3D
+var _lid: Node3D
+var _lid_at := 0.0
+var _lid_left := 0.0
+var _radio: Label3D
 
 
 ## Takes the parts of the car (CarParts) and fits what the model lacks.
@@ -69,6 +100,9 @@ func build(parts: Dictionary) -> void:
 	column_end.position = CarModel.WHEEL_SET_IN
 	add_child(column_end)
 	_build_handbrake()
+	_visors = [_add_moving(parts[&"visor_driver"], VISOR_HINGE), _add_moving(parts[&"visor_navigator"], VISOR_HINGE)]
+	_build_glovebox(parts[&"glovebox_lid"])
+	_build_radio()
 
 
 ## A part's mesh on a hinge of its own: the mesh stays in car space, the node at the hinge turns it.
@@ -178,6 +212,47 @@ func _set_handbrake(amount: float) -> void:
 	_handbrake.basis = Basis(Vector3.RIGHT, -deg_to_rad(lerpf(HANDBRAKE_REST, HANDBRAKE_PULLED, amount)))
 
 
+## The lid cut out of the dash on a hinge of its own, and the dark box behind it.
+func _build_glovebox(lid_mesh: Mesh) -> void:
+	_lid = _add_moving(lid_mesh, LID_HINGE)
+	(_lid.get_child(0) as MeshInstance3D).visibility_range_end = LID_RANGE
+	var inside_material := StandardMaterial3D.new()
+	inside_material.albedo_color = Color(0.012, 0.012, 0.014)
+	inside_material.roughness = 1.0
+	var inside_mesh := QuadMesh.new()
+	inside_mesh.size = BOX_INSIDE_SIZE
+	inside_mesh.material = inside_material
+	var inside := _quiet_mesh(inside_mesh)
+	inside.name = "GloveboxInside"
+	inside.position = BOX_INSIDE_AT
+	inside.visibility_range_end = LID_RANGE
+	add_child(inside)
+	var cabin := car.get_node_or_null(^"Cabin") as Cabin
+	if cabin != null:
+		cabin.cans_changed.connect(func(_left: int) -> void: _lid_left = LID_SECONDS)
+
+
+## A station on the radio's face, in the colour of the dials' lamps.
+func _build_radio() -> void:
+	var font_size := 32
+	_radio = Label3D.new()
+	_radio.name = "RadioReadout"
+	_radio.text = "98.4"
+	_radio.font = UiTheme.hud_font()
+	_radio.font_size = font_size
+	_radio.pixel_size = RADIO_DIGIT_HEIGHT / font_size
+	_radio.modulate = RADIO_GLOW
+	_radio.outline_size = 0
+	_radio.shaded = false
+	_radio.alpha_cut = Label3D.ALPHA_CUT_DISCARD
+	_radio.layers = GraphicsQuality.CABIN_LAYER
+	_radio.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_radio.visibility_range_end = NEAR_CAMERA
+	_radio.transform = Transform3D(Basis(RADIO_RIGHT, RADIO_UP, RADIO_RIGHT.cross(RADIO_UP).normalized()), RADIO_READOUT_AT)
+	_radio.visible = false
+	add_child(_radio)
+
+
 ## Starts the ignition sweep and the bulb check over.
 func turn_key() -> void:
 	since_ignition = 0.0
@@ -215,6 +290,21 @@ func _update_controls(delta: float) -> void:
 	_lever.basis = Basis(Vector3.RIGHT, deg_to_rad(LEVER_FORE) * _lever_at.y) * Basis(Vector3.BACK, -deg_to_rad(LEVER_ACROSS) * _lever_at.x)
 	_handbrake_at = move_toward(_handbrake_at, 1.0 if car.controls.handbrake else 0.0, HANDBRAKE_RATE * delta)
 	_set_handbrake(_handbrake_at)
+	_visor_at = move_toward(_visor_at, 1.0 if _visors_wanted() else 0.0, VISOR_RATE * delta)
+	for i in _visors.size():
+		_visors[i].basis = Basis(Vector3.RIGHT, deg_to_rad(VISOR_DOWN * _visor_at))
+		_visors[i].position = VISOR_HINGE + Vector3.RIGHT * (-1.0 if i == 0 else 1.0) * VISOR_SLIDE * _visor_at
+	_lid_left = maxf(_lid_left - delta, 0.0)
+	_lid_at = move_toward(_lid_at, 1.0 if _lid_left > 0.0 else 0.0, LID_RATE * delta)
+	_lid.basis = Basis(Vector3.RIGHT, deg_to_rad(LID_OPEN * _lid_at))
+
+
+func _visors_wanted() -> bool:
+	if _sun == null:
+		_sun = get_tree().get_first_node_in_group(RaceLook.SUN_GROUP) as DirectionalLight3D
+		if _sun == null:
+			return false
+	return CockpitRules.visors_down(car.global_basis.inverse() * _sun.global_basis.z, _sun.light_energy >= CLEAR_SUN * RaceLook.daylight)
 
 
 func _update_panel() -> void:
@@ -233,3 +323,4 @@ func _update_panel() -> void:
 	_material.set_shader_parameter(&"lamps_a", Vector3(float(lamps[CockpitRules.Lamp.HANDBRAKE]), float(lamps[CockpitRules.Lamp.CHARGE]), float(lamps[CockpitRules.Lamp.OIL])))
 	_material.set_shader_parameter(&"lamps_b", Vector3(float(lamps[CockpitRules.Lamp.ENGINE]), float(lamps[CockpitRules.Lamp.BEAM]), float(lamps[CockpitRules.Lamp.HAZARD])))
 	_material.set_shader_parameter(&"backlight", 1.0 if model.headlights else 0.0)
+	_radio.visible = CockpitRules.radio_on(since_ignition, level)

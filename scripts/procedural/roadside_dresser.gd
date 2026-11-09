@@ -38,6 +38,7 @@ const CLEARING_CELL := 24.0
 const END_ROW_PAST := 8.0
 const END_ROW_REACH := 60.0
 const END_ROW_ID := 9000
+const SEAT_SAMPLES := 8
 
 const CUT_OUT_SHADER := preload("res://shaders/cut_out_leaf.gdshader")
 const WEATHERED_SHADER := preload("res://shaders/weathered_scan.gdshader")
@@ -196,12 +197,22 @@ static func _try_place(entry: Dictionary, context: Dictionary, edge: RouteGraph.
 		return null
 	if reach >= 0.0:
 		_remember_hard(context.hard, p)
-	var y := terrain.height(p) - float(entry.get("sink", 0.15)) * s
+	var y := _ground_under(terrain, p, float(entry.get("seat", 0.0)) * s) - float(entry.get("sink", 0.15)) * s
 	var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * s)
 	var tilt: float = entry.get("tilt", 0.0)
 	if tilt > 0.0:
 		basis = Basis(Vector3(rng.randf() - 0.5, 0.0, rng.randf() - 0.5).normalized(), rng.randf() * deg_to_rad(tilt)) * basis
 	return Transform3D(basis, Vector3(p.x, y, p.y))
+
+
+## The height of the ground at `p`, or with a `seat` the lowest of it that far round: on a slope a big stone goes down to
+## where its downhill side touches.
+static func _ground_under(terrain: TerrainField, p: Vector2, seat: float) -> float:
+	var ground := terrain.height(p)
+	if seat > 0.0:
+		for k in SEAT_SAMPLES:
+			ground = minf(ground, terrain.height(p + Vector2.from_angle(TAU * k / SEAT_SAMPLES) * seat))
+	return ground
 
 
 ## RallyDressing's clearings by grid cell.

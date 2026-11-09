@@ -15,7 +15,7 @@ const RED := Color("e8322b")
 const BACK := Color(0.05, 0.05, 0.06, 0.55)
 ## How much of it shows while the right door mirror lies under it (HUD pixels round the glass's middle).
 const OVER_A_MIRROR := 0.18
-const MIRROR_REACH := 34.0
+const MIRROR_REACH := 46.0
 
 var car: RallyCar
 

@@ -1,7 +1,8 @@
 class_name CarParts
 ## The Milano '95 comes as a few one-piece meshes, but its pedals, gear lever, wipers and mirrors must move
 ## on their own: this cuts them out. A part is every connected piece of the mesh that lies wholly inside its
-## box in car space, or of those only the triangles that face one way (a pane of glass in its housing).
+## box in car space, or of those only the triangles that face one way (a pane of glass in its housing), or with
+## "faces": the triangles inside the box whatever they are joined to (a lid modelled as part of the dash).
 ## Every car of the race shares one set of cut meshes, in car space.
 ## tests/unit/vehicles/test_car_parts.gd pins what each box must catch.
 
@@ -16,6 +17,9 @@ const PARTS := {
 	&"pedal_throttle": {"from": INTERIOR, "box": AABB(Vector3(-0.25, -0.252, -0.955), Vector3(0.065, 0.115, 0.075))},
 	&"gear_lever": {"from": INTERIOR, "box": AABB(Vector3(-0.022, -0.056, -0.521), Vector3(0.042, 0.173, 0.108))},
 	&"column_end": {"from": INTERIOR, "box": AABB(Vector3(-0.345, 0.224, -0.449), Vector3(0.048, 0.086, 0.104))},
+	&"visor_driver": {"from": INTERIOR, "box": AABB(Vector3(-0.47, 0.765, -0.295), Vector3(0.41, 0.04, 0.195))},
+	&"visor_navigator": {"from": INTERIOR, "box": AABB(Vector3(0.08, 0.76, -0.295), Vector3(0.41, 0.04, 0.195))},
+	&"glovebox_lid": {"from": INTERIOR, "box": AABB(Vector3(0.081, 0.263, -0.558), Vector3(0.364, 0.15, 0.025)), "faces": true},
 	&"mirror_glass": {"from": INTERIOR, "box": AABB(Vector3(-0.115, 0.71, -0.295), Vector3(0.24, 0.07, 0.04)), "facing": Vector3(0.0, -0.131, 0.991)},
 	&"mirror_head": {"from": INTERIOR, "box": AABB(Vector3(-0.115, 0.71, -0.295), Vector3(0.24, 0.07, 0.04))},
 	&"door_glass_left": {"from": UNDERBODY, "box": AABB(Vector3(-0.965, 0.31, -0.745), Vector3(0.29, 0.2, 0.285)), "facing": Vector3(0.36, 0.0, 0.933)},
@@ -66,7 +70,13 @@ static func _cut_from(source: Mesh, source_name: String, to_car: Transform3D) ->
 			continue
 		var taken := PackedInt32Array()
 		var facing: Vector3 = spec.get("facing", Vector3.ZERO)
-		for island: Dictionary in islands:
+		if spec.get("faces", false):
+			for t in range(0, indices.size(), 3):
+				if not taken_triangles.has(t) and (spec.box as AABB).has_point(to_car * vertices[indices[t]]) \
+						and (spec.box as AABB).has_point(to_car * vertices[indices[t + 1]]) and (spec.box as AABB).has_point(to_car * vertices[indices[t + 2]]):
+					taken_triangles[t] = true
+					taken.append_array(indices.slice(t, t + 3))
+		for island: Dictionary in ([] if spec.get("faces", false) else islands):
 			if not (spec.box as AABB).encloses(island.box):
 				continue
 			for t: int in island.triangles:

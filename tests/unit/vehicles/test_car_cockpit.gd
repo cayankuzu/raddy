@@ -448,3 +448,54 @@ func test_a_pane_goes_down_behind_the_sill_and_keeps_to_the_glass() -> void:
 		cabin._process(Cabin.PANE_SECONDS)
 		cabin.request_window(side, false)
 		cabin._process(Cabin.PANE_SECONDS * 2.0)
+
+
+func _visor_tip_height() -> float:
+	return ((_cockpit._visors[0] as Node3D).basis * Vector3(0.0, 0.0, 0.177)).y
+
+
+func test_the_visors_come_down_for_a_low_sun_ahead_and_keep_clear_of_the_road() -> void:
+	var sun := DirectionalLight3D.new()
+	sun.add_to_group(RaceLook.SUN_GROUP)
+	sun.light_energy = RaceLook.daylight
+	add_child_autofree(sun)
+	sun.global_basis = Basis.looking_at(Vector3(0.0, -0.5, 0.87))  # the light comes from ahead, low: it shines backwards
+	_steps(200)
+	assert_lt(_visor_tip_height(), -0.05, "down")
+	var tip := CarCockpit.VISOR_HINGE + (_cockpit._visors[0] as Node3D).basis * Vector3(0.0, 0.0, 0.177)
+	var eye := (_car.get_node(^"DriverCamera") as CockpitCamera).seat_position()
+	var view := atan2(tip.y - eye.y, eye.z - tip.z)
+	gut.p("a lowered visor's edge is %.1f degrees above the driver's eye line" % rad_to_deg(view))
+	assert_gt(rad_to_deg(view), 4.0, "the road stays in sight")
+	var glass := CarParts.pane(&"mirror_glass", 1.0)
+	var inner_end := (_cockpit._visors[0] as Node3D).position.x + CarParts.PARTS[&"visor_driver"].box.end.x
+	var mirror_end := glass.center.x - glass.half_size.x
+	var seen_end := atan2(inner_end - eye.x, eye.z - tip.z)
+	var seen_mirror := atan2(mirror_end - eye.x, eye.z - glass.center.z)
+	assert_lt(rad_to_deg(seen_end), rad_to_deg(seen_mirror) + 2.0, "the driver's visor keeps clear of the interior mirror")
+	sun.global_basis = Basis.looking_at(Vector3(0.0, -0.5, -0.87))
+	_steps(200)
+	assert_almost_eq(_visor_tip_height(), 0.0, 0.0001, "and up again when the car has turned away")
+
+
+func test_the_glove_box_opens_when_a_can_is_taken() -> void:
+	var cabin: Cabin = _car.get_node(^"Cabin")
+	assert_true(_cockpit._lid.basis.is_equal_approx(Basis.IDENTITY), "shut")
+	cabin.cans_changed.emit(2)
+	_steps(16)
+	var top: Vector3 = _cockpit._lid.basis * Vector3(0.0, 0.1, 0.0)
+	assert_gt(top.z, 0.05, "its top comes out towards the crew")
+	_steps(120)
+	assert_true(_cockpit._lid.basis.is_equal_approx(Basis.IDENTITY), "and it shuts again")
+
+
+func test_the_radio_lights_with_the_engine() -> void:
+	_steps(1)
+	assert_true(_cockpit._radio.visible, "the engine runs")
+	_car.damage_level = VehicleDamage.Level.CRITICAL
+	_steps(1)
+	assert_false(_cockpit._radio.visible, "the charge is gone")
+	_car.damage_level = VehicleDamage.Level.NONE
+	_cockpit.turn_key()
+	_steps(1)
+	assert_false(_cockpit._radio.visible, "it waits for the engine")

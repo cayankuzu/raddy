@@ -23,10 +23,11 @@
   warning lamps; dials that light up with the headlights; pedals, gear lever and a handbrake that move; tail, brake and
   reversing lights, hazards on a stuck car; a dome lamp (L) to read the map by, which half blinds the driver at
   night; windows that slide into the doors, cracks that look like cracks; the car's own wipers, which clean only where they
-  pass; pops and a flame on the overrun; brake discs that glow after really hard use.
+  pass; pops and a flame on the overrun; brake discs that glow after really hard use; sun visors that come down for a low sun
+  ahead, a glove box that opens when you take a can, a radio that lights with the engine.
 - **Water and wet roads** mirror the trees, the sky and the cars (Medium and High).
 - **Flags:** every flag is the flag of Turkey, in its exact geometry and 3:2 proportions, waving on the
-  crowd's poles, flying from the arches, printed on their banners and on the start's board.
+  crowd's poles, flying from the arches, printed on their banners and on the start's board, and on the badges of the car.
 - **Start and finish:** real rally gantries with steel truss towers, a printed banner and concrete blocks;
   the grid stands far enough back to see them. Splits have their own yellow boards.
 - **Guard rails:** a corrugated, worn W-beam with real posts and bolts, ends turned into the ground, torn
@@ -42,10 +43,16 @@
 - **Clean edges:** the picture has no jagged edges on any graphics level any more (it had no smoothing at all), High also catches
   what is thinner than a pixel, and the road stays sharp far ahead.
 - **Rocks in the weather:** snow lies on their ledges, rain darkens them and makes them shine.
-- **Door mirrors:** their housings are matt plastic; they used to flash white in the sun like polished metal.
+- **Door mirrors:** their housings are matt plastic; they used to flash white in the sun like polished metal. They gather a faint film of
+  road dirt of their own, which the wipers do not reach.
+- **Night and bad weather:** a following car's headlights no longer shine through your bodywork onto the dash and the map.
+- **Fixes the reviews found:** the map held up no longer goes through the windshield pillar; the rev counter is the driver's and makes way when
+  a door mirror lies under it; the mirrors show the saplings and birches beside the road and no words floating without their boards; reflections in the
+  pools no longer break into slivers; spray flies off the car's flanks instead of standing in the cabin; a side window no longer slides out through the door;
+  guard rails stand on evenly spaced posts; a recovery no longer cools the temperature gauge; a car rolling back by itself no longer shows reversing lights.
 - **Results screen:** the table came out a letter per line and could not be read; now it is a proper table with the medal beside each time.
 - **Fixes found by looking at every stage:** posts no longer poke through the middle of the boards; the rock slabs that stuck up from the
-  desert like wings now lie on the ground as shelves of rock, with collision where the rock is; a low sun ahead no longer turns the gravel white; fog and dust in the
+  desert like wings are gone, whole boulders sit down on the slopes in their place; a low sun ahead no longer turns the gravel white; fog and dust in the
   mirrors are as dim as what you see through the windshield, and on Low fog and dust look like they do on High.
 - **Fixes:** rockfalls start only on ground above the road, recoveries never land on a trunk or a boulder, finished crews get no recovery offer,
   bots dodge only what is next and stay on the road, bot runs never write records, times and medals are compared as the screen shows them.

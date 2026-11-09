@@ -41,6 +41,10 @@ const BRAKE_HEAT_SPEED := 40.0
 const BRAKE_COOL := 0.025
 const BRAKE_COOL_PER_MPS := 0.0022
 const DISC_GLOW_FROM := 0.65
+## The crew folds the sun visors down for a sun no higher than this (sine of its elevation) and at most this far off the
+## way the car points (cosine).
+const VISOR_SUN_HIGHEST := 0.75
+const VISOR_SUN_AHEAD := 0.55
 ## Gear lever: across and fore-aft, -1..1, an H gate; the lever goes through neutral.
 const GATES := {1: Vector2(-1.0, -1.0), 2: Vector2(-1.0, 1.0), 3: Vector2(0.0, -1.0), 4: Vector2(0.0, 1.0), 5: Vector2(1.0, -1.0), -1: Vector2(1.0, 1.0)}
 
@@ -89,6 +93,17 @@ static func oil_pressure(rpm: float, damage_level: int) -> float:
 ## Voltmeter, 0..1: the battery alone until the engine runs, or once the alternator is gone.
 static func volts(since_ignition: float, damage_level: int) -> float:
 	return VOLTS_RUNNING if engine_running(since_ignition) and damage_level < VehicleDamage.Level.CRITICAL else VOLTS_DEAD
+
+
+## Whether the sun visors are down: a low sun ahead and a clear sky. `to_sun` points at the sun in the car's space.
+static func visors_down(to_sun: Vector3, clear_sky: bool) -> bool:
+	var flat := Vector2(to_sun.x, to_sun.z).normalized()
+	return clear_sky and to_sun.y > 0.0 and to_sun.y <= VISOR_SUN_HIGHEST and -flat.y >= VISOR_SUN_AHEAD
+
+
+## Whether the radio's lit: it runs off the alternator, so with the engine, until the charge is gone.
+static func radio_on(since_ignition: float, damage_level: int) -> bool:
+	return engine_running(since_ignition) and damage_level < VehicleDamage.Level.CRITICAL
 
 
 ## Fuel needle after `km` kilometres.

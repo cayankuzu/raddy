@@ -232,9 +232,7 @@ func _cluster_alpha(car: RallyCar) -> float:
 	var camera := get_viewport().get_camera_3d()
 	if mirrors == null or camera == null or camera.is_position_behind(mirrors.glass_center(CarMirrors.Slot.RIGHT)):
 		return 1.0
-	# unproject_position gives window pixels; the HUD's pixels are stretched.
-	var on_hud := get_viewport().get_stretch_transform().affine_inverse() * camera.unproject_position(mirrors.glass_center(CarMirrors.Slot.RIGHT))
-	return HudCluster.alpha_over(on_hud, _cluster.get_global_rect())
+	return HudCluster.alpha_over(camera.unproject_position(mirrors.glass_center(CarMirrors.Slot.RIGHT)), _cluster.get_global_rect())
 
 
 func _status_text(car: RallyCar, team: int) -> String:

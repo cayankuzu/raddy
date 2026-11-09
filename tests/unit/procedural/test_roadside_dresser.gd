@@ -257,6 +257,37 @@ func test_every_rock_is_a_whole_stone() -> void:
 	assert_gt(seen.size(), 2)
 
 
+## On a slope a big stone goes down to where its downhill side touches: never any air under it.
+func test_big_stones_sit_down_on_a_slope() -> void:
+	var stage := StageCatalog.get_stage(StageCatalog.index_of(&"eagle_nest"))
+	var graph := StageBuilder.build(stage)
+	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(stage.biome))
+	terrain.set_roads(graph)
+	var dressing := RoadsideDresser.dress(graph, terrain, stage.biome)
+	var placements: Dictionary = dressing.get_meta(&"placements")
+	dressing.free()
+	var stones := 0
+	var on_a_slope := 0
+	for entry in RoadsideCatalog.for_biome(stage.biome):
+		if not entry.has("seat"):
+			continue
+		for t: Transform3D in placements.get(entry.id, []):
+			stones += 1
+			var s := t.basis.get_scale().x
+			var lowest := INF
+			var highest := -INF
+			for k in 8:
+				var ground := terrain.height(Vector2(t.origin.x, t.origin.z) + Vector2.from_angle(TAU * k / 8.0) * float(entry.seat) * s)
+				lowest = minf(lowest, ground)
+				highest = maxf(highest, ground)
+			if highest - lowest > 0.5:
+				on_a_slope += 1
+			assert_lte(t.origin.y, lowest - float(entry.sink) * s + 0.001, "%s reaches down to the lowest ground round it" % entry.id)
+	gut.p("%d big stones, %d of them on a slope" % [stones, on_a_slope])
+	assert_gt(stones, 300)
+	assert_gt(on_a_slope, 20, "the mountain has slopes to test this on")
+
+
 ## What the mirrors leave out is ground cover and the far forest: whatever stands above a car by the road is in them.
 func test_the_mirrors_show_what_stands_tall_by_the_road() -> void:
 	var tall := 0
