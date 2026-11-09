@@ -180,7 +180,8 @@ No Blender; model in Godot only as a last resort.
 - `RoadsideDresser` (+ `RoadsideCatalog`): Poly Haven scans and the Sketchfab conifer/birch packs (`node` picks
   one tree from a pack, `unit` 0.01 for the centimetre birches, `foliage` = alpha scissor, `black_ground` = a scan
   whose JPEG atlas has no alpha but a black ground, cut away by `shaders/cut_out_leaf.gdshader`: check a new plant's
-  atlas, those cards are opaque black otherwise; `low` = grows in the clearings too), a thick edge band
+  atlas, those cards are opaque black otherwise; `low` = grows in the clearings too; `weathered` = a rock the rain and snow reach,
+  `shaders/weathered_scan.gdshader`), a thick edge band
   before the walls and a backdrop beyond (`backdrop` entries stay outside the corridor); nothing on a cliff's
   lip. Scenery is batched by mesh into MultiMeshInstance3D chunks (48-192 m, 96 m for `low`) with visibility ranges: the
   frame cost on this laptop is CPU draw submission, not triangles. `GraphicsQuality` (Settings

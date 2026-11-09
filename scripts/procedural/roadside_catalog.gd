@@ -9,6 +9,7 @@ class_name RoadsideCatalog
 ##   stretch's corridor), screen (only on the sides Sightline counts on, never thinned), low (grows
 ##   in the open places RallyDressing keeps clear of trees too), fine (the mirrors leave it out, as they do
 ##   whatever is low, backdrop or has no collision), lay (degrees about the model's X axis, re-centred on its footprint),
+##   weathered (a rock: rain and snow reach it, the scan needs albedo, normal and ARM textures),
 ##   collision {shape: cylinder|sphere|box, radius, height, lift, size, offset, yaw (degrees: the box's turn about the trunk)}
 ##   in metres at scale 1.
 ## Every asset listed here must have a row in ASSET_LICENSES.md. The Poly Haven scans and the
@@ -59,7 +60,7 @@ static func entries() -> Array[Dictionary]:
 			"range": 110.0, "shadows": false, "biome_density": {MOUNTAIN: 0.25}},
 		{"id": "branches", "path": _model("dry_branches_medium_01"), "biomes": [FOREST, DESERT, MOUNTAIN], "variants": true, "low": true,
 			"density": 7.0, "near": 2.5, "far": 20.5, "scale": [0.9, 1.6], "sink": 0.02, "range": 80.0, "shadows": false},
-		{"id": "pebbles", "path": _model("rock_07"), "biomes": [FOREST, DESERT, MOUNTAIN], "low": true,
+		{"id": "pebbles", "path": _model("rock_07"), "weathered": true, "biomes": [FOREST, DESERT, MOUNTAIN], "low": true,
 			"density": 8.0, "near": 2.5, "far": 14.5, "scale": [2.0, 5.5], "sink": 0.03, "tilt": 25.0,
 			"range": 90.0, "shadows": false, "biome_density": {MOUNTAIN: 1.6, DESERT: 1.2}},
 		# Single tufts of grass (a whole patch of the scan is far too heavy).
@@ -76,7 +77,7 @@ static func entries() -> Array[Dictionary]:
 			"density": 40.0, "near": 1.2, "far": 3.6, "bias": 1.0, "scale": [1.8, 3.2], "sink": 0.02, "range": 85.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}},
 		{"id": "creeper", "path": _model("shrub_04"), "foliage": true, "low": true, "biomes": [FOREST, MOUNTAIN],
 			"density": 4.0, "near": 2.0, "far": 18.5, "bias": 1.4, "scale": [1.6, 3.0], "sink": 0.02, "range": 110.0, "shadows": false, "biome_density": {MOUNTAIN: 0.5}},
-		{"id": "stones", "path": _model("namaqualand_boulders_01"), "biomes": [DESERT, MOUNTAIN], "variants": true,
+		{"id": "stones", "path": _model("namaqualand_boulders_01"), "weathered": true, "biomes": [DESERT, MOUNTAIN], "variants": true,
 			"density": 12.0, "near": 2.5, "far": 24.5, "scale": [3.0, 7.0], "sink": 0.05, "range": 140.0, "shadows": false},
 		{"id": "iceplant", "path": _model("crystalline_iceplant"), "biomes": [DESERT], "variants": true,
 			"density": 16.0, "near": 2.5, "far": 20.5, "scale": [1.0, 2.2], "sink": 0.01, "range": 100.0, "shadows": false},
@@ -94,23 +95,23 @@ static func entries() -> Array[Dictionary]:
 		{"id": "stump", "path": _model("tree_stump_01"), "biomes": [FOREST], "fine": true,
 			"density": 2.0, "near": 4.0, "far": 28.5, "scale": [0.8, 1.3], "sink": 0.0, "range": 220.0,
 			"collision": {"shape": "cylinder", "radius": 0.55, "height": 0.6}},
-		{"id": "boulder", "path": _model("boulder_01"), "biomes": [FOREST, MOUNTAIN], "fine": true,
+		{"id": "boulder", "path": _model("boulder_01"), "weathered": true, "biomes": [FOREST, MOUNTAIN], "fine": true,
 			"density": 2.6, "near": 3.5, "far": 34.5, "scale": [0.6, 1.7], "sink": 0.15, "range": 320.0,
 			"collision": {"shape": "sphere", "radius": 0.75, "lift": 0.35}, "biome_density": {MOUNTAIN: 2.2}},
-		{"id": "desert_boulder", "path": _model("namaqualand_boulder_04"), "biomes": [DESERT, MOUNTAIN],
+		{"id": "desert_boulder", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT, MOUNTAIN],
 			"density": 3.0, "near": 4.5, "far": 38.5, "scale": [0.5, 1.4], "sink": 0.2, "range": 380.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}, "biome_density": {MOUNTAIN: 0.6}},
-		{"id": "rock_face", "path": _model("rock_face_01"), "biomes": [FOREST, DESERT, MOUNTAIN], "lay": ROCK_SHELF_LAY,
+		{"id": "rock_face", "path": _model("rock_face_01"), "weathered": true, "biomes": [FOREST, DESERT, MOUNTAIN], "lay": ROCK_SHELF_LAY,
 			"density": 0.7, "near": 10.5, "far": 50.5, "scale": [0.8, 1.6], "sink": 0.4, "range": 500.0,
 			"collision": {"shape": "box", "size": ROCK_SHELF}, "biome_density": {MOUNTAIN: 3.5, DESERT: 1.2}},
 		{"id": "dead_tree", "path": _model("dead_quiver_trunk"), "biomes": [DESERT],
 			"density": 1.6, "near": 5.5, "far": 38.5, "scale": [1.3, 2.5], "sink": 0.05, "tilt": 6.0, "range": 380.0,
 			"collision": {"shape": "cylinder", "radius": 0.16, "height": 2.0}},
 		# The desert's edge band: rock outcrops and boulders where the stage ends.
-		{"id": "edge_rocks", "path": _model("namaqualand_boulder_04"), "biomes": [DESERT],
+		{"id": "edge_rocks", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT],
 			"density": 7.0, "near": 24.5, "far": 36.5, "bias": 1.0, "scale": [1.0, 2.2], "sink": 0.3, "range": 500.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}},
-		{"id": "edge_faces", "path": _model("rock_face_01"), "biomes": [DESERT, MOUNTAIN], "lay": ROCK_SHELF_LAY,
+		{"id": "edge_faces", "path": _model("rock_face_01"), "weathered": true, "biomes": [DESERT, MOUNTAIN], "lay": ROCK_SHELF_LAY,
 			"density": 2.5, "near": 26.5, "far": 42.5, "bias": 1.0, "scale": [1.2, 2.2], "sink": 0.4, "range": 700.0,
 			"collision": {"shape": "box", "size": ROCK_SHELF}, "biome_density": {MOUNTAIN: 1.6}},
 	]
@@ -118,12 +119,12 @@ static func entries() -> Array[Dictionary]:
 	out.append_array([
 		{"id": "screen_shrub", "path": _model("shrub_03"), "biomes": [FOREST, MOUNTAIN], "variants": true, "screen": true,
 			"density": 50.0, "near": 2.1, "far": 6.5, "bias": 1.0, "scale": [2.0, 3.2], "sink": 0.05, "range": 260.0},
-		{"id": "screen_boulder", "path": _model("namaqualand_boulder_04"), "biomes": [DESERT], "screen": true,
+		{"id": "screen_boulder", "path": _model("namaqualand_boulder_04"), "weathered": true, "biomes": [DESERT], "screen": true,
 			"density": 25.0, "near": 3.0, "far": 8.0, "bias": 1.0, "scale": [1.6, 2.4], "sink": 0.2, "range": 380.0,
 			"collision": {"shape": "sphere", "radius": 1.15, "lift": 0.35}},
 		{"id": "screen_bush", "path": _model("wild_rooibos_bush"), "biomes": [DESERT], "variants": true, "foliage": true, "black_ground": true, "screen": true,
 			"density": 50.0, "near": 2.1, "far": 6.5, "bias": 1.0, "scale": [1.8, 2.6], "sink": 0.04, "range": 260.0},
-		{"id": "screen_rock", "path": _model("boulder_01"), "biomes": [MOUNTAIN], "screen": true,
+		{"id": "screen_rock", "path": _model("boulder_01"), "weathered": true, "biomes": [MOUNTAIN], "screen": true,
 			"density": 20.0, "near": 3.0, "far": 8.0, "bias": 1.0, "scale": [1.4, 2.2], "sink": 0.15, "range": 320.0,
 			"collision": {"shape": "sphere", "radius": 0.75, "lift": 0.35}},
 	])

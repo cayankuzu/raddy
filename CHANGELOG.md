@@ -41,6 +41,8 @@
   longer lie on top of each other, the sheet no longer runs into the pillar.
 - **Clean edges:** the picture has no jagged edges on any graphics level any more (it had no smoothing at all), High also catches
   what is thinner than a pixel, and the road stays sharp far ahead.
+- **Rocks in the weather:** snow lies on their ledges, rain darkens them and makes them shine.
+- **Door mirrors:** their housings are matt plastic; they used to flash white in the sun like polished metal.
 - **Results screen:** the table came out a letter per line and could not be read; now it is a proper table with the medal beside each time.
 - **Fixes found by looking at every stage:** posts no longer poke through the middle of the boards; the rock slabs that stuck up from the
   desert like wings now lie on the ground as shelves of rock, with collision where the rock is; a low sun ahead no longer turns the gravel white; fog and dust in the

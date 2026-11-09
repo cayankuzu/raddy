@@ -242,6 +242,21 @@ func test_rock_shelves_lie_on_the_ground_inside_their_collider() -> void:
 		assert_lt(absf(box.y - high.y), 0.2, "the collider is as high as the rock")
 
 
+func test_the_weather_reaches_the_rocks() -> void:
+	var scans := 0
+	for entry in RoadsideCatalog.entries():
+		if not String(entry.path).contains("boulder") and not String(entry.path).contains("rock_"):
+			continue
+		scans += 1
+		assert_true(entry.get("weathered", false), "%s is weathered" % entry.id)
+		var mesh: Mesh = RoadsideDresser._parts_of(entry)[0].mesh
+		var material := mesh.surface_get_material(0) as ShaderMaterial
+		assert_not_null(material, "%s has a shader" % entry.id)
+		for texture in [&"albedo_texture", &"normal_texture", &"arm_texture"]:
+			assert_not_null(material.get_shader_parameter(texture), "%s keeps its scan's %s" % [entry.id, texture])
+	assert_gt(scans, 5, "the catalogue's rocks were found")
+
+
 func test_grass_and_ferns_grow_in_a_clearing_but_not_under_what_stands_there() -> void:
 	var stage := StageCatalog.get_stage(0)
 	var graph := StageBuilder.build(stage)

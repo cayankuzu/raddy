@@ -39,6 +39,9 @@ const HANG_FLAP_SPEED := 25.0
 ## How much of the windshield's dirt lands on a mirror's glass.
 const DIRT_SHARE := 0.6
 const DISPLAY_SHADER := preload("res://shaders/mirror_glass.gdshader")
+## A door mirror's housing: moulded plastic. The model's own material there is polished metal, a white-hot glint in the sun.
+const HOUSING_ROUGHNESS := 0.55
+const HOUSING_SPECULAR := 0.3
 ## The render layer of what no mirror's camera sees: glass, head and housings (a mirror's own glass stands at its
 ## near plane, the rim of its housing just past it), and the main view's motion blur.
 const SELF_LAYER := 1 << 19
@@ -60,6 +63,7 @@ var _turn := 0
 var _sun: DirectionalLight3D
 var _time := 0.0
 static var _plain_glass: StandardMaterial3D
+static var _housing: StandardMaterial3D
 static var _broken_glass: ShaderMaterial
 
 
@@ -92,7 +96,8 @@ func build(parts: Dictionary) -> void:
 		var left := slot == Slot.LEFT
 		var root: Vector3 = ARM_ROOT[slot]
 		var arm := _part_pivot("DoorMirrorLeft" if left else "DoorMirrorRight", root, self)
-		_add_part(arm, "Housing", parts[&"door_mirror_left" if left else &"door_mirror_right"], root)
+		var housing := _add_part(arm, "Housing", parts[&"door_mirror_left" if left else &"door_mirror_right"], root)
+		housing.material_override = _plastic(housing.mesh)
 		var pane_name := &"door_glass_left" if left else &"door_glass_right"
 		var pane := CarParts.pane(pane_name, CONVEX[slot])
 		_add_mirror(slot, _part_pivot("Pane", pane.center - root, arm), parts[pane_name], pane, pane.center)
@@ -128,6 +133,19 @@ func _add_mirror(slot: int, pivot: Node3D, mesh: Mesh, pane: MirrorMath, origin:
 	mirror.rest = pane
 	mirror.now = MirrorMath.new(pane.center, pane.normal, pane.half_size, Vector3.UP, pane.convex)
 	_mirrors[slot] = mirror
+
+
+## The housing's own colours as plastic, shared by every car.
+static func _plastic(mesh: Mesh) -> StandardMaterial3D:
+	if _housing == null:
+		_housing = (mesh.surface_get_material(0) as StandardMaterial3D).duplicate() as StandardMaterial3D
+		_housing.resource_name = "MirrorHousing"
+		_housing.metallic = 0.0
+		_housing.metallic_texture = null
+		_housing.metallic_specular = HOUSING_SPECULAR
+		_housing.roughness = HOUSING_ROUGHNESS
+		_housing.roughness_texture = null
+	return _housing
 
 
 static func _plain() -> StandardMaterial3D:

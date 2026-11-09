@@ -40,6 +40,7 @@ const END_ROW_REACH := 60.0
 const END_ROW_ID := 9000
 
 const CUT_OUT_SHADER := preload("res://shaders/cut_out_leaf.gdshader")
+const WEATHERED_SHADER := preload("res://shaders/weathered_scan.gdshader")
 ## How much sunlight comes through a leaf from behind.
 const LEAF_BACKLIGHT := Color(0.26, 0.3, 0.14)
 ## Leaves of a pack whose colour its textures overdo: birches come far too blue a green beside the firs.
@@ -278,7 +279,7 @@ static func _expand_variants(entry: Dictionary) -> Array:
 ## its first mesh's footprint (the trunk) with its lowest point on the ground; "foliage" turns
 ## blended leaf materials into alpha-scissor ones (cheap, sorted right, cast shadows), "black_ground"
 ## cuts leaves out of an atlas that has no alpha; "lay" turns the model about its X axis and re-centres it on
-## its footprint.
+## its footprint, "weathered" lets the weather on it (rain, snow).
 ## Missing files are skipped with a note.
 static func _parts_of(entry: Dictionary) -> Array:
 	if entry.has("mesh"):
@@ -287,7 +288,7 @@ static func _parts_of(entry: Dictionary) -> Array:
 	if path == "" or not ResourceLoader.exists(path):
 		print("DRESS skipping %s: %s not found" % [entry.get("id", "?"), path])
 		return []
-	var cache_key := "%s|%s|%s|%s" % [path, entry.get("node", ""), entry.get("unit", 1.0), entry.get("lay", 0.0)]
+	var cache_key := "%s|%s|%s|%s|%s" % [path, entry.get("node", ""), entry.get("unit", 1.0), entry.get("lay", 0.0), entry.get("weathered", false)]
 	if _part_cache.has(cache_key):
 		return _part_cache[cache_key]
 	var scene: PackedScene = load(path)
@@ -325,6 +326,9 @@ static func _parts_of(entry: Dictionary) -> Array:
 	if entry.get("foliage", false):
 		for part in parts:
 			part.mesh = _scissored(part.mesh, LEAF_TINT.get(path, Color.WHITE), entry.get("black_ground", false))
+	if entry.get("weathered", false):
+		for part in parts:
+			part.mesh = _weathered(part.mesh)
 	_part_cache[cache_key] = parts
 	return parts
 
@@ -363,6 +367,20 @@ static func _scissored(mesh: Mesh, tint: Color, black_ground: bool) -> Mesh:
 		leaf.backlight = LEAF_BACKLIGHT
 		leaf.albedo_color *= tint
 		copy.surface_set_material(s, leaf)
+	return copy
+
+
+## A copy of `mesh` that the weather reaches, with the scan's own textures.
+static func _weathered(mesh: Mesh) -> Mesh:
+	var copy := mesh.duplicate() as Mesh
+	for s in copy.get_surface_count():
+		var scan := copy.surface_get_material(s) as BaseMaterial3D
+		var material := ShaderMaterial.new()
+		material.shader = WEATHERED_SHADER
+		material.set_shader_parameter(&"albedo_texture", scan.albedo_texture)
+		material.set_shader_parameter(&"normal_texture", scan.normal_texture)
+		material.set_shader_parameter(&"arm_texture", scan.roughness_texture)
+		copy.surface_set_material(s, material)
 	return copy
 
 

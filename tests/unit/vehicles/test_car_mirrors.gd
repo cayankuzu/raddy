@@ -137,3 +137,14 @@ func test_a_mirror_sees_a_volume_of_fog_as_dim_flat_fog() -> void:
 	assert_eq(mirror.fog_aerial_perspective, 0.0)
 	assert_eq(mirror.fog_sky_affect, 1.0)
 	SurfaceMaterials.set_weather(RaceSettings.Weather.CLEAR)
+
+
+func test_the_housings_are_plastic_not_polished_metal() -> void:
+	for arm_name: String in ["DoorMirrorLeft", "DoorMirrorRight"]:
+		var housing := _mirrors.get_node("%s/Housing" % arm_name) as MeshInstance3D
+		var material := housing.material_override as StandardMaterial3D
+		assert_not_null(material, arm_name)
+		assert_eq(material.metallic, 0.0)
+		assert_null(material.metallic_texture)
+		assert_gte(material.roughness, 0.5, "no white-hot glint in the sun")
+		assert_not_null(material.albedo_texture, "the model's own colours")
