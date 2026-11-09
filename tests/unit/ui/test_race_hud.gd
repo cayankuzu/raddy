@@ -19,3 +19,20 @@ func test_the_flag_on_the_stage_bar_is_scaled_down_with_its_mipmaps() -> void:
 	var bar := autofree(HudStageBar.new()) as HudStageBar
 	assert_eq(bar.texture_filter, CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS)
 	assert_true(TurkishFlag.texture().get_image().has_mipmaps())
+
+
+func test_the_navigators_keys_name_the_dome_lamp_and_fit_the_screen() -> void:
+	var csv := FileAccess.get_file_as_string("res://data/locale/strings.csv")
+	var row := ""
+	for line in csv.split("
+"):
+		if line.begins_with("HUD_KEYS_NAVIGATOR,"):
+			row = line
+	var columns := row.split(",")
+	assert_eq(columns.size(), 3, "Turkish and English")
+	assert_string_contains(columns[1], "L tavan lambası")
+	assert_string_contains(columns[2], "L dome lamp")
+	for text in [columns[1], columns[2]]:
+		var width := UiTheme.hud_font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+		gut.p("%.0f units wide" % width)
+		assert_lt(width, 1100.0, "the smallest window is 1152 wide")

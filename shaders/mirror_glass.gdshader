@@ -14,8 +14,8 @@ uniform float edge_shade = 0.25;
 uniform float brightest = 1.6;
 uniform float dirt = 0.0;
 uniform float broken = 0.0;
-// What a film of road dirt lets through.
-uniform vec3 dirt_filter : source_color = vec3(0.62, 0.55, 0.44);
+// What a film of road dirt lets through, in linear light: a faint warm veil, the road stays readable.
+uniform vec3 dirt_filter = vec3(0.74, 0.68, 0.58);
 
 void fragment() {
 	if (broken > 0.5) {

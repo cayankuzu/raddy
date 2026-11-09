@@ -1,15 +1,15 @@
 # Test plan
 
-Status as of 2026-11-09 (build 0.2.0). Automated checks run on the dev PC (i7-13650HX, RTX 5070
+Status as of 2026-11-10 (build 0.2.0). Automated checks run on the dev PC (i7-13650HX, RTX 5070
 Laptop, Windows 11); manual checks need people and are listed with their state.
 
 ## Automated
 
 | Check | How | Covers | Last result |
 |---|---|---|---|
-| Unit and physics tests (GUT, 348 tests) | `tools\test.ps1` | driving (grip, brakes, handbrake, rollover, recovery offer, damage effects), gearbox, water drag, stage recipes (valid, deterministic, features shaped into the road), terrain (flat under the road, cliffs drop, banks rise), track furniture (pools, rails with one gap, walls never across another stretch, gates), a bot driving a whole stage through every gate, pace notes, paper map, roadside dressing, race progress/results/settings, recovery anchors (never past the next gate or ahead of where the car got), stage events (tree across half the road, boulders reach it, a bot drives around the tree), visible damage parts, records/medals, cabin, voice codec/capture, room codes, roster rules, snapshot buffer, settings, project settings | pass |
+| Unit and physics tests (GUT, 372 tests) | `tools\test.ps1` | driving (grip, brakes, handbrake, rollover, recovery offer, damage effects), gearbox, water drag, stage recipes (valid, deterministic, features shaped into the road), terrain (flat under the road, cliffs drop, banks rise), track furniture (pools, rails with one gap, walls never across another stretch, gates), a bot driving a whole stage through every gate, pace notes, paper map, roadside dressing, race progress/results/settings, recovery anchors (never past the next gate or ahead of where the car got), stage events (tree across half the road, boulders reach it, a bot drives around the tree), visible damage parts, records/medals, cabin, voice codec/capture, room codes, roster rules, snapshot buffer, settings, project settings | pass |
 | Multiplayer | `tools\nettest.ps1` (host + 3 clients, headless) | race start barrier, car sync, windows and cans on every peer, voice relay near/far, a client leaving mid-race, team recovery confirmation, host-judged damage, windscreen kick-out | pass |
-| End to end | `tools\flowtest.ps1` | main menu → create room → join by code → seats/ready → start → bots drive the whole stage (both falling trees come down in front of them) → results → back to the room → quit | pass (2 crews: 2:14.7 / 2:20.4 on Kara Çam Geçidi, no damage) |
+| End to end | `tools\flowtest.ps1` | main menu → create room → join by code → seats/ready → start → bots drive the whole stage (both falling trees come down in front of them) → results → back to the room → quit | pass (2 crews: 2:06.3 / 2:16.9 on Kızıl Kanyon, no damage) |
 | Stage events by bot | `route_test.tscn --stage=N --start=M --autodrive --quit-after-seconds=22` (headless) | every falling tree and rockfall on every stage; prints the bot's progress, recoveries and hardest impact | pass (0 recoveries; boulders graze the car at most 5 m/s) |
 | Export | `tools\export_windows.ps1`, run the exe | release build packs and starts | pass |
 | Screenshots | `tools\screenshot.ps1` | every stage, cockpit, HUD, glass states, weather | reviewed by eye |
@@ -24,7 +24,7 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | Six players / three crews at once over the internet; latency feel | to do |
 | Driving feel with keyboard and with a gamepad on every stage | to do |
 | Navigator flow: reading the notes, map in hand, guiding a blind driver (bonnet up, mud) | to do |
-| Frame rate on a mid-range desktop GPU and on integrated graphics (Auto → Low) | to do (dev laptop: 59-77 fps at 1080p High, GPU ~5.6 ms/frame) |
+| Frame rate on a mid-range desktop GPU and on integrated graphics (Auto → Low) | to do (dev laptop at 1080p with a bot on Kara Çam: Medium 32-35 fps, High 26-34 fps; down to 19-23 and 20-28 fps when other programs load the CPU) |
 | Every weather on every compatible stage | screenshots of all reviewed; to do by people at the wheel |
 | Medal times (`StageRecords.MEDAL_SPEEDS`: bots average 15.3-18.5 m/s, gold is 20.5) are hard but reachable for a good crew | to do |
 | Mirrors, dome lamp and sliding windows in a real two-player race, from both seats | to do |

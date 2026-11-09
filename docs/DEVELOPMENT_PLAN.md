@@ -321,4 +321,20 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     mirror housings flashing like polished metal.
   Verified: 348 GUT tests (9124 asserts), `tools\ci.ps1 -SkipFlow` green on the build before the rocks (GUT, nettest, every stage event, export: 104 MB
   exe, 156 MB pck), `tools\flowtest.ps1` on all six stages.
+- 2026-11-10: A3 independent reviews (players, bugs, spec): every finding checked against the code or the running game, the real ones fixed.
+  - Flags: every car wore another country's colours beside its FIDA and MILANO badges; the Turkish flag is baked into the tile they share (`tools/make_badge_flag.gd`).
+  - The rock face scan is an open shell (torn strips in the sky, hovering slabs, a box collider where nothing was): gone from the game. Whole stones in its place (`outcrop`,
+    `crag`, tested: no open edge on any rock), which go down to the lowest ground round them on a slope (`seat`).
+  - Light: a follower's headlights lit the dash and the map through the bodywork; the car lamps leave what is inside a car out (`CABIN_LAYER`).
+  - Map held clear of the A pillar and the mirror (test against the car's own triangles). Panes cut at the door's sill. Spray from the flanks. Rev counter: the driver's,
+    fades over the right door mirror. Door mirrors have their own faint film, no wiper reaches it. Pools: two calm rays, no slivers. Guard rail on exact metres
+    (`RouteGraph.sample_exact`) with its texture to the very ends. Recovery keeps the engine hot. Rolling back is not reversing (`RallyCar.is_backing_up`).
+    The HUD's flag reads. The navigator's key line names the dome lamp. Boards' words and tape go with their boards in the mirrors.
+  - What the mirrors show: everything over 2 m by the road (`tall`, `RoadsideDresser.is_fine`, tested). Cost, the mirrors switched every second in one process on Black Pine,
+    1920x1080, Medium: +1.25 ms and, with the PC under load, +1.47 ms a frame; +78 draw calls (budget about 2 ms).
+  - Made to work: the sun visors (down for a low sun ahead on a clear sky, sliding clear of the mirror), the glove box (opens when a can is taken), the radio (lit readout
+    with the engine, off with the charge). Left as they are, on purpose: the vents and the door pulls, which a crew does not touch in a race.
+  - Final numbers, `tools\perf.ps1 -Stage 0`, alternating runs of 30 s, the sections of the road: Medium 35.0/32.1/32.8/32.6 fps and, with other programs loading the PC, 23.0/19.4/19.2/19.9,
+    draw calls 791-864, 2.7-3.0 M triangles; High 34.5/29.6/29.0/26.2 fps and 27.8/21.6/22.4/20.3, draw calls 1021-1138, 3.7-4.3 M triangles. The gate's Medium was 33.7/30.2/34.2/34.5, 780-840 draw calls: no worse.
+  Verified: 372 GUT tests, `tools\nettest.ps1`, `tools\flowtest.ps1 -Clients 1 -Stage 2` (2:06.3 / 2:16.9, 18.3 / 16.9 m/s: the same as the gate's averages, 18.5 / 17.1).
 
