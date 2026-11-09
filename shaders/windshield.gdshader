@@ -28,6 +28,13 @@ uniform float wipe_sweep = 1.658;
 
 #include "res://shaders/glass_ghost.gdshaderinc"
 
+// How thick the dust gets, and the mud's specks: above which value of the noise there is one on clean glass, how much dirt
+// brings that down, how sharp a speck's edge is.
+const float FILM = 0.62;
+const float SPECKS_FROM = 0.71;
+const float SPECKS_PER_DIRT = 0.15;
+const float SPECK_EDGE = 0.03;
+
 varying vec3 local_pos;
 
 // 1 where a blade passes on its way, soft at the edges.
@@ -48,18 +55,25 @@ void fragment() {
 	vec2 uv = metres / max(plane_size, vec2(0.0001));
 	float swept = max(swept_by(metres - pivot_a, wipe_a), swept_by(metres - pivot_b, wipe_b));
 	float d = mix(edge_dirt, dirt, swept);
-	// Blotches and streaks that grow as the glass gets dirtier.
-	float blotch = texture(dirt_noise, uv * vec2(2.4, 1.6)).r;
-	float streak = texture(dirt_noise, vec2(uv.x * 9.0, uv.y * 0.8 + 0.37)).r;
-	float pattern = blotch * 0.7 + streak * 0.3;
-	// A thin film everywhere plus soft-edged splatter where the pattern is high.
-	float splatter = smoothstep(0.0, 0.55, d * 1.3 - (1.0 - pattern));
-	float mud = clamp(splatter * 0.85 + d * 0.3, 0.0, 0.94);
+	// Dust is a film, thicker low on the glass where the road throws it and in the runs the wind draws up it; big patches
+	// only vary how thick. Mud is specks that stay apart (a threshold of noise that joins up reads as camouflage).
+	float patches = smoothstep(0.3, 0.7, texture(dirt_noise, uv * vec2(1.7, 1.2)).r);
+	float streak = texture(dirt_noise, vec2(uv.x * 19.0, uv.y * 0.7 + 0.37)).r;
+	float film = clamp(d * (FILM + (patches - 0.5) * 0.3 + (streak - 0.5) * 0.5 + (0.4 - uv.y) * 0.3), 0.0, 1.0);
+	// Stretched up the glass by the wind, slanted and thinned out by a slower noise, or the repeats of one texture show.
+	float thins = texture(dirt_noise, uv * vec2(5.3, 3.7) + vec2(0.41, 0.19)).r;
+	float drops = texture(dirt_noise, vec2(uv.x * 37.0 + uv.y * 5.0, uv.y * 9.0) + vec2(0.13, 0.71)).r;
+	float droplets = texture(dirt_noise, vec2(uv.x * 89.0 - uv.y * 11.0, uv.y * 23.0) + vec2(0.57, 0.29)).r;
+	float reached = SPECKS_FROM - SPECKS_PER_DIRT * d - (patches - 0.5) * 0.06;
+	float specks = max(smoothstep(reached, reached + SPECK_EDGE, drops * 0.7 + thins * 0.3),
+		smoothstep(reached, reached + SPECK_EDGE, droplets * 0.7 + thins * 0.3));
+	specks *= smoothstep(0.02, 0.2, d);
+	float mud = clamp(film + specks * (0.92 - film), 0.0, 0.94);
 	float crack = cracked * texture(crack_texture, uv).a;
 	// Only mud and cracks scatter light, clean glass adds what it mirrors (car_glass.gdshader says why
 	// it mirrors nothing from a seat), so ALBEDO counts how much of them covers the glass.
 	float outside = smoothstep(2.0, 3.0, length(VERTEX));
-	vec3 mud_colour = dirt_color * mix(0.45, 1.1, smoothstep(0.25, 0.75, blotch)) * mix(0.8, 1.05, streak);
+	vec3 mud_colour = dirt_color * mix(1.15, 0.75, specks) * mix(0.85, 1.05, streak);
 	ALBEDO = mix(mud_colour * mud, vec3(0.93, 0.96, 1.0), crack * 0.85);
 	ALPHA = max(max(mix(0.05, 0.3, outside), mud), crack * 0.85);
 	ROUGHNESS = mix(0.04, 0.85, mud);

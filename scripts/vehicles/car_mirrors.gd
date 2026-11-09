@@ -320,10 +320,11 @@ func set_broken(slot: int, broken: bool) -> void:
 	_update_processing()
 
 
-## The middle of a mirror's glass, in the world.
+## The middle of a mirror's glass, in the world, where it is drawn this frame (a physics tick can be ahead of that).
 func glass_center(slot: int) -> Vector3:
 	var mirror: Mirror = _mirrors[slot]
-	return mirror.glass.global_transform * mirror.rest.center
+	var pose := car.global_transform.affine_inverse() * mirror.glass.global_transform
+	return car.get_global_transform_interpolated() * pose * mirror.rest.center
 
 
 func is_broken(slot: int) -> bool:

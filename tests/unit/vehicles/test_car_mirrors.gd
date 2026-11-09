@@ -162,3 +162,35 @@ func test_the_middle_of_the_glass_is_where_the_rest_pose_says() -> void:
 	var mirror: CarMirrors.Mirror = _mirrors._mirrors[CarMirrors.Slot.RIGHT]
 	assert_almost_eq(_mirrors.glass_center(CarMirrors.Slot.RIGHT).distance_to(mirror.glass.global_transform * mirror.rest.center), 0.0, 0.0001)
 	assert_gt((_car.global_transform.affine_inverse() * _mirrors.glass_center(CarMirrors.Slot.RIGHT)).x, 0.6, "the right mirror stands on the right")
+
+
+## Reads the glass from the seat after the seat's camera has moved, like the race's HUD.
+class AfterTheCamera:
+	extends Node
+	var seat: CockpitCamera
+	var mirrors: CarMirrors
+	var from_the_eye := Vector3.ZERO
+
+	func _init() -> void:
+		process_priority = 10
+
+	func _process(_delta: float) -> void:
+		from_the_eye = seat.global_transform.affine_inverse() * mirrors.glass_center(CarMirrors.Slot.RIGHT)
+
+
+func test_the_glass_is_where_the_eye_sees_it_at_speed_too() -> void:
+	var reader := AfterTheCamera.new()
+	reader.seat = _seat(^"DriverCamera")
+	reader.mirrors = _mirrors
+	add_child_autofree(reader)
+	_car.freeze = true
+	await wait_physics_frames(3)
+	await wait_process_frames(2)
+	var parked := reader.from_the_eye
+	assert_gt(parked.length(), 1.0, "the door mirror is a good metre from the eye")
+	_car.freeze = false
+	_car.linear_velocity = Vector3.FORWARD * 30.0
+	await wait_physics_frames(4)
+	await wait_process_frames(2)
+	gut.p("from the eye: parked %s, at %.0f m/s %s" % [str(parked.snappedf(0.01)), _car.linear_velocity.length(), str(reader.from_the_eye.snappedf(0.01))])
+	assert_almost_eq(reader.from_the_eye.distance_to(parked), 0.0, 0.08, "a physics tick at 30 m/s is 0.25 m: it must not show")

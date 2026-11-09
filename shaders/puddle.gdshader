@@ -24,6 +24,7 @@ const float RAY_THICKNESS = 0.08;
 // all of it is for the glint, a ray bent that much lands somewhere else on every pixel and the picture falls apart in slivers.
 const float RAY_RIPPLE_ACROSS = 0.1;
 const float RAY_RIPPLE_DOWN = 0.32;
+const float STEP_GROWTH = 0.14;
 
 // Where in the view a point at view-space `p` lies in the picture; the scene's depth there, as a view-space z.
 vec2 to_screen(vec3 p, mat4 projection) {
@@ -38,9 +39,10 @@ float scene_z_at(vec2 uv, mat4 inv_projection) {
 }
 
 // The colour the mirrored ray from `from` along `dir` finds on the screen; alpha 0 when it finds nothing.
-vec4 mirrored(vec3 from, vec3 dir, mat4 projection, mat4 inv_projection) {
+vec4 mirrored(vec3 from, vec3 dir, float jitter, mat4 projection, mat4 inv_projection) {
 	float travelled = 0.3;
-	float step_length = 0.5;
+	// Every pixel steps a little differently: the same steps for a whole row of pixels cut what is mirrored into bands.
+	float step_length = 0.5 * (1.0 + STEP_GROWTH * jitter);
 	vec3 p = from + dir * travelled;
 	for (int i = 0; i < reflection_steps; i++) {
 		vec2 uv = to_screen(p, projection);
@@ -69,7 +71,7 @@ vec4 mirrored(vec3 from, vec3 dir, mat4 projection, mat4 inv_projection) {
 			}
 		}
 		travelled += step_length;
-		step_length *= 1.14;
+		step_length *= 1.0 + STEP_GROWTH;
 		p = from + dir * travelled;
 		if (travelled > reflection_reach) {
 			return vec4(0.0);
@@ -109,8 +111,9 @@ void fragment() {
 		float fresnel = 0.02 + 0.98 * pow(1.0 - cosine, 5.0);
 		// Two rays, one per set of ripples: where only one finds something, the picture fades out instead of breaking off.
 		float bend = mix(RAY_RIPPLE_ACROSS, RAY_RIPPLE_DOWN, smoothstep(0.0, 0.5, cosine)) * ripple;
-		vec4 a = mirrored(VERTEX, bounced(to_eye, n1.xy * bend, VIEW_MATRIX), PROJECTION_MATRIX, INV_PROJECTION_MATRIX);
-		vec4 b = mirrored(VERTEX, bounced(to_eye, n2.xy * bend, VIEW_MATRIX), PROJECTION_MATRIX, INV_PROJECTION_MATRIX);
+		float jitter = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));
+		vec4 a = mirrored(VERTEX, bounced(to_eye, n1.xy * bend, VIEW_MATRIX), jitter, PROJECTION_MATRIX, INV_PROJECTION_MATRIX);
+		vec4 b = mirrored(VERTEX, bounced(to_eye, n2.xy * bend, VIEW_MATRIX), 1.0 - jitter, PROJECTION_MATRIX, INV_PROJECTION_MATRIX);
 		vec4 found = vec4((a.rgb * a.a + b.rgb * b.a) / max(a.a + b.a, 0.001), (a.a + b.a) * 0.5);
 		// The picture of what is mirrored takes the place of that much of the water's own colour.
 		float amount = clamp(fresnel * 1.6, 0.0, 0.85) * found.a;

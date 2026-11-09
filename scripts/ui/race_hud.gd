@@ -40,6 +40,10 @@ var _last_count := -1
 var _split_times: Dictionary = {}
 
 
+func _init() -> void:
+	process_priority = 10  # after the seat's camera has moved for this frame: the rev counter asks where the mirror is
+
+
 func _ready() -> void:
 	layer = 8  # above the seat's glass effects (5), below menus
 	var root := Control.new()

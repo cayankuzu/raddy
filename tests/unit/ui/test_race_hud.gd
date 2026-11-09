@@ -8,6 +8,11 @@ func test_only_the_driver_gets_the_rev_counter() -> void:
 	assert_false(RaceHud.shows_cluster(false, RosterRules.Role.DRIVER), "nothing to show without a car")
 
 
+func test_the_hud_asks_where_the_mirror_is_after_the_camera_has_moved() -> void:
+	var hud: RaceHud = autofree(RaceHud.new())
+	assert_gt(hud.process_priority, 0, "the camera turns with the frame: a stale one puts the mirror under the rev counter at speed")
+
+
 func test_the_rev_counter_makes_way_for_the_mirror_under_it() -> void:
 	var rect := Rect2(1000.0, 500.0, 250.0, 250.0)
 	assert_eq(HudCluster.alpha_over(Vector2(1100.0, 600.0), rect), HudCluster.OVER_A_MIRROR, "the glass's middle is under it")
