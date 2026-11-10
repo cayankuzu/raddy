@@ -2,10 +2,15 @@
 // exactly. World-space layers: two ground sets mixed by large-scale noise (breaks tiling), a third in
 // patches a few metres across (litter, bare earth), rock on slopes (triplanar albedo/ARM), hummocks
 // and hollows that catch the light, snow on upward faces by the global `snow_cover`, darker and
-// damper with the global `wetness`. Normal maps are RG (Godot rebuilds Z).
+// damper with the global `wetness`. Under the trees (the global `canopy_map`, RoadsideDresser.canopy)
+// the ground lies in their shade; in the forest it is their needles and leaves with moss in patches,
+// not grass, and the snow lies thinner there. Normal maps are RG (Godot rebuilds Z).
 
 global uniform float wetness;
 global uniform float snow_cover;
+global uniform sampler2D canopy_map;
+// Where the canopy's map lies: x and z of its corner, its size (m). Zero before a stage is dressed.
+global uniform vec4 canopy_rect;
 
 uniform sampler2D ground_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D ground_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -35,6 +40,10 @@ uniform float macro_scale = 140.0;
 uniform float macro_strength : hint_range(0.0, 1.0) = 0.28;
 uniform float slope_start = 0.9;
 uniform float slope_end = 0.72;
+// Under the crowns: how much darker, how much the grass gives way to the needles and leaves, how much moss.
+uniform float canopy_shade = 0.3;
+uniform float canopy_litter = 0.0;
+uniform float canopy_moss = 0.0;
 
 // The scan's snow is a grey photograph; real snow is nearly white.
 const float SNOW_LIFT = 1.9;
@@ -49,6 +58,12 @@ const float HUMMOCK_SMALL = 2.7;
 const float HUMMOCK_TILT = 0.1;
 const float HUMMOCK_MOST = 0.1;
 const float HOLLOW_DARK = 0.16;
+// The forest floor: the warm brown of fallen needles, moss; how much of the sky the crowns hide from the ground and how much
+// of the snow they catch.
+const vec3 NEEDLES = vec3(1.18, 0.98, 0.72);
+const vec3 MOSS = vec3(0.16, 0.2, 0.07);
+const float CANOPY_OCCLUSION = 0.55;
+const float CANOPY_SNOW = 0.55;
 
 struct GroundSample {
 	vec3 albedo;
@@ -66,10 +81,15 @@ GroundSample ground_sample(vec3 world_pos, vec3 world_normal) {
 	vec2 xz = world_pos.xz;
 	float n1 = macro_at(xz);
 	float n2 = texture(macro_noise, xz / (macro_scale * 0.23) + vec2(0.37, 0.71)).r;
+	float canopy = 0.0;
+	if (canopy_rect.z > 0.0) {
+		canopy = textureLod(canopy_map, (xz - canopy_rect.xy) / canopy_rect.zw, 0.0).r;
+	}
+	float litter = canopy * canopy_litter;
 
 	vec2 g_uv = xz / ground_tile;
 	vec2 g2_uv = xz / ground2_tile + vec2(0.31, 0.57);
-	float mix2 = smoothstep(0.42, 0.58, n1 * 0.65 + n2 * 0.35 + (ground2_amount - 0.5));
+	float mix2 = smoothstep(0.42, 0.58, n1 * 0.65 + n2 * 0.35 + (ground2_amount - 0.5) - litter * 1.2);
 	vec3 albedo = mix(texture(ground_albedo, g_uv).rgb, texture(ground2_albedo, g2_uv).rgb, mix2);
 	vec2 nrm = mix(texture(ground_normal, g_uv).rg, texture(ground2_normal, g2_uv).rg, mix2);
 	vec3 arm = mix(texture(ground_arm, g_uv).rgb, texture(ground2_arm, g2_uv).rgb, mix2);
@@ -77,7 +97,7 @@ GroundSample ground_sample(vec3 world_pos, vec3 world_normal) {
 	// Patches of the third layer with a ragged edge.
 	float patches = texture(macro_noise, xz / PATCH_NOISE + vec2(0.13, 0.29)).r;
 	float small = texture(macro_noise, xz / HUMMOCK_SMALL + vec2(0.57, 0.11)).r;
-	float mix3 = smoothstep(0.5, 0.6, patches + (small - 0.5) * 0.3 + (ground3_amount - 0.5));
+	float mix3 = smoothstep(0.5, 0.6, patches + (small - 0.5) * 0.3 + (ground3_amount - 0.5) + litter * 0.12);
 	if (mix3 > 0.001) {
 		vec2 g3_uv = xz / ground3_tile + vec2(0.17, 0.83);
 		albedo = mix(albedo, texture(ground3_albedo, g3_uv).rgb, mix3);
@@ -116,7 +136,14 @@ GroundSample ground_sample(vec3 world_pos, vec3 world_normal) {
 	// Large, soft light/dark patches so the tiling does not read from a distance.
 	albedo *= mix(1.0 - macro_strength, 1.0 + macro_strength * 0.5, n1);
 
-	float snow_w = snow_cover * smoothstep(0.5, 0.78, up + (n1 - 0.5) * 0.35);
+	// The forest floor: moss in the damp patches, and the shade of the crowns.
+	albedo *= mix(vec3(1.0), NEEDLES, litter * 0.6 * (1.0 - rock_w));
+	float moss = canopy_moss * canopy * smoothstep(0.56, 0.7, n2 + (small - 0.5) * 0.6) * (1.0 - rock_w);
+	albedo = mix(albedo, MOSS * (0.7 + 1.6 * dot(albedo, vec3(0.3, 0.59, 0.11))), moss);
+	albedo *= 1.0 - canopy_shade * canopy;
+	arm.r *= 1.0 - CANOPY_OCCLUSION * canopy;
+
+	float snow_w = snow_cover * smoothstep(0.5, 0.78, up + (n1 - 0.5) * 0.35) * (1.0 - CANOPY_SNOW * canopy);
 	if (snow_w > 0.001) {
 		vec2 s_uv = xz / snow_tile;
 		albedo = mix(albedo, max(texture(snow_albedo, s_uv).rgb, vec3(SNOW_DARKEST)) * SNOW_LIFT, snow_w);

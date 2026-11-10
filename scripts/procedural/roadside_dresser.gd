@@ -5,7 +5,8 @@ class_name RoadsideDresser
 ## the lip of a cliff nor in RallyDressing's clearings. The forest is a wall beside the road
 ## (GAME_DESIGN §4: the road ahead is never readable), "screen" entries close the sides Sightline
 ## counts on, a thick band stands where the stage ends and a backdrop beyond it, past the road's
-## end as well. Trees and rocks get real collision (spec §8.2).
+## end as well. Trees and rocks get real collision (spec §8.2). Where their crowns shade the ground
+## goes to the ground's shaders (canopy): the forest floor under them.
 ## Drawing: every instance of one mesh with the same shadow and range settings goes into one
 ## batch, whichever entry placed it (a fir by the road and a fir in the backdrop share it), split
 ## into chunks sized to its visibility range. The renderer's cost here is the number of objects and
@@ -42,8 +43,18 @@ const SEAT_SAMPLES := 8
 
 const CUT_OUT_SHADER := preload("res://shaders/cut_out_leaf.gdshader")
 const WEATHERED_SHADER := preload("res://shaders/weathered_scan.gdshader")
-## How much sunlight comes through a leaf from behind.
+const LEAF_SHADER := preload("res://shaders/leaf.gdshader")
+const BARK_SHADER := preload("res://shaders/bark.gdshader")
+## How much sunlight comes through a leaf from behind, and where the leaves' cut-out edge lies.
 const LEAF_BACKLIGHT := Color(0.26, 0.3, 0.14)
+const LEAF_SCISSOR := 0.45
+## How readily snow lies on what grows low (`low` in the catalog): the ground cover is buried long before a branch is white.
+const LOW_SNOW_HOLDS := 1.6
+## The map of where crowns shade the ground (canopy): metres per pixel, how far past its crown a tree's shade and needles reach,
+## how dark one tree makes the ground (where trees stand close the ground lies in deep shade).
+const CANOPY_CELL := 2.0
+const CANOPY_SPREAD := 3.5
+const CROWN_DENSITY := 0.45
 ## Leaves of a pack whose colour its textures overdo: birches come far too blue a green beside the firs.
 const LEAF_TINT := {RoadsideCatalog.BIRCHES: Color(0.86, 0.8, 0.52), RoadsideCatalog.BIRCH: Color(0.86, 0.8, 0.52)}
 
@@ -113,6 +124,12 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 	_build_batches(root, batches)
 	root.set_meta(&"placed", placed)
 	root.set_meta(&"placements", placements)
+	var crowns := {}
+	for entry in expanded:
+		crowns[entry.id] = _crown(entry)
+	var grid := terrain.grid()
+	var rect := Rect2(grid.origin, Vector2(grid.cells) * TerrainField.CELL)
+	SurfaceMaterials.set_canopy(canopy(placements, crowns, rect), rect)
 	return root
 
 
@@ -288,8 +305,9 @@ static func _expand_variants(entry: Dictionary) -> Array:
 ## MeshInstance3D in it, or only those under the node named "node"), or a bare "mesh" (tests).
 ## "unit" scales a model made in other units (centimetres: 0.01); a "node" entry is re-centred on
 ## its first mesh's footprint (the trunk) with its lowest point on the ground; "foliage" turns
-## blended leaf materials into alpha-scissor ones (cheap, sorted right, cast shadows), "black_ground"
-## cuts leaves out of an atlas that has no alpha, "weathered" lets the weather on it (rain, snow).
+## blended leaf materials into alpha-scissor ones (cheap, sorted right, cast shadows) and lets the weather
+## on the leaves and the bark (_plant), "black_ground" cuts leaves out of an atlas that has no alpha,
+## "weathered" lets the weather on a rock (rain, snow).
 ## Missing files are skipped with a note.
 static func _parts_of(entry: Dictionary) -> Array:
 	if entry.has("mesh"):
@@ -298,7 +316,7 @@ static func _parts_of(entry: Dictionary) -> Array:
 	if path == "" or not ResourceLoader.exists(path):
 		print("DRESS skipping %s: %s not found" % [entry.get("id", "?"), path])
 		return []
-	var cache_key := "%s|%s|%s|%s" % [path, entry.get("node", ""), entry.get("unit", 1.0), entry.get("weathered", false)]
+	var cache_key := "%s|%s|%s|%s|%s" % [path, entry.get("node", ""), entry.get("unit", 1.0), entry.get("weathered", false), entry.get("low", false)]
 	if _part_cache.has(cache_key):
 		return _part_cache[cache_key]
 	var scene: PackedScene = load(path)
@@ -327,7 +345,8 @@ static func _parts_of(entry: Dictionary) -> Array:
 			part.transform = recentre * part.transform
 	if entry.get("foliage", false):
 		for part in parts:
-			part.mesh = _scissored(part.mesh, LEAF_TINT.get(path, Color.WHITE), entry.get("black_ground", false))
+			part.mesh = _plant(part.mesh, LEAF_TINT.get(path, Color.WHITE), entry.get("black_ground", false),
+				LOW_SNOW_HOLDS if entry.get("low", false) else 1.0)
 	if entry.get("weathered", false):
 		for part in parts:
 			part.mesh = _weathered(part.mesh)
@@ -335,41 +354,53 @@ static func _parts_of(entry: Dictionary) -> Array:
 	return parts
 
 
-## Parts per (path, node, unit), so the many entries made from one pack load it once per stage.
+## Parts per (path, node, unit), so the many entries made from one pack load it once per stage, and the plants' materials
+## per material of the scan (_plant).
 static var _part_cache: Dictionary = {}
+static var _plant_materials: Dictionary = {}
 
 
 static func clear_cache() -> void:
 	_part_cache.clear()
+	_plant_materials.clear()
 
 
-## A copy of `mesh` whose blended (leaf) materials use alpha scissor instead, tinted, or are cut out of
-## their atlas's black ground.
-static func _scissored(mesh: Mesh, tint: Color, black_ground: bool) -> Mesh:
+## A copy of `mesh` that takes the weather (shaders/plant_weather.gdshaderinc): its blended (leaf) materials cut out by their
+## alpha, soft and tinted (shaders/leaf.gdshader), or out of their atlas's black ground (cut_out_leaf.gdshader), its bark as
+## the scan had it (bark.gdshader). One material for each of the scan's, shared by every plant that uses it: no draw call is added.
+static func _plant(mesh: Mesh, tint: Color, black_ground: bool, holds: float) -> Mesh:
 	var copy := mesh.duplicate() as Mesh
 	for s in copy.get_surface_count():
 		var material := copy.surface_get_material(s) as BaseMaterial3D
-		if material == null or material.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED:
-			continue
-		if black_ground:
-			var cut_out := ShaderMaterial.new()
-			cut_out.shader = CUT_OUT_SHADER
-			cut_out.set_shader_parameter(&"albedo_texture", material.albedo_texture)
-			cut_out.set_shader_parameter(&"translucency", LEAF_BACKLIGHT)
-			copy.surface_set_material(s, cut_out)
-			continue
-		var leaf := material.duplicate() as BaseMaterial3D
-		leaf.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-		leaf.alpha_scissor_threshold = 0.45
-		leaf.cull_mode = BaseMaterial3D.CULL_DISABLED
-		# Leaves are soft and let light through: no hard edge where the light turns away, no shine.
-		leaf.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT_WRAP
-		leaf.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-		leaf.backlight_enabled = true
-		leaf.backlight = LEAF_BACKLIGHT
-		leaf.albedo_color *= tint
-		copy.surface_set_material(s, leaf)
+		if material != null:
+			copy.surface_set_material(s, _plant_material(material, tint, black_ground, holds))
 	return copy
+
+
+static func _plant_material(material: BaseMaterial3D, tint: Color, black_ground: bool, holds: float) -> ShaderMaterial:
+	var leaf := material.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED
+	var key := "%d|%s|%s|%s" % [material.get_instance_id(), tint, black_ground and leaf, holds]
+	if _plant_materials.has(key):
+		return _plant_materials[key]
+	var plant := ShaderMaterial.new()
+	plant.set_shader_parameter(&"albedo_texture", material.albedo_texture)
+	plant.set_shader_parameter(&"weather_noise", SurfaceMaterials.noise())
+	plant.set_shader_parameter(&"snow_holds", holds)
+	if leaf and black_ground:
+		plant.shader = CUT_OUT_SHADER
+		plant.set_shader_parameter(&"translucency", LEAF_BACKLIGHT)
+	else:
+		# Leaves are soft and let light through: no hard edge where the light turns away, no shine but the rain's.
+		plant.shader = LEAF_SHADER if leaf else BARK_SHADER
+		plant.set_shader_parameter(&"albedo_color", material.albedo_color * (tint if leaf else Color.WHITE))
+		plant.set_shader_parameter(&"has_normal", material.normal_enabled and material.normal_texture != null)
+		plant.set_shader_parameter(&"normal_texture", material.normal_texture)
+		plant.set_shader_parameter(&"roughness", material.roughness)
+		if leaf:
+			plant.set_shader_parameter(&"scissor", LEAF_SCISSOR)
+			plant.set_shader_parameter(&"translucency", LEAF_BACKLIGHT)
+	_plant_materials[key] = plant
+	return plant
 
 
 ## A copy of `mesh` that the weather reaches, with the scan's own textures.
@@ -410,6 +441,47 @@ static func _collect_meshes(node: Node, parent: Transform3D, parts: Array, only 
 		parts.append({"mesh": mesh, "transform": here, "material": mi.material_override})
 	for child in node.get_children():
 		_collect_meshes(child, here, parts, only, inside, found)
+
+
+## How far round its place a plant of this entry shades the ground at scale 1 (m): the crown of what has leaves and stands
+## above the ground cover, nothing for a bare tree, a rock or a fern.
+static func _crown(entry: Dictionary) -> float:
+	if not entry.get("foliage", false) or entry.get("low", false):
+		return 0.0
+	var crown := 0.0
+	for part in entry.get("_parts", []):
+		var mesh: Mesh = part.mesh
+		for s in mesh.get_surface_count():
+			var material := mesh.surface_get_material(s) as ShaderMaterial
+			if material != null and material.shader != BARK_SHADER:
+				var box: AABB = (part.transform as Transform3D) * mesh.get_aabb()
+				crown = maxf(crown, maxf(maxf(absf(box.position.x), absf(box.end.x)), maxf(absf(box.position.z), absf(box.end.z))))
+	return crown
+
+
+## Where crowns shade the ground over `rect` (x and z, metres): CANOPY_CELL metres a pixel, 0 open ground, 1 deep shade.
+## `crowns` gives each entry's crown (_crown); `placements` where each one stands.
+static func canopy(placements: Dictionary, crowns: Dictionary, rect: Rect2) -> Image:
+	var size := Vector2i((rect.size / CANOPY_CELL).ceil())
+	var shade := PackedFloat32Array()
+	shade.resize(size.x * size.y)
+	for id in placements:
+		var crown: float = crowns.get(id, 0.0)
+		if crown <= 0.0:
+			continue
+		for t: Transform3D in placements[id]:
+			var reach := (crown * t.basis.get_scale().x + CANOPY_SPREAD) / CANOPY_CELL
+			var at := (Vector2(t.origin.x, t.origin.z) - rect.position) / CANOPY_CELL
+			for y in range(maxi(floori(at.y - reach), 0), mini(ceili(at.y + reach) + 1, size.y)):
+				for x in range(maxi(floori(at.x - reach), 0), mini(ceili(at.x + reach) + 1, size.x)):
+					var d := Vector2(x + 0.5, y + 0.5).distance_squared_to(at) / (reach * reach)
+					if d < 1.0:
+						shade[y * size.x + x] += (1.0 - d) * (1.0 - d) * CROWN_DENSITY
+	var bytes := PackedByteArray()
+	bytes.resize(shade.size())
+	for i in shade.size():
+		bytes[i] = mini(roundi(shade[i] * 255.0), 255)
+	return Image.create_from_data(size.x, size.y, false, Image.FORMAT_L8, bytes)
 
 
 ## Whether the mirrors leave this out (GraphicsQuality.FINE_SCENERY_LAYER): ground cover and the far forest, not what stands tall by the road.

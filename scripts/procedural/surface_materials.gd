@@ -36,14 +36,19 @@ const ROAD_SETS := {
 		"packed": "asphalt_02", "packed_tile": 3.0, "packed_tint": Color(0.86, 0.86, 0.86),
 		"stones": "gravel_ground_01", "stones_tile": 1.8, "stones_tint": Color(1.0, 1.0, 1.0), "stones_amount": 0.0, "porosity": 0.5},
 }
-## Ground layers per biome: two sets mixed by noise, a third in patches and the rock that shows on slopes.
+## Ground layers per biome: two sets mixed by noise, a third in patches and the rock that shows on slopes. Under the crowns
+## (RoadsideDresser.canopy) the ground lies in shade (`canopy_shade`); in the forest the grass (the second set) gives way there
+## to the needles and the leaves (`canopy_litter`), with moss in patches (`canopy_moss`).
 const BIOME_GROUND := {
 	RaceSettings.Biome.FOREST: {"ground": "forrest_ground_01", "ground2": "sparse_grass", "ground3": "brown_mud_leaves_01", "rock": "rock_face_03",
-		"ground_tile": 5.0, "ground2_tile": 6.0, "ground3_tile": 4.5, "tint": Color(0.84, 0.84, 0.74), "ground2_amount": 0.45, "ground3_amount": 0.35},
+		"ground_tile": 5.0, "ground2_tile": 6.0, "ground3_tile": 4.5, "tint": Color(0.84, 0.84, 0.74), "ground2_amount": 0.45, "ground3_amount": 0.35,
+		"canopy_shade": 0.3, "canopy_litter": 1.0, "canopy_moss": 1.0},
 	RaceSettings.Biome.DESERT: {"ground": "sand_01", "ground2": "dry_ground_01", "ground3": "gravelly_sand", "rock": "rock_face_03",
-		"ground_tile": 6.0, "ground2_tile": 5.0, "ground3_tile": 4.0, "tint": Color(1.0, 0.95, 0.88), "ground2_amount": 0.45, "ground3_amount": 0.3},
+		"ground_tile": 6.0, "ground2_tile": 5.0, "ground3_tile": 4.0, "tint": Color(1.0, 0.95, 0.88), "ground2_amount": 0.45, "ground3_amount": 0.3,
+		"canopy_shade": 0.15, "canopy_litter": 0.0, "canopy_moss": 0.0},
 	RaceSettings.Biome.MOUNTAIN: {"ground": "rocky_terrain_02", "ground2": "gravel_ground_01", "ground3": "sparse_grass", "rock": "rock_face_03",
-		"ground_tile": 7.0, "ground2_tile": 5.0, "ground3_tile": 5.5, "tint": Color(0.9, 0.92, 0.88), "ground2_amount": 0.4, "ground3_amount": 0.3},
+		"ground_tile": 7.0, "ground2_tile": 5.0, "ground3_tile": 5.5, "tint": Color(0.9, 0.92, 0.88), "ground2_amount": 0.4, "ground3_amount": 0.3,
+		"canopy_shade": 0.25, "canopy_litter": 0.0, "canopy_moss": 0.0},
 }
 ## Global shader parameters per weather: how wet surfaces look and how much snow lies around.
 const WEATHER_LOOK := {
@@ -57,6 +62,12 @@ const WEATHER_LOOK := {
 static var _textures: Dictionary = {}
 static var _materials: Dictionary = {}
 static var _noise: Texture2D
+
+
+## Where the crowns shade the ground over `rect` (x and z, metres): the forest floor, for every ground surface at once.
+static func set_canopy(map: Image, rect: Rect2) -> void:
+	RenderingServer.global_shader_parameter_set(&"canopy_map", ImageTexture.create_from_image(map))
+	RenderingServer.global_shader_parameter_set(&"canopy_rect", Vector4(rect.position.x, rect.position.y, rect.size.x, rect.size.y))
 
 
 ## Sets the weather's look for every surface at once (rendering-wide global parameters).
@@ -160,3 +171,5 @@ static func _set_ground_layers(material: ShaderMaterial, biome: int) -> void:
 	material.set_shader_parameter(&"ground3_amount", spec.ground3_amount)
 	material.set_shader_parameter(&"ground_tint", spec.tint)
 	material.set_shader_parameter(&"macro_noise", noise())
+	for key in ["canopy_shade", "canopy_litter", "canopy_moss"]:
+		material.set_shader_parameter(StringName(key), spec[key])

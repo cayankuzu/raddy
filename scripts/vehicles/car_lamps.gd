@@ -24,9 +24,10 @@ const DOME_ENERGY := 1.1
 const REAR_GLOW_AT := Vector3(0.0, 0.25, 1.95)
 const REAR_GLOW_ENERGY := 1.6
 const TAIL_SHARE := 0.12
-## The headlights: a beam each side, the lamp's own pattern across a cone this wide (half the angle, degrees), reaching this far.
-## A real lamp throws most of its light just under the horizon, where the road far ahead lies, and little onto the road close
-## to the car, which it meets at a steeper angle: that is how a pair of headlights reaches 80 m and more (beam_pattern).
+## The headlights: a beam each side, the lamp's own pattern across a cone this wide (half the angle, degrees), reaching this far,
+## as bright as this at night (RaceLook.lamp_light: by day they hardly show). A real lamp throws most of its light just under the
+## horizon, where the road far ahead lies, and little onto the road close to the car, which it meets at a steeper angle: that is
+## how a pair of headlights reaches 80 m and more (beam_pattern).
 const BEAM_AT := Vector3(0.55, -0.05, -2.02)
 const BEAM_ANGLE := 30.0
 const BEAM_RANGE := 130.0
@@ -77,7 +78,7 @@ func build(model: Node3D) -> void:
 		var beam := SpotLight3D.new()
 		beam.name = "Headlight"
 		beam.light_color = BEAM_COLOR
-		beam.light_energy = BEAM_ENERGY
+		beam.light_energy = BEAM_ENERGY * RaceLook.lamp_light
 		beam.spot_range = BEAM_RANGE
 		beam.spot_angle = BEAM_ANGLE
 		beam.light_volumetric_fog_energy = BEAM_IN_FOG

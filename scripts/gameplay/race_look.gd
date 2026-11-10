@@ -42,6 +42,9 @@ const HEADLIGHT_WEATHER := [RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG,
 
 ## How much of the day's light is left: the shade's, a car's cabin fill.
 const DAYLIGHT := {DAY: 1.0, GOLDEN_HOUR: 0.62, DUSK: 0.35, NIGHT: 0.025}
+## How strong the headlights are against that light: what eyes used to the dark make of them. By day they hardly show on the
+## road; at night they are all there is (CarLamps).
+const LAMP_LIGHT := {DAY: 0.004, GOLDEN_HOUR: 0.006, DUSK: 0.3, NIGHT: 1.0}
 ## The sun's height (degrees) away from the day: low for the golden hour, under the horizon at dusk; at night the moon's.
 const LOW_SUN := {GOLDEN_HOUR: 8.0, DUSK: -4.0, NIGHT: 32.0}
 const LOW_SUN_COLOR := {GOLDEN_HOUR: Color(1.0, 0.64, 0.36), DUSK: Color(1.0, 0.42, 0.2), NIGHT: Color(0.62, 0.72, 1.0)}
@@ -95,8 +98,9 @@ const FOLIAGE := {
 }
 const SNOW_OFF_BRANCHES: Array[Color] = [Color(0.88, 0.9, 0.94), Color(0.8, 0.83, 0.88)]
 
-## How much daylight the last race look has (the car's cabin fill stands in for it).
+## How much daylight the last race look has (the car's cabin fill stands in for it), and how strong its headlights are.
 static var daylight := 1.0
+static var lamp_light: float = LAMP_LIGHT[DAY]
 ## The last race look's wind (m/s), dust colour and what its trees drop, for what the cars throw into the air (RoadFxPool).
 static var wind := WIND_FROM * 1.1
 static var dust_tint := Color.WHITE
@@ -113,6 +117,7 @@ static func create(biome: int, weather: int, time := DAY) -> Node3D:
 	var palette := BiomeRules.palette(biome, weather)
 	var overcast := weather in OVERCAST
 	daylight = DAYLIGHT.get(time, 1.0)
+	lamp_light = LAMP_LIGHT.get(time, LAMP_LIGHT[DAY])
 	wind = WIND_FROM * float(WIND_SPEED.get(weather, 1.0))
 	dust_tint = DUST_TINT.get(biome, Color.WHITE)
 	foliage = SNOW_OFF_BRANCHES if weather == RaceSettings.Weather.SNOW else FOLIAGE.get(biome, FOLIAGE[RaceSettings.Biome.FOREST])

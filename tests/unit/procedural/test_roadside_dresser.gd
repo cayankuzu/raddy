@@ -421,3 +421,59 @@ func test_the_mirrors_leave_out_what_is_low_far_or_cannot_be_hit() -> void:
 	assert_eq(layers["grass"] & CarMirrors.CAMERA_MASK, 0, "not the grass")
 	assert_ne(layers["grass"] & 0xFFFFF, 0, "which every other camera does see")
 	dressing.free()
+
+
+func test_rain_and_snow_reach_the_trees_without_a_material_per_tree() -> void:
+	RoadsideDresser.clear_cache()
+	var shaders := {}
+	var materials := {}
+	var holds := {}
+	for entry in RoadsideCatalog.entries():
+		if not entry.get("foliage", false):
+			continue
+		for part in RoadsideDresser._parts_of(entry):
+			var mesh: Mesh = part.mesh
+			for s in mesh.get_surface_count():
+				var material := mesh.surface_get_material(s) as ShaderMaterial
+				assert_not_null(material, "%s's surface %d takes the weather" % [entry.id, s])
+				if material == null:
+					continue
+				assert_true(material.shader in [RoadsideDresser.LEAF_SHADER, RoadsideDresser.BARK_SHADER, RoadsideDresser.CUT_OUT_SHADER])
+				assert_not_null(material.get_shader_parameter(&"albedo_texture"), "%s keeps its scan's colours" % entry.id)
+				assert_not_null(material.get_shader_parameter(&"weather_noise"), "and gets the clumps' noise")
+				materials[material] = true
+				shaders[material.shader] = true
+				holds[entry.id] = material.get_shader_parameter(&"snow_holds")
+	gut.p("%d materials for every plant of every biome" % materials.size())
+	assert_eq(shaders.size(), 3, "leaves, bark and the leaves cut out of a black ground")
+	assert_lt(materials.size(), 40, "one for each of the scans' materials, not one per tree")
+	assert_eq(RoadsideDresser._parts_of(RoadsideCatalog.entries().filter(func(e: Dictionary) -> bool: return e.id == "row_fir")[0])[0].mesh,
+		RoadsideDresser._parts_of(RoadsideCatalog.entries().filter(func(e: Dictionary) -> bool: return e.id == "far_fir")[0])[0].mesh,
+		"a fir by the road and one in the backdrop draw with the same mesh and materials")
+	assert_gt(holds["fern"], holds["fir"], "the ground cover is white long before the branches")
+
+
+func test_the_forest_floor_lies_in_the_shade_of_the_crowns() -> void:
+	var crowns := {"tree": 3.0, "fern": 0.0}
+	var rect := Rect2(Vector2(-50.0, -50.0), Vector2(100.0, 100.0))
+	var grove: Array[Transform3D] = []
+	for x in range(-12, 13, 4):
+		for z in range(-12, 13, 4):
+			grove.append(Transform3D(Basis.IDENTITY, Vector3(x, 0.0, z)))
+	var ferns: Array[Transform3D] = [Transform3D(Basis.IDENTITY, Vector3(35.0, 0.0, 35.0))]
+	var map := RoadsideDresser.canopy({"tree": grove, "fern": ferns}, crowns, rect)
+	assert_eq(map.get_size(), Vector2i(50, 50), "a pixel every %.0f m" % RoadsideDresser.CANOPY_CELL)
+	var at := func(x: float, z: float) -> float: return map.get_pixelv(Vector2i(((Vector2(x, z) - rect.position) / RoadsideDresser.CANOPY_CELL).floor())).r
+	gut.p("shade: %.2f in the grove, %.2f at its edge, %.2f in the open, %.2f by a fern" % [at.call(0.0, 0.0), at.call(16.0, 0.0), at.call(-35.0, 35.0), at.call(35.0, 35.0)])
+	assert_gt(at.call(0.0, 0.0), 0.9, "deep shade where trees stand close")
+	assert_between(at.call(16.0, 0.0), 0.05, 0.9, "less at the grove's edge")
+	assert_eq(at.call(-35.0, 35.0), 0.0, "none in the open")
+	assert_eq(at.call(35.0, 35.0), 0.0, "and none from the ground cover")
+	var dead := {"tree": 0.0}
+	assert_eq(RoadsideDresser.canopy({"tree": grove}, dead, rect).get_pixel(25, 25).r, 0.0, "nor from bare trees")
+	for entry in RoadsideCatalog.entries():
+		if entry.id in ["fir", "birch_a"]:
+			var expanded: Dictionary = RoadsideDresser._expand_variants(entry)[0]
+			assert_gt(RoadsideDresser._crown(expanded), 1.5, "%s has a crown" % entry.id)
+		elif entry.id in ["dead_conifer", "fern", "boulder"]:
+			assert_eq(RoadsideDresser._crown(RoadsideDresser._expand_variants(entry)[0]), 0.0, "%s shades nothing" % entry.id)
