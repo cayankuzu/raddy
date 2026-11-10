@@ -41,8 +41,8 @@ const HANDBRAKE_RATE := 11.0
 ## The sun visors hinge along the top of the windshield: how far they come down (degrees; further would hide the road),
 ## how far they slide along their rods towards the doors as they do (they would hide the mirror), how fast (1/s).
 const VISOR_HINGE := Vector3(0.0, 0.782, -0.287)
-const VISOR_DOWN := 32.0
-const VISOR_SLIDE := 0.1
+const VISOR_DOWN := 45.0
+const VISOR_SLIDE := 0.12
 const VISOR_RATE := 2.4
 ## The glove box's lid opens about its lower edge when a can is taken: how far (degrees), how fast (1/s), for how long.
 ## Behind it the box's dark inside. Seen through the windshield too, so it draws further than the rest.

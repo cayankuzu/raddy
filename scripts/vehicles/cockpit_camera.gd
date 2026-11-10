@@ -6,8 +6,11 @@ extends Camera3D
 ## driver's head also turns a little into corners and drifts back to the road when the mouse
 ## rests. It follows the car's interpolated transform every frame, so it is smooth at any refresh
 ## rate. Shake, mouse sensitivity, inverted Y and the recentring follow the player's settings.
+## The eyes rest where a rally crew sits (the cameras in rally_car.tscn): low, upright and close to the wheel.
 
-const BASE_FOV := 72.0
+## The vertical field of view at rest: from either seat the windshield takes about half the frame height straight ahead, the
+## road is the star (tests/unit/vehicles/test_seat_view.gd). It opens with speed.
+const BASE_FOV := 62.0
 const SPEED_FOV := 11.0
 ## Speed (m/s) where the FOV reaches its widest.
 const FOV_SPEED := 38.0

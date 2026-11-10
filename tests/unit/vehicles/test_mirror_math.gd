@@ -2,7 +2,7 @@ extends GutTest
 ## The mirror's geometry against the engine's own projection: the picture is really what the eye sees in
 ## the glass, and the right way round.
 
-const EYE := Vector3(-0.33, 0.64, 0.215)
+const EYE := Vector3(-0.33, 0.63, 0.05)
 
 
 func _mirror(convex := 1.0) -> MirrorMath:

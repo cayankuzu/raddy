@@ -39,9 +39,10 @@ const SEAT_GLASS_PRIORITY := 0
 const PLACEHOLDERS: Array[NodePath] = [^"Body", ^"CabinShell", ^"Interior"]
 ## How far the steering wheel turns for full steering lock (radians).
 const STEERING_RATIO := 2.4
-## The column the wheel turns about (square to the rim, measured from the model), and how far it is set in.
+## The column the wheel turns about (square to the rim, measured from the model), and where the driver has set it: a little
+## higher and further, so the dials show in the opening above the hub from the driver's eye (tests/unit/vehicles/test_seat_view.gd).
 const WHEEL_AXIS := Vector3(0.0, 0.353, 0.936)
-const WHEEL_SET_IN := Vector3(0.0, 0.0, -0.07)
+const WHEEL_SET_IN := Vector3(0.0, 0.03, -0.05)
 
 var car: RallyCar
 ## What the road has left on this car (its skins are the body's materials).
@@ -271,8 +272,8 @@ func _add_pane(pane: MeshInstance3D, in_car: Transform3D) -> void:
 	pane.set_instance_shader_parameter(&"lamp_position", in_car.affine_inverse() * CarLamps.DOME_LENS_AT)
 
 
-## The steering wheel turns about its column with the car's steering angle. It is set forward as a driver sets it
-## to see the dials through the rim (CarCockpit moves the column's end with it).
+## The steering wheel turns about its column with the car's steering angle. It is set where the driver reads the dials
+## through the rim (WHEEL_SET_IN; CarCockpit moves the column's end with it).
 func _setup_steering(model: Node3D) -> void:
 	var holder := model.find_child("Milano95_Steering", true, false) as Node3D
 	if holder == null:

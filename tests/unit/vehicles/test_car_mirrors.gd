@@ -99,7 +99,7 @@ func test_a_map_held_up_hides_what_is_behind_it() -> void:
 	var cabin: Cabin = _car.get_node(^"Cabin")
 	var map: PaperMap = cabin.paper_map
 	var sheet: MeshInstance3D = map.get_node(^"Sheet")
-	var eye := _car.global_transform * Vector3(0.33, 0.64, 0.215)
+	var eye := _car.global_transform * _seat(^"NavigatorCamera").seat_position()
 	var behind := sheet.global_transform * Vector3(0.0, 0.0, -0.5)
 	assert_false(map.covers(eye, behind), "folded away it hides nothing")
 	cabin.request_map(true)
