@@ -18,8 +18,6 @@ const BIT_MOTION := preload("res://shaders/road_bit_motion.gdshader")
 const PUFF_PRIORITY := -1
 ## They stay where they are thrown and the camera may be anywhere: never culled.
 const EVERYWHERE := AABB(Vector3(-5000.0, -2000.0, -5000.0), Vector3(10000.0, 4000.0, 10000.0))
-## Share of the puffs and bits thrown per graphics level.
-const QUALITY_SHARE := {GraphicsQuality.Level.LOW: 0.55, GraphicsQuality.Level.MEDIUM: 0.8, GraphicsQuality.Level.HIGH: 1.0}
 const EMIT_ALL := GPUParticles3D.EMIT_FLAG_POSITION | GPUParticles3D.EMIT_FLAG_ROTATION_SCALE | GPUParticles3D.EMIT_FLAG_VELOCITY \
 	| GPUParticles3D.EMIT_FLAG_COLOR | GPUParticles3D.EMIT_FLAG_CUSTOM
 
@@ -66,7 +64,7 @@ func _ready() -> void:
 func _read_settings() -> void:
 	var settings := get_node_or_null(^"/root/Settings")
 	var effects := float(settings.get_value("effects_intensity")) if settings != null else 1.0
-	var quality: float = QUALITY_SHARE.get(GraphicsQuality.current(), 1.0)
+	var quality := GraphicsQuality.road_fx_share(GraphicsQuality.current())
 	cloud_share = RoadFxRules.cloud_share(quality, effects)
 	bit_share = RoadFxRules.bit_share(quality, effects)
 

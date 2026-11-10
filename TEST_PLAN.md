@@ -28,7 +28,9 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | Every weather on every compatible stage | screenshots of all reviewed; to do by people at the wheel |
 | Medal times (`StageRecords.MEDAL_SPEEDS`: bots average 15.3-18.5 m/s, gold is 20.5) are hard but reachable for a good crew | to do |
 | Mirrors, dome lamp and sliding windows in a real two-player race, from both seats | to do |
-| How often a stone chip should crack the windshield (0.012 a second at 20 m/s: most gravel stages today) | to do |
+| How often a stone should mark the windshield with people at the wheel (`StoneChipRules`: a lone bot cracks about one run in ten, following close it is the price of the dust) | to do |
+| Stones pinging under the floor and a stone on the windshield: heard by a person, loud enough and not annoying over the engine | to do |
+| How long a crew can stand the dust behind another car (a follower 2 s behind sees none of the road 30-90 m ahead) | to do |
 | The exhaust pops: heard by a person, not too loud against the engine | to do |
 | Windows SmartScreen first run on a clean PC | to do |
 

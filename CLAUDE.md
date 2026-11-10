@@ -34,9 +34,13 @@ No Blender; model in Godot only as a last resort.
 - `tools\ci.ps1 [-AllStages] [-SkipExport] [-SkipFlow]`: GUT, nettest, flow test (all six with -AllStages), a headless bot
   through every stage event (`tools/list_stage_events.gd`), export; stops at the first failure. Takes longer than one
   foreground call may (about 20 min with -AllStages): run its steps one by one or in the background.
-- `tools\perf.ps1 [-Stage 0] [-Quality 1] [-Seconds 30] [-Start 0]`: the bot drives, windowed at 1920x1080, vsync off
+- `tools\perf.ps1 [-Stage 0] [-Quality 1] [-Seconds 30] [-Start 0] [-ExtraArgs "--a,--b"]`: the bot drives, windowed at 1920x1080, vsync off
   (`tools/perf_probe.gd`): build ms, then `PERF fps_avg p95_ms p99_ms draw_calls primitives physics_ms` lines; its cpu/gpu render
-  times read 0 here. This PC's fps wander run to run: compare alternating runs, never one run each.
+  times read 0 here. This PC's fps wander run to run: compare alternating runs, never one run each; `--flip-road-fx=S` shows and hides
+  what the cars throw into the air every S seconds of one run (`FLIP shown_ms hidden_ms cost_ms`).
+- `tools\fx_probe.ps1 -At "22+30" [-Stage 0] [-Quality 1] [-Weather 0] [-Tag now] [-ExtraArgs "--follower=9,--follower-delay=2,--ride-follower"]`: at those
+  seconds of game time the same frame with and without the cloud into `reports\screenshots\fx\<Tag>\`, and `FXPROBE` lines with how much of the road ahead it hides.
+- `tools\chip_odds.ps1 [-Stage n] [-Weather 0]`: how many runs of a lone bot end with a bullseye or a cracked windshield, per stage (`CHIPS` lines).
 - `tools\stage_shots.ps1 [-Stage n] [-Quality 1] [-Weather 0 | -OwnWeathers] [-Tag now] [-Chase]`: every place worth a
   look (`tools/list_stage_spots.gd`) from the driver's seat, one process per stage and weather (`tools/stage_shots.gd`, about
   a minute each), plus an overview per stage, into `reports\screenshots\stages\<Tag>\<stage>\w<weather>\`. The overview is a
@@ -52,7 +56,7 @@ No Blender; model in Godot only as a last resort.
 - `tools\editor.ps1 [-Headless | -Stop]`: open the editor (Beckett MCP runs inside it).
 - `tools\mic_check.ps1 [-Device <name>]`: input level per microphone (user speaks while it listens).
 - Baked assets: `tools/make_gauge_face.gd` (needs a window), `tools/make_badge_flag.gd`, `tools/make_clouds.gd`, `tools/make_exhaust_pops.py`,
-  `tools/make_shock_sounds.py`. Downloads, all free and no login: `tools/fetch_polyhaven.py`, `fetch_ambientcg.py`,
+  `tools/make_shock_sounds.py`, `tools/make_stone_sounds.py`, `tools/make_road_puffs.gd`. Downloads, all free and no login: `tools/fetch_polyhaven.py`, `fetch_ambientcg.py`,
   `fetch_assets.py`, `fetch_audio.py` (only what the owner approved; `ASSET_LICENSES.md` gets a row);
   `tools/texture_imports.py` sets 3D import options on new textures.
 
@@ -80,6 +84,14 @@ No Blender; model in Godot only as a last resort.
   turn-in, keyboard ramp, handbrake hairpin, pulling away on full lock, landing.
 - Surfaces: colliders set metadata `surface` (see `Surface`); untagged ground is gravel.
 - Dev scene `scenes/dev/vehicle_test_track.tscn` (`--autodrive` user arg circles) for car tuning.
+- What a car throws off the road: `CarRoadFx` (a child of every `RallyCar`, the one owner of it), on every peer from what that peer sees the car do, never sent.
+  `RoadFxRules` (pure, tested) says what each surface throws: dry gravel, dirt and sand a cloud of `DUST` that hangs 4-7 s, snow `POWDER`, mud and wet roads `SPRAY`
+  and clods, tarmac nothing; the rear wheels stones (by speed, throttle, slide), a hard landing a `BLAST` ring, `pings_per_second` the stones under the floor (`CarAudio`,
+  the crew only). `RoadFxPool` (one per scene, beside the cars, group `road_fx_pool`) holds them in two world-space `GPUParticles3D`, one draw call each for all cars: soft puffs (`shaders/road_puff.gdshader`, a
+  lit card facing the view that the `tools/make_road_puffs.gd` map models like a cloud; `road_puff_motion.gdshader`) and hard bits (`road_bit_motion.gdshader`), filled only from script with
+  `emit_particle` (`emitting` stays false, the engine takes emitted particles only then). `pool.puff()` and `pool.bit()` are for anything else that belongs in the air (sparks, glass, leaves). Puffs by the metre of
+  road, whatever the frame rate; puffs are drawn before the glass and after the pools (`PUFF_PRIORITY`). `RoadFxRules.cloud_share`: Low and the effects setting thin the puffs but each gets thicker and
+  bigger, so nobody sees further for choosing less; stones go with the effects setting. Wind and dust colour: `RaceLook.wind`, `dust_tint`. A headless peer only counts (`puffs_thrown`, `bits_thrown`).
 - Everything on the car works, on every peer. `CarParts` cuts what moves out of the Milano's one-piece meshes (by the
   island inside a box, test_car_parts.gd pins the triangle counts; meshes shared by every car, in car space). `CockpitRules`
   (pure) says what every needle, lamp and lever shows; `CarCockpit` puts it on the car near the camera: the instrument
@@ -218,7 +230,7 @@ No Blender; model in Godot only as a last resort.
   road is wide; a corner speed planner, `start_delay`, stops at the end of an open path,
   `obstacles` Callable → steers around fallen trunks/boulders at `AVOID_SPEED`) drives a `RallyCar`:
   `--autodrive`, tests, flow-test bots (which also confirm their own recovery offers). `RaceProgress` is the host's gate accounting.
-- Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N --quality=N`
+- Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N --quality=N --follower=D --follower-delay=S --ride-follower --chips=N --no-road-fx`
   (forces the whole graphics level) `--dusk --follower=D` (a second car D m behind, for the mirrors)
   `--view=M+E+H [--view-at=M+E+H]` (a fixed camera E m right of road metre M, H m up) `--quit-after-seconds=N`.
   `RaceSession.settings.stage` builds the same stage on every peer.
@@ -253,6 +265,9 @@ No Blender; model in Godot only as a last resort.
   the RPC everywhere or just locally offline. `SeatEffects` (CanvasLayer) shows the local seat's view of it.
   Input: Q/E windows, F kick windshield (navigator), T wipers (driver), M map, L dome lamp, LMB throw. Fainted seats are
   checked by `PlayerCarInput`, `RouteFollower` and `CabinInput` via `cabin.is_fainted(role)`.
+- Stones on the windshield (`StoneChipRules`, pure, the host's): rare alone (one run in ten of a bot cracks, `tools\chip_odds.ps1`), much likelier within `FOLLOW_RANGE` 30 m behind a car on loose ground, more the closer and
+  faster, none on tarmac, snow, mud or wet; `RaceSession._measure_gaps` gives each `Cabin.gap_ahead` from the trackers. `Cabin.stone_hits`, `_rpc_stone_chip`: the first stone is a bullseye (`windshield.gdshader` `chipped`, where
+  `WindshieldGlass.crack_center` says the crack will start), the second `CRACKED`, more up to `MOST_HITS` make it worse; a stone on glass is heard in that car only.
 - Shock gun (GAME_DESIGN §6, `scripts/gameplay/shock_*.gd`): `ShockRules` (pure, tested, kept by the host): 2 darts a stage,
   refilled at each split, 1.2 s reload, 8 m range; between cars the dart leaves and enters through an opening (`Cabin.is_open_for_shot`);
   inside one cabin it always reaches. Room rule `settings.shock` (`Mode`: off, rivals only, everyone). `ShockInput` (the local seat): hold

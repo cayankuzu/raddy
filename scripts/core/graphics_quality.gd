@@ -18,6 +18,8 @@ const SHADOW_DISTANCE := {Level.LOW: 70.0, Level.MEDIUM: 110.0, Level.HIGH: 150.
 ## the frame's cost is draw submission): how far the ray marches. Water marches its own ray, this many steps.
 const SSR_STEPS := {Level.MEDIUM: 40, Level.HIGH: 64}
 const WATER_RAY_STEPS := {Level.LOW: 0, Level.MEDIUM: 24, Level.HIGH: 36}
+## Share of the puffs and stones the cars throw into the air (RoadFxRules keeps a thinner cloud just as closed).
+const ROAD_FX := {Level.LOW: 0.55, Level.MEDIUM: 0.8, Level.HIGH: 1.0}
 ## The render layer of what the mirrors leave out: ground cover and the far forest. Their cost is draw calls and
 ## triangles; in a small picture of the road behind nobody misses them.
 const FINE_SCENERY_LAYER := 1 << 16
@@ -76,6 +78,10 @@ static func range_scale(level: int) -> float:
 
 static func water_ray_steps(level: int) -> int:
 	return WATER_RAY_STEPS.get(level, WATER_RAY_STEPS[Level.HIGH])
+
+
+static func road_fx_share(level: int) -> float:
+	return ROAD_FX.get(level, 1.0)
 
 
 static func mirror_height(level: int, interior: bool) -> int:

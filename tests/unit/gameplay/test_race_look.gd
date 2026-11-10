@@ -29,6 +29,15 @@ func test_every_weather_has_clouds_and_overcast_has_more() -> void:
 	assert_lt(_cover(overcast, 0.0), 0.02)
 
 
+func test_the_wind_and_the_colour_of_the_dust_come_from_the_race() -> void:
+	_environment(RaceSettings.Biome.DESERT, RaceSettings.Weather.DUST_STORM)
+	var storm := RaceLook.wind.length()
+	assert_eq(RaceLook.dust_tint, RaceLook.DUST_TINT[RaceSettings.Biome.DESERT])
+	_environment(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR)
+	assert_gt(storm, RaceLook.wind.length() * 3.0, "a storm blows the dust away")
+	assert_almost_eq(RaceLook.wind.y, 0.0, 0.001, "the wind blows along the ground")
+
+
 func test_the_shade_takes_the_colour_of_the_biome() -> void:
 	for biome in RaceLook.BOUNCE:
 		var env := _environment(biome, RaceSettings.Weather.CLEAR)

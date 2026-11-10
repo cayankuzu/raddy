@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased (Phases A0, A2, A3, A6: solid ground, driving feel, stages 2.0, the shock gun)
+## Unreleased (Phases A0, A2, A3, A4, A6: solid ground, driving feel, stages 2.0, effects, the shock gun)
+- **Dust that hangs in the air:** on dry gravel, dirt and sand a car drags a real cloud that lingers for seconds, drifts on the wind, is darker in the shade of
+  the trees and glows when the sun or the headlights are behind it. Two seconds behind another car you lose the road: the navigator is all you have.
+- **Snow, mud and water:** snow throws a plume of powder, mud and wet roads throw clods and spray instead of dust, water leaves the flanks in sheets, and a hard
+  landing on dry ground blows a ring of dust out from under the car.
+- **Stones:** the rear wheels throw stones that bounce away, and you hear them ping under the floor.
+- **A stone on the windshield is an event now:** a stone leaves a small bullseye with a sharp tick, the next one cracks the glass. It is rare on your own (about one run in
+  ten cracks) and the price of following someone close through their stones on loose ground.
 - **Narrow rally roads:** 3.6-5.0 m wide (Explore 0.8 m wider, Redline 0.2 m narrower), a gravel shoulder you can use,
   a real ditch beside it and a bank a car can drive back up. Every stage is over 2 km long, with a danger at least every 500 m.
 - **A forest like a wall:** trunks from 3 m off the road, undergrowth in the ditch, the inside of every corner screened. You see

@@ -26,6 +26,12 @@ func test_higher_levels_have_bigger_pictures() -> void:
 		assert_lt(medium, high)
 
 
+func test_low_thins_what_the_cars_throw_but_keeps_it() -> void:
+	assert_gt(GraphicsQuality.road_fx_share(GraphicsQuality.Level.LOW), 0.4)
+	assert_lt(GraphicsQuality.road_fx_share(GraphicsQuality.Level.LOW), GraphicsQuality.road_fx_share(GraphicsQuality.Level.MEDIUM))
+	assert_eq(GraphicsQuality.road_fx_share(GraphicsQuality.Level.HIGH), 1.0)
+
+
 func test_screen_space_reflections_from_medium_up() -> void:
 	var sun := DirectionalLight3D.new()
 	autofree(sun)

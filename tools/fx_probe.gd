@@ -11,6 +11,7 @@ extends SceneTree
 ## No class names here: a -s script compiles before the autoloads exist, and the game's classes need them.
 
 const BLOCK := 16
+const FRAMES_TO_SETTLE := 6
 const FRAMES_TO_SHOW := 3
 
 var _out := ""
@@ -44,15 +45,17 @@ func _process(delta: float) -> bool:
 	if _step == 0:
 		if _clock < _times[_next]:
 			return false
-		# The camera goes on following the car, or the frozen car would stand somewhere else in the picture.
+		# The camera finds where the frozen car really is, then stands still for both pictures.
 		root.get_camera_3d().process_mode = Node.PROCESS_MODE_ALWAYS
 		paused = true
 		_step = 1
 	_step += 1
-	if _step == 1 + FRAMES_TO_SHOW:
+	if _step == FRAMES_TO_SETTLE:
+		root.get_camera_3d().process_mode = Node.PROCESS_MODE_INHERIT
+	if _step == FRAMES_TO_SETTLE + FRAMES_TO_SHOW:
 		_with = root.get_texture().get_image()
 		_pool().visible = false
-	elif _step == 1 + FRAMES_TO_SHOW * 2:
+	elif _step == FRAMES_TO_SETTLE + FRAMES_TO_SHOW * 2:
 		var without := root.get_texture().get_image()
 		_pool().visible = true
 		_report(_with, without)

@@ -76,6 +76,9 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   ammo and cooldown. Room setting: off / rivals only / everyone (friendly fire).
 - Existing: windows, windshield kick-out, mud on the glass and wipers, map blown away, cans thrown,
   falling trees, rockfalls, visible damage, joint recovery.
+- **Other people's dust and stones.** On dry ground a car drags a cloud that hangs for 4-7 s: a crew 2 s behind loses the road, and only the
+  navigator's voice is left (pillar 1). Within 30 m behind a car on loose ground its stones reach your windshield: a stone leaves a bullseye,
+  the next one cracks it (the host's `StoneChipRules`, so a crack can always be explained: you drove in someone's stones). On your own, about one run in ten.
 - Next: doors that pop open on impacts (close them or lose things), helmet intercom that breaks and
   wind noise that drowns the voice with the windows open, spectators that jump aside, animals on the
   road, an energy drink that wakes a fainted crew member sooner.
