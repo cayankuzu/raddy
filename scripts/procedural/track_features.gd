@@ -1,8 +1,8 @@
 class_name TrackFeatures
 ## The stage furniture RoadBuilder adds to the track: water splashes (a muddy pool over the dipped
 ## road with a WaterSplash area that slows and soaks the cars), steel guard rails along the cliff
-## edges (GuardRail: each with one gap, so a careless crew can still go over), the start and finish
-## arches (RallyArch), and the invisible walls that keep the cars inside the stage: a car may leave
+## edges (GuardRail: each with one gap, so a careless crew can still go over), the rally dressing and its crowd (RallyDressing,
+## Spectators), the start and finish arches (RallyArch), and the invisible walls that keep the cars inside the stage: a car may leave
 ## the road, into the trees or down a bank, but never the map.
 
 ## Walls stand this far from the road centre (and never inside another part of the road's band).
@@ -36,7 +36,9 @@ static func build(graph: RouteGraph, terrain: TerrainField, biome: int) -> Node3
 		root.add_child(event)
 	for furniture in RallyDressing.junction_furniture(graph, terrain):
 		root.add_child(furniture)
-	root.add_child(RallyDressing.build(graph, terrain))
+	var rally := RallyDressing.build(graph, terrain)
+	rally.add_child(Spectators.build(rally.get_meta(&"spectator_spots"), biome, graph.seed))
+	root.add_child(rally)
 	if graph.checkpoints.size() >= 2:
 		root.add_child(RallyArch.build(graph, graph.checkpoints[0], terrain, "Start", "MAP_START"))
 		root.add_child(RallyArch.build(graph, graph.checkpoints[-1], terrain, "Finish", "MAP_FINISH"))

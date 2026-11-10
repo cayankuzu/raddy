@@ -23,6 +23,8 @@ const AIR_WHEEL_DECEL := 8.0
 const UNSTUCK_DISTANCE := 2.0
 ## Deceleration per m/s of speed while ploughing through a water splash (1/s).
 const WATER_DRAG := 0.6
+## Every car is in this group, on every peer: what the stage reacts to (the crowd looks at it, Spectators).
+const GROUP := &"rally_cars"
 
 @export var config: VehicleConfig
 
@@ -85,6 +87,7 @@ class CarWheel:
 
 
 func _ready() -> void:
+	add_to_group(GROUP)
 	if config == null:
 		push_error("RallyCar '%s' has no VehicleConfig; it will not drive" % name)
 		return

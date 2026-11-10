@@ -78,6 +78,20 @@ func sit(eye: Vector3, body_scale: float, seat: Dictionary) -> void:
 		_arm(side, to_model * (hands[side] as Vector3), to_model * (palms[side] as Vector3), _pole(to_model, seat.elbow_pole, mirror))
 
 
+## Stands the body as a spectator does (Spectators): the arms hang down by the sides, `out` (radians) away from them, the elbows a little bent.
+func stand(out: float) -> void:
+	for side: int in [Side.LEFT, Side.RIGHT]:
+		var mirror := 1.0 if side == Side.LEFT else -1.0
+		_aim_way(bone(ARMS[side][1]), Vector3(sin(out) * mirror, -cos(out), 0.02).normalized())
+		_aim_way(bone(ARMS[side][2]), Vector3(sin(out) * mirror * 0.6, -cos(out), 0.18).normalized())
+		_aim_way(bone(ARMS[side][3]), Vector3(sin(out) * mirror * 0.6, -cos(out), 0.12).normalized())
+
+
+## How a bone moves its vertices from the rest pose to this one (model space), as skinning takes it.
+func skin(bone_index: int) -> Transform3D:
+	return _global[bone_index] * _rest_global(bone_index).affine_inverse()
+
+
 ## Where the eyes are now (model space).
 func eyes() -> Vector3:
 	var head := _global[bone(HEAD)]
