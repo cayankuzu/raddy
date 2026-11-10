@@ -94,6 +94,9 @@ var _grace_timer: SceneTreeTimer
 
 func _ready() -> void:
 	Net.player_left.connect(_on_player_left)
+	Net.roster_changed.connect(func() -> void:
+		for team: int in _team_cars:
+			_seat_crew(team))
 	Voice.set_world(self)
 	if settings.has("stage"):
 		_build_route()
@@ -795,12 +798,24 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	if Net.is_host():
 		cabin.throw_approved.connect(_on_throw_approved.bind(team))
 	_team_cars[team] = car
+	_seat_crew(team)
 	if graph != null:
 		_trackers[team] = RouteTracker.new(graph)
 	var me := Net.local_entry()
 	if me.get("team", 0) == team:
 		_bind_local_seat(car, me.role)
 	print("NET spawned car team %d driver %d" % [team, driver_peer])
+
+
+## Every peer seats a crew member in each seat of `team`'s car a player holds, nobody in an empty one.
+func _seat_crew(team: int) -> void:
+	var model := (_team_cars[team] as RallyCar).get_node(^"Model") as CarModel
+	var seated: Array[String] = []
+	for role: int in [RosterRules.Role.DRIVER, RosterRules.Role.NAVIGATOR]:
+		model.seat_crew(role, seat_taken(team, role))
+		if model.crew.has(role):
+			seated.append(RosterRules.role_name(role))
+	print("NET crew team %d: %s" % [team, ", ".join(seated)])
 
 
 @rpc("authority", "call_local", "reliable")

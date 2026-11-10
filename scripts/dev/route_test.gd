@@ -21,6 +21,8 @@ extends Node3D
 ##   --ride-follower the camera and the mirrors go to that second car
 ##   --no-road-fx    the cars throw nothing into the air (perf comparisons)
 ##   --no-light-pod  no light pod on the cars at dusk and at night (perf comparisons, the night before it)
+##   --crew=driver+navigator  who sits in every car (the default: both), --crew=driver, --crew=navigator or --crew=none
+##   --look=Y+P      the seat's head turned Y degrees left (negative: right) and P up, and held there (screenshots)
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (gates, finish) that tools and tests can read.
 
@@ -94,6 +96,7 @@ func _ready() -> void:
 	add_child(_car)
 	_car.set_paint(TeamColors.paint(int(_args.get("team", "1"))))
 	(_car.get_node(^"Model") as CarModel).set_headlights(RaceLook.headlights_on(settings.weather, settings.time))
+	_seat_crew(_car)
 	# Debug: --hide=a+b hides every car node whose name contains a or b (finding stray meshes).
 	if _args.has("hide"):
 		for part in String(_args["hide"]).split("+"):
@@ -107,6 +110,10 @@ func _ready() -> void:
 	_driver_camera = ridden.get_node(^"NavigatorCamera" if navigator else ^"DriverCamera")
 	_driver_camera.make_current()
 	(ridden.get_node(^"Model") as CarModel).bind_seat(_driver_camera as CockpitCamera)
+	if _args.has("look"):
+		var look: PackedStringArray = _args["look"].split("+")
+		(_driver_camera as CockpitCamera).look = Vector2(float(look[0]), float(look[1]))
+		(_driver_camera as CockpitCamera).look_held = true
 
 	_player_input = PlayerCarInput.new()
 	_player_input.name = "PlayerCarInput"
@@ -194,6 +201,7 @@ func _add_follower(behind: float) -> void:
 	add_child(car)
 	car.set_paint(TeamColors.paint(team))
 	(car.get_node(^"Model") as CarModel).set_headlights(true)
+	_seat_crew(car)
 	car.input_locked = not _args.has("autodrive")
 	if follower == null:
 		follower = car
@@ -205,6 +213,14 @@ func _add_follower(behind: float) -> void:
 		bot.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER
 		bot.start_delay = float(_args.get("follower-delay", "0"))
 		add_child(bot)
+
+
+## Who sits in a car (--crew).
+func _seat_crew(car: RallyCar) -> void:
+	var seats: String = _args.get("crew", "driver+navigator")
+	var model := car.get_node(^"Model") as CarModel
+	model.seat_crew(RosterRules.Role.DRIVER, seats.contains("driver"))
+	model.seat_crew(RosterRules.Role.NAVIGATOR, seats.contains("navigator"))
 
 
 func _soil(model: CarModel, layers: PackedStringArray) -> void:

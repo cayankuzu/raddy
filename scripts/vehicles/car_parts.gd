@@ -10,8 +10,12 @@ const INTERIOR := "Milano95_interior_UCB_Interiors_2_0"
 const UNDERBODY := "Milano95_Bottom_UCB_BOTTOM_0"
 
 ## Part -> mesh node it lies in, its box and optionally the way its triangles face. Earlier parts are gone
-## from the mesh before later ones are cut, so a pane comes before the housing around it.
+## from the mesh before later ones are cut, so a pane comes before the housing around it. The road seats and the rear bench are only
+## cut away: a rally car has bucket seats (CarRallyKit) and nothing behind them but the cage.
 const PARTS := {
+	&"road_seat_driver": {"from": INTERIOR, "box": AABB(Vector3(-0.62, -0.28, -0.38), Vector3(0.54, 0.83, 0.72))},
+	&"road_seat_navigator": {"from": INTERIOR, "box": AABB(Vector3(0.08, -0.28, -0.38), Vector3(0.55, 0.83, 0.72))},
+	&"rear_seat": {"from": INTERIOR, "box": AABB(Vector3(-0.66, -0.26, 0.36), Vector3(1.33, 0.8, 0.74))},
 	&"pedal_clutch": {"from": INTERIOR, "box": AABB(Vector3(-0.44, -0.225, -0.955), Vector3(0.065, 0.09, 0.06))},
 	&"pedal_brake": {"from": INTERIOR, "box": AABB(Vector3(-0.345, -0.225, -0.955), Vector3(0.07, 0.09, 0.06))},
 	&"pedal_throttle": {"from": INTERIOR, "box": AABB(Vector3(-0.25, -0.252, -0.955), Vector3(0.065, 0.115, 0.075))},

@@ -1,14 +1,17 @@
 extends PhysicsTestCase
 ## What each seat sees at rest, on the real car: rays from the seat's eye against the car's own triangles. The road is the
-## star: the windshield takes about half the frame height straight ahead, little of the roof shows; the interior mirror and
-## the near door mirror are in view and the far one a glance away; the driver reads the dials through the wheel.
+## star: the windshield takes about half the frame height straight ahead, little of the roof shows, the roll cage hides no more of it
+## than a real one does; the interior mirror and the near door mirror are in view and the far one a glance away; the driver reads the
+## dials through the wheel.
 
 const ASPECT := 16.0 / 9.0
 const ROWS := 108
+const COLUMNS := 96
 const CAST_LAYER := 1 << 25
+const CAGE_LAYER := 1 << 26
 ## What a ray can meet, by where the mesh is in the car.
 const PARTS := {"Cabin/Windshield": &"windshield", "MirrorHead/Glass": &"interior_mirror", "DoorMirrorLeft/Pane/Glass": &"left_mirror",
-	"DoorMirrorRight/Pane/Glass": &"right_mirror", "SteeringPivot": &"wheel", "InstrumentPanel": &"dials"}
+	"DoorMirrorRight/Pane/Glass": &"right_mirror", "SteeringPivot": &"wheel", "InstrumentPanel": &"dials", "RallyKit": &"cage"}
 ## The dials' hubs on the panel's face (shaders/gauge_panel.gdshader: SPEED_CENTER, RPM_CENTER on a 2048 x 680 face), the big
 ## needles' length on it and their sweep (degrees, from 0 to full scale); where they are on a stage: 40 to 150 km/h, 3000 rpm to the
 ## red line.
@@ -55,7 +58,7 @@ func _build() -> void:
 		shape.backface_collision = true
 		shape.set_faces(by_part[part])
 		var body := StaticBody3D.new()
-		body.collision_layer = CAST_LAYER
+		body.collision_layer = CAGE_LAYER if part == &"cage" else CAST_LAYER
 		body.set_meta(&"part", part)
 		var collider := CollisionShape3D.new()
 		collider.shape = shape
@@ -64,9 +67,9 @@ func _build() -> void:
 	await wait_ticks(2)
 
 
-## The part a ray from `from` along `direction` meets first ("" for nothing).
-func _first(from: Vector3, direction: Vector3) -> StringName:
-	var query := PhysicsRayQueryParameters3D.create(from, from + direction.normalized() * 30.0, CAST_LAYER)
+## The part a ray from `from` along `direction` meets first ("" for nothing), the cage too unless `cage` is false.
+func _first(from: Vector3, direction: Vector3, cage := true) -> StringName:
+	var query := PhysicsRayQueryParameters3D.create(from, from + direction.normalized() * 30.0, CAST_LAYER | (CAGE_LAYER if cage else 0))
 	var hit := _car.get_world_3d().direct_space_state.intersect_ray(query)
 	return &"" if hit.is_empty() else (hit.collider as Node).get_meta(&"part")
 
@@ -98,6 +101,23 @@ func test_the_windshield_takes_about_half_the_frame_height() -> void:
 		gut.p("%s: the windshield is %.2f of the frame height straight ahead, the roof above it %.2f" % [seat_name, share, roof])
 		assert_between(share, 0.45, 0.6, "%s: the road is the star" % seat_name)
 		assert_lt(roof, 0.2, "%s: no great headliner over it" % seat_name)
+
+
+func test_the_cage_hides_little_of_the_road() -> void:
+	await _build()
+	var half_height := tan(deg_to_rad(CockpitCamera.BASE_FOV) * 0.5)
+	for seat_name: NodePath in [^"DriverCamera", ^"NavigatorCamera"]:
+		var glass := 0
+		var hidden := 0
+		for row in ROWS / 2:
+			for column in COLUMNS:
+				var way := Vector3(((column + 0.5) / COLUMNS * 2.0 - 1.0) * half_height * ASPECT, (1.0 - (row * 2 + 0.5) / ROWS * 2.0) * half_height, -1.0)
+				if _first(_eye(seat_name), way, false) == &"windshield":
+					glass += 1
+					if _first(_eye(seat_name), way) != &"windshield":
+						hidden += 1
+		gut.p("%s: the cage hides %.1f%% of the windshield's view" % [seat_name, 100.0 * hidden / glass])
+		assert_lt(hidden / float(glass), 0.02, "%s: the A pillars' tubes hug the pillars" % seat_name)
 
 
 func test_the_mirrors_are_in_view_or_a_glance_away() -> void:

@@ -39,10 +39,11 @@ const SEAT_GLASS_PRIORITY := 0
 const PLACEHOLDERS: Array[NodePath] = [^"Body", ^"CabinShell", ^"Interior"]
 ## How far the steering wheel turns for full steering lock (radians).
 const STEERING_RATIO := 2.4
-## The column the wheel turns about (square to the rim, measured from the model), and where the driver has set it: a little
-## higher and further, so the dials show in the opening above the hub from the driver's eye (tests/unit/vehicles/test_seat_view.gd).
+## The column the wheel turns about (square to the rim, measured from the model), and where the driver has set it: higher than the
+## model has it, so the dials show in the opening above the hub from the driver's eye (tests/unit/vehicles/test_seat_view.gd) and the
+## hands reach it with the elbows bent.
 const WHEEL_AXIS := Vector3(0.0, 0.353, 0.936)
-const WHEEL_SET_IN := Vector3(0.0, 0.03, -0.05)
+const WHEEL_SET_IN := Vector3(0.0, 0.045, 0.0)
 
 var car: RallyCar
 ## What the road has left on this car (its skins are the body's materials).
@@ -52,6 +53,9 @@ var mirrors: CarMirrors
 var cockpit: CarCockpit
 var lamps: CarLamps
 var heat: CarHeat
+var rally_kit: CarRallyKit
+## Who sits in the car: Role -> CrewBody, for the seats players have taken.
+var crew: Dictionary = {}
 
 var _steering: Node3D
 var _glass_panes: Array[MeshInstance3D] = []
@@ -61,6 +65,8 @@ var _cracked: Array[ShaderMaterial] = [null, null]
 var _crack_tasks: Array[int] = [-1, -1]
 ## Headlights on (bad weather); set before or after the car enters the tree.
 var headlights := false
+## The seat the local player sits in, in this car (bind_seat), or null.
+var _seat: CockpitCamera
 
 
 func _ready() -> void:
@@ -90,6 +96,10 @@ func _ready() -> void:
 	(model.find_child(CarParts.INTERIOR, true, false) as MeshInstance3D).layers = GraphicsQuality.CABIN_LAYER
 	_setup_steering(model)
 	_add_cabin_light()
+	rally_kit = CarRallyKit.new()
+	rally_kit.name = "RallyKit"
+	add_child(rally_kit)
+	rally_kit.build(car.paint_color)
 	cockpit = CarCockpit.new()
 	cockpit.name = "Cockpit"
 	add_child(cockpit)
@@ -148,6 +158,10 @@ func set_paint(color: Color) -> void:
 		skin.set_shader_parameter(&"albedo", color)
 	if lamps != null:
 		lamps.set_paint(color)
+	if rally_kit != null:
+		rally_kit.set_paint(color)
+	for body: CrewBody in crew.values():
+		body.set_paint(car.paint_color)
 
 
 ## Each tyre mesh goes into its wheel's Visual node, centred, so RallyCar's suspension travel,
@@ -313,9 +327,37 @@ func _process(_delta: float) -> void:
 	_steering.basis = Basis(WHEEL_AXIS.normalized(), -steer * STEERING_RATIO)
 
 
+## A crew member sits in `role`'s seat (`seated`) or it is empty: RaceSession says so for every car from the roster.
+func seat_crew(role: int, seated: bool) -> void:
+	if seated == crew.has(role):
+		return
+	rally_kit.seat_taken(role, seated)
+	if not seated:
+		(crew[role] as CrewBody).queue_free()
+		crew.erase(role)
+		return
+	var body := CrewBody.new()
+	body.name = "Driver" if role == RosterRules.Role.DRIVER else "Navigator"
+	add_child(body)
+	body.build(role, (car.get_node(NodePath(seat_camera(role))) as CockpitCamera).seat_position(), car.paint_color)
+	crew[role] = body
+	body.set_own(_seat != null and _seat.name == seat_camera(role))
+
+
+## The name of a seat's camera.
+static func seat_camera(role: int) -> StringName:
+	return &"DriverCamera" if role == RosterRules.Role.DRIVER else &"NavigatorCamera"
+
+
 ## The local player sits in this car behind `seat`: what only that player sees comes alive for that seat, on High its
-## headlights cast shadows, and its glass is drawn after the dust beyond it (GLASS_PRIORITY).
+## headlights cast shadows, and its glass is drawn after the dust beyond it (GLASS_PRIORITY). They see their own body but not their own
+## head (CrewBody.OWN_HEAD_LAYER).
 func bind_seat(seat: CockpitCamera) -> void:
+	_seat = seat
+	if seat != null:
+		seat.cull_mask &= ~CrewBody.OWN_HEAD_LAYER
+	for crew_role: int in crew:
+		(crew[crew_role] as CrewBody).set_own(seat != null and seat.name == seat_camera(crew_role))
 	if mirrors != null:
 		mirrors.bind_seat(seat)
 	if lamps != null:

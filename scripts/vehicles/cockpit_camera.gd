@@ -53,6 +53,8 @@ var _time := 0.0
 var _roughness := 0.0
 ## Free-look angles in degrees (x = yaw, + left; y = pitch, + up).
 var look := Vector2.ZERO
+## A dev scene's fixed view (route_test --look): the head stays turned as `look` says, nothing brings it back.
+var look_held := false
 var _since_look := 10.0
 var _corner_yaw := 0.0
 var _sensitivity := 0.35
@@ -178,11 +180,11 @@ func _process(delta: float) -> void:
 	if _is_driver_seat():
 		# Into the corner a little, and back to the road once the mouse rests.
 		_corner_yaw = lerpf(_corner_yaw, -rad_to_deg(car.steer_angle) * CORNER_LOOK, 1.0 - exp(-4.0 * delta))
-		if _recentre and _since_look > RECENTRE_AFTER:
+		if _recentre and not look_held and _since_look > RECENTRE_AFTER:
 			look = look.lerp(Vector2.ZERO, 1.0 - exp(-RECENTRE_RATE * delta))
 	else:
 		_corner_yaw = 0.0
-	if current and _map_in_hands():
+	if current and _map_in_hands() and not look_held:
 		# The map is held up in front of the seat: the head comes back to it.
 		look = look.lerp(Vector2.ZERO, 1.0 - exp(-8.0 * delta))
 	var speed := absf(car.forward_speed)
