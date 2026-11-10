@@ -91,6 +91,21 @@ func test_the_gun_hand_leaves_the_wheel_and_points_where_the_driver_looks() -> v
 	assert_lt(left.origin.distance_to(driver.rig._rest_hands[CrewPose.Side.LEFT].origin), 0.01, "the other hand stays on the wheel")
 
 
+func test_a_gear_change_takes_the_drivers_hand_to_the_lever() -> void:
+	var driver := _body(DRIVER)
+	await wait_process_frames(2)
+	var gearbox := (_car.get_node(^"Audio") as CarAudio).gearbox
+	gearbox.gear += 1
+	var drawn := await _drawn(driver, 36)
+	assert_eq(driver.rig.held[CrewPose.Side.RIGHT], CrewRules.Hand.GEAR, "the right hand changes gear")
+	var wrist := drawn[_bone(driver, CrewPose.ARMS[CrewPose.Side.RIGHT][3])].origin
+	var knob := _model.cockpit.lever_knob() + CrewRig.KNOB_HAND
+	gut.p("the wrist %.1f cm from its place over the knob" % (wrist.distance_to(knob) * 100.0))
+	assert_lt(wrist.distance_to(knob), 0.03, "on the lever")
+	await wait_process_frames(90)
+	assert_eq(driver.rig.held[CrewPose.Side.RIGHT], CrewRules.Hand.WHEEL, "and back on the wheel")
+
+
 func test_the_head_looks_where_the_seat_looks() -> void:
 	var navigator := _body(NAVIGATOR)
 	for look: Vector2 in [Vector2(45.0, -10.0), Vector2(-70.0, 15.0)]:

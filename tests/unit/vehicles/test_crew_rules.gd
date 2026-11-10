@@ -82,6 +82,7 @@ func test_the_drivers_hands() -> void:
 	assert_eq(_hands(DRIVER, seat, false, false, false, true), [Hand.WHEEL, Hand.HANDBRAKE], "the right pulls the handbrake")
 	assert_eq(_hands(DRIVER, seat, false, false, true, false), [Hand.WHEEL, Hand.HORN], "and presses the horn")
 	assert_eq(_hands(DRIVER, seat, false, false, true, true), [Hand.WHEEL, Hand.HANDBRAKE], "the handbrake first")
+	assert_eq(Array(CrewRules.hands(DRIVER, seat, false, false, true, false, true)), [Hand.WHEEL, Hand.GEAR], "a gear change before the horn")
 	seat.start_job(CrewRules.Job.WINDOW_LEFT)
 	assert_eq(_hands(DRIVER, seat), [Hand.WINDOW, Hand.WHEEL], "the left winds the window")
 	seat.start_job(CrewRules.Job.WIPERS)
@@ -117,7 +118,7 @@ func test_the_navigators_hands() -> void:
 func test_the_driver_steers_with_one_hand_while_the_other_is_busy() -> void:
 	for held: Array in [[Hand.WHEEL, Hand.GUN], [Hand.WHEEL, Hand.POINT], [Hand.WINDOW, Hand.WHEEL], [Hand.WHEEL, Hand.WIPERS], [Hand.WHEEL, Hand.HORN]]:
 		assert_true(CrewRules.one_handed(DRIVER, PackedInt32Array(held)), "%s" % [held])
-	for held: Array in [[Hand.WHEEL, Hand.WHEEL], [Hand.WHEEL, Hand.HANDBRAKE], [Hand.LAP, Hand.LAP]]:
+	for held: Array in [[Hand.WHEEL, Hand.WHEEL], [Hand.WHEEL, Hand.HANDBRAKE], [Hand.WHEEL, Hand.GEAR], [Hand.LAP, Hand.LAP]]:
 		assert_false(CrewRules.one_handed(DRIVER, PackedInt32Array(held)), "%s" % [held])
 	assert_false(CrewRules.one_handed(NAVIGATOR, PackedInt32Array([Hand.LAP, Hand.GUN])), "the navigator does not steer")
 

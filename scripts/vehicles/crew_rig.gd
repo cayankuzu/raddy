@@ -22,7 +22,7 @@ const FINGER_SECONDS := 0.12
 enum Grip { FIST, TRIGGER, POINT, FLAT, PINCH, REST }
 const GRIPS := {
 	Grip.FIST: [[CrewPose.CURL, CrewPose.CURL, CrewPose.CURL, CrewPose.CURL], CrewPose.THUMB_CURL],
-	Grip.TRIGGER: [[0.35, 1.2, 1.25, 1.3], 0.55],
+	Grip.TRIGGER: [[0.12, 1.2, 1.25, 1.3], 0.55],
 	Grip.POINT: [[0.03, 1.35, 1.4, 1.45], 0.8],
 	Grip.FLAT: [[0.06, 0.05, 0.06, 0.08], 0.05],
 	Grip.PINCH: [[0.75, 0.8, 0.85, 0.9], 0.3],
@@ -30,7 +30,7 @@ const GRIPS := {
 }
 const GRIP_OF := {CrewRules.Hand.WHEEL: Grip.FIST, CrewRules.Hand.LAP: Grip.REST, CrewRules.Hand.MAP: Grip.PINCH,
 	CrewRules.Hand.GUN: Grip.TRIGGER, CrewRules.Hand.POINT: Grip.POINT, CrewRules.Hand.WINDOW: Grip.FIST, CrewRules.Hand.WIPERS: Grip.REST,
-	CrewRules.Hand.HORN: Grip.FLAT, CrewRules.Hand.HANDBRAKE: Grip.FIST, CrewRules.Hand.THROW: Grip.FIST}
+	CrewRules.Hand.HORN: Grip.FLAT, CrewRules.Hand.HANDBRAKE: Grip.FIST, CrewRules.Hand.THROW: Grip.FIST, CrewRules.Hand.GEAR: Grip.PINCH}
 ## A hand follows the turning wheel as far round as its arm reaches with this much to spare (a share of the arm's length); past that the
 ## rim slides through it (push-pull steering), worked out from where the body sits.
 const WHEEL_REACH := 0.97
@@ -38,7 +38,10 @@ const WHEEL_REACH := 0.97
 ## its stalk and hub.
 const ELBOWS := {CrewRules.Hand.WHEEL: Vector3(-0.7, -1.0, 0.2), CrewRules.Hand.LAP: Vector3(-0.3, -0.4, 1.0), CrewRules.Hand.MAP: Vector3(-0.6, -1.0, 0.25),
 	CrewRules.Hand.GUN: Vector3(-0.5, -1.0, 0.1), CrewRules.Hand.POINT: Vector3(-0.25, -1.0, 0.2), CrewRules.Hand.WINDOW: Vector3(-0.3, -1.0, 0.5),
-	CrewRules.Hand.HANDBRAKE: Vector3(-0.3, -0.5, 1.0), CrewRules.Hand.THROW: Vector3(-0.6, -0.7, 0.6)}
+	CrewRules.Hand.HANDBRAKE: Vector3(-0.3, -0.5, 1.0), CrewRules.Hand.THROW: Vector3(-0.6, -0.7, 0.6), CrewRules.Hand.GEAR: Vector3(-0.5, -0.8, 0.6)}
+## A gear change takes the driver's right hand to the lever's knob for this long (s), the hand cupped over it this far behind and above.
+const SHIFT_SECONDS := 0.45
+const KNOB_HAND := Vector3(0.0, 0.05, 0.07)
 ## The winders low on the doors (car space), the circle a hand winds and how many turns it makes a second.
 const WINDERS: Array[Vector3] = [Vector3(-0.68, 0.22, -0.22), Vector3(0.68, 0.22, -0.17)]
 const WIND_RADIUS := 0.045
@@ -63,7 +66,7 @@ const POINT_WAYS := {CrewRules.Gesture.LEFT: Vector3(-0.87, 0.06, -0.5), CrewRul
 const JAB := Vector2(1.7, 0.03)
 const PAT := Vector3(2.0, 0.06, 0.03)
 ## The harness holds the back to the seat: to reach ahead a hand's shoulder comes forward instead (degrees round, for what the hand does).
-const REACH := {CrewRules.Hand.POINT: 24.0, CrewRules.Hand.MAP: 14.0, CrewRules.Hand.GUN: 12.0}
+const REACH := {CrewRules.Hand.POINT: 24.0, CrewRules.Hand.MAP: 14.0, CrewRules.Hand.GUN: 12.0, CrewRules.Hand.GEAR: 24.0}
 ## The throw: the right hand back by the shoulder, then out through the right window (car space), as the job runs.
 const THROW_BACK := Vector3(0.5, 0.4, 0.12)
 const THROW_OUT := Vector3(0.92, 0.52, -0.12)
@@ -131,6 +134,8 @@ var _look_to := Vector2.ZERO
 var _look_blend := 1.0
 var _slump := 0.0
 var _shake_left := 0.0
+var _gear := 0
+var _shift_left := 0.0
 var _noise := FastNoiseLite.new()
 ## How far each shoulder has come forward (degrees, REACH).
 var _reach := PackedFloat32Array([0.0, 0.0])
@@ -278,7 +283,7 @@ func _process(delta: float) -> void:
 		_job_time = 0.0
 	_job_time += delta
 	var shake := _shake_left / SHAKE_SECONDS
-	var now := cabin.hands_of(body.role)
+	var now := cabin.hands_of(body.role, _shifting(delta))
 	for side in 2:
 		if now[side] != held[side]:
 			# On its first frame a hand is where it works at once.
@@ -338,6 +343,17 @@ func _set_active(on: bool) -> void:
 	for side in 2:
 		for bone: int in _grips[side][Grip.FIST]:
 			_skeleton.set_bone_pose_rotation(bone, body.pose.rotations[bone])
+
+
+## Whether the driver is changing gear: the gear the car's sound is in on this peer moved, a moment ago.
+func _shifting(delta: float) -> bool:
+	_shift_left = maxf(_shift_left - delta, 0.0)
+	var audio := model.car.get_node_or_null(^"Audio") as CarAudio
+	if body.role == RosterRules.Role.DRIVER and audio != null and audio.gearbox.gear != _gear:
+		if _gear != 0:
+			_shift_left = SHIFT_SECONDS
+		_gear = audio.gearbox.gear
+	return _shift_left > 0.0
 
 
 ## Where the darts leave the shock gun held up (world), or null when it is not.
@@ -404,6 +420,8 @@ func _hand_place(side: int, hand: int, seat: CrewRules.Seat) -> Transform3D:
 			var grip := model.cockpit.handbrake_grip()
 			var along := Vector3(1.0, -0.3, 0.0)
 			return Transform3D(CrewPose.hand_basis(along, Vector3.DOWN, side), grip.origin - along.normalized() * 0.07 + Vector3.UP * 0.02)
+		CrewRules.Hand.GEAR:
+			return Transform3D(CrewPose.hand_basis(Vector3(0.0, -0.45, -1.0), Vector3.DOWN, side), model.cockpit.lever_knob() + KNOB_HAND)
 		CrewRules.Hand.THROW:
 			var out := smoothstep(0.3, 0.55, _job_time / float(CrewRules.JOB_SECONDS[CrewRules.Job.THROW]))
 			var along := Vector3(0.0, 1.0, 0.3).lerp(Vector3(1.0, 0.1, -0.3), out)

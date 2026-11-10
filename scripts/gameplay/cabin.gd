@@ -170,12 +170,13 @@ func _keep_local_seat(delta: float) -> void:
 		_rpc_seat_to_host.rpc_id(1, seat.pack())
 
 
-## What each hand of a seat does now ([left, right], CrewRules.Hand), on every peer.
-func hands_of(role: int) -> PackedInt32Array:
+## What each hand of a seat does now ([left, right], CrewRules.Hand), on every peer; `shifting`: the driver is changing gear.
+func hands_of(role: int, shifting := false) -> PackedInt32Array:
 	var car := get_parent() as RallyCar
 	var horn := car != null and car.controls.horn
 	var handbrake := car != null and car.controls.handbrake
-	return CrewRules.hands(role, seats[role], is_fainted(role), role == RosterRules.Role.NAVIGATOR and map_state == MapState.OPEN, horn, handbrake)
+	return CrewRules.hands(role, seats[role], is_fainted(role), role == RosterRules.Role.NAVIGATOR and map_state == MapState.OPEN, horn, handbrake,
+		shifting)
 
 
 ## A seat's player tells the host what they do (CrewRules.Seat.pack); the host knows their seat from the roster.

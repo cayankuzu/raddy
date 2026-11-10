@@ -74,6 +74,8 @@ var _pedals: Dictionary = {}  # part -> Node3D
 var _pedal_at: Dictionary = {&"pedal_clutch": 1.0, &"pedal_brake": 0.0, &"pedal_throttle": 0.0}
 var _lever: Node3D
 var _lever_at := Vector2.ZERO
+## The top of the gear lever's knob as the model has it (car space).
+var _knob := Vector3.ZERO
 var _handbrake: Node3D
 var _handbrake_at := 0.0
 var _km := 0.0
@@ -95,6 +97,7 @@ func build(parts: Dictionary) -> void:
 	for part: StringName in _pedal_at:
 		_pedals[part] = _add_moving(parts[part], _pedal_hinge(parts[part]))
 	_lever = _add_moving(parts[&"gear_lever"], LEVER_HINGE)
+	_knob = _top_of(parts[&"gear_lever"])
 	var column_end := _quiet_mesh(parts[&"column_end"])
 	column_end.name = "ColumnEnd"
 	column_end.position = CarModel.WHEEL_SET_IN
@@ -206,6 +209,23 @@ func _add_lever_piece(top: float, bottom: float, length: float, at: float, turn:
 	var piece := _quiet_mesh(mesh)
 	piece.transform = Transform3D(turn, Vector3.BACK * at)
 	_handbrake.add_child(piece)
+
+
+## The middle of a mesh's highest centimetre (car space).
+static func _top_of(mesh: Mesh) -> Vector3:
+	var top := mesh.get_aabb().end.y
+	var sum := Vector3.ZERO
+	var count := 0
+	for vertex in mesh.get_faces():
+		if vertex.y > top - 0.01:
+			sum += vertex
+			count += 1
+	return sum / maxi(count, 1)
+
+
+## Where the gear lever's knob is now (car space), in whichever gate the gear has put it.
+func lever_knob() -> Vector3:
+	return _lever.transform * (_knob - LEVER_HINGE)
 
 
 ## Where a hand takes the handbrake (car space): the middle of the grip, turned as the lever is (+Z up the lever).

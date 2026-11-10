@@ -11,8 +11,8 @@ enum Gesture { NONE, LEFT, STRAIGHT, RIGHT, SLOW }
 ## window, kick the windshield out.
 enum Job { NONE, WINDOW_LEFT, WINDOW_RIGHT, WIPERS, THROW, KICK }
 ## What a hand does: holds the wheel, rests on the lap (or hangs there, out cold), holds the map, the shock gun, points (a gesture), winds a
-## window, flicks the wipers' stalk, presses the horn, pulls the handbrake, throws a can.
-enum Hand { WHEEL, LAP, MAP, GUN, POINT, WINDOW, WIPERS, HORN, HANDBRAKE, THROW }
+## window, flicks the wipers' stalk, presses the horn, pulls the handbrake, throws a can, changes gear.
+enum Hand { WHEEL, LAP, MAP, GUN, POINT, WINDOW, WIPERS, HORN, HANDBRAKE, THROW, GEAR }
 
 const LEFT := 0
 const RIGHT := 1
@@ -128,10 +128,10 @@ static func job_does(job: int) -> int:
 
 
 ## What each hand of a seat does, [left, right] (Hand). Out cold both rest on the lap. The shock gun is in the right hand, a job in its hand,
-## a gesture in the hand nearer the partner, in that order; the driver's right hand pulls the handbrake or presses the horn while the car
-## says so; the rest holds the wheel (the driver), the map while it is open (the navigator: both hands, so one busy hand leaves the other
-## on the lap, the map folding) or rests on the lap.
-static func hands(role: int, seat: Seat, fainted: bool, map_open: bool, horn: bool, handbrake: bool) -> PackedInt32Array:
+## a gesture in the hand nearer the partner, in that order; the driver's right hand pulls the handbrake, changes gear (`shifting`) or
+## presses the horn while the car says so; the rest holds the wheel (the driver), the map while it is open (the navigator: both hands, so
+## one busy hand leaves the other on the lap, the map folding) or rests on the lap.
+static func hands(role: int, seat: Seat, fainted: bool, map_open: bool, horn: bool, handbrake: bool, shifting := false) -> PackedInt32Array:
 	if fainted:
 		return PackedInt32Array([Hand.LAP, Hand.LAP])
 	var driver := role == RosterRules.Role.DRIVER
@@ -148,6 +148,8 @@ static func hands(role: int, seat: Seat, fainted: bool, map_open: bool, horn: bo
 	if driver and out[RIGHT] == Hand.WHEEL:
 		if handbrake:
 			out[RIGHT] = Hand.HANDBRAKE
+		elif shifting:
+			out[RIGHT] = Hand.GEAR
 		elif horn:
 			out[RIGHT] = Hand.HORN
 	if idle == Hand.MAP and (out[LEFT] != Hand.MAP or out[RIGHT] != Hand.MAP):
@@ -157,7 +159,7 @@ static func hands(role: int, seat: Seat, fainted: bool, map_open: bool, horn: bo
 	return out
 
 
-## The driver steers with one hand while the other is off the wheel on a job (GAME_DESIGN §3), but not for a pull of the handbrake: a rally
-## driver's hand is back on the rim before the car has turned.
+## The driver steers with one hand while the other is off the wheel on a job (GAME_DESIGN §3), but not for a pull of the handbrake or a
+## gear change: a rally driver's hand is back on the rim before the car has turned.
 static func one_handed(role: int, held: PackedInt32Array) -> bool:
-	return role == RosterRules.Role.DRIVER and held.count(Hand.WHEEL) == 1 and not held.has(Hand.HANDBRAKE)
+	return role == RosterRules.Role.DRIVER and held.count(Hand.WHEEL) == 1 and not held.has(Hand.HANDBRAKE) and not held.has(Hand.GEAR)

@@ -26,7 +26,7 @@ extends Node3D
 ##   --crew-look=R+Y+P  the other seat's head turned so (R driver or navigator)    --steer=S  the wheel held at S (-1..1), --handbrake pulled
 ##   --gesture=R+G   seat R makes gesture G (left, straight, right, slow) and holds it    --aim=R  seat R raises the shock gun
 ##   --job=R+J+T     seat R starts job J (window_left, window_right, wipers, throw, kick) T seconds in    --windows-open
-##   --faint=R+T     seat R faints T seconds in (screenshots of the crew)
+##   --faint=R+T     seat R faints T seconds in, --shock=R+T a shock gun's dart hits it then (screenshots of the crew)
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (gates, finish) that tools and tests can read.
 
@@ -245,6 +245,9 @@ func _script_crew(cabin: Cabin) -> void:
 		var faint: PackedStringArray = _args["faint"].split("+")
 		get_tree().create_timer(float(faint[1])).timeout.connect(func() -> void:
 			cabin._rpc_set_faint(_role(faint[0]), true, Cabin.FAINT_THRESHOLD))
+	if _args.has("shock"):
+		var shock: PackedStringArray = _args["shock"].split("+")
+		get_tree().create_timer(float(shock[1])).timeout.connect(func() -> void: cabin.host_shock(_role(shock[0])))
 
 
 static func _role(role_name: String) -> int:
