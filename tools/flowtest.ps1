@@ -2,12 +2,13 @@
 # at the main menu (the exported game's first screen), the host creates a room on 127.0.0.1, the
 # clients join it with the room code, everyone takes a seat and gets ready, the host starts, bots
 # drive the whole stage, the results come in, the host returns everyone to the room, and all quit.
-#   tools\flowtest.ps1 [-Clients 1] [-Seconds 300] [-Stage 0]
+#   tools\flowtest.ps1 [-Clients 1] [-Seconds 300] [-Stage 0] [-Time 0]
 # Exit 0 when every check passes, 1 otherwise. Logs: logs\instance_<n>.log.
 param(
     [ValidateRange(1, 5)][int]$Clients = 1,
     [int]$Seconds = 300,
-    [int]$Stage = 0
+    [int]$Stage = 0,
+    [int]$Time = 0
 )
 . "$PSScriptRoot\godot.ps1"
 
@@ -15,7 +16,7 @@ $launch = Join-Path $PSScriptRoot "launch.ps1"
 $players = $Clients + 1
 $teams = [Math]::Min($players, 3)  # RosterRules.MAX_TEAMS: extra players sit as navigators
 & $launch -Server -Clients $Clients -Headless -Scene "res://scenes/ui/main_menu.tscn" `
-    -ExtraArgs "--flow-test,--players=$players,--stage=$Stage,--weather=0,--autodrive,--quit-after-seconds=$Seconds"
+    -ExtraArgs "--flow-test,--players=$players,--stage=$Stage,--weather=0,--time=$Time,--autodrive,--quit-after-seconds=$Seconds"
 
 $logs = 0..$Clients | ForEach-Object { Join-Path $ProjectDir "logs\instance_$_.log" }
 $deadline = (Get-Date).AddSeconds($Seconds + 15)

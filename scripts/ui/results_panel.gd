@@ -33,7 +33,7 @@ func _ready() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
 	var keys := RaceSettings.summary_keys(settings)
-	column.add_child(UiTheme.label("%s · %s · %s" % [tr(keys[0]), tr(keys[1]), tr(keys[2])], 18, UiTheme.MUTED))
+	column.add_child(UiTheme.label(" · ".join(keys.map(func(key: String) -> String: return tr(key))), 18, UiTheme.MUTED))
 
 	var grid := GridContainer.new()
 	grid.columns = 7
@@ -97,8 +97,8 @@ func _rematch() -> void:
 	Net.start_race(settings, true)
 
 
-## The next stage in the catalogue, with the room's difficulty and weather choices (the weather is
-## rolled again when the new stage's biome cannot have it).
+## The next stage in the catalogue, with the room's difficulty, weather and time of day choices (the
+## weather is rolled again when the new stage's biome cannot have it).
 func _next_stage() -> void:
 	var choices: Dictionary = Net.lobby_settings.duplicate()
 	choices.stage = (int(settings.get("stage", 0)) + 1) % StageCatalog.count()

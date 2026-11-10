@@ -1,5 +1,5 @@
 extends Node3D
-## The race screen: sky, sun and fog for the biome and weather, the RaceSession, weather effects,
+## The race screen: sky, sun and fog for the biome, weather and time of day, the RaceSession, weather effects,
 ## the HUD, the local pause menu (Esc never pauses a multiplayer race) and the results.
 
 const SESSION_SCENE := preload("res://scenes/game/race_session.tscn")
@@ -16,7 +16,7 @@ func _ready() -> void:
 	var settings: Dictionary = Net.race_settings
 	var biome := int(settings.get("biome", RaceSettings.Biome.FOREST))
 	var weather := int(settings.get("weather", RaceSettings.Weather.CLEAR))
-	add_child(RaceLook.create(biome, weather))
+	add_child(RaceLook.create(biome, weather, int(settings.get("time", RaceSettings.TimeOfDay.DAY))))
 
 	session = SESSION_SCENE.instantiate()
 	session.name = "RaceSession"

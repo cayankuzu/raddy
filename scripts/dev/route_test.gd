@@ -13,8 +13,7 @@ extends Node3D
 ##   --map-open      open the map right away (screenshots)
 ##   --windshield=cracked|removed  --chips=N  --dirt=0.4  --cracked-window=0|1   start with that glass state (screenshots)
 ##   --car-dirt=D+M+S  the body already that dirty with dust, mud and snow (screenshots)
-##   --weather=0..4 --difficulty=0..2   race settings (default clear, rally)
-##   --dusk          the sun low, headlights on, dials lit
+##   --weather=0..4 --difficulty=0..2 --time=0..3   race settings (default clear, rally, day)
 ##   --quality=0..2  graphics level (default: the player's setting)
 ##   --follower=D    a second car D metres behind, driven by a bot when --autodrive is on (mirrors)
 ##   --follower-delay=S  it leaves S seconds after the first car (a time gap to the car in front)
@@ -50,7 +49,7 @@ func _ready() -> void:
 	var index := int(stage_arg) if stage_arg.is_valid_int() else StageCatalog.index_of(StringName(stage_arg))
 	var stage := StageCatalog.get_stage(maxi(index, 0))
 	var settings := {"stage": maxi(index, 0), "biome": int(stage.biome), "weather": int(_args.get("weather", "0")),
-		"difficulty": int(_args.get("difficulty", "1"))}
+		"difficulty": int(_args.get("difficulty", "1")), "time": int(_args.get("time", "0"))}
 	graph = StageBuilder.build(stage)
 	BiomeRules.apply_to_graph(graph, settings)
 	RoadFxPool.off = _args.has("no-road-fx")
@@ -61,7 +60,7 @@ func _ready() -> void:
 	# The race's own sky, sun and fog recipe replaces the scene's placeholder ones.
 	$WorldEnvironment.free()
 	$Sun.free()
-	add_child(RaceLook.create(settings.biome, settings.weather, _args.has("dusk")))
+	add_child(RaceLook.create(settings.biome, settings.weather, settings.time))
 	var problems := RouteValidator.validate(graph)
 	print("ROUTE stage %s length %.0f m edges %d checkpoints %d features %d problems %s" % [
 		graph.stage_id, graph.main_route_length(), graph.edges.size(), graph.checkpoints.size(), graph.features.size(), str(problems)])
@@ -87,7 +86,7 @@ func _ready() -> void:
 	_car.transform = _start_pose
 	add_child(_car)
 	_car.set_paint(TeamColors.paint(int(_args.get("team", "1"))))
-	(_car.get_node(^"Model") as CarModel).set_headlights(RaceLook.headlights_on(settings.weather, _args.has("dusk")))
+	(_car.get_node(^"Model") as CarModel).set_headlights(RaceLook.headlights_on(settings.weather, settings.time))
 	# Debug: --hide=a+b hides every car node whose name contains a or b (finding stray meshes).
 	if _args.has("hide"):
 		for part in String(_args["hide"]).split("+"):

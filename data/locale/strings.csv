@@ -38,7 +38,7 @@ LOBBY_SETTINGS,Yarış ayarları,Race settings
 LOBBY_DIFFICULTY,Zorluk,Difficulty
 LOBBY_WEATHER,Hava,Weather
 LOBBY_SURPRISE,Sürpriz Ralli,Surprise Rally
-LOBBY_SUMMARY,Özet: {stage} · {difficulty} · {weather},Summary: {stage} · {difficulty} · {weather}
+LOBBY_SUMMARY,Özet: {stage} · {difficulty} · {weather} · {time},Summary: {stage} · {difficulty} · {weather} · {time}
 LOBBY_CANNOT_START_no_players,Odada oyuncu yok.,No players in the room.
 LOBBY_CANNOT_START_player_without_team,Herkes bir takım seçmeli.,Everyone must pick a team.
 LOBBY_CANNOT_START_team_without_driver,Her takımın bir sürücüsü olmalı.,Every team needs a driver.
@@ -57,6 +57,11 @@ WEATHER_RAIN,Yağmur,Rain
 WEATHER_FOG,Sis,Fog
 WEATHER_SNOW,Kar,Snow
 WEATHER_DUST_STORM,Toz Fırtınası,Dust Storm
+LOBBY_TIME,Günün saati,Time of day
+TIME_DAY,Gündüz,Day
+TIME_GOLDEN_HOUR,Altın saat,Golden hour
+TIME_DUSK,Alacakaranlık,Dusk
+TIME_NIGHT,Gece,Night
 SETTINGS_TITLE,Ayarlar,Settings
 SETTINGS_LANGUAGE,Dil,Language
 SETTINGS_MASTER_VOLUME,Genel ses,Master volume

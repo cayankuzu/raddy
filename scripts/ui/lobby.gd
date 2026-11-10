@@ -1,8 +1,8 @@
 extends Control
 ## The room (spec §6.1): room codes for friends, three teams with a driver and a navigator seat,
-## ready flags, the host's race choices (the stage, difficulty and weather; each may be Random, or
-## Surprise Rally for all) that every player sees, and the start button with the reason it cannot
-## start yet.
+## ready flags, the host's race choices (the stage, difficulty, weather and time of day; each may be
+## Random, or Surprise Rally for all) that every player sees, and the start button with the reason it
+## cannot start yet.
 
 ## [settings key, title key, item keys]; the stage list comes from StageCatalog.
 static func choices() -> Array:
@@ -13,6 +13,7 @@ static func choices() -> Array:
 		["stage", "LOBBY_STAGE", stage_keys],
 		["difficulty", "LOBBY_DIFFICULTY", RaceSettings.DIFFICULTY_KEYS],
 		["weather", "LOBBY_WEATHER", RaceSettings.WEATHER_KEYS],
+		["time", "LOBBY_TIME", RaceSettings.TIME_KEYS],
 		# The room's rule, not a dice roll: no Random entry.
 		["shock", "LOBBY_SHOCK", RaceSettings.SHOCK_KEYS, false],
 	]
@@ -46,11 +47,17 @@ func _ready() -> void:
 	column.add_child(_teams_box)
 
 	column.add_child(UiTheme.label(tr("LOBBY_SETTINGS"), 24))
-	var settings_row := HBoxContainer.new()
-	column.add_child(settings_row)
+	# Three to a row: five choices and Surprise Rally side by side ran off a 16:9 window.
+	var settings_grid := GridContainer.new()
+	settings_grid.columns = 3
+	settings_grid.add_theme_constant_override(&"h_separation", 16)
+	column.add_child(settings_grid)
 	for choice in choices():
 		var box := VBoxContainer.new()
-		box.add_child(UiTheme.label(tr(choice[1]), 16, UiTheme.MUTED))
+		box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var title := UiTheme.label(tr(choice[1]), 16, UiTheme.MUTED)
+		title.autowrap_mode = TextServer.AUTOWRAP_OFF
+		box.add_child(title)
 		var option := OptionButton.new()
 		if choice.size() < 4 or choice[3]:
 			option.add_item(tr("CHOICE_RANDOM"), RANDOM_ID)
@@ -59,10 +66,11 @@ func _ready() -> void:
 			option.add_item(tr(keys[i]), i)
 		option.item_selected.connect(_on_choice_changed.bind(choice[0]))
 		box.add_child(option)
-		settings_row.add_child(box)
+		settings_grid.add_child(box)
 		_options[choice[0]] = option
 	_surprise = UiTheme.button("LOBBY_SURPRISE", _on_surprise)
-	settings_row.add_child(_surprise)
+	_surprise.size_flags_vertical = Control.SIZE_SHRINK_END
+	settings_grid.add_child(_surprise)
 	_stage_info = UiTheme.label("", 16, UiTheme.MUTED)
 	_stage_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(_stage_info)
@@ -92,7 +100,7 @@ func _ready() -> void:
 ## The flow test passes the room choices on the command line.
 func _apply_cli_choices() -> void:
 	var choices: Dictionary = Net.lobby_settings.duplicate()
-	for key in ["stage", "difficulty", "weather"]:
+	for key in ["stage", "difficulty", "weather", "time"]:
 		if Flow.args.has(key):
 			choices[key] = int(Flow.args[key])
 	Net.set_lobby_settings(choices)
@@ -204,7 +212,7 @@ func _refresh_settings() -> void:
 		option.disabled = not Net.is_host()
 	_surprise.disabled = not Net.is_host()
 	var keys := RaceSettings.summary_keys(choices)
-	_summary.text = tr("LOBBY_SUMMARY").format({"stage": tr(keys[0]), "difficulty": tr(keys[1]), "weather": tr(keys[2])})
+	_summary.text = tr("LOBBY_SUMMARY").format({"stage": tr(keys[0]), "difficulty": tr(keys[1]), "weather": tr(keys[2]), "time": tr(keys[3])})
 	var stage := int(choices.get("stage", RaceSettings.RANDOM))
 	if stage == RaceSettings.RANDOM:
 		_stage_info.text = tr("LOBBY_STAGE_RANDOM")

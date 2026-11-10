@@ -1,13 +1,15 @@
 class_name RaceSettings
-## The host's race settings (spec §6.1, §14): the stage (StageCatalog index), difficulty and
-## weather, each of which may be Random, and Surprise Rally for all at once. `resolve()` turns the
-## choices into a concrete, compatible package from a roll, so every peer can show the same
+## The host's race settings (spec §6.1, §14): the stage (StageCatalog index), difficulty, weather
+## and time of day, each of which may be Random, and Surprise Rally for all at once. `resolve()` turns
+## the choices into a concrete, compatible package from a roll, so every peer can show the same
 ## summary before the start. The stage decides the biome and the world seed.
 
 const RANDOM := -1
 enum Difficulty { EXPLORE, RALLY, REDLINE }
 enum Biome { FOREST, DESERT, MOUNTAIN }
 enum Weather { CLEAR, RAIN, FOG, SNOW, DUST_STORM }
+## When the stage is driven (RaceLook lights it): every stage comes at every time.
+enum TimeOfDay { DAY, GOLDEN_HOUR, DUSK, NIGHT }
 
 ## Weather that fits each biome (spec §14.3: no snow in the desert, dust storms only where dry).
 const COMPATIBLE_WEATHER := {
@@ -28,22 +30,23 @@ const RECOVERY_PENALTY_MS := {Difficulty.EXPLORE: 0, Difficulty.RALLY: 3000, Dif
 const DIFFICULTY_KEYS := ["DIFFICULTY_EXPLORE", "DIFFICULTY_RALLY", "DIFFICULTY_REDLINE"]
 const BIOME_KEYS := ["BIOME_FOREST", "BIOME_DESERT", "BIOME_MOUNTAIN"]
 const WEATHER_KEYS := ["WEATHER_CLEAR", "WEATHER_RAIN", "WEATHER_FOG", "WEATHER_SNOW", "WEATHER_DUST_STORM"]
+const TIME_KEYS := ["TIME_DAY", "TIME_GOLDEN_HOUR", "TIME_DUSK", "TIME_NIGHT"]
 ## ShockRules.Mode order.
 const SHOCK_KEYS := ["SHOCK_MODE_OFF", "SHOCK_MODE_RIVALS", "SHOCK_MODE_EVERYONE"]
 
 
 ## What the host picks in the room before the random choices are made.
 static func defaults() -> Dictionary:
-	return {"stage": 0, "difficulty": Difficulty.RALLY, "weather": RANDOM, "shock": ShockRules.Mode.EVERYONE}
+	return {"stage": 0, "difficulty": Difficulty.RALLY, "weather": RANDOM, "time": TimeOfDay.DAY, "shock": ShockRules.Mode.EVERYONE}
 
 
 static func surprise() -> Dictionary:
-	return {"stage": RANDOM, "difficulty": RANDOM, "weather": RANDOM}
+	return {"stage": RANDOM, "difficulty": RANDOM, "weather": RANDOM, "time": RANDOM}
 
 
 ## Replaces every Random with a concrete value from `roll` and fixes incompatible pairs (a weather
 ## the stage's biome cannot have is re-rolled among the stage's own). Adds the stage's "biome" and
-## world "seed". Returns a new dictionary; the input is not changed.
+## world "seed". A time of day left out is day. Returns a new dictionary; the input is not changed.
 static func resolve(choices: Dictionary, roll: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = roll
@@ -63,11 +66,14 @@ static func resolve(choices: Dictionary, roll: int) -> Dictionary:
 			allowed.append(weather)
 	if int(out.get("weather", RANDOM)) == RANDOM or not COMPATIBLE_WEATHER[out.biome].has(int(out.weather)):
 		out.weather = allowed[rng.randi_range(0, allowed.size() - 1)]
+	if int(out.get("time", TimeOfDay.DAY)) == RANDOM:
+		out.time = rng.randi_range(0, TimeOfDay.size() - 1)
+	out.time = clampi(int(out.get("time", TimeOfDay.DAY)), 0, TimeOfDay.size() - 1)
 	return out
 
 
 static func is_resolved(settings: Dictionary) -> bool:
-	for key in ["stage", "difficulty", "weather"]:
+	for key in ["stage", "difficulty", "weather", "time"]:
 		if int(settings.get(key, RANDOM)) == RANDOM:
 			return false
 	return true
@@ -99,8 +105,8 @@ static func fog_density(weather: int) -> float:
 	return FOG_DENSITY.get(weather, 0.0015)
 
 
-## Translation keys of the stage, difficulty and weather (Random shows as its own key), for the
-## room summary.
+## Translation keys of the stage, difficulty, weather and time of day (Random shows as its own key),
+## for the room summary.
 static func summary_keys(settings: Dictionary) -> Array[String]:
 	var keys: Array[String] = []
 	var stage := int(settings.get("stage", RANDOM))
@@ -109,4 +115,6 @@ static func summary_keys(settings: Dictionary) -> Array[String]:
 	keys.append(DIFFICULTY_KEYS[difficulty] if difficulty != RANDOM else "CHOICE_RANDOM")
 	var weather := int(settings.get("weather", RANDOM))
 	keys.append(WEATHER_KEYS[weather] if weather != RANDOM else "CHOICE_RANDOM")
+	var time := int(settings.get("time", TimeOfDay.DAY))
+	keys.append(TIME_KEYS[time] if time != RANDOM else "CHOICE_RANDOM")
 	return keys

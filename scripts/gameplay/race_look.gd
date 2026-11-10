@@ -62,12 +62,13 @@ static var foliage: Array = FOLIAGE[RaceSettings.Biome.FOREST]
 
 
 ## Whether the cars run with their headlights on.
-static func headlights_on(weather: int, dusk := false) -> bool:
-	return dusk or weather in HEADLIGHT_WEATHER
+static func headlights_on(weather: int, time := RaceSettings.TimeOfDay.DAY) -> bool:
+	return time >= RaceSettings.TimeOfDay.DUSK or weather in HEADLIGHT_WEATHER
 
 
 ## Returns a node holding the WorldEnvironment and the sun; add it to the scene.
-static func create(biome: int, weather: int, dusk := false) -> Node3D:
+static func create(biome: int, weather: int, time := RaceSettings.TimeOfDay.DAY) -> Node3D:
+	var dusk := time >= RaceSettings.TimeOfDay.DUSK
 	var palette := BiomeRules.palette(biome, weather)
 	var overcast := weather in OVERCAST
 	daylight = DUSK_LIGHT if dusk else 1.0

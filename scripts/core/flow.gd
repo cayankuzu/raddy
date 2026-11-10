@@ -9,7 +9,7 @@ extends Node
 ##                     everyone takes a seat and gets ready, bots drive, the host returns to the
 ##                     room after the results, then every instance quits
 ##   --players=N       the host starts once N players are seated and ready
-##   --stage=N --difficulty=0..2 --weather=0..4   room choices (host)
+##   --stage=N --difficulty=0..2 --weather=0..4 --time=0..3   room choices (host)
 ##   --autodrive       bots drive the local car
 ##   --hold-results    stay on the results screen (screenshots)
 ##   --name=X  --port=N  --quit-after-seconds=N

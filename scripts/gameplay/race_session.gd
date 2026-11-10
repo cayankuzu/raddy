@@ -122,6 +122,10 @@ func biome() -> int:
 	return int(settings.get("biome", RaceSettings.Biome.FOREST))
 
 
+func time_of_day() -> int:
+	return int(settings.get("time", RaceSettings.TimeOfDay.DAY))
+
+
 func stage_index() -> int:
 	return int(settings.get("stage", 0))
 
@@ -773,7 +777,7 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	car.set_paint(TeamColors.paint(team))
 	var model := car.get_node_or_null(^"Model") as CarModel
 	if model != null:
-		model.set_headlights(RaceLook.headlights_on(weather()))
+		model.set_headlights(RaceLook.headlights_on(weather(), time_of_day()))
 	car.set_multiplayer_authority(driver_peer)
 	var sync := BodyNetSync.new()
 	sync.name = SYNC_NODE

@@ -76,7 +76,7 @@ func _ready() -> void:
 	_keys = _label(root, 15, Vector4(0.5, 1, 0.5, 1), Rect2(-460, -34, 920, 24), HORIZONTAL_ALIGNMENT_CENTER)
 	_summary = _label(root, 24, Vector4(0.5, 1, 0.5, 1), Rect2(-460, -80, 920, 40), HORIZONTAL_ALIGNMENT_CENTER)
 	var keys := RaceSettings.summary_keys(session.settings)
-	_summary.text = "%s  ·  %s  ·  %s" % [tr(keys[0]), tr(keys[1]), tr(keys[2])]
+	_summary.text = "  ·  ".join(keys.map(func(key: String) -> String: return tr(key)))
 	session.progress_changed.connect(_on_progress)
 	session.race_go.connect(func() -> void: _flash(tr("HUD_COUNTDOWN_GO"), 1.0))
 	session.team_finished.connect(_on_team_finished)
