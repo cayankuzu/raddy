@@ -98,8 +98,8 @@ HUD_MAP_GONE,Harita uçtu — yenisi {seconds} s sonra,Map blew away — a new o
 HUD_MAP_WARNING,Harita uçmak üzere!,The map is about to fly!
 HUD_FAINTED,Baygınsın... {seconds} s,Out cold... {seconds} s
 HUD_SPEAKING,{name} konuşuyor,{name} is talking
-HUD_KEYS_DRIVER,W/S gaz-fren   A/D direksiyon   Boşluk el freni   Fare bak   H korna   Q cam   T silecek   V konuş,W/S throttle-brake   A/D steer   Space handbrake   Mouse look   H horn   Q window   T wipers   V talk
-HUD_KEYS_NAVIGATOR,Fare bak   M harita (sürükle / teker)   L tavan lambası   Q/E camlar   Sol tık kutu at   F ön camı tekmele   V konuş,Mouse look   M map (drag / wheel)   L dome lamp   Q/E windows   LMB throw   F kick windshield   V talk
+HUD_KEYS_DRIVER,W/S gaz-fren   A/D direksiyon   Boşluk el freni   Fare bak   H korna   Q cam   T silecek   1-4 el işareti   V konuş,W/S throttle-brake   A/D steer   Space handbrake   Mouse look   H horn   Q window   T wipers   1-4 hand signals   V talk
+HUD_KEYS_NAVIGATOR,Fare bak   M harita (sürükle / teker)   L tavan lambası   Q/E camlar   Sol tık kutu at   F ön camı tekmele   1-4 el işareti   V konuş,Mouse look   M map (drag / wheel)   L dome lamp   Q/E windows   LMB throw   F kick windshield   1-4 hand signals   V talk
 HUD_WINDSHIELD_CRACKED,Ön cam çatlak,Windshield cracked
 HUD_WINDSHIELD_REMOVED,Ön cam yok,No windshield
 HUD_FINISHED,Bitirdin! Diğerleri bekleniyor...,Finished! Waiting for the others...
@@ -225,6 +225,10 @@ SETTINGS_ASSIST_HINT,Kaymayı toparlamaya yardım eder; klavyede ters direksiyon
 SETTINGS_STEER_LINEARITY,Gamepad direksiyon hassasiyeti (orta bölge),Gamepad steering softness (centre)
 SETTINGS_VIBRATION,Gamepad titreşimi,Gamepad vibration
 ACTION_shock_aim,Şok tabancası (nişan al; ateş: sol tık),Shock gun (aim; fire: left click)
+ACTION_gesture_left,El işareti: sola,Hand signal: left
+ACTION_gesture_straight,El işareti: düz,Hand signal: straight on
+ACTION_gesture_right,El işareti: sağa,Hand signal: right
+ACTION_gesture_slow,El işareti: yavaşla,Hand signal: slow down
 SHOCK_FEED_HIT,{shooter} ⚡ {target},{shooter} ⚡ {target}
 SHOCK_FEED_MISS,{shooter} ıskaladı,{shooter} missed
 HUD_SHOCK_DARTS,Şok tabancası: {darts}/{max},Shock gun: {darts}/{max}

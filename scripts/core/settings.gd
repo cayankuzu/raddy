@@ -38,6 +38,7 @@ const REBINDABLE: Array[StringName] = [
 	&"drive_throttle", &"drive_brake", &"drive_steer_left", &"drive_steer_right", &"drive_handbrake",
 	&"vehicle_recover", &"cabin_window_left", &"cabin_window_right", &"cabin_throw",
 	&"cabin_kick_windshield", &"cabin_wipers", &"cabin_dome", &"map_toggle", &"map_reset", &"voice_talk", &"car_horn", &"shock_aim",
+	&"gesture_left", &"gesture_straight", &"gesture_right", &"gesture_slow",
 ]
 
 var values: Dictionary = DEFAULTS.duplicate(true)

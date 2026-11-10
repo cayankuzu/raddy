@@ -53,7 +53,7 @@ func _set_aiming(on: bool) -> void:
 	if on and (cabin.is_fainted(role) or session.shock_mode() == ShockRules.Mode.OFF):
 		return
 	aiming = on
-	cabin.aiming[role] = on
+	(cabin.seats[role] as CrewRules.Seat).aiming = on
 	_crosshair.visible = on
 	if on and role == RosterRules.Role.NAVIGATOR and cabin.map_state == Cabin.MapState.OPEN:
 		cabin.request_map(false)  # the map needs both hands

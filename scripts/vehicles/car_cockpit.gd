@@ -208,6 +208,11 @@ func _add_lever_piece(top: float, bottom: float, length: float, at: float, turn:
 	_handbrake.add_child(piece)
 
 
+## Where a hand takes the handbrake (car space): the middle of the grip, turned as the lever is (+Z up the lever).
+func handbrake_grip() -> Transform3D:
+	return Transform3D(_handbrake.basis, _handbrake.transform * (Vector3.BACK * HANDBRAKE_LENGTH * 0.79))
+
+
 func _set_handbrake(amount: float) -> void:
 	_handbrake.basis = Basis(Vector3.RIGHT, -deg_to_rad(lerpf(HANDBRAKE_REST, HANDBRAKE_PULLED, amount)))
 

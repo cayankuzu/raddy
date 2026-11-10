@@ -13,7 +13,8 @@ const ASSIST_SCALE := [0.0, 1.0, 1.8]
 const RUMBLE_ROUGH := 2.0
 const RUMBLE_SLIP := deg_to_rad(25.0)
 const RUMBLE_IMPACT := 12.0
-## One hand on the wheel (the other holds the shock gun): this share of the lock, this fast.
+## One hand on the wheel (the other holds the shock gun, points, winds the window, flicks the wipers or presses the horn: CrewRules.one_handed):
+## this share of the lock, this fast.
 const ONE_HAND_LOCK := 0.6
 const ONE_HAND_RATE := 0.6
 
@@ -76,9 +77,9 @@ func _physics_process(delta: float) -> void:
 	controls.throttle = Input.get_action_strength(&"drive_throttle")
 	controls.brake = Input.get_action_strength(&"drive_brake")
 	var raw := Input.get_axis(&"drive_steer_left", &"drive_steer_right")
-	var one_hand := cabin != null and bool(cabin.aiming.get(RosterRules.Role.DRIVER, false))
+	var one_hand := cabin != null and CrewRules.one_handed(RosterRules.Role.DRIVER, cabin.hands_of(RosterRules.Role.DRIVER))
 	if one_hand:
-		raw *= ONE_HAND_LOCK  # the other hand holds the shock gun: less lock, slower hands
+		raw *= ONE_HAND_LOCK  # the other hand is busy: less lock, slower hands
 	controls.steer = steering.update(raw, delta * (ONE_HAND_RATE if one_hand else 1.0), car.forward_speed,
 		car.body_slip_angle(), car.max_steer_angle_at(car.forward_speed))
 	controls.handbrake = Input.is_action_pressed(&"drive_handbrake")

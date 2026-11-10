@@ -327,6 +327,11 @@ func _process(_delta: float) -> void:
 	_steering.basis = Basis(WHEEL_AXIS.normalized(), -steer * STEERING_RATIO)
 
 
+## The steering wheel's middle and how it is turned now (car space): the driver's hands ride the rim, the horn is in the hub (CrewRig).
+func steering() -> Transform3D:
+	return _steering.transform if _steering != null else Transform3D.IDENTITY
+
+
 ## A crew member sits in `role`'s seat (`seated`) or it is empty: RaceSession says so for every car from the roster.
 func seat_crew(role: int, seated: bool) -> void:
 	if seated == crew.has(role):

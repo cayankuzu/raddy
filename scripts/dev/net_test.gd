@@ -7,7 +7,8 @@ extends Node3D
 ##   --as-player   the host also takes a seat (listen server)
 ##   --local       bind the host to 127.0.0.1 (no firewall prompt)
 ##   --autodrive   the local driver drives a circle
-##   --test-script scripted actions: instance 2 opens a window and throws at 5-6 s,
+##   --test-script scripted actions: instance 2 opens a window and throws at 5-6 s, turns its head to the
+##                 driver at 7 s and points left at 8 s for 2 s (every other peer prints the seat's state),
 ##                 instance 3 leaves at 12 s, instance 1 rolls its car at 13 s and both team-1
 ##                 seats confirm the recovery 1 s after the host offers it, instance 2 kicks the
 ##                 windshield out at 24 s (exposure then rises for both seats) and shocks its own
@@ -136,6 +137,13 @@ func _run_test_script() -> void:
 		2:  # navigator of team 1
 			get_tree().create_timer(5.0).timeout.connect(func() -> void: _cabin_action(Cabin.Side.RIGHT, true, false))
 			get_tree().create_timer(6.0).timeout.connect(func() -> void: _cabin_action(Cabin.Side.RIGHT, true, true))
+			get_tree().create_timer(7.0).timeout.connect(func() -> void:
+				if _session != null and _session.local_car != null:
+					var head := _session.local_car.get_node(^"NavigatorCamera") as CockpitCamera
+					head.look = Vector2(60.0, -10.0)
+					head.look_held = true)
+			get_tree().create_timer(8.0).timeout.connect(func() -> void: _point(CrewRules.Gesture.LEFT, true))
+			get_tree().create_timer(10.0).timeout.connect(func() -> void: _point(CrewRules.Gesture.LEFT, false))
 			get_tree().create_timer(24.0).timeout.connect(func() -> void:
 				if _session != null and _session.local_car != null:
 					print("NET kicking the windshield out")
@@ -162,6 +170,18 @@ func _on_recovery_changed(team: int, offered: bool, _confirmed: int, _seats: int
 		if _session != null and _session.recovery_offered(team):
 			print("NET confirming recovery")
 			_session.request_recovery(true))
+
+
+## The local seat points (or stops), as its gesture key would.
+func _point(gesture: int, down: bool) -> void:
+	if _session == null or _session.local_car == null:
+		return
+	var seat: CrewRules.Seat = (_session.local_car.get_node(^"Cabin") as Cabin).seats[_session.local_role]
+	if down:
+		print("NET pointing %s" % CrewRules.Gesture.keys()[gesture].to_lower())
+		seat.point(gesture)
+	else:
+		seat.release(gesture)
 
 
 func _cabin_action(side: int, open: bool, throw: bool) -> void:

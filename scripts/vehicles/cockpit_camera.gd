@@ -135,6 +135,12 @@ func head_position() -> Vector3:
 	return car.global_transform * _rest.origin if car != null else global_position
 
 
+## Where the head looks now (degrees: x to the left, y up): the free look and, in the driver's seat, the turn into a corner. The seat's
+## body turns its head the same way on every peer (Cabin.seats, CrewRig).
+func head_angles() -> Vector2:
+	return Vector2(look.x + _corner_yaw, look.y)
+
+
 ## How rough the road feels now, 0..1 (the interior mirror trembles with it).
 func road_roughness() -> float:
 	return _roughness

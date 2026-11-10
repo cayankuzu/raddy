@@ -44,6 +44,13 @@ foreach ($i in 0..$Clients) {
     Expect $i "NET can 1 spawned" "thrown can reached everyone"
 }
 Expect 0 "NET can 1 despawned" "host despawns the can"
+# Crew (A5): the navigator (instance 2) turns its head 60 degrees to the driver and points left; its seat's state reaches
+# the host and every other player through the host's relay.
+Expect 2 "NET pointing left" "navigator pointed"
+foreach ($i in 0..$Clients) {
+    if ($i -eq 2) { continue }
+    Expect $i "NET seat team 1 navigator gesture left job none gun down look 60 -10" "the navigator's gesture and look reached instance $i"
+}
 # The navigator (instance 2) only plays back team 1's car: it must receive packets and see it move.
 $packets = LastValue 2 "car team 1 simulated=false packets=(\d+)"
 if ($packets -lt 100) { $failures.Add("instance 2: only $packets snapshots of the driver's car (expected > 100)") }

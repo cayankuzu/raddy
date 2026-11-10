@@ -706,12 +706,21 @@ func _line_clear(from: Vector3, to: Vector3, cars: Array) -> bool:
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_shock_fx(shooter_peer: int, from: Vector3, to: Vector3, hit: bool, target_team: int, target_role: int) -> void:
-	ShockFx.play(self, from, to, hit)
+	ShockFx.play(self, _seen_from(shooter_peer, from), to, hit)
 	if hit and _team_cars.get(target_team) == local_car and target_role == local_role and local_car != null:
 		var camera := local_car.get_node_or_null(^"NavigatorCamera" if local_role == RosterRules.Role.NAVIGATOR else ^"DriverCamera") as CockpitCamera
 		if camera != null:
 			camera.add_impact(9.0)
 	shock_landed.emit(shooter_peer, target_team, target_role, hit)
+
+
+## Where a shot is seen to leave: the shooter's gun, held up in their body's hand on this peer, or their head.
+func _seen_from(peer_id: int, head: Vector3) -> Vector3:
+	var entry: Dictionary = Net.roster.get(peer_id, {})
+	var car: RallyCar = _team_cars.get(entry.get("team", 0))
+	var body: CrewBody = (car.get_node(^"Model") as CarModel).crew.get(entry.get("role", RosterRules.Role.NONE)) if car != null else null
+	var muzzle: Variant = body.rig.muzzle() if body != null and body.rig != null else null
+	return muzzle if muzzle != null else head
 
 
 @rpc("authority", "call_local", "reliable")

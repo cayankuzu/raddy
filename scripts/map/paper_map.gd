@@ -18,6 +18,11 @@ const FLY_TIME := 4.0
 const ZOOM_STEP := 1.18
 ## Sheet pixels moved per screen pixel dragged.
 const DRAG_SPEED := 2.2
+## The navigator holds the open sheet by its side edges this far under their middle (a share of the height), each wrist this far down from
+## the edge it holds and this far behind the sheet (CrewRig).
+const HOLD_LOW := 0.38
+const HOLD_REACH := 0.07
+const HOLD_BEHIND := 0.03
 
 var cabin: Cabin
 var canvas: MapCanvas
@@ -64,6 +69,18 @@ func setup(graph: RouteGraph, notes: Array[Dictionary], contour: Image) -> void:
 
 func is_open() -> bool:
 	return cabin != null and cabin.map_state == Cabin.MapState.OPEN
+
+
+## How a hand holds the sheet by its left (`side` 0) or right edge (car space: the wrist and the hand's turn): the hand behind the sheet,
+## the palm in towards the middle, the fingers up the edge, the thumb over it in front. It follows the sheet as it unfolds, flutters and folds.
+func hold(side: int) -> Transform3D:
+	var sheet := (cabin.get_parent() as Node3D).global_transform.affine_inverse() * _sheet.global_transform
+	var outward := -1.0 if side == 0 else 1.0
+	var axes := sheet.basis.orthonormalized()
+	var along := axes * Vector3(-outward * 0.3, 0.95, 0.0)
+	var palm := axes * Vector3(-outward, 0.0, 0.0)
+	var edge := sheet * Vector3(outward * SHEET_SIZE.x * 0.5, -SHEET_SIZE.y * HOLD_LOW, 0.0)
+	return Transform3D(CrewPose.hand_basis(along, palm, side), edge - along.normalized() * HOLD_REACH - axes.z * HOLD_BEHIND)
 
 
 ## Whether the sheet, held up, is in the way between two points in the world.

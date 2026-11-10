@@ -23,6 +23,10 @@ extends Node3D
 ##   --no-light-pod  no light pod on the cars at dusk and at night (perf comparisons, the night before it)
 ##   --crew=driver+navigator  who sits in every car (the default: both), --crew=driver, --crew=navigator or --crew=none
 ##   --look=Y+P      the seat's head turned Y degrees left (negative: right) and P up, and held there (screenshots)
+##   --crew-look=R+Y+P  the other seat's head turned so (R driver or navigator)    --steer=S  the wheel held at S (-1..1), --handbrake pulled
+##   --gesture=R+G   seat R makes gesture G (left, straight, right, slow) and holds it    --aim=R  seat R raises the shock gun
+##   --job=R+J+T     seat R starts job J (window_left, window_right, wipers, throw, kick) T seconds in    --windows-open
+##   --faint=R+T     seat R faints T seconds in (screenshots of the crew)
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (gates, finish) that tools and tests can read.
 
@@ -151,6 +155,14 @@ func _ready() -> void:
 		_soil(_car.get_node(^"Model") as CarModel, _args["car-dirt"].split("+"))
 	if _args.has("dirt"):
 		cabin._rpc_set_dirt(float(_args["dirt"]))
+	if _args.has("windows-open"):
+		for side in 2:
+			cabin._rpc_set_window_state(side, Cabin.WindowState.OPEN, false)
+	_script_crew(cabin)
+	if _args.has("steer") or _args.has("handbrake"):
+		_player_input.process_mode = Node.PROCESS_MODE_DISABLED
+		_car.controls.steer = float(_args.get("steer", "0"))
+		_car.controls.handbrake = _args.has("handbrake")
 	_chase = ChaseCamera.new()
 	_chase.name = "ChaseCamera"
 	_chase.target = ridden
@@ -213,6 +225,30 @@ func _add_follower(behind: float) -> void:
 		bot.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER
 		bot.start_delay = float(_args.get("follower-delay", "0"))
 		add_child(bot)
+
+
+## What the crew does for a screenshot (--crew-look, --gesture, --aim, --job, --faint).
+func _script_crew(cabin: Cabin) -> void:
+	if _args.has("crew-look"):
+		var look: PackedStringArray = _args["crew-look"].split("+")
+		(cabin.seats[_role(look[0])] as CrewRules.Seat).look = Vector2(float(look[1]), float(look[2]))
+	if _args.has("gesture"):
+		var gesture: PackedStringArray = _args["gesture"].split("+")
+		(cabin.seats[_role(gesture[0])] as CrewRules.Seat).point(CrewRules.Gesture[gesture[1].to_upper()])
+	if _args.has("aim"):
+		(cabin.seats[_role(_args["aim"])] as CrewRules.Seat).aiming = true
+	if _args.has("job"):
+		var job: PackedStringArray = _args["job"].split("+")
+		get_tree().create_timer(float(job[2])).timeout.connect(func() -> void:
+			(cabin.seats[_role(job[0])] as CrewRules.Seat).start_job(CrewRules.Job[job[1].to_upper()]))
+	if _args.has("faint"):
+		var faint: PackedStringArray = _args["faint"].split("+")
+		get_tree().create_timer(float(faint[1])).timeout.connect(func() -> void:
+			cabin._rpc_set_faint(_role(faint[0]), true, Cabin.FAINT_THRESHOLD))
+
+
+static func _role(role_name: String) -> int:
+	return RosterRules.Role.NAVIGATOR if role_name == "navigator" else RosterRules.Role.DRIVER
 
 
 ## Who sits in a car (--crew).

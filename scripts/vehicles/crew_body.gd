@@ -7,7 +7,8 @@ extends Node3D
 ## buckled over it in the team colour (CarRallyKit.strap). It sits inside the cabin (its layer), lit by the cabin's fill and the dome
 ## lamp, seen through the windows and in the mirrors. Round the neck, under the shoulder straps, the carbon collar of a HANS device.
 ## The player in the seat sees their own arms and knees but not their own head: the seat's camera leaves OWN_HEAD_LAYER out, the suit
-## folds the head away from such a camera and the helmet sits on that layer; the mirrors see both.
+## folds the head away from such a camera and the helmet sits on that layer; the mirrors see both. What the body does from moment to
+## moment (the hands, the head, a gesture, a faint) is its CrewRig's.
 
 const MANNEQUIN := preload("res://assets/characters/crew_mannequin.glb")
 const SUIT_SHADER := preload("res://shaders/crew_suit.gdshader")
@@ -49,6 +50,7 @@ var skeleton: Skeleton3D
 var pose: CrewPose
 var helmet: MeshInstance3D
 var harness: MeshInstance3D
+var rig: CrewRig
 
 var _suit: MeshInstance3D
 var _material := ShaderMaterial.new()
@@ -94,6 +96,12 @@ func build(seat_role: int, eye: Vector3, paint: Color) -> void:
 	# The harness is made in car space.
 	harness.transform = pose.to_car.affine_inverse()
 	set_paint(paint)
+	var car_model := get_parent() as CarModel
+	if car_model != null and car_model.car != null:
+		rig = CrewRig.new()
+		rig.name = "Rig"
+		add_child(rig)
+		rig.build(self, car_model, eye)
 
 
 ## The suit, the helmet and the harness in the team's colour.

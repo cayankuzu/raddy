@@ -75,7 +75,7 @@ func sit(eye: Vector3, body_scale: float, seat: Dictionary) -> void:
 		var hands: Array = seat.hands
 		var palms: Array = seat.palms
 		_leg(LEGS[side], to_model * (feet[side] as Vector3), _pole(to_model, seat.knee_pole, mirror))
-		_arm(ARMS[side], to_model * (hands[side] as Vector3), to_model * (palms[side] as Vector3), _pole(to_model, seat.elbow_pole, mirror))
+		_arm(side, to_model * (hands[side] as Vector3), to_model * (palms[side] as Vector3), _pole(to_model, seat.elbow_pole, mirror))
 
 
 ## Where the eyes are now (model space).
@@ -104,19 +104,46 @@ func _leg(chain: Array, ball: Vector3, pole: Vector3) -> void:
 
 ## An arm reaching `wrist`: shoulder to elbow to wrist bent towards `pole`, the hand on along the forearm with its palm turned to `palm`, the
 ## fingers curled round what it holds.
-func _arm(chain: Array, wrist: Vector3, palm: Vector3, pole: Vector3) -> void:
-	var upper := bone(chain[1])
-	var fore := bone(chain[2])
-	var hand := bone(chain[3])
+func _arm(side: int, wrist: Vector3, palm: Vector3, pole: Vector3) -> void:
+	var upper := bone(ARMS[side][1])
+	var fore := bone(ARMS[side][2])
+	var hand := bone(ARMS[side][3])
 	_two_bones(upper, fore, hand, wrist, pole)
 	var along := (wrist - _global[fore].origin).normalized()
 	_aim_way(hand, along)
 	_roll_palm(hand, palm)
-	var side := "L" if String(chain[3]).ends_with("_L") else "R"
+	curl_fingers(side, [CURL, CURL, CURL, CURL], THUMB_CURL)
+
+
+## Curls a hand's fingers from straight: the index, middle, ring and pinky by `curls` at each knuckle (radians), the thumb across the palm by
+## `thumb`. Returns the fingers' rotations (bone -> local Quaternion), which are the same whatever the hand does.
+func curl_fingers(side: int, curls: Array, thumb: float) -> Dictionary:
+	var hand := bone(ARMS[side][3])
+	var letter := "L" if side == Side.LEFT else "R"
+	var fingers: Array[int] = []
 	for finger: String in FINGERS:
 		for knuckle in 3:
-			_curl(bone(StringName("DEF-f_%s_0%d_%s" % [finger, knuckle + 1, side])), hand, CURL)
-	_curl(bone(StringName("DEF-thumb_01_%s" % side)), hand, THUMB_CURL)
+			fingers.append(bone(StringName("DEF-f_%s_0%d_%s" % [finger, knuckle + 1, letter])))
+	fingers.append(bone(StringName("DEF-thumb_01_%s" % letter)))
+	for each in fingers:
+		rotations[each] = _rest[each].basis.get_rotation_quaternion()
+	_update_globals()
+	for each in fingers.size():
+		_curl(fingers[each], hand, thumb if each == fingers.size() - 1 else float(curls[each / 3]))
+	var out := {}
+	for each in fingers:
+		out[each] = rotations[each]
+	return out
+
+
+## A hand's turn from the way its fingers point (`along`) and its palm faces (`palm`), in whatever space they are given: its +Y along, its
+## palm side (+X of the left hand, -X of the right, see _palm) to the palm.
+static func hand_basis(along: Vector3, palm: Vector3, side: int) -> Basis:
+	var y := along.normalized()
+	var x := (palm - y * palm.dot(y)).normalized()
+	if side == Side.RIGHT:
+		x = -x
+	return Basis(x, y, x.cross(y))
 
 
 ## Bends `root` and `middle` so that `end`'s joint reaches `target` (or as near as the bones allow), the middle joint towards `pole`.

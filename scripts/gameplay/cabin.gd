@@ -4,6 +4,7 @@ extends Node3D
 ## host owns it (multiplayer authority 1): seat holders ask, the host validates against the
 ## roster and broadcasts. Offline the request applies directly. Cracks, the kick-out and wind
 ## effects come with P2; the windshield mesh is only visual for now.
+## Each seat's player owns what they do with the head and the hands (`seats`): their peer sends it through the host to everyone else.
 
 signal window_changed(side: int, open: bool)
 signal cans_changed(cans_left: int)
@@ -94,8 +95,11 @@ var fainted: Dictionary = {RosterRules.Role.DRIVER: false, RosterRules.Role.NAVI
 var faint_left: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIGATOR: 0.0}
 ## Host: seconds a seat cannot be shocked again (the faint plus ShockRules.IMMUNE_SECONDS).
 var shock_immune_left: Dictionary = {RosterRules.Role.DRIVER: 0.0, RosterRules.Role.NAVIGATOR: 0.0}
-## Local only: whether this peer's seat holds the shock gun up (ShockInput); one hand off the job.
-var aiming: Dictionary = {RosterRules.Role.DRIVER: false, RosterRules.Role.NAVIGATOR: false}
+## Per seat (RosterRules.Role), what its player does with the head and the hands (CrewRules.Seat: where they look, a gesture, a job a hand
+## is on, the shock gun up). The seat's own peer keeps it (the seat's camera, CabinInput, ShockInput) and sends it CrewRules.SEND_RATE
+## times a second through the host, unreliably: the next one makes up for a lost one. Every other peer mirrors it; the bodies show it
+## (CrewRig). Nothing in it touches the simulation but the driver's own steering (one hand off the wheel, CrewRules.one_handed).
+var seats: Dictionary = {RosterRules.Role.DRIVER: CrewRules.Seat.new(), RosterRules.Role.NAVIGATOR: CrewRules.Seat.new()}
 var cans_left := CAN_STOCK
 ## Dirt per second from the sky (rain drops, snow), set by the race layer from the weather.
 var weather_dirt_rate := 0.0
@@ -111,6 +115,9 @@ var paper_map: PaperMap
 
 ## How far down each side pane is, 0 closed .. 1 inside the door.
 var _pane_down: Array[float] = [0.0, 0.0]
+var _seat_send := 0.0
+## Host: when each seat was last heard from (ms), so a peer cannot flood the relay.
+var _seat_heard: Dictionary = {RosterRules.Role.DRIVER: 0, RosterRules.Role.NAVIGATOR: 0}
 var _pane_closed: Array[Vector3] = []
 var _pane_sills: Array[Plane] = []
 
@@ -131,7 +138,7 @@ func _ready() -> void:
 		_pane_sills.append(_sill_of(mesh))
 
 
-## Slides the side panes towards where their state says, as far as they can go: a broken one is gone.
+## Slides the side panes towards where their state says, as far as they can go: a broken one is gone. Keeps the local seat's state.
 func _process(delta: float) -> void:
 	for side in 2:
 		var wanted := 1.0 if window_state[side] == WindowState.OPEN else 0.0
@@ -139,6 +146,77 @@ func _process(delta: float) -> void:
 			continue
 		_pane_down[side] = move_toward(_pane_down[side], wanted, delta / PANE_SECONDS)
 		_show_pane(side)
+	_keep_local_seat(delta)
+
+
+## The local player's seat looks where its camera does, its gesture and its job run their time; during a race it goes out to the others.
+func _keep_local_seat(delta: float) -> void:
+	if local_role == RosterRules.Role.NONE:
+		return
+	var seat: CrewRules.Seat = seats[local_role]
+	var camera := get_parent().get_node_or_null(NodePath(CarModel.seat_camera(local_role))) as CockpitCamera
+	if camera != null:
+		seat.look = camera.head_angles()
+	seat.step(delta)
+	if not Net.is_active() or not Net.race_running:
+		return
+	_seat_send += delta
+	if _seat_send < 1.0 / CrewRules.SEND_RATE:
+		return
+	_seat_send = 0.0
+	if multiplayer.is_server():
+		_relay_seat(multiplayer.get_unique_id(), local_role, seat.pack())
+	else:
+		_rpc_seat_to_host.rpc_id(1, seat.pack())
+
+
+## What each hand of a seat does now ([left, right], CrewRules.Hand), on every peer.
+func hands_of(role: int) -> PackedInt32Array:
+	var car := get_parent() as RallyCar
+	var horn := car != null and car.controls.horn
+	var handbrake := car != null and car.controls.handbrake
+	return CrewRules.hands(role, seats[role], is_fainted(role), role == RosterRules.Role.NAVIGATOR and map_state == MapState.OPEN, horn, handbrake)
+
+
+## A seat's player tells the host what they do (CrewRules.Seat.pack); the host knows their seat from the roster.
+@rpc("any_peer", "call_remote", "unreliable_ordered", CrewRules.CHANNEL)
+func _rpc_seat_to_host(packed: PackedByteArray) -> void:
+	var sender := multiplayer.get_remote_sender_id()
+	if not multiplayer.is_server() or not Net.is_in_team(sender, team):
+		return
+	var role: int = Net.roster[sender].role
+	if not seats.has(role) or Time.get_ticks_msec() - int(_seat_heard[role]) < 500.0 / CrewRules.SEND_RATE:
+		return
+	_seat_heard[role] = Time.get_ticks_msec()
+	_relay_seat(sender, role, packed)
+
+
+## Host: a seat's state, taken here (unless it is the host's own) and passed to every other player.
+func _relay_seat(sender: int, role: int, packed: PackedByteArray) -> void:
+	if sender != multiplayer.get_unique_id() and not _take_seat(role, packed):
+		return
+	for peer_id: int in Net.roster:
+		if peer_id != sender and peer_id != multiplayer.get_unique_id():
+			_rpc_seat.rpc_id(peer_id, role, packed)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered", CrewRules.CHANNEL)
+func _rpc_seat(role: int, packed: PackedByteArray) -> void:
+	if seats.has(role) and role != local_role:
+		_take_seat(role, packed)
+
+
+## Another player's seat as it was sent; false when the packet is not a seat's state. A change of the hands is printed (not every look).
+func _take_seat(role: int, packed: PackedByteArray) -> bool:
+	var seat: CrewRules.Seat = seats[role]
+	var before := [seat.gesture, seat.job, seat.aiming]
+	if not seat.unpack(packed):
+		return false
+	if before != [seat.gesture, seat.job, seat.aiming]:
+		print("NET seat team %d %s gesture %s job %s gun %s look %d %d" % [team, RosterRules.role_name(role),
+			CrewRules.Gesture.keys()[seat.gesture].to_lower(), CrewRules.Job.keys()[seat.job].to_lower(), "up" if seat.aiming else "down",
+			seat.look.x, seat.look.y])
+	return true
 
 
 func _show_pane(side: int) -> void:
