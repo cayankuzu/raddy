@@ -84,7 +84,7 @@ func test_every_skin_measures_the_dirt_where_its_mesh_lies() -> void:
 				off = maxf(off, (space * corner).distance_to(real * corner))
 			assert_lt(off, 0.002, "%s: its dirt lies where it is" % mesh_instance.name)
 	gut.p("%d skinned meshes" % skinned)
-	assert_eq(skinned, 14, "the paint, the trim and the wheels")
+	assert_eq(skinned, 15, "the paint, the trim, the wheels and the mud flaps")
 
 
 func test_the_road_dusts_a_car_and_a_recovery_does_not_clean_it() -> void:

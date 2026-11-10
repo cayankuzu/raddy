@@ -182,6 +182,7 @@ PAUSE_NOTE,Çok oyunculu yarış durmaz.,A multiplayer race does not stop.
 TEAM_COLOR_RED,Kırmızı araç,Red car
 TEAM_COLOR_BLUE,Mavi araç,Blue car
 TEAM_COLOR_YELLOW,Sarı araç,Yellow car
+LIVERY_EVENT,RADDY RALLİSİ,RADDY RALLY
 LOBBY_STAGE,Etap,Stage
 LOBBY_STAGE_RANDOM,Başlarken altı etaptan biri seçilir.,One of the six stages is picked at the start.
 HUD_POSITION,Sıra {place}/{teams},Place {place}/{teams}

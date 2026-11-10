@@ -1,7 +1,7 @@
 class_name CarDirt
 extends Node
 ## The road on the car, on every peer and never sent: each works it out from how it sees the car drive (CarDirtRules says how much).
-## The body, its trim and the wheels get a skin of this car's own in place of the model's materials (shaders/car_body.gdshader): clean it is the
+## The body, its trim, the wheels and the mud flaps get a skin of this car's own in place of their materials (shaders/car_body.gdshader): clean it is the
 ## model's material, so the dirt costs no draw call of its own, is lit and shadowed like the paint and takes the shine off it where it
 ## lies. A recovery does not clean a car; a water splash rinses part of it. The glass stays apart: what is on it is the Cabin's.
 ## The badges with the flag of Turkey are not skins: dirt never covers a flag.
@@ -11,6 +11,8 @@ const DIRT_MAP := preload("res://assets/fx/car_dirt.png")
 const PAINT := "Milano95_Bodymat"
 const TRIM := "UCB_BOTTOM"
 const TYRES := "RB1c_Tire_1k"
+## The mud flaps' (CarLivery).
+const FLAPS := "MudFlaps"
 ## The paint is the model's mirror-like metal turned into a car paint with a clear coat.
 const PAINT_METALLIC := 0.35
 const PAINT_ROUGHNESS := 0.32
@@ -101,7 +103,7 @@ func show_now() -> void:
 ## it). The dirt is measured where the mesh lies: meshes of one material share a skin only where they share a space. A wheel's own space is
 ## what counts on a wheel (it fills from the tread in), the same on all four.
 func skin_of(material: StandardMaterial3D, to_car: Transform3D) -> ShaderMaterial:
-	if material == null or material.resource_name not in [PAINT, TRIM, TYRES]:
+	if material == null or material.resource_name not in [PAINT, TRIM, TYRES, FLAPS]:
 		return null
 	var space := Transform3D.IDENTITY if material.resource_name == TYRES else to_car
 	var key := [material.resource_name, space]

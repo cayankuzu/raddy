@@ -1,9 +1,10 @@
 shader_type spatial;
 render_mode cull_disabled;
-// A car's skin (CarDirt: the paint, the trim, the wheels): the model's material with what the road has left on it. Dust is a film that climbs
+// A car's skin (CarDirt: the paint, the trim, the wheels, the mud flaps): the model's material with what the road has left on it. Dust is a film that climbs
 // from the sills and from behind the wheels and thickens where it arrived first; mud is thrown, so it comes as drops that run together low
 // down; snow packs like mud. Everything is measured in the car's own space, so it rides on the car and the bonnet that opens keeps what
 // is on it (each mesh's skin knows its own place: CarDirt.skin_of). With nothing on it this is the StandardMaterial3D the model came with.
+// The paint carries the livery (CarLivery) printed on it, under what the road leaves.
 
 uniform vec4 albedo : source_color = vec4(1.0);
 uniform sampler2D albedo_map : source_color, hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -26,6 +27,16 @@ uniform float strength = 1.0;
 uniform vec3 dust_color : source_color = vec3(0.6, 0.55, 0.45);
 uniform bool is_wheel = false;
 uniform mat4 to_car = mat4(1.0);
+
+// The livery on the paint (CarLivery): a panel with the crew's number on each front door, the rally plate on the bonnet's front. Car space:
+// a door panel along and up either flank (z, y from; z, y to), the plate across and along the bonnet (x, z from; x, z to); where each
+// is in the picture (u, v from; u, v to).
+uniform bool livery = false;
+uniform sampler2D livery_map : source_color, hint_default_transparent, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform vec4 door_box;
+uniform vec4 door_uv;
+uniform vec4 plate_box;
+uniform vec4 plate_uv;
 
 // Heights of the body in car space: its lowest point and how tall it is. A wheel's centre behind which the road fans out, and the
 // axles along the car.
@@ -73,6 +84,21 @@ float body_reach(vec3 p, vec3 n) {
 	return max(max(sill, fan * 0.95), max(max(tail, nose), settled));
 }
 
+// What of the livery lies at a point of the paint: a door panel read from beside the car (front to back on the left flank, back to front on
+// the right), the plate read from in front of it. Both parts are looked up wherever they are, so the picture's mip levels are right at
+// their edges.
+vec4 livery_at(vec3 p, vec3 n) {
+	float side = p.x < 0.0 ? -1.0 : 1.0;
+	float along = (p.z - door_box.x) / (door_box.z - door_box.x);
+	vec2 door = vec2(side < 0.0 ? along : 1.0 - along, (door_box.w - p.y) / (door_box.w - door_box.y));
+	vec2 plate = vec2((plate_box.z - p.x) / (plate_box.z - plate_box.x), (plate_box.w - p.z) / (plate_box.w - plate_box.y));
+	vec4 on_door = texture(livery_map, mix(door_uv.xy, door_uv.zw, clamp(door, 0.0, 1.0)));
+	vec4 on_plate = texture(livery_map, mix(plate_uv.xy, plate_uv.zw, clamp(plate, 0.0, 1.0)));
+	bool flank = n.x * side > 0.55 && abs(p.x) > 0.6 && door == clamp(door, 0.0, 1.0);
+	bool bonnet = n.y > 0.6 && p.y > 0.1 && plate == clamp(plate, 0.0, 1.0);
+	return flank ? on_door : (bonnet ? on_plate : vec4(0.0));
+}
+
 // A wheel fills from the tread in: the tyre first, the rim later and never as thick.
 float wheel_reach(vec3 p) {
 	return mix(0.3, 1.0, smoothstep(0.62, 0.95, length(p.xy) / WHEEL_RADIUS));
@@ -90,6 +116,15 @@ void fragment() {
 	float metal = metal_rough.b * metallic;
 	float rough = metal_rough.g * roughness;
 	float coat = clearcoat;
+
+	if (livery && dot(outward, VIEW) > 0.0) {
+		// Satin vinyl on the paint.
+		vec4 print = livery_at(car_pos, normalize(car_normal));
+		paint = mix(paint, print.rgb, print.a);
+		metal *= 1.0 - print.a;
+		rough = mix(rough, 0.38, print.a);
+		coat *= 1.0 - print.a * 0.5;
+	}
 
 	if (dot(outward, VIEW) > 0.0 && strength > 0.0 && dust + mud + snow > 0.0) {
 		vec3 n = normalize(car_normal);

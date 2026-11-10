@@ -6,8 +6,8 @@ extends Node3D
 ## the Cabin's windows (opening, breaking and kicking out work on the real glass), the steering wheel
 ## turns with the steering and the body paint takes the team colour. The parts that move on their own are cut
 ## out of the model (CarParts): CarMirrors, CarCockpit (needles, pedals, levers), WindshieldGlass (wipers);
-## CarLamps lights its lamps, at dusk and at night those of a light pod too, which goes on the bonnet (CarDamageFx.mount). Remote
-## cars do it all too: the pedals come with the snapshots.
+## CarLamps lights its lamps, at dusk and at night those of a light pod too, which goes on the bonnet (CarDamageFx.mount). The car
+## wears a rally livery for its crew (CarLivery). Remote cars do it all too: the pedals come with the snapshots.
 ## Must sit before the Cabin node in the scene: it swaps the glass in before Cabin._ready runs.
 
 const MODEL := preload("res://assets/vehicles/milano95/milano95.glb")
@@ -54,6 +54,8 @@ var cockpit: CarCockpit
 var lamps: CarLamps
 var heat: CarHeat
 var rally_kit: CarRallyKit
+## The crew's number, names and the mud flaps (show_crew).
+var livery: CarLivery
 ## Who sits in the car: Role -> CrewBody, for the seats players have taken.
 var crew: Dictionary = {}
 
@@ -93,6 +95,10 @@ func _ready() -> void:
 	_move_wheels(model)
 	_move_glass(model, parts)
 	_clear_fixed_glass(model)
+	livery = CarLivery.new()
+	livery.name = "Livery"
+	add_child(livery)
+	livery.build(model, dirt, _car_space)
 	(model.find_child(CarParts.INTERIOR, true, false) as MeshInstance3D).layers = GraphicsQuality.CABIN_LAYER
 	_setup_steering(model)
 	_add_cabin_light()
@@ -160,6 +166,8 @@ func set_paint(color: Color) -> void:
 		lamps.set_paint(color)
 	if rally_kit != null:
 		rally_kit.set_paint(color)
+	if livery != null:
+		livery.repaint()
 	for body: CrewBody in crew.values():
 		body.set_paint(car.paint_color)
 

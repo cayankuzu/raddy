@@ -22,6 +22,7 @@ extends Node3D
 ##   --no-road-fx    the cars throw nothing into the air (perf comparisons)
 ##   --no-light-pod  no light pod on the cars at dusk and at night (perf comparisons, the night before it)
 ##   --crew=driver+navigator  who sits in every car (the default: both), --crew=driver, --crew=navigator or --crew=none
+##   --names=A+B     the crew's names lettered on every car's rear side windows (an underscore for a space; default: the seats' names)
 ##   --look=Y+P      the seat's head turned Y degrees left (negative: right) and P up, and held there (screenshots)
 ##   --crew-look=R+Y+P  the other seat's head turned so (R driver or navigator)    --steer=S  the wheel held at S (-1..1), --handbrake pulled
 ##   --gesture=R+G   seat R makes gesture G (left, straight, right, slow) and holds it    --aim=R  seat R raises the shock gun
@@ -100,7 +101,7 @@ func _ready() -> void:
 	add_child(_car)
 	_car.set_paint(TeamColors.paint(int(_args.get("team", "1"))))
 	(_car.get_node(^"Model") as CarModel).set_headlights(RaceLook.headlights_on(settings.weather, settings.time))
-	_seat_crew(_car)
+	_seat_crew(_car, int(_args.get("team", "1")))
 	# Debug: --hide=a+b hides every car node whose name contains a or b (finding stray meshes).
 	if _args.has("hide"):
 		for part in String(_args["hide"]).split("+"):
@@ -213,7 +214,7 @@ func _add_follower(behind: float) -> void:
 	add_child(car)
 	car.set_paint(TeamColors.paint(team))
 	(car.get_node(^"Model") as CarModel).set_headlights(true)
-	_seat_crew(car)
+	_seat_crew(car, team)
 	car.input_locked = not _args.has("autodrive")
 	if follower == null:
 		follower = car
@@ -254,12 +255,19 @@ static func _role(role_name: String) -> int:
 	return RosterRules.Role.NAVIGATOR if role_name == "navigator" else RosterRules.Role.DRIVER
 
 
-## Who sits in a car (--crew).
-func _seat_crew(car: RallyCar) -> void:
+## Who sits in a car (--crew), and the car lettered for them (--names).
+func _seat_crew(car: RallyCar, team: int) -> void:
 	var seats: String = _args.get("crew", "driver+navigator")
 	var model := car.get_node(^"Model") as CarModel
-	model.seat_crew(RosterRules.Role.DRIVER, seats.contains("driver"))
-	model.seat_crew(RosterRules.Role.NAVIGATOR, seats.contains("navigator"))
+	var given := String(_args.get("names", "")).replace("_", " ").split("+", false)
+	var names := PackedStringArray()
+	for role: int in [RosterRules.Role.DRIVER, RosterRules.Role.NAVIGATOR]:
+		var seated := seats.contains(RosterRules.role_name(role))
+		model.seat_crew(role, seated)
+		if seated:
+			var name := given[names.size()] if names.size() < given.size() else tr("LOBBY_DRIVER" if role == RosterRules.Role.DRIVER else "LOBBY_NAVIGATOR")
+			names.append(LiveryRules.lettered(name, TranslationServer.get_locale()))
+	model.livery.show_crew(LiveryRules.number(team), names)
 
 
 func _soil(model: CarModel, layers: PackedStringArray) -> void:
