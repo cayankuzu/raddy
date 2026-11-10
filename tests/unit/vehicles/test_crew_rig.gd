@@ -159,17 +159,27 @@ func test_out_cold_the_body_slumps_and_wakes() -> void:
 	assert_gt(drawn[_bone(driver, CrewPose.HEAD)].basis.z.normalized().y, -0.2, "awake, the head comes up")
 
 
-func test_a_body_far_from_the_camera_rests() -> void:
+func test_a_crew_moves_only_where_it_can_be_seen() -> void:
 	var driver := _body(DRIVER)
+	(_cabin.seats[DRIVER] as CrewRules.Seat).point(CrewRules.Gesture.STRAIGHT)
 	await wait_process_frames(2)
-	assert_true(driver.rig._arms.active)
 	var camera := Camera3D.new()
 	add_child_autofree(camera)
-	camera.global_position = _car.global_position + Vector3(0.0, 0.0, CrewBody.DRAW_RANGE + 10.0)
 	camera.make_current()
+	var behind := _car.global_transform.basis.z
+	# How far behind the car the camera is, whether it looks at the car, whether the crew moves.
+	for check: Array in [[CrewBody.DRAW_RANGE + 10.0, true, false, "too far to make out"], [30.0, true, true, "on the screen"],
+			[30.0, false, false, "off the screen"], [6.0, false, true, "close by, off the screen: it could be in a mirror"]]:
+		camera.global_position = _car.global_position + behind * float(check[0]) + Vector3.UP * 1.5
+		camera.look_at(_car.global_position + (Vector3.ZERO if check[1] else behind * 100.0))
+		await wait_process_frames(2)
+		assert_eq(driver.rig._arms.active, check[2], check[3])
+		assert_eq(driver.rig._head.active, check[2], check[3])
+	camera.global_position = _car.global_position + behind * 30.0
+	camera.look_at(_car.global_position + behind * 100.0)
 	await wait_process_frames(2)
-	assert_false(driver.rig._arms.active, "no skeleton work for a crew nobody can make out")
-	assert_false(driver.rig._head.active)
-	camera.global_position = _car.global_position + Vector3(0.0, 2.0, 6.0)
+	var shoulder := driver.pose.bone(CrewPose.ARMS[CrewPose.Side.RIGHT][0])
+	assert_eq(driver.skeleton.get_bone_pose_rotation(shoulder), driver.pose.rotations[shoulder], "resting, it sits as it was seated")
+	_cabin.local_role = DRIVER
 	await wait_process_frames(2)
-	assert_true(driver.rig._arms.active, "near again, it moves")
+	assert_true(driver.rig._arms.active, "the own car's crew always moves (the mirrors, a look over the shoulder)")

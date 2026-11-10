@@ -6,9 +6,14 @@ extends Node
 ## does comes from the seat (Cabin.hands_of, CrewRules): the driver's hands ride the turning wheel and leave it for the shock gun, the
 ## window's winder, the wipers' stalk, the horn and the handbrake; the navigator holds the real map by its edges while it is open, the hands
 ## on the lap otherwise; a gesture points the hand nearer the partner. Out cold the body slumps in its harness, a shock shakes it first.
-## The goals are set here every frame in the car's space, before the skeleton works them out; nothing here touches the simulation. Further
-## than CrewBody.DRAW_RANGE from the camera nothing moves.
+## The goals are set here every frame in the car's space, before the skeleton works them out; nothing here touches the simulation. Only a
+## crew someone can see moves: the local player's own car's always, another's while it is on the screen within CrewBody.DRAW_RANGE or close
+## enough to fill a mirror (MIRROR_RANGE); otherwise it rests as it sits, the skeleton left alone.
 
+## Another car's crew off the screen still moves this close to the camera (it could fill a mirror), and is on the screen while this much of
+## it is (a sphere round its middle, m).
+const MIRROR_RANGE := 10.0
+const BODY_RADIUS := 0.8
 ## A hand goes from one thing to the next in this long (s); the fingers change their grip in this long.
 const BLEND_SECONDS := 0.24
 const FINGER_SECONDS := 0.12
@@ -100,6 +105,8 @@ var _palms: CopyTransformModifier3D
 var _legs: TwoBoneIK3D
 var _head: LookAtModifier3D
 var _active := true
+## The bones the rig turns besides the IK's, and what each was last turned by (yaw, pitch, roll).
+var _turned_by: Dictionary = {}
 var _eye := Vector3.ZERO
 var _head_at := Vector3.ZERO
 var _shoulders: Array[Vector3] = []
@@ -256,13 +263,10 @@ func _learn_grips() -> void:
 
 
 func _process(delta: float) -> void:
-	var camera := get_viewport().get_camera_3d()
-	var near := camera == null or camera.global_position.distance_squared_to(body.global_position) < CrewBody.DRAW_RANGE * CrewBody.DRAW_RANGE
-	if near != _active:
-		_active = near
-		for modifier: SkeletonModifier3D in [_arms, _palms, _head]:
-			modifier.active = near
-	if not near:
+	var seen := _seen(get_viewport().get_camera_3d())
+	if seen != _active:
+		_set_active(seen)
+	if not seen:
 		return
 	_since += delta
 	var seat: CrewRules.Seat = cabin.seats[body.role]
@@ -283,10 +287,13 @@ func _process(delta: float) -> void:
 			_from[side] = _last[side]
 		_blend[side] = minf(_blend[side] + delta / BLEND_SECONDS, 1.0)
 		var place := _hand_place(side, held[side], seat)
-		place = _from[side].interpolate_with(place, smoothstep(0.0, 1.0, _blend[side]))
+		if _blend[side] < 1.0:
+			place = _from[side].interpolate_with(place, smoothstep(0.0, 1.0, _blend[side]))
 		_last[side] = place
-		var jitter := Vector3(_noise.get_noise_2d(_since * 3.0, side * 40.0), _noise.get_noise_2d(_since * 3.0, side * 40.0 + 13.0), 0.0)
-		_hand_goals[side].transform = place.translated(jitter * SHAKE_HANDS * shake)
+		if shake > 0.0:
+			place = place.translated(Vector3(_noise.get_noise_2d(_since * 3.0, side * 40.0), _noise.get_noise_2d(_since * 3.0, side * 40.0 + 13.0), 0.0)
+				* SHAKE_HANDS * shake)
+		_hand_goals[side].transform = place
 		var mirror := 1.0 if side == CrewPose.Side.LEFT else -1.0
 		_reach[side] = move_toward(_reach[side], float(REACH.get(held[side], 0.0)), float(REACH[CrewRules.Hand.POINT]) * delta / BLEND_SECONDS)
 		_turn(CrewPose.ARMS[side][0], -mirror * _reach[side], 0.0, 0.0)
@@ -296,6 +303,41 @@ func _process(delta: float) -> void:
 	_gun.visible = held[CrewPose.Side.RIGHT] == CrewRules.Hand.GUN and _blend[CrewPose.Side.RIGHT] > 0.5
 	_turn_head(seat, delta, shake)
 	_kick(seat)
+
+
+## Whether anyone can see this crew move: the local player's own car's, or near enough and on the screen or in a mirror.
+func _seen(camera: Camera3D) -> bool:
+	if camera == null or cabin.local_role != RosterRules.Role.NONE:
+		return true
+	var middle := body.global_position
+	var distance := camera.global_position.distance_to(middle)
+	if distance < MIRROR_RANGE:
+		return true
+	if distance > CrewBody.DRAW_RANGE:
+		return false
+	for plane in camera.get_frustum():
+		if plane.distance_to(middle) > BODY_RADIUS:
+			return false
+	return true
+
+
+## Moving, or resting as the body sits (the skeleton then left alone): a hand that starts again is where it works at once.
+func _set_active(on: bool) -> void:
+	_active = on
+	for modifier: SkeletonModifier3D in [_arms, _palms, _head]:
+		modifier.active = on
+	if on:
+		return
+	_legs.active = false
+	_gun.visible = false
+	held = PackedInt32Array([-1, -1])
+	_grip = [-1, -1]
+	_turned_by.clear()
+	for bone: int in _turned:
+		_skeleton.set_bone_pose_rotation(bone, body.pose.rotations[bone])
+	for side in 2:
+		for bone: int in _grips[side][Grip.FIST]:
+			_skeleton.set_bone_pose_rotation(bone, body.pose.rotations[bone])
 
 
 ## Where the darts leave the shock gun held up (world), or null when it is not.
@@ -421,7 +463,9 @@ func _turn_head(seat: CrewRules.Seat, delta: float, shake: float) -> void:
 	var outboard := -1.0 if body.role == RosterRules.Role.DRIVER else 1.0
 	var look := Vector2(clampf(_look.x, -HEAD_LIMITS.x, HEAD_LIMITS.x), clampf(_look.y, HEAD_LIMITS.y, HEAD_LIMITS.z))
 	look = look.lerp(Vector2(-outboard * SLUMP_HEAD.x, SLUMP_HEAD.y), smoothstep(0.0, 1.0, _slump))
-	var jolt := Vector3(_noise.get_noise_2d(_since * 4.0, 80.0), _noise.get_noise_2d(_since * 4.0, 95.0), _noise.get_noise_2d(_since * 4.0, 110.0)) * SHAKE_TURN * shake
+	var jolt := Vector3.ZERO
+	if shake > 0.0:
+		jolt = Vector3(_noise.get_noise_2d(_since * 4.0, 80.0), _noise.get_noise_2d(_since * 4.0, 95.0), _noise.get_noise_2d(_since * 4.0, 110.0)) * SHAKE_TURN * shake
 	_turn(CrewPose.CHEST, look.x * CHEST_TURN + jolt.x, -SLUMP_BACK.x * _slump + jolt.y,
 		outboard * SLUMP_BACK.y * _slump + jolt.z)
 	_turn(CrewPose.NECK, look.x * NECK_TURN.x - jolt.z, look.y * NECK_TURN.y + jolt.x, jolt.y)
@@ -429,9 +473,14 @@ func _turn_head(seat: CrewRules.Seat, delta: float, shake: float) -> void:
 	_look_goal.position = _head_at + way * 4.0
 
 
-## Turns a bone of the back or the neck from how it sits, about the body's own up, left and ahead (degrees: to the left, up, to the right).
+## Turns a bone of the back, the neck or a shoulder from how it sits, about the body's own up, left and ahead (degrees: to the left, up, to
+## the right).
 func _turn(bone_name: StringName, yaw: float, pitch: float, roll: float) -> void:
 	var bone := body.pose.bone(bone_name)
+	var by := Vector3(yaw, pitch, roll)
+	if _turned_by.get(bone) == by:
+		return
+	_turned_by[bone] = by
 	var turned: Array = _turned[bone]
 	var rotation := (turned[0] as Quaternion) * Quaternion(turned[1], deg_to_rad(yaw)) * Quaternion(turned[2], deg_to_rad(-pitch)) \
 		* Quaternion(turned[3], deg_to_rad(roll))
