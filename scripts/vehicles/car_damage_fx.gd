@@ -3,9 +3,9 @@ extends Node3D
 ## What damage looks like on the real car (spec §8.3), read from the zone points every peer
 ## already has (VehicleDamage): a front hit unlatches the bonnet, which then flaps up in the wind
 ## (the faster you go, the more of the windshield it hides: the navigator has to talk the driver
-## through), and a hard one tears it off; bumpers sag and then fall off; a badly hurt engine
-## steams and then smokes. Detached parts are local debris (visual, never synced): they bounce
-## down the road and are cleared after a while.
+## through), and a hard one tears it off, with the light pod bolted to it (mount); bumpers sag and
+## then fall off; a badly hurt engine steams and then smokes. Detached parts are local debris
+## (visual, never synced): they bounce down the road and are cleared after a while.
 
 ## Left / right zone points at which that door mirror breaks: about a 13 m/s side hit. A recovery brings the
 ## points down below it.
@@ -74,6 +74,20 @@ func _take_part(model: Node3D, car_space: Callable, part: StringName, names: Arr
 	_parts[part] = {"node": pivot, "rest": pivot.transform, "state": 0, "box": box, "meshes": meshes}
 
 
+## Puts `node` (placed in car space) on `part`: it moves with it, and its `meshes` go with it when it tears off (the light pod on the
+## bonnet). Nothing happens on a model without that part.
+func mount(part: StringName, node: Node3D, meshes: Array[MeshInstance3D]) -> void:
+	if not _parts.has(part):
+		return
+	var entry: Dictionary = _parts[part]
+	var pivot: Node3D = entry.node
+	var in_car := node.transform
+	node.get_parent().remove_child(node)
+	pivot.add_child(node)
+	node.transform = pivot.transform.affine_inverse() * in_car
+	(entry.meshes as Array).append_array(meshes)
+
+
 ## Shows `damage` (VehicleDamage): parts loosen, sag, fall off; the engine steams or smokes.
 func apply(damage: VehicleDamage) -> void:
 	var front: float = damage.zones[VehicleDamage.Zone.FRONT]
@@ -130,7 +144,9 @@ func _throw_off(entry: Dictionary) -> void:
 	var hull_points := PackedVector3Array()
 	for mesh in entry.meshes:
 		var copy := (mesh as MeshInstance3D).duplicate() as MeshInstance3D
-		copy.transform = Transform3D(Basis.IDENTITY, -box.get_center()) * pivot.transform * (mesh as MeshInstance3D).transform
+		# Where the mesh is on the part (what is mounted on it sits a node further down).
+		var on_part := pivot.global_transform.affine_inverse() * (mesh as MeshInstance3D).global_transform
+		copy.transform = Transform3D(Basis.IDENTITY, -box.get_center()) * pivot.transform * on_part
 		debris.add_child(copy)
 		for v in copy.mesh.get_faces():
 			hull_points.append(copy.transform * v)

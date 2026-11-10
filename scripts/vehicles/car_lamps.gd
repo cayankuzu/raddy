@@ -2,8 +2,9 @@ class_name CarLamps
 extends Node3D
 ## Every lamp on the car, on every peer: headlights and tail lights together, brake lights bright under the
 ## pedal, reversing lights, hazards that blink when the car is stuck or badly hurt (CockpitRules), and the dome
-## lamp the crew switches on to read the map (Cabin). All of them light up their part of the model; the
-## headlights' beams and the dome light the world at every graphics level (they are how the crew sees at night),
+## lamp the crew switches on to read the map (Cabin). For a stage at dusk or at night the car wears a light pod on
+## its bonnet (CarLightPod), on with the headlights. All of them light up their part of the model; the
+## headlights' and the pod's beams and the dome light the world at every graphics level (they are how the crew sees at night),
 ## the glow of the rear lamps from Medium up and from dusk on: the tail lights' faint red on the road behind, the brake lights' bright one.
 ## Every car stands in the others' beams as a hull of a few triangles (HULL_LAYER).
 
@@ -70,6 +71,8 @@ const HULL_CABIN_WIDTH := Vector2(0.68, 0.5)
 
 var car: RallyCar
 var headlights := false
+## The light pod on the bonnet, for a stage at dusk or at night (null by day).
+var pod: CarLightPod
 
 var _brake: StandardMaterial3D
 var _reverse: StandardMaterial3D
@@ -80,6 +83,7 @@ var _beams: Array[SpotLight3D] = []
 var _brake_light: SpotLight3D
 var _reverse_light: SpotLight3D
 var _dome_light: OmniLight3D
+var _pod_lit := false
 var _time := 0.0
 
 
@@ -110,6 +114,12 @@ func build(model: Node3D) -> void:
 		beam.position = Vector3(BEAM_AT.x * side, BEAM_AT.y, BEAM_AT.z)
 		add_child(beam)
 		_beams.append(beam)
+	if RaceLook.light_pods:
+		pod = CarLightPod.new()
+		pod.name = "LightPod"
+		add_child(pod)
+		pod.build(car.paint_color if car != null else Color.WHITE)
+		_beams.append(pod.beam)
 	_build_hull()
 	_build_dome()
 	set_headlights(headlights)
@@ -282,6 +292,22 @@ func set_headlights(on: bool) -> void:
 		beam.visible = on and RaceLook.lamp_light > 0.0
 	if _head != null:
 		_head.emission_energy_multiplier = HEAD_GLOW if on else 0.0
+	_show_pod()
+
+
+## The team colour on the pod's fairing (CarModel.set_paint).
+func set_paint(color: Color) -> void:
+	if pod != null:
+		pod.set_paint(color)
+
+
+## The pod's glass glows with the headlights while it is on the car: a torn-off bonnet takes it away dark, its wires torn (the bonnet
+## that flies off shows the same glass).
+func _show_pod() -> void:
+	var lit := pod != null and headlights and pod.is_visible_in_tree()
+	if pod != null and lit != _pod_lit:
+		_pod_lit = lit
+		pod.set_lit(lit)
 
 
 func set_dome(on: bool) -> void:
@@ -309,3 +335,4 @@ func _process(delta: float) -> void:
 	if _blinkers != null:
 		var lit := CockpitRules.hazards_on(car.needs_recovery, car.damage_level) and CockpitRules.blink(_time)
 		_blinkers.emission_energy_multiplier = BLINK_GLOW if lit else 0.0
+	_show_pod()

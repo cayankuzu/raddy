@@ -107,9 +107,11 @@ const FOLIAGE := {
 }
 const SNOW_OFF_BRANCHES: Array[Color] = [Color(0.88, 0.9, 0.94), Color(0.8, 0.83, 0.88)]
 
-## How much daylight the last race look has (the car's cabin fill stands in for it), and how strong its headlights are.
+## How much daylight the last race look has (the car's cabin fill stands in for it), how strong its headlights are, and whether the
+## crews have bolted their light pods on (CarLightPod: for a stage at dusk or at night, as real crews do).
 static var daylight := 1.0
 static var lamp_light: float = LAMP_LIGHT[DAY]
+static var light_pods := false
 ## The last race look's wind (m/s), dust colour and what its trees drop, for what the cars throw into the air (RoadFxPool).
 static var wind := WIND_FROM * 1.1
 static var dust_tint := Color.WHITE
@@ -127,6 +129,7 @@ static func create(biome: int, weather: int, time := DAY) -> Node3D:
 	var overcast := weather in OVERCAST
 	daylight = DAYLIGHT.get(time, 1.0)
 	lamp_light = LAMP_LIGHT.get(time, LAMP_LIGHT[DAY]) * (LAMP_IN_SNOW if weather == RaceSettings.Weather.SNOW else 1.0)
+	light_pods = time >= DUSK
 	wind = WIND_FROM * float(WIND_SPEED.get(weather, 1.0))
 	dust_tint = DUST_TINT.get(biome, Color.WHITE)
 	foliage = SNOW_OFF_BRANCHES if weather == RaceSettings.Weather.SNOW else FOLIAGE.get(biome, FOLIAGE[RaceSettings.Biome.FOREST])

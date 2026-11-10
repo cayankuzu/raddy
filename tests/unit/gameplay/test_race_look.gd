@@ -96,6 +96,7 @@ func test_the_light_goes_with_the_time_of_day() -> void:
 		var in_the_sky: DirectionalLight3D = look.get_node(^"SunInTheSky")
 		assert_lt(RaceLook.daylight, was, "time %d is darker than the one before" % time)
 		was = RaceLook.daylight
+		assert_eq(RaceLook.light_pods, time >= RaceSettings.TimeOfDay.DUSK, "light pods on the cars from dusk on (time %d)" % time)
 		assert_true(in_the_sky.transform.is_equal_approx(sun.transform), "the sky shows its light where it is (time %d)" % time)
 		if time != RaceSettings.TimeOfDay.NIGHT:
 			assert_lt(-sun.rotation_degrees.x, elevation, "the sun goes down (time %d)" % time)

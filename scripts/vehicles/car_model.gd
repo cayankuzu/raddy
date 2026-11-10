@@ -6,7 +6,8 @@ extends Node3D
 ## the Cabin's windows (opening, breaking and kicking out work on the real glass), the steering wheel
 ## turns with the steering and the body paint takes the team colour. The parts that move on their own are cut
 ## out of the model (CarParts): CarMirrors, CarCockpit (needles, pedals, levers), WindshieldGlass (wipers);
-## CarLamps lights its lamps. Remote cars do it all too: the pedals come with the snapshots.
+## CarLamps lights its lamps, at dusk and at night those of a light pod too, which goes on the bonnet (CarDamageFx.mount). Remote
+## cars do it all too: the pedals come with the snapshots.
 ## Must sit before the Cabin node in the scene: it swaps the glass in before Cabin._ready runs.
 
 const MODEL := preload("res://assets/vehicles/milano95/milano95.glb")
@@ -110,6 +111,8 @@ func _ready() -> void:
 	add_child(damage_fx)
 	damage_fx.setup(model, _car_space)
 	damage_fx.mirrors = mirrors
+	if lamps.pod != null:
+		damage_fx.mount(&"hood", lamps.pod, [lamps.pod.body])
 
 
 ## A soft, shadowless fill inside the cabin so the dashboard and the hands read in daylight
@@ -142,6 +145,8 @@ func _setup_paint(model: Node3D) -> void:
 func set_paint(color: Color) -> void:
 	for skin in dirt.paints:
 		skin.set_shader_parameter(&"albedo", color)
+	if lamps != null:
+		lamps.set_paint(color)
 
 
 ## Each tyre mesh goes into its wheel's Visual node, centred, so RallyCar's suspension travel,

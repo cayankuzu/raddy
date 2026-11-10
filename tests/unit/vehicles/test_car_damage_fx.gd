@@ -72,3 +72,25 @@ func test_the_engine_steams_then_smokes() -> void:
 	assert_lt(black.v, steam.v, "darker when critical")
 	_car.apply_damage(_damage(0.0))
 	assert_false(smoke.emitting)
+
+
+func test_what_is_mounted_on_a_part_moves_with_it_and_goes_with_it() -> void:
+	var holder := Node3D.new()
+	var lamp := MeshInstance3D.new()
+	lamp.mesh = BoxMesh.new()
+	holder.add_child(lamp)
+	_fx.add_child(holder)
+	holder.position = Vector3(0.0, 0.3, -1.9)
+	_fx.mount(&"hood", holder, [lamp])
+	var hood := _car.get_node(^"Model/DamageFx/Hood") as Node3D
+	assert_eq(holder.get_parent(), hood, "on the bonnet's hinge")
+	assert_true((_car.global_transform.affine_inverse() * holder.global_transform).origin.is_equal_approx(Vector3(0.0, 0.3, -1.9)), "where it was")
+	assert_true(_fx._parts[&"hood"].meshes.has(lamp), "it would fly off with the bonnet")
+	_car.apply_damage(_damage(CarDamageFx.HOOD_LOOSE + 1.0))
+	_car.forward_speed = 30.0
+	_fx._process(0.016)
+	assert_gt((_car.global_transform.affine_inverse() * holder.global_transform).origin.y, 0.6, "a lifted bonnet lifts it")
+	var spare := Node3D.new()
+	_fx.add_child(spare)
+	_fx.mount(&"spoiler", spare, [])
+	assert_eq(spare.get_parent(), _fx, "a part the model lacks takes nothing")

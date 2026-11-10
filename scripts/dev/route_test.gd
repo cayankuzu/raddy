@@ -15,10 +15,12 @@ extends Node3D
 ##   --car-dirt=D+M+S  the body already that dirty with dust, mud and snow (screenshots)
 ##   --weather=0..4 --difficulty=0..2 --time=0..3   race settings (default clear, rally, day)
 ##   --quality=0..2  graphics level (default: the player's setting)
-##   --follower=D    a second car D metres behind, driven by a bot when --autodrive is on (mirrors)
+##   --follower=D    a second car D metres behind, driven by a bot when --autodrive is on (mirrors); --follower=D+E.. one car per
+##                   distance (three crews: --follower=14+28)
 ##   --follower-delay=S  it leaves S seconds after the first car (a time gap to the car in front)
 ##   --ride-follower the camera and the mirrors go to that second car
 ##   --no-road-fx    the cars throw nothing into the air (perf comparisons)
+##   --no-light-pod  no light pod on the cars at dusk and at night (perf comparisons, the night before it)
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (gates, finish) that tools and tests can read.
 
@@ -61,6 +63,7 @@ func _ready() -> void:
 	$WorldEnvironment.free()
 	$Sun.free()
 	add_child(RaceLook.create(settings.biome, settings.weather, settings.time))
+	RaceLook.light_pods = RaceLook.light_pods and not _args.has("no-light-pod")
 	var problems := RouteValidator.validate(graph)
 	print("ROUTE stage %s length %.0f m edges %d checkpoints %d features %d problems %s" % [
 		graph.stage_id, graph.main_route_length(), graph.edges.size(), graph.checkpoints.size(), graph.features.size(), str(problems)])
@@ -97,7 +100,8 @@ func _ready() -> void:
 			for node in _car.find_children("*" + part + "*", "Node3D", true, false):
 				(node as Node3D).visible = false
 	if _args.has("follower"):
-		_add_follower(float(_args["follower"]))
+		for behind in String(_args["follower"]).split("+"):
+			_add_follower(float(behind))
 	var navigator := _args.has("navigator")
 	var ridden := follower if _args.has("ride-follower") else _car
 	_driver_camera = ridden.get_node(^"NavigatorCamera" if navigator else ^"DriverCamera")
@@ -180,20 +184,23 @@ func _ready() -> void:
 			get_tree().quit())
 
 
-## A second car `behind` metres back along the road, its headlights on, for looking at in the mirrors.
+## Another car `behind` metres back along the road, its headlights on, for looking at in the mirrors; the first is `follower`.
 func _add_follower(behind: float) -> void:
 	var at := float(_args.get("start", str(graph.checkpoints[0].distance - StageBuilder.GRID_BEFORE_LINE))) - behind
-	follower = CAR_SCENE.instantiate()
-	follower.name = "Follower"
-	follower.transform = graph.start_pose(at).translated(Vector3.UP * 0.8)
-	add_child(follower)
-	follower.set_paint(TeamColors.paint(2))
-	(follower.get_node(^"Model") as CarModel).set_headlights(true)
-	follower.input_locked = not _args.has("autodrive")
+	var car: RallyCar = CAR_SCENE.instantiate()
+	var team := 2 if follower == null else 3
+	car.name = "Follower" if follower == null else "Follower%d" % team
+	car.transform = graph.start_pose(at).translated(Vector3.UP * 0.8)
+	add_child(car)
+	car.set_paint(TeamColors.paint(team))
+	(car.get_node(^"Model") as CarModel).set_headlights(true)
+	car.input_locked = not _args.has("autodrive")
+	if follower == null:
+		follower = car
 	if _args.has("autodrive"):
 		var bot := RouteFollower.new()
-		bot.name = "FollowerBot"
-		bot.car = follower
+		bot.name = car.name + "Bot"
+		bot.car = car
 		bot.set_path(graph.main_route_points())
 		bot.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER
 		bot.start_delay = float(_args.get("follower-delay", "0"))
