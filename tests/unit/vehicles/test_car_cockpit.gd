@@ -430,7 +430,9 @@ func test_the_headlights_throw_their_light_far_down_the_road() -> void:
 		assert_eq(beam.shadow_caster_mask & GraphicsQuality.CABIN_LAYER, 0, "but nothing inside a car")
 	_model.lamps.cast_shadows(false)
 	for beam in _model.lamps._beams:
-		assert_eq(beam.shadow_caster_mask, 0, "others draw the pattern through an empty shadow map")
+		assert_eq(beam.shadow_caster_mask, CarLamps.NO_CASTERS, "others draw the pattern through an empty shadow map")
+	for node in get_tree().root.find_children("*", "VisualInstance3D", true, false):
+		assert_eq((node as VisualInstance3D).layers & CarLamps.NO_CASTERS, 0, "%s is on the layer nothing may be on" % node.name)
 
 
 func test_no_lamp_shines_on_the_inside_of_a_car() -> void:

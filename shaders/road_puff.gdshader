@@ -19,6 +19,10 @@ const float SHINE_THROUGH = 1.6;
 const float UNDERSIDE = 0.55;
 // Drops are drawn out along the way they fly (across, along).
 const vec2 FLYING = vec2(0.42, 1.8);
+// A puff is a thin veil: of a lamp right in front of it (a car's headlights in its own dust at night) it sends back only so much,
+// it glows and does not blaze. Light up to the knee is the sun's and the sky's, untouched (Godot's light colour carries a PI).
+const float LAMP_KNEE = 6.0;
+const float LAMP_ROLL = 12.0;
 
 varying float broken;
 varying float soft_over;
@@ -60,5 +64,8 @@ void fragment() {
 void light() {
 	float lit = clamp((dot(NORMAL, LIGHT) + WRAP) / (1.0 + WRAP), 0.0, 1.0);
 	float through = pow(clamp(dot(-VIEW, LIGHT), 0.0, 1.0), 5.0);
-	DIFFUSE_LIGHT += LIGHT_COLOR * ATTENUATION * (lit + through * SHINE_THROUGH) / PI;
+	vec3 strength = LIGHT_COLOR * ATTENUATION;
+	vec3 over = max(strength - LAMP_KNEE, vec3(0.0));
+	strength = min(strength, vec3(LAMP_KNEE)) + over / (1.0 + over / LAMP_ROLL);
+	DIFFUSE_LIGHT += strength * (lit + through * SHINE_THROUGH) / PI;
 }

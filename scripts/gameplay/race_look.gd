@@ -41,26 +41,28 @@ const SUN_GROUP := &"race_sun"
 const HEADLIGHT_WEATHER := [RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG, RaceSettings.Weather.SNOW, RaceSettings.Weather.DUST_STORM]
 
 ## How much of the day's light is left: the shade's, a car's cabin fill.
-const DAYLIGHT := {DAY: 1.0, GOLDEN_HOUR: 0.62, DUSK: 0.35, NIGHT: 0.025}
+const DAYLIGHT := {DAY: 1.0, GOLDEN_HOUR: 0.8, DUSK: 0.35, NIGHT: 0.025}
 ## How strong the headlights are against that light: what eyes used to the dark make of them. By day they hardly show on the
-## road; at night they are all there is (CarLamps).
+## road; at night they are all there is (CarLamps). Snow throws so much of their light back that the eyes never quite get used
+## to the dark.
 const LAMP_LIGHT := {DAY: 0.004, GOLDEN_HOUR: 0.006, DUSK: 0.3, NIGHT: 1.0}
+const LAMP_IN_SNOW := 0.25
 ## The sun's height (degrees) away from the day: low for the golden hour, under the horizon at dusk; at night the moon's.
-const LOW_SUN := {GOLDEN_HOUR: 8.0, DUSK: -4.0, NIGHT: 32.0}
-const LOW_SUN_COLOR := {GOLDEN_HOUR: Color(1.0, 0.64, 0.36), DUSK: Color(1.0, 0.42, 0.2), NIGHT: Color(0.62, 0.72, 1.0)}
+const LOW_SUN := {GOLDEN_HOUR: 12.0, DUSK: -4.0, NIGHT: 32.0}
+const LOW_SUN_COLOR := {GOLDEN_HOUR: Color(1.0, 0.68, 0.38), DUSK: Color(1.0, 0.42, 0.2), NIGHT: Color(0.62, 0.72, 1.0)}
 ## How bright the light of the sun (the moon) is on the ground under a clear and an overcast sky: the sun has set at dusk, an
 ## overcast night has no moon.
-const SUN_LIGHT := {DAY: Vector2(1.15, 0.45), GOLDEN_HOUR: Vector2(1.3, 0.32), DUSK: Vector2.ZERO, NIGHT: Vector2(0.05, 0.0)}
+const SUN_LIGHT := {DAY: Vector2(1.15, 0.45), GOLDEN_HOUR: Vector2(1.55, 0.35), DUSK: Vector2.ZERO, NIGHT: Vector2(0.05, 0.0)}
 ## How bright the sun or the moon is in the sky itself, where that differs from its light on the ground.
 const IN_THE_SKY := {DUSK: 1.4, NIGHT: 1.6}
 ## The sky away from the day: zenith and horizon, clear and overcast; how far the glow round the sun reaches (degrees), the
 ## horizon's light on the sun's side, how many stars show.
 const SKY_TOP := {
-	GOLDEN_HOUR: [Color(0.2, 0.33, 0.56), Color(0.4, 0.4, 0.42)], DUSK: [Color(0.05, 0.08, 0.18), Color(0.05, 0.05, 0.06)],
+	GOLDEN_HOUR: [Color(0.17, 0.31, 0.6), Color(0.4, 0.4, 0.42)], DUSK: [Color(0.05, 0.08, 0.18), Color(0.05, 0.05, 0.06)],
 	NIGHT: [Color(0.0035, 0.005, 0.012), Color(0.005, 0.0055, 0.007)],
 }
 const SKY_HORIZON := {
-	GOLDEN_HOUR: [Color(0.78, 0.72, 0.68), Color(0.62, 0.56, 0.5)], DUSK: [Color(0.36, 0.25, 0.32), Color(0.12, 0.11, 0.12)],
+	GOLDEN_HOUR: [Color(0.95, 0.8, 0.62), Color(0.62, 0.56, 0.5)], DUSK: [Color(0.36, 0.25, 0.32), Color(0.12, 0.11, 0.12)],
 	NIGHT: [Color(0.016, 0.021, 0.036), Color(0.011, 0.012, 0.015)],
 }
 const SUN_GLOW := {DAY: 30.0, GOLDEN_HOUR: 40.0, DUSK: 46.0}
@@ -72,12 +74,13 @@ const CLOUDS_AT := {
 	NIGHT: [Color(0.05, 0.055, 0.07), Color(0.04, 0.045, 0.06), 1.0],
 }
 ## The shade's bounced light away from the day (it is then mostly the sky's) and its share against the sky's; the fog's colour.
-const BOUNCE_AT := {GOLDEN_HOUR: Color(0.55, 0.55, 0.56), DUSK: Color(0.24, 0.22, 0.3), NIGHT: Color(0.3, 0.36, 0.55)}
-const BOUNCE_SHARE_AT := {GOLDEN_HOUR: 0.35, DUSK: 0.6, NIGHT: 0.7}
-const FOG_TINT := {GOLDEN_HOUR: Color(0.92, 0.88, 0.86)}
+const BOUNCE_AT := {GOLDEN_HOUR: Color(0.7, 0.6, 0.48), DUSK: Color(0.24, 0.22, 0.3), NIGHT: Color(0.3, 0.36, 0.55)}
+const BOUNCE_SHARE_AT := {GOLDEN_HOUR: 0.4, DUSK: 0.6, NIGHT: 0.7}
+const FOG_TINT := {GOLDEN_HOUR: Color(1.0, 0.9, 0.78)}
 const FOG_AT := {DUSK: Color(0.2, 0.17, 0.22), NIGHT: Color(0.012, 0.015, 0.024)}
-## The low sun's light scattered by the haze towards it.
-const SUN_SCATTER := {GOLDEN_HOUR: 0.35}
+## The low sun's light scattered by the haze towards it, and the warmer colours of its light.
+const SUN_SCATTER := {GOLDEN_HOUR: 0.18}
+const GOLDEN_SATURATION := 1.12
 
 ## The way the wind blows over a stage (the same way as a dust storm's), how hard (m/s) in each weather, and what the dust of this
 ## biome's ground adds to the colour of its surface (RoadFxRules).
@@ -117,7 +120,7 @@ static func create(biome: int, weather: int, time := DAY) -> Node3D:
 	var palette := BiomeRules.palette(biome, weather)
 	var overcast := weather in OVERCAST
 	daylight = DAYLIGHT.get(time, 1.0)
-	lamp_light = LAMP_LIGHT.get(time, LAMP_LIGHT[DAY])
+	lamp_light = LAMP_LIGHT.get(time, LAMP_LIGHT[DAY]) * (LAMP_IN_SNOW if weather == RaceSettings.Weather.SNOW else 1.0)
 	wind = WIND_FROM * float(WIND_SPEED.get(weather, 1.0))
 	dust_tint = DUST_TINT.get(biome, Color.WHITE)
 	foliage = SNOW_OFF_BRANCHES if weather == RaceSettings.Weather.SNOW else FOLIAGE.get(biome, FOLIAGE[RaceSettings.Biome.FOREST])
@@ -154,7 +157,7 @@ static func create(biome: int, weather: int, time := DAY) -> Node3D:
 		env.volumetric_fog_length = 64.0
 	env.adjustment_enabled = true
 	env.adjustment_contrast = 1.06
-	env.adjustment_saturation = 0.92 if overcast else 1.04
+	env.adjustment_saturation = 0.92 if overcast else GOLDEN_SATURATION if time == GOLDEN_HOUR else 1.04
 
 	var root := Node3D.new()
 	root.name = "RaceLook"

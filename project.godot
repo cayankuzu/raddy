@@ -180,6 +180,7 @@ common/physics_interpolation=true
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+textures/light_projectors/filter=1
 
 [shader_globals]
 

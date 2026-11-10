@@ -33,21 +33,30 @@ const BEAM_ANGLE := 30.0
 const BEAM_RANGE := 130.0
 const BEAM_ENERGY := 1500.0
 const BEAM_COLOR := Color(1.0, 0.96, 0.9)
-## How much of a beam the fog scatters back: fog lit at the beams' full strength would be a white wall a metre ahead.
+## How much of a beam the fog scatters back: fog lit at the beams' full strength would be a white wall a metre ahead. How much
+## it shines on what it lights: a car's flank at a grazing angle would mirror it blindingly into its own door mirror.
 const BEAM_IN_FOG := 0.03
-## The pattern's picture (columns, rows); the band under the horizon where it is brightest (degrees: the road about 50 m ahead),
-## how fast it falls towards the car (a power of the angle) down to a floor, how fast above the horizon, the spill above it
-## (share, degrees), how wide it spreads (the core and the wings, degrees) and how much the wings give.
-const BEAM_PIXELS := Vector2i(96, 192)
-const BEAM_HOT := 0.55
-const BEAM_NEAR_FALL := 1.8
-const BEAM_FLOOR := 0.03
+const BEAM_SHINE := 0.08
+## The pattern's picture (columns, rows: the road from 10 m to 100 m ahead lies within 3 degrees of the horizon, read without
+## mipmaps, which would smear it: project setting rendering/textures/light_projectors/filter); the band round the horizon where it
+## is brightest (degrees, from and to: the road 45 m ahead and further, a little above it for a car that dips its nose), how fast
+## it falls towards the car (a power of the angle) down to a floor and where the housing cuts it under the nose (degrees), how
+## fast above the band, the spill above it (share, degrees), how wide it spreads (the core and the wings, degrees) and how much
+## the wings give.
+const BEAM_PIXELS := Vector2i(64, 768)
+const BEAM_HOT := Vector2(-0.6, 0.35)
+const BEAM_NEAR_FALL := 2.0
+const BEAM_FLOOR := 0.003
+const BEAM_CUT := Vector2(9.0, 13.0)
 const BEAM_ABOVE := 0.9
 const BEAM_SPILL := Vector2(0.06, 6.0)
 const BEAM_SPREAD := Vector2(7.0, 24.0)
 const BEAM_WINGS := 0.1
 ## What the lamps that shine out of a car light: everything but the inside of a car.
 const OUTSIDE_THE_CABINS := 0xFFFFFFFF & ~GraphicsQuality.CABIN_LAYER
+## A render layer nothing is on: a beam that casts no shadows still needs a shadow map to draw its pattern through, an empty one
+## (with no layer at all the engine drops the map, and the pattern with it).
+const NO_CASTERS := 1 << 14
 
 var car: RallyCar
 var headlights := false
@@ -85,9 +94,9 @@ func build(model: Node3D) -> void:
 		beam.light_projector = beam_texture()
 		# The pattern is drawn through the beam's shadow map: an empty one unless the beam casts shadows (cast_shadows).
 		beam.shadow_enabled = true
-		beam.shadow_caster_mask = 0
+		beam.shadow_caster_mask = NO_CASTERS
 		beam.light_cull_mask = OUTSIDE_THE_CABINS
-		beam.light_specular = 0.25  # a car's flank at a grazing angle would mirror it blindingly into its own door mirror
+		beam.light_specular = BEAM_SHINE
 		beam.position = Vector3(BEAM_AT.x * side, BEAM_AT.y, BEAM_AT.z)
 		add_child(beam)
 		_beams.append(beam)
@@ -96,19 +105,20 @@ func build(model: Node3D) -> void:
 	set_dome(false)
 
 
-## The lamp's pattern (BEAM_*), rows from the top of the cone down, columns from the car's left: brightest in a band just
-## under the horizon, falling away towards the car and the sides, and fast above the horizon but for a little spill on the
-## trees and the boards. Written in sRGB: the beam reads it as a colour.
+## The lamp's pattern (BEAM_*), rows from the top of the cone down, columns from the car's left: brightest in a band round
+## the horizon, falling away towards the car and the sides, and fast above the band but for a little spill on the trees and
+## the boards. Written in sRGB: the beam reads it as a colour.
 static func beam_pattern() -> Image:
 	var image := Image.create(BEAM_PIXELS.x, BEAM_PIXELS.y, false, Image.FORMAT_RGB8)
 	var reach := tan(deg_to_rad(BEAM_ANGLE))
 	for row in BEAM_PIXELS.y:
 		var up := rad_to_deg(atan((1.0 - 2.0 * (row + 0.5) / BEAM_PIXELS.y) * reach))
 		var height := 1.0
-		if up > 0.0:
-			height = exp(-pow(up / BEAM_ABOVE, 2.0)) + BEAM_SPILL.x * exp(-pow(up / BEAM_SPILL.y, 2.0))
-		elif -up > BEAM_HOT:
-			height = maxf(pow(BEAM_HOT / -up, BEAM_NEAR_FALL), BEAM_FLOOR)
+		if up > BEAM_HOT.y:
+			height = exp(-pow((up - BEAM_HOT.y) / BEAM_ABOVE, 2.0)) + BEAM_SPILL.x * exp(-pow(up / BEAM_SPILL.y, 2.0))
+		elif up < BEAM_HOT.x:
+			# The lamp's housing and the bumper cut what would go to the ground right under the nose.
+			height = maxf(pow(BEAM_HOT.x / up, BEAM_NEAR_FALL), BEAM_FLOOR) * (1.0 - smoothstep(BEAM_CUT.x, BEAM_CUT.y, -up))
 		for column in BEAM_PIXELS.x:
 			var across := rad_to_deg(atan((2.0 * (column + 0.5) / BEAM_PIXELS.x - 1.0) * reach))
 			var width := exp(-pow(across / BEAM_SPREAD.x, 2.0)) + BEAM_WINGS * exp(-pow(across / BEAM_SPREAD.y, 2.0))
@@ -130,7 +140,7 @@ static func beam_texture() -> ImageTexture:
 ## player sits in.
 func cast_shadows(on: bool) -> void:
 	for beam in _beams:
-		beam.shadow_caster_mask = OUTSIDE_THE_CABINS & ~GraphicsQuality.FINE_SCENERY_LAYER if on else 0
+		beam.shadow_caster_mask = OUTSIDE_THE_CABINS & ~GraphicsQuality.FINE_SCENERY_LAYER if on else NO_CASTERS
 
 
 ## A soft cone from the tail, backwards and a little down: it lights the road behind and a follower, not the cabin.

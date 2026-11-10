@@ -113,6 +113,7 @@ func test_the_light_goes_with_the_time_of_day() -> void:
 
 func test_a_clear_night_has_a_moon_and_stars_an_overcast_one_neither() -> void:
 	var clear := _look(RaceSettings.Weather.CLEAR, RaceSettings.TimeOfDay.NIGHT)
+	assert_eq(RaceLook.lamp_light, 1.0, "at night the headlights are all there is")
 	var moon: DirectionalLight3D = clear.get_node(^"Sun")
 	assert_true(moon.visible)
 	assert_lt(moon.light_energy, 0.1, "moonlight shows shapes, not the road")
@@ -127,6 +128,10 @@ func test_a_clear_night_has_a_moon_and_stars_an_overcast_one_neither() -> void:
 	assert_eq(_sky(_look(RaceSettings.Weather.CLEAR, RaceSettings.TimeOfDay.DAY)).get_shader_parameter(&"stars"), 0.0, "none by day")
 	assert_true(RaceLook.headlights_on(RaceSettings.Weather.CLEAR, RaceSettings.TimeOfDay.NIGHT))
 	assert_false(RaceLook.headlights_on(RaceSettings.Weather.CLEAR, RaceSettings.TimeOfDay.GOLDEN_HOUR), "the sun is still up")
+	RaceLook.create(RaceSettings.Biome.MOUNTAIN, RaceSettings.Weather.SNOW, RaceSettings.TimeOfDay.NIGHT).free()
+	assert_lt(RaceLook.lamp_light, 0.5, "snow throws so much of their light back that the eyes never get used to the dark")
+	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.RAIN).free()
+	assert_lt(RaceLook.lamp_light * CarLamps.BEAM_ENERGY, RaceLook.SUN_LIGHT[RaceLook.DAY].y * 20.0, "by day in the rain they hardly light the road")
 	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR).free()
 
 
