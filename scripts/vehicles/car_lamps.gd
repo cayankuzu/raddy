@@ -25,7 +25,7 @@ const REAR_GLOW_AT := Vector3(0.0, 0.25, 1.95)
 const REAR_GLOW_ENERGY := 1.6
 const TAIL_SHARE := 0.12
 ## The headlights: a beam each side, the lamp's own pattern across a cone this wide (half the angle, degrees), reaching this far,
-## as bright as this at night (RaceLook.lamp_light: by day they hardly show). A real lamp throws most of its light just under the
+## as bright as this at night (RaceLook.lamp_light: by day they hardly show). A real lamp throws most of its light round the
 ## horizon, where the road far ahead lies, and little onto the road close to the car, which it meets at a steeper angle: that is
 ## how a pair of headlights reaches 80 m and more (beam_pattern).
 const BEAM_AT := Vector3(0.55, -0.05, -2.02)
@@ -35,7 +35,7 @@ const BEAM_ENERGY := 1500.0
 const BEAM_COLOR := Color(1.0, 0.96, 0.9)
 ## How much of a beam the fog scatters back: fog lit at the beams' full strength would be a white wall a metre ahead. How much
 ## it shines on what it lights: a car's flank at a grazing angle would mirror it blindingly into its own door mirror.
-const BEAM_IN_FOG := 0.03
+const BEAM_IN_FOG := 0.015
 const BEAM_SHINE := 0.08
 ## The pattern's picture (columns, rows: the road from 10 m to 100 m ahead lies within 3 degrees of the horizon, read without
 ## mipmaps, which would smear it: project setting rendering/textures/light_projectors/filter); the band round the horizon where it
@@ -85,7 +85,7 @@ func build(model: Node3D) -> void:
 		_reverse_light = _rear_glow("ReverseGlow", Color(1.0, 0.97, 0.9), 9.0, 2.2)
 	for side: float in [-1.0, 1.0]:
 		var beam := SpotLight3D.new()
-		beam.name = "Headlight"
+		beam.name = "HeadlightLeft" if side < 0.0 else "HeadlightRight"
 		beam.light_color = BEAM_COLOR
 		beam.light_energy = BEAM_ENERGY * RaceLook.lamp_light
 		beam.spot_range = BEAM_RANGE

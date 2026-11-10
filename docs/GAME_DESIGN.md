@@ -51,8 +51,10 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
 - Dressing that says "rally": km boards, stage start/finish boards, chevrons, marshal tape, hay bales,
   spectators at the signature moments, parked cars, flags. Every flag is the flag of Turkey, in its exact
   geometry and proportions, treated with respect (never on the ground, nothing printed over it).
-- 2-4 km per stage (2-3 minutes), 3 biomes x 2-3 stages, times of day including night with headlights
-  (the room's time of day comes with phase A4).
+- 2-4 km per stage (2-3 minutes), 3 biomes x 2-3 stages, every stage at every time of day (the room's choice, or Random):
+  day, golden hour (a low sun to drive into), dusk (the sun gone, the sky burning over a land falling dark) and night. Night is
+  genuinely hard: the road is seen only where the headlights reach (about 60-90 m on a straight, a corner beyond them stays
+  dark), dust and fog glow in the beams, and a crew behind another car in its dust sees nothing at all.
 
 ## 5. Driving feel targets
 - Between arcade and sim (Half Grip's own description): readable slides, weight you can feel,

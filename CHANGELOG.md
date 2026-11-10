@@ -1,6 +1,17 @@
 # Changelog
 
 ## Unreleased (Phases A0, A2, A3, A4, A6: solid ground, driving feel, stages 2.0, effects, the shock gun)
+- **Times of day:** the room picks day, golden hour, dusk, night or Random, like the weather. The golden hour is a low warm
+  sun you drive into (the visors come down). At dusk the sun has set and the sky still burns orange and violet over a forest
+  falling dark. At night there is a cold moon and stars on a clear night and nothing at all under clouds: you see only what
+  your headlights reach.
+- **Headlights that reach:** a real lamp's beam, brightest just under the horizon, lights the road far ahead and little
+  above it; the trees by the road catch it, a corner beyond the beams stays dark. Fog and dust glow in them, and behind
+  another car in its dust at night you see nothing but the glowing cloud. The dials light up, tail lights leave a faint red on
+  the road behind and brake lights a bright one, a follower's beams light up your mirrors. On High your own headlights cast shadows.
+- **Snow on the trees, rain on the leaves:** in snow the firs carry it in clumps on their branches and the undergrowth is white
+  long before; rain darkens the leaves and makes them shine.
+- **A forest floor:** under the trees fallen needles, leaves and moss lie in the shade of the crowns instead of a lawn.
 - **Dust that hangs in the air:** on dry gravel, dirt and sand a car drags a real cloud that lingers for seconds, drifts on the wind, is darker in the shade of
   the trees and glows when the sun or the headlights are behind it. Two seconds behind another car you lose the road: the navigator is all you have.
 - **Snow, mud and water:** snow throws a plume of powder, mud and wet roads throw clods and spray instead of dust, water leaves the flanks in sheets, and a hard

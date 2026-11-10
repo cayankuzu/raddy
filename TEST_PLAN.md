@@ -7,12 +7,12 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 
 | Check | How | Covers | Last result |
 |---|---|---|---|
-| Unit and physics tests (GUT, 375 tests) | `tools\test.ps1` | driving (grip, brakes, handbrake, rollover, recovery offer, damage effects), gearbox, water drag, stage recipes (valid, deterministic, features shaped into the road), terrain (flat under the road, cliffs drop, banks rise), track furniture (pools, rails with one gap, walls never across another stretch, gates), a bot driving a whole stage through every gate, pace notes, paper map, roadside dressing, race progress/results/settings, recovery anchors (never past the next gate or ahead of where the car got), stage events (tree across half the road, boulders reach it, a bot drives around the tree), visible damage parts, records/medals, cabin, voice codec/capture, room codes, roster rules, snapshot buffer, settings, project settings | pass |
+| Unit and physics tests (GUT, 439 tests) | `tools\test.ps1` | driving (grip, brakes, handbrake, rollover, recovery offer, damage effects), gearbox, water drag, stage recipes (valid, deterministic, features shaped into the road), terrain (flat under the road, cliffs drop, banks rise), track furniture (pools, rails with one gap, walls never across another stretch, gates), a bot driving a whole stage through every gate, pace notes, paper map, roadside dressing, race progress/results/settings, recovery anchors (never past the next gate or ahead of where the car got), stage events (tree across half the road, boulders reach it, a bot drives around the tree), visible damage parts, records/medals, cabin, voice codec/capture, room codes, roster rules, snapshot buffer, settings, project settings, times of day (settings, light, moon and stars, the headlights' pattern and strength), the plants in the weather, the forest floor's shade | pass |
 | Multiplayer | `tools\nettest.ps1` (host + 3 clients, headless) | race start barrier, car sync, windows and cans on every peer, voice relay near/far, a client leaving mid-race, team recovery confirmation, host-judged damage, windscreen kick-out | pass |
 | End to end | `tools\flowtest.ps1` | main menu → create room → join by code → seats/ready → start → bots drive the whole stage (both falling trees come down in front of them) → results → back to the room → quit | pass (2 crews: 2:05.2 / 2:15.3 on Kızıl Kanyon, no damage) |
 | Stage events by bot | `route_test.tscn --stage=N --start=M --autodrive --quit-after-seconds=22` (headless) | every falling tree and rockfall on every stage; prints the bot's progress, recoveries and hardest impact | pass (0 recoveries; boulders graze the car at most 5 m/s) |
 | Export | `tools\export_windows.ps1`, run the exe | release build packs and starts | pass |
-| Screenshots | `tools\screenshot.ps1` | every stage, cockpit, HUD, glass states, weather | reviewed by eye |
+| Screenshots | `tools\screenshot.ps1`, `tools\stage_shots.ps1 -OwnWeathers -AllTimes -Sheet` | every stage, cockpit, HUD, glass states, weather; every stage at every time of day in its own weathers (18 contact sheets) | reviewed by eye |
 | Code review | multi-agent review with adversarial verification of every finding | stages, race/network, car/audio/cameras, UI/map/notes, rendering/tools, tests | findings fixed (see git log) |
 
 ## Manual (needs people)
@@ -36,6 +36,10 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | The windshield crack from the seat by day, into a low sun and at night: real, and never in the way more than a real one | to do |
 | Crashes: the sparks, leaves, splinters and glass read as what was hit, at speed and from the car behind | to do |
 | The exhaust pops: heard by a person, not too loud against the engine | to do |
+| Night with people at the wheel: hard but fair (the road readable in the beams, a corner beyond them dark), and beautiful; dusk and the golden hour worth choosing | to do (contact sheets of every stage, weather and time reviewed by eye: `stage_shots.ps1 -OwnWeathers -AllTimes -Sheet`) |
+| Night in snow and in fog: the snow's glare in the beams and the fog's glowing veil still let a crew drive | to do |
+| Following a car in its dust at night (the cloud glows in your own beams and hides everything) and a follower's beams in the mirrors | to do |
+| The dome lamp: the map readable by it at night and hard to read without, and how much it blinds the driver | to do |
 | Windows SmartScreen first run on a clean PC | to do |
 
 ## Known issues and gaps

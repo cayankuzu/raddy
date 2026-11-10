@@ -117,6 +117,7 @@ func test_a_clear_night_has_a_moon_and_stars_an_overcast_one_neither() -> void:
 	var moon: DirectionalLight3D = clear.get_node(^"Sun")
 	assert_true(moon.visible)
 	assert_lt(moon.light_energy, 0.1, "moonlight shows shapes, not the road")
+	assert_false(moon.shadow_enabled, "its shadows would hardly show: no pass for them")
 	assert_gt(moon.light_color.b, moon.light_color.r, "and it is cold")
 	assert_eq(_sky(clear).get_shader_parameter(&"moon"), 1.0)
 	assert_eq(_sky(clear).get_shader_parameter(&"stars"), 1.0)

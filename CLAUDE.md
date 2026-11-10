@@ -10,8 +10,9 @@ No Blender; model in Godot only as a last resort.
 - Godot lives in `C:\Tools\Godot\4.7.2\` (override with `GODOT_DIR`). Use `Godot_v4.7.2-stable_win64_console.exe`
   whenever output or the exit code matters; the GUI exe is for windows launched in the background.
 - Export templates 4.7.2 are installed in `%APPDATA%\Godot\export_templates\4.7.2.stable\`.
-- `project.godot` pins Jolt Physics, 120 physics ticks, D3D12, `audio/driver/enable_input`, and turns off
-  Blender/FBX2glTF import. `tests/unit/test_project_settings.gd` guards these.
+- `project.godot` pins Jolt Physics, 120 physics ticks, D3D12, `audio/driver/enable_input`, light projectors read without
+  mipmaps (the headlights), the shader globals, and turns off Blender/FBX2glTF import. `tests/unit/test_project_settings.gd`
+  guards these.
 
 ## Commands (PowerShell, repo root)
 - `pwsh -NoProfile -File tools\import.ps1`: headless import. Run after adding addons, assets or `class_name` scripts.
@@ -41,10 +42,13 @@ No Blender; model in Godot only as a last resort.
 - `tools\fx_probe.ps1 -At "22+30" [-Stage 0] [-Quality 1] [-Weather 0] [-Tag now] [-ExtraArgs "--follower=9,--follower-delay=2,--ride-follower"]`: at those
   seconds of game time the same frame with and without the cloud into `reports\screenshots\fx\<Tag>\`, and `FXPROBE` lines with how much of the road ahead it hides.
 - `tools\chip_odds.ps1 [-Stage n] [-Weather 0]`: how many runs of a lone bot end with a bullseye or a cracked windshield, per stage (`CHIPS` lines).
-- `tools\stage_shots.ps1 [-Stage n] [-Quality 1] [-Weather 0 | -OwnWeathers] [-Tag now] [-Chase]`: every place worth a
-  look (`tools/list_stage_spots.gd`) from the driver's seat, one process per stage and weather (`tools/stage_shots.gd`, about
-  a minute each), plus an overview per stage, into `reports\screenshots\stages\<Tag>\<stage>\w<weather>\`. The overview is a
-  check of the road's layout: straight down and orthographic, it shows hardly any trees.
+- `tools\stage_shots.ps1 [-Stage n] [-Quality 1] [-Weather 0 | -OwnWeathers] [-Time 0 | -AllTimes] [-Kinds "corner,junction"] [-Tag now] [-Chase] [-Sheet]`:
+  every place worth a look (`tools/list_stage_spots.gd`; -Kinds keeps the first of each kind) from the driver's seat, one process per
+  stage, weather and time of day (`tools/stage_shots.gd`, about 15 s for three places), plus an overview per stage, into
+  `reports\screenshots\stages\<Tag>\<stage>\w<weather>t<time>\`; -Sheet adds a contact sheet per stage and weather (`tools/contact_sheet.gd`,
+  windowed: a row per place, a column per time of day) into `<Tag>\sheets\`. Every stage at every time with its own weathers:
+  `-OwnWeathers -AllTimes -Kinds "corner,junction,spectators" -Sheet` (about 20 min). The overview is a check of the road's layout:
+  straight down and orthographic, it shows hardly any trees.
 - `tools\capture_window.ps1 -Instance N -Out reports\screenshots\x.png`: PNG of a windowed instance even when
   covered (PrintWindow); use it for multi-window visual checks since Beckett sees one game only.
 - `tools\screenshot.ps1 -Scene res://x.tscn -Frames 120 -Out reports\screenshots\x.png [-ExtraArgs "--a,--b"]`:
@@ -118,9 +122,14 @@ No Blender; model in Godot only as a last resort.
   island inside a box, test_car_parts.gd pins the triangle counts; meshes shared by every car, in car space). `CockpitRules`
   (pure) says what every needle, lamp and lever shows; `CarCockpit` puts it on the car near the camera: the instrument
   panel (`shaders/gauge_panel.gdshader` over a face baked by `tools/make_gauge_face.gd`, keep both layouts in step),
-  pedals, H-gate lever, fitted handbrake. `CarLamps`: tail lights only with the headlights, brake, reversing, hazards
-  on a stuck or critical car, the dome lamp (`Cabin.dome_on`, L, the map holder's; shows in the glass through
-  `shaders/glass_ghost.gdshaderinc`). `CarHeat`: pops and flame on a lift at high revs, front discs that glow after
+  pedals, H-gate lever, fitted handbrake. `CarLamps`: tail lights only with the headlights (their glow a faint red on the
+  road behind, the brake lights' a bright one), brake, reversing, hazards on a stuck or critical car, the dome lamp
+  (`Cabin.dome_on`, L, the map holder's; shows in the glass through `shaders/glass_ghost.gdshaderinc`). Headlights: a
+  projector pattern (`CarLamps.beam_pattern`, tested: brightest in a band round the horizon, so the road reaches 80 m and
+  more, cut under the nose) drawn through each beam's shadow map, an empty one on `CarLamps.NO_CASTERS` (a layer nothing
+  may be on; with no layer the engine drops the map and the pattern) except the seat's own car on High (`cast_shadows`, real
+  shadows); read without mipmaps (`rendering/textures/light_projectors/filter=1`, guarded by test_project_settings, or the
+  band smears). Their strength is `RaceLook.lamp_light` (what eyes used to the dark make of them: by day they hardly show). `CarHeat`: pops and flame on a lift at high revs, front discs that glow after
   really hard braking. The wheel turns about `CarModel.WHEEL_AXIS` and is set in so the dials show through the rim.
   `Cabin` slides the side panes into the doors (along their own slant, cut at the door's sill: `sill` in `car_glass.gdshader`); the
   sun visors come down for a low sun ahead, the glove box's lid opens when a can is taken, the radio's readout lights with the engine
@@ -136,15 +145,23 @@ No Blender; model in Godot only as a last resort.
   `CarMirrors.SELF_LAYER` (glass, housings, the motion blur), `GraphicsQuality.FINE_SCENERY_LAYER` (`RoadsideDresser.is_fine`, and the boards' words and tape go with their boards: low,
   backdrop, no collision unless `tall`, or `fine` in the catalog) and `RaceLook.SUN_LAYER`: it has a shadowless sun of its own
   (`MIRROR_SUN_LAYER`, which it clears from the main camera). `RaceLook`'s `SunInTheSky` is what the sky shows, the same
-  for every camera: different sky lights per camera would rebuild the sky's reflections every time the view changes.
+  for every camera: different sky lights per camera would rebuild the sky's reflections every time the view changes. A
+  mirror's viewport keeps a small shadow atlas (`BEAM_ATLAS`): a follower's beams draw their pattern through it.
 
 ## Screens and flow (scripts/core, scripts/ui, scripts/gameplay/race.gd)
 - Autoloads: `Settings` (user://settings.cfg: language, volumes, voice, effects, driving assist, graphics, key bindings; tests set
   `Settings.save_path`), `Flow` (menu → lobby → race → results → lobby; leaves dev scenes alone).
 - `RoomCode` packs IPv4 + port into a checked `XXXX-XXXX-XXXX` code; `PortOpener` (UPnP, thread) gives the
   internet code when the router allows it (CGNAT detected). `RaceSettings` resolves Random / Surprise Rally
-  (keys `stage`, `difficulty`, `weather`, `shock`; the stage gives `biome` and `seed`); `BiomeRules` applies
-  weather/difficulty to the stage. UI strings: `data/locale/strings.csv` (TR/EN).
+  (keys `stage`, `difficulty`, `weather`, `time`, `shock`; the stage gives `biome` and `seed`; a `time` left out is day,
+  every stage comes at every time); `BiomeRules` applies weather/difficulty to the stage. UI strings: `data/locale/strings.csv` (TR/EN).
+- Times of day (`RaceSettings.TimeOfDay`, lit by `RaceLook`): day; golden hour (the sun at 12 degrees, warm, the visors
+  come down); dusk (the sun 4 degrees under the horizon: no sun light or shadow pass, the sky's afterglow, headlights on);
+  night (a moon of 0.05 and stars on a clear sky, neither under clouds; the moon casts no shadow: its cascades cost High 200-300
+  draw calls for shadows nobody sees). `RaceLook.daylight` (cabin fill, the
+  weather's particles: lit from dusk on) and `lamp_light` follow it. The sky is `shaders/race_sky.gdshader`: by day the
+  procedural sky to the pixel (A/B checked), then the afterglow, clouds lit from the sun's side that hide what is behind
+  them, the moon's disc and stars; nothing in it moves (no TIME), so its radiance is made once.
 - Race start: `Net.report_race_loaded()` from every player; the host spawns only when `Net.all_players_loaded()`
   (scene changes are deferred: spawn RPCs sent earlier are lost), then a 3 s countdown with `car.input_locked`.
   Results: host clock + recovery penalty, `RaceResults.rows()`, published when all finished/left or 120 s after
@@ -208,15 +225,19 @@ No Blender; model in Godot only as a last resort.
   above: origin → +X → +Z.
 - What the ground is: `shaders/road_surface.gdshaderinc` (road and verge, no seam): fine `loose` material, two wandering
   `packed` wheel tracks, scattered `stones`, per surface in `SurfaceMaterials.ROAD_SETS`; `ground_common.gdshaderinc`: two
-  sets, a third in patches, hummocks that only tilt the light. A scan's flaw is fixed in the shader (snow's hollows:
-  `darkest`, `relief`); a dry road keeps `DRY_SPECULAR` (a low sun ahead turned it white). `RaceLook` adds clouds (`sky_cover`, baked by
-  `tools/make_clouds.gd`) and a shade lit by the biome's bounce as well as the sky.
+  sets, a third in patches, hummocks that only tilt the light; under the crowns (`RoadsideDresser.canopy`, the globals
+  `canopy_map` and `canopy_rect`, 2 m pixels) the ground lies in shade, and in the forest needles, leaves and moss replace the
+  grass (`canopy_shade`, `canopy_litter`, `canopy_moss` per biome in `SurfaceMaterials.BIOME_GROUND`). A scan's flaw is fixed
+  in the shader (snow's hollows: `darkest`, `relief`); a dry road keeps `DRY_SPECULAR` (a low sun ahead turned it white).
+  `RaceLook` adds clouds (`tools/make_clouds.gd`) and a shade lit by the biome's bounce as well as the sky.
   Car glass is premultiplied (`car_glass.gdshader`, `windshield.gdshader`): only mud and cracks scatter light, so nothing
   hazes a dark forest seen through it.
 - On a switchback the next leg is uphill on the side the hairpin turns to: bank on that side, cliff on the
   other (the terrain test probes only open ground).
 - `RoadsideDresser` (+ `RoadsideCatalog`): Poly Haven scans and the Sketchfab conifer/birch packs (`node` picks
-  one tree from a pack, `unit` 0.01 for the centimetre birches, `foliage` = alpha scissor, `black_ground` = a scan
+  one tree from a pack, `unit` 0.01 for the centimetre birches, `foliage` = leaves cut out by alpha (`shaders/leaf.gdshader`)
+  and bark (`bark.gdshader`), both taking rain and snow (`plant_weather.gdshaderinc`: snow in clumps on what faces up, sooner
+  on what is `low`; one material per material of the scan, no draw call added), `black_ground` = a scan
   whose JPEG atlas has no alpha but a black ground, cut away by `shaders/cut_out_leaf.gdshader`: check a new plant's
   atlas, those cards are opaque black otherwise; `low` = grows in the clearings too; `weathered` = a rock the rain and snow reach,
   `shaders/weathered_scan.gdshader`), a thick edge band
@@ -253,7 +274,8 @@ No Blender; model in Godot only as a last resort.
   `obstacles` Callable → steers around fallen trunks/boulders at `AVOID_SPEED`) drives a `RallyCar`:
   `--autodrive`, tests, flow-test bots (which also confirm their own recovery offers). `RaceProgress` is the host's gate accounting.
 - Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N --quality=N --follower=D --follower-delay=S --ride-follower --chips=N --no-road-fx`
-  (forces the whole graphics level) `--dusk --follower=D` (a second car D m behind, for the mirrors)
+  (forces the whole graphics level) `--time=0..3 --dome --follower=D` (a second car D m behind, for the mirrors); it has the
+  race's weather particles (`WeatherFx`)
   `--view=M+E+H [--view-at=M+E+H]` (a fixed camera E m right of road metre M, H m up) `--quit-after-seconds=N`.
   `RaceSession.settings.stage` builds the same stage on every peer.
 

@@ -410,7 +410,9 @@ func _beam_at(pattern: Image, up: float, across: float) -> float:
 
 
 func test_the_headlights_throw_their_light_far_down_the_road() -> void:
+	var started := Time.get_ticks_usec()
 	var pattern := CarLamps.beam_pattern()
+	gut.p("the pattern's %s picture made in %.1f ms (once a game)" % [pattern.get_size(), (Time.get_ticks_usec() - started) / 1000.0])
 	var far := _beam_at(pattern, -0.5, 0.0)
 	gut.p("beam: %.3f at -0.5 deg (the road 55 m ahead), %.3f at -4 deg (7 m), %.3f at +3 deg, %.3f 15 deg aside" % [
 		far, _beam_at(pattern, -4.0, 0.0), _beam_at(pattern, 3.0, 0.0), _beam_at(pattern, -0.5, 15.0)])

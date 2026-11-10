@@ -36,3 +36,15 @@ func test_unfocused_windows_ignore_the_gamepad() -> void:
 
 func test_fbx2gltf_import_is_off() -> void:
 	assert_false(ProjectSettings.get_setting("filesystem/import/fbx2gltf/enabled", true))
+
+
+func test_light_projectors_are_read_without_mipmaps() -> void:
+	# The headlights' pattern (CarLamps.beam_pattern) puts the road from 10 m to 100 m ahead within 3 degrees: a mipmap smears
+	# that band and the beams light the road 20 m ahead instead of reaching down it.
+	assert_eq(ProjectSettings.get_setting("rendering/textures/light_projectors/filter", 3), 1)
+
+
+func test_the_ground_and_the_weather_have_their_globals() -> void:
+	# A shader's global uniform that the project does not declare fails to compile: the ground would not draw.
+	for name in ["wetness", "snow_cover", "wet_mirror", "canopy_map", "canopy_rect"]:
+		assert_true(ProjectSettings.has_setting("shader_globals/" + name), "%s is declared" % name)

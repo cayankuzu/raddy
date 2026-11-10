@@ -32,9 +32,13 @@ struct PlantWeather {
 
 PlantWeather plant_weather(vec3 albedo, float roughness, float up, vec3 world) {
 	PlantWeather w;
-	float clumps = texture(weather_noise, world.xz / CLUMP_BIG + world.y * 0.11).r * 0.65
-		+ texture(weather_noise, (world.xy + world.zy) / CLUMP_SMALL + vec2(0.3, 0.7)).r * 0.35;
-	w.snow = snow_cover * smoothstep(CLUMP_FROM, CLUMP_TO, up * 0.5 * snow_holds + clumps * 0.7 - 0.05 + (snow_holds - 1.0) * 0.5);
+	w.snow = 0.0;
+	// Most weathers have no snow: the forest's every leaf skips the clumps' two reads.
+	if (snow_cover > 0.0) {
+		float clumps = texture(weather_noise, world.xz / CLUMP_BIG + world.y * 0.11).r * 0.65
+			+ texture(weather_noise, (world.xy + world.zy) / CLUMP_SMALL + vec2(0.3, 0.7)).r * 0.35;
+		w.snow = snow_cover * smoothstep(CLUMP_FROM, CLUMP_TO, up * 0.5 * snow_holds + clumps * 0.7 - 0.05 + (snow_holds - 1.0) * 0.5);
+	}
 	float wet = wetness * (1.0 - w.snow);
 	// Snow keeps a little of what is under it: the needles' shape shows through at the edge of a clump.
 	vec3 snow = PLANT_SNOW * (0.88 + 0.24 * clamp(dot(albedo, vec3(0.3, 0.59, 0.11)) * 2.0, 0.0, 0.5));

@@ -373,3 +373,33 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     picture lay off the pane (the mesh runs x along the car, z up), fixed.
   - Crashes: `CrashRules` + meta `struck` on what can be hit; sparks, leaves, splinters, straw, chips, dust and a broken window's glass, looked at beside the car
     (metal, rock, tree, window, straw). A tree hit at 14 m/s in the GUT test: TREE at the front, 56 flakes.
+
+- 2026-11-10: A4 effects, fourth part: times of day and a night that is hard and beautiful, weather on the trees, a forest floor (spec items 6, 7 and 8): DONE.
+  - The room picks the time of day (`RaceSettings` key `time`: day, golden hour, dusk, night or Random; left out it is day), synced with the other choices and shown
+    on the room's card, the HUD and the results in Turkish and English. The room's choices sit three to a row (five and Surprise Rally side by side ran off a
+    16:9 window). `route_test --time=N` replaces `--dusk`, the flow test takes `-Time`.
+  - `RaceLook` per time: the golden hour's sun at 12 degrees, warm and dazzling (the visors come down); at dusk the sun 4 degrees under the horizon (no sun light, no
+    shadow pass) and the sky burning on its side (`shaders/race_sky.gdshader`: afterglow, clouds lit from the sun's side) over trees and ground falling dark; at
+    night a moon of 0.05 and stars on a clear sky, neither under clouds, and a haze that does not glow. The haze keeps each biome's colour at every time. By day the
+    sky shader is the procedural sky: an A/B against the old sky on three views, mean difference 0.03 of 255. `SunInTheSky` stays the one sky light for every camera.
+  - Headlights: a projector pattern, brightest in a band round the horizon (the road from about 45 m on), cut under the nose, drawn through an empty shadow map on a
+    layer nothing is on (`CarLamps.NO_CASTERS`: with no layer the engine dropped the map and the pattern with it); the seat's own car's beams cast real shadows on
+    High. Read without mipmaps (project setting): a mipmap smeared the band and lit the road 20 m ahead instead of down it. Strength by the time of day
+    (`RaceLook.lamp_light`: by day they hardly show, in snow a quarter of the night's: the snow's glare). Fog and dust scatter little of them, a puff of dust in front
+    of a lamp glows instead of blazing; tail lights leave a faint red on the road behind, the dials light with the headlights, rain and snow are lit by the lamps
+    from dusk on, mirrors keep a 512 px shadow atlas so a follower's beams light the road in them. The dome lamp makes the map readable at night; without it the
+    notes column is hard to read.
+  - Trees in the weather: leaves, needles, bark and the ground cover take `wetness` and `snow_cover` (`plant_weather.gdshaderinc`): snow in clumps on what faces up,
+    the undergrowth white long before a branch, rain darkens and shines. 34 materials for every plant of every biome, one per material of the scans: no draw call added.
+  - Forest floor: `RoadsideDresser.canopy` maps where the crowns shade the ground (2 m pixels, 41-73 ms for Black Pine's 358 x 926 map); the ground's shaders darken
+    it there, and in the forest needles, leaves and moss replace the grass. Mountain and desert keep their ground, only shaded.
+  - Contact sheets of every stage at every time of day in its own weathers (18 sheets, 216 shots: `stage_shots.ps1 -OwnWeathers -AllTimes -Kinds "corner,junction,spectators" -Sheet`),
+    looked at by eye: day unchanged; golden hour warm with long shadows; dusk a burning or violet sky over dark silhouettes; night the road readable in the beams and
+    dark round every corner. Hardest and still drivable: fog and dust storms at night (a lit veil), snow at night (glare), following in dust at night (the cloud
+    glows in your own beams and hides everything); a junction at night shows only where the beams point.
+  - Cost: `tools\perf.ps1 -Stage 0`, 30 s, day and night alternating, two rounds each. Medium: day 37.4-39.9 fps, night 35.6-38.7
+    (about 1 ms: the beams' passes), draw calls 782-867 either way. High: the moon's shadow cascades made the night dearer (1248-1451 draw calls
+    against 1024-1140, 28.5-31.7 fps against 32.0-34.4), so the moon casts none now: night 852-1034 draw calls, fewer than by day's 1027-1142; 21-35 fps
+    either way while other programs loaded the PC. Once a stage: the canopy map 41-73 ms, the beam's 64 x 768 pattern 13 ms (once a game).
+  Verified: 439 GUT tests (11537 asserts), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1 -Stage 2 -Time 3` (a whole race at night: 2:05.1 /
+  2:15.2, 18.5 / 17.1 m/s, no script or engine error in either log).

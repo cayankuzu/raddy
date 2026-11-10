@@ -73,11 +73,11 @@ const CLOUDS_AT := {
 	GOLDEN_HOUR: [Color(1.0, 0.82, 0.62), Color(0.78, 0.74, 0.76), 0.3], DUSK: [Color(0.9, 0.45, 0.3), Color(0.12, 0.1, 0.14), 0.85],
 	NIGHT: [Color(0.05, 0.055, 0.07), Color(0.04, 0.045, 0.06), 1.0],
 }
-## The shade's bounced light away from the day (it is then mostly the sky's) and its share against the sky's; the fog's colour.
+## The shade's bounced light away from the day (it is then mostly the sky's) and its share against the sky's; what becomes of
+## the biome's haze (warm at the golden hour, dim at dusk, all but black at night: a night's haze must not glow).
 const BOUNCE_AT := {GOLDEN_HOUR: Color(0.7, 0.6, 0.48), DUSK: Color(0.24, 0.22, 0.3), NIGHT: Color(0.3, 0.36, 0.55)}
 const BOUNCE_SHARE_AT := {GOLDEN_HOUR: 0.4, DUSK: 0.6, NIGHT: 0.7}
-const FOG_TINT := {GOLDEN_HOUR: Color(1.0, 0.9, 0.78)}
-const FOG_AT := {DUSK: Color(0.2, 0.17, 0.22), NIGHT: Color(0.012, 0.015, 0.024)}
+const FOG_TINT := {GOLDEN_HOUR: Color(1.0, 0.9, 0.78), DUSK: Color(0.29, 0.24, 0.3), NIGHT: Color(0.018, 0.021, 0.033)}
 ## The low sun's light scattered by the haze towards it, and the warmer colours of its light.
 const SUN_SCATTER := {GOLDEN_HOUR: 0.18}
 const GOLDEN_SATURATION := 1.12
@@ -145,7 +145,7 @@ static func create(biome: int, weather: int, time := DAY) -> Node3D:
 	env.glow_hdr_threshold = 1.0
 	env.fog_enabled = true
 	var fog: Color = palette.get("fog", Color(0.68, 0.72, 0.74))
-	env.fog_light_color = FOG_AT.get(time, fog * FOG_TINT.get(time, Color.WHITE))
+	env.fog_light_color = fog * FOG_TINT.get(time, Color.WHITE)
 	env.fog_density = RaceSettings.fog_density(weather)
 	env.fog_aerial_perspective = 0.45
 	env.fog_sky_affect = 0.6 if overcast else 0.25
@@ -174,7 +174,8 @@ static func create(biome: int, weather: int, time := DAY) -> Node3D:
 	sun.light_energy = light.y if overcast else light.x
 	sun.light_specular = 0.25 if overcast else 1.0  # no sun to glint off the paint behind the clouds
 	sun.visible = sun.light_energy > 0.0
-	sun.shadow_enabled = true
+	# The moon's shadows hardly show at its strength: their pass is the headlights' on High.
+	sun.shadow_enabled = time != NIGHT
 	sun.shadow_blur = 1.5 if overcast else 1.0
 	sun.directional_shadow_max_distance = 150.0
 	sun.directional_shadow_split_1 = 0.05
