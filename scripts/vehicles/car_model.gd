@@ -36,7 +36,9 @@ const WHEEL_AXIS := Vector3(0.0, 0.353, 0.936)
 const WHEEL_SET_IN := Vector3(0.0, 0.0, -0.07)
 
 var car: RallyCar
-var paint_material: StandardMaterial3D
+var paint_material: ShaderMaterial
+## What the road has left on this car (its skins are the body's materials).
+var dirt: CarDirt
 ## The door and interior mirrors: plain glass until a seat is bound (bind_seat).
 var mirrors: CarMirrors
 var cockpit: CarCockpit
@@ -110,28 +112,23 @@ func _add_cabin_light() -> void:
 	add_child(light)
 
 
-## The body paint becomes one material per car (so each team can have its own colour), tuned
-## from the model's mirror-like metal to a car paint with a clear coat.
+## The body, its trim and the wheels get skins of this car's own: each team has its colour, and the road leaves what it leaves (CarDirt).
 func _setup_paint(model: Node3D) -> void:
+	dirt = CarDirt.new()
+	dirt.name = "Dirt"
+	add_child(dirt)
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance := mi as MeshInstance3D
 		for s in mesh_instance.mesh.get_surface_count():
-			var material := mesh_instance.mesh.surface_get_material(s) as StandardMaterial3D
-			if material == null or material.resource_name != "Milano95_Bodymat":
-				continue
-			if paint_material == null:
-				paint_material = material.duplicate() as StandardMaterial3D
-				paint_material.metallic = 0.35
-				paint_material.roughness = 0.32
-				paint_material.clearcoat_enabled = true
-				paint_material.clearcoat = 0.8
-				paint_material.clearcoat_roughness = 0.12
-			mesh_instance.set_surface_override_material(s, paint_material)
+			var skin := dirt.skin_of(mesh_instance.mesh.surface_get_material(s) as StandardMaterial3D, _car_space(mesh_instance))
+			if skin != null:
+				mesh_instance.set_surface_override_material(s, skin)
+	paint_material = dirt.paint()
 
 
 func set_paint(color: Color) -> void:
 	if paint_material != null:
-		paint_material.albedo_color = color
+		paint_material.set_shader_parameter(&"albedo", color)
 
 
 ## Each tyre mesh goes into its wheel's Visual node, centred, so RallyCar's suspension travel,

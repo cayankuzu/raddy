@@ -1,0 +1,143 @@
+shader_type spatial;
+render_mode cull_disabled;
+// A car's skin (CarDirt: the paint, the trim, the wheels): the model's material with what the road has left on it. Dust is a film that climbs
+// from the sills and from behind the wheels and thickens where it arrived first; mud is thrown, so it comes as drops that run together low
+// down; snow packs like mud. Everything is measured in the car's own space, so it rides on the car and the bonnet that opens keeps what
+// is on it. With nothing on it this is the StandardMaterial3D the model came with.
+
+uniform vec4 albedo : source_color = vec4(1.0);
+uniform sampler2D albedo_map : source_color, hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D metal_rough_map : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform float metallic = 0.0;
+uniform float roughness = 1.0;
+uniform float clearcoat = 0.0;
+uniform float clearcoat_roughness = 0.0;
+
+// tools/make_car_dirt.gd: red big patches, green drops, blue streaks along x.
+uniform sampler2D dirt_map : filter_linear_mipmap, repeat_enable;
+// How far each layer has climbed (0..1), how much of the lower half a splash has washed, the player's effects setting.
+uniform float dust = 0.0;
+uniform float mud = 0.0;
+uniform float snow = 0.0;
+uniform float washed = 0.0;
+uniform float strength = 1.0;
+uniform vec3 dust_color : source_color = vec3(0.6, 0.55, 0.45);
+uniform bool is_wheel = false;
+uniform mat4 to_car = mat4(1.0);
+
+// Heights of the body in car space: its lowest point and how tall it is. A wheel's centre behind which the road fans out, and the
+// axles along the car.
+const float BODY_LOW = -0.36;
+const float BODY_HEIGHT = 1.28;
+const float AXLE_Y = -0.2;
+const float AXLE_Z = 1.21;
+const float WHEEL_RADIUS = 0.384;
+// The fan of what a wheel throws starts this far behind the axle.
+const float WHEEL_ARCH = 0.3;
+// On a wheel the dirt never hides the rubber or the metal entirely.
+const float TYRE_MOST = 0.75;
+const float RIM_MOST = 0.45;
+// A car's picture of drops and streaks, metres per repeat of the tile, big and fine.
+const float TILE_BIG = 1.15;
+const float TILE_FINE = 0.34;
+// Colours of mud (a little lighter where it has dried at its thin edge) and snow.
+const vec3 MUD_COLOR = vec3(0.075, 0.052, 0.033);
+const vec3 SNOW_COLOR = vec3(0.86, 0.88, 0.92);
+
+varying vec3 car_pos;
+varying vec3 car_normal;
+varying vec3 outward;
+
+// How soon the road reaches a point of the body: 1 is where it lands first, 0 where it hardly ever gets.
+float body_reach(vec3 p, vec3 n) {
+	float h = clamp((p.y - BODY_LOW) / BODY_HEIGHT, 0.0, 1.0);
+	float sill = 1.0 - smoothstep(0.0, 0.42, h);
+	// What a wheel throws lands on the flank behind it in a fan that rises towards the back and thins out.
+	float flank = smoothstep(0.25, 0.7, abs(n.x));
+	float fan = 0.0;
+	for (int w = 0; w < 2; w++) {
+		float behind = p.z - (w == 0 ? -AXLE_Z : AXLE_Z) - WHEEL_ARCH;
+		float top = AXLE_Y + 0.2 + behind * 0.3;
+		float along = smoothstep(-0.35, 0.0, behind) * (1.0 - smoothstep(0.6, 1.9, behind));
+		fan = max(fan, along * (1.0 - smoothstep(top - 0.4, top + 0.15, p.y)));
+	}
+	// The rear half of a flank sits in the eddies behind the car.
+	fan = max(fan, smoothstep(-0.4, 1.6, p.z) * (1.0 - smoothstep(0.25, 0.75, h)) * 0.75) * flank;
+	// The back of a car drags the cloud after it, to the roof; the nose only takes what comes from below.
+	float tail = smoothstep(0.05, 0.6, n.z) * mix(0.75, 0.5, h);
+	float nose = smoothstep(0.1, 0.6, -n.z) * (1.0 - smoothstep(0.08, 0.42, h)) * 0.8;
+	// Upward faces only ever get what settles out of the air.
+	float settled = smoothstep(0.4, 0.9, n.y) * 0.3;
+	return max(max(sill, fan * 0.95), max(max(tail, nose), settled));
+}
+
+// A wheel fills from the tread in: the tyre first, the rim later and never as thick.
+float wheel_reach(vec3 p) {
+	return mix(0.3, 1.0, smoothstep(0.62, 0.95, length(p.xy) / WHEEL_RADIUS));
+}
+
+void vertex() {
+	car_pos = (to_car * vec4(VERTEX, 1.0)).xyz;
+	car_normal = mat3(to_car) * NORMAL;
+	outward = mat3(MODELVIEW_MATRIX) * NORMAL;
+}
+
+void fragment() {
+	vec3 paint = albedo.rgb * texture(albedo_map, UV).rgb;
+	vec4 metal_rough = texture(metal_rough_map, UV);
+	float metal = metal_rough.b * metallic;
+	float rough = metal_rough.g * roughness;
+	float coat = clearcoat;
+
+	if (dot(outward, VIEW) > 0.0 && strength > 0.0 && dust + mud + snow > 0.0) {
+		vec3 n = normalize(car_normal);
+		float reach = is_wheel ? wheel_reach(car_pos) : body_reach(car_pos, n);
+		// One linear map of the position for every face: nothing to see where one face meets the next.
+		vec2 at = vec2(car_pos.z + car_pos.x * 0.63, car_pos.y + car_pos.x * 0.41);
+		vec3 big = texture(dirt_map, at / TILE_BIG).rgb;
+		vec3 fine = texture(dirt_map, at / TILE_FINE + vec2(0.37, 0.71)).rgb;
+		float wash = washed * (1.0 - smoothstep(0.2, 0.55, clamp((car_pos.y - BODY_LOW) / BODY_HEIGHT, 0.0, 1.0)));
+		wash = is_wheel ? washed : wash;
+
+		// On a flank the film comes in patches and runs; on top it settles evenly, as a fine powder.
+		float upward = is_wheel ? 0.0 : smoothstep(0.45, 0.9, n.y);
+		float wander = mix((big.r - 0.5) * 0.34 + (big.b - 0.3) * 0.14, (big.r - 0.5) * 0.08, upward) + (fine.r - 0.5) * 0.05;
+		float film = clamp((reach + wander - (1.0 - dust)) / 0.42, 0.0, 1.0);
+		film = pow(film, 0.8) * mix(mix(0.5, 0.92, big.b * 0.55 + fine.b * 0.45), 0.62, upward) * (1.0 - wash) * smoothstep(0.0, 0.06, dust);
+
+		float flung = max(big.g, fine.g * 0.92) + (big.r - 0.5) * 0.18;
+		float mud_up = clamp((reach + mud - 1.0) / 0.5, 0.0, 1.0) + mud * 0.14;
+		float mud_on = smoothstep(0.0, 0.08, flung - 0.94 + mud_up * 1.25) * (1.0 - wash * 0.85) * smoothstep(0.0, 0.06, mud);
+		float snow_up = clamp((reach + snow - 1.0) / 0.5, 0.0, 1.0) + snow * 0.1;
+		float snow_on = smoothstep(0.0, 0.14, flung - 0.94 + snow_up * 1.3) * (1.0 - wash * 0.9) * smoothstep(0.0, 0.06, snow);
+		if (is_wheel) {
+			float rim = 1.0 - smoothstep(0.6, 0.72, length(car_pos.xy) / WHEEL_RADIUS);
+			float most = mix(TYRE_MOST, RIM_MOST, rim);
+			film *= most;
+			mud_on *= most;
+			snow_on *= most;
+		}
+
+		film *= strength;
+		mud_on *= strength;
+		snow_on *= strength;
+		paint = mix(paint, dust_color * mix(0.86, 1.08, big.r), film);
+		// Mud dries lighter where it lies thin.
+		float caked = smoothstep(0.0, 0.5, flung - 0.94 + mud_up * 1.25);
+		paint = mix(paint, MUD_COLOR * mix(1.9, 1.0, caked) * mix(0.75, 1.3, big.r * fine.r * 2.0), mud_on);
+		paint = mix(paint, SNOW_COLOR * mix(0.86, 1.0, fine.r), snow_on);
+		float dirty = max(film, max(mud_on, snow_on));
+		metal *= 1.0 - dirty;
+		coat *= 1.0 - dirty;
+		// Dust is dull, mud damp, packed snow in between.
+		rough = mix(rough, 0.96, film);
+		rough = mix(rough, 0.58, mud_on);
+		rough = mix(rough, 0.72, snow_on);
+	}
+
+	ALBEDO = paint;
+	METALLIC = metal;
+	ROUGHNESS = rough;
+	CLEARCOAT = coat;
+	CLEARCOAT_ROUGHNESS = clearcoat_roughness;
+}

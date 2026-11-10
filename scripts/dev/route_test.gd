@@ -12,6 +12,7 @@ extends Node3D
 ##   --navigator     sit in the navigator's seat (M map, Q/E windows); pair with --autodrive
 ##   --map-open      open the map right away (screenshots)
 ##   --windshield=cracked|removed  --chips=N  --dirt=0.4   start with that glass state (screenshots)
+##   --car-dirt=D+M+S  the body already that dirty with dust, mud and snow (screenshots)
 ##   --weather=0..4 --difficulty=0..2   race settings (default clear, rally)
 ##   --dusk          the sun low, headlights on, dials lit
 ##   --quality=0..2  graphics level (default: the player's setting)
@@ -128,6 +129,8 @@ func _ready() -> void:
 			cabin._rpc_set_windshield(Cabin.Windshield.REMOVED)
 	if _args.has("chips"):
 		cabin._rpc_stone_chip(int(_args["chips"]))
+	if _args.has("car-dirt"):
+		_soil(_car.get_node(^"Model") as CarModel, _args["car-dirt"].split("+"))
 	if _args.has("dirt"):
 		cabin._rpc_set_dirt(float(_args["dirt"]))
 	_chase = ChaseCamera.new()
@@ -188,6 +191,12 @@ func _add_follower(behind: float) -> void:
 		bot.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER
 		bot.start_delay = float(_args.get("follower-delay", "0"))
 		add_child(bot)
+
+
+func _soil(model: CarModel, layers: PackedStringArray) -> void:
+	for layer in layers.size():
+		model.dirt.levels[layer] = float(layers[layer])
+	model.dirt.show_now()
 
 
 func _add_view_camera(view: PackedStringArray) -> void:
