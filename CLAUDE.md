@@ -94,7 +94,7 @@ No Blender; model in Godot only as a last resort.
   bigger, so nobody sees further for choosing less; stones go with the effects setting. Wind and dust colour: `RaceLook.wind`, `dust_tint`. A headless peer only counts (`puffs_thrown`, `bits_thrown`).
 - Dirt on the car: `CarDirt` (child of the `CarModel`, every peer, never sent) gives the paint, the trim (`UCB_BOTTOM`) and the tyres a skin of the
   car's own (`shaders/car_body.gdshader`: the model's StandardMaterial3D while clean, so no draw call of its own; `paint_material` is the paint's skin)
-  and climbs three layers, dust, mud and snow (`CarDirtRules`, pure: per metre by surface and speed, about 0.85 after 3 km of gravel). The mask is in car
+  and climbs three layers, dust, mud and snow (`CarDirtRules`, pure: per metre by surface and speed, about 0.8 after a short stage, 0.93 after 3 km of gravel). The mask is in car
   space: sills first, fans behind the wheels, the rear face, what faces up last; `assets/fx/car_dirt.png` (`tools/make_car_dirt.gd`: patches, drops,
   streaks). A splash washes the lower half (`washed`, back within 500 m of dirty road); a recovery cleans nothing; the flag's badges and the glass are no
   skins (the Cabin owns the glass). `route_test --car-dirt=D+M+S` for shots.

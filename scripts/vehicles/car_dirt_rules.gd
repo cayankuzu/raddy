@@ -2,18 +2,18 @@ class_name CarDirtRules
 ## How dirty a car gets from the road under it (CarDirt shows it): pure numbers. Three layers, each from 0 (clean) to 1 (as far up the
 ## car as it ever gets): dust from dry roads, mud from mud and wet roads, snow. A layer climbs by the metres driven over its surface and the
 ## speed they are driven at; it slows down as the car fills up. A water splash rinses the lower half, the next metres of dirty road undo that.
-## Tuned so that a whole stage at rally speed leaves a car filthy: about 0.85 after 3 km of gravel.
+## Tuned so that a whole stage at rally speed leaves a car filthy: about 0.8 after a short stage (2.2 km at 17 m/s), 0.93 after 3 km at 20 m/s.
 
 enum Layer { DUST, MUD, SNOW }
 
 ## Per surface: the layer it leaves and the share of what is still clean it covers per metre at GATHER_FULL_SPEED. Tarmac leaves nothing.
 const GATHERS := {
-	Surface.GRAVEL: {"layer": Layer.DUST, "per_metre": 0.00062},
-	Surface.DIRT: {"layer": Layer.DUST, "per_metre": 0.0007},
-	Surface.SAND: {"layer": Layer.DUST, "per_metre": 0.0008},
-	Surface.SNOW: {"layer": Layer.SNOW, "per_metre": 0.00075},
-	Surface.MUD: {"layer": Layer.MUD, "per_metre": 0.0032},
-	Surface.WET: {"layer": Layer.MUD, "per_metre": 0.00062},
+	Surface.GRAVEL: {"layer": Layer.DUST, "per_metre": 0.0008},
+	Surface.DIRT: {"layer": Layer.DUST, "per_metre": 0.0009},
+	Surface.SAND: {"layer": Layer.DUST, "per_metre": 0.001},
+	Surface.SNOW: {"layer": Layer.SNOW, "per_metre": 0.001},
+	Surface.MUD: {"layer": Layer.MUD, "per_metre": 0.0035},
+	Surface.WET: {"layer": Layer.MUD, "per_metre": 0.0008},
 }
 ## A car crawling throws little at itself; from this speed (m/s) a metre counts in full.
 const GATHER_FULL_SPEED := 18.0

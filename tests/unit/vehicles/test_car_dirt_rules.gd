@@ -19,7 +19,8 @@ func test_a_stage_of_gravel_leaves_the_car_filthy_but_its_start_clean() -> void:
 	var whole := _drive(Surface.GRAVEL, 3000.0)
 	gut.p("dust at %.0f m/s: %.2f after 300 m, %.2f after 1.5 km, %.2f after 3 km" % [STAGE_SPEED, start, half, whole])
 	assert_lt(start, 0.25, "only the sills after the first bends")
-	assert_between(whole, 0.78, 0.93, "filthy at the finish, never more than the car can hold")
+	assert_between(whole, 0.85, 0.96, "filthy at the finish, never more than the car can hold")
+	assert_gt(_drive(Surface.GRAVEL, 2200.0, 17.0), 0.75, "a short stage at a bot's pace too")
 
 
 func test_each_surface_leaves_its_own_layer_and_tarmac_nothing() -> void:
@@ -36,7 +37,7 @@ func test_mud_covers_a_car_far_sooner_than_dust() -> void:
 	var mud := _drive(Surface.MUD, 300.0)
 	gut.p("mud after a 300 m stretch: %.2f, dust %.2f" % [mud, _drive(Surface.GRAVEL, 300.0)])
 	assert_gt(mud, 0.5, "one muddy stretch is enough")
-	assert_gt(mud, _drive(Surface.GRAVEL, 300.0) * 3.0)
+	assert_gt(mud, _drive(Surface.GRAVEL, 300.0) * 2.5)
 
 
 func test_a_crawl_throws_less_at_the_car_than_rally_speed() -> void:
