@@ -28,7 +28,7 @@ void fragment() {
 	float damp = smoothstep(shoulder, ditch_in, UV.x) * (1.0 - smoothstep(ditch_out, ditch_end, UV.x));
 	ALBEDO = mix(r.albedo, g.albedo, t) * mix(1.0, 0.86, damp);
 	ROUGHNESS = mix(mix(r.roughness, g.roughness, t), 0.55, damp * 0.6);
-	SPECULAR = r.specular;
+	SPECULAR = mix(r.specular, g.specular, t);
 	METALLIC = 0.0;
 	AO = mix(r.ao, g.ao, t);
 	AO_LIGHT_AFFECT = 0.4;

@@ -17,7 +17,8 @@ void fragment() {
 	PlantWeather w = plant_weather(colour, roughness, (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y, world, 1.0);
 	ALBEDO = w.albedo;
 	ROUGHNESS = w.roughness;
-	SPECULAR = 0.5 + w.specular;
+	// Wet bark shines by its water being smoother than the bark, not by mirroring more (plant_weather's specular is the film's).
+	SPECULAR = max(0.5, w.specular);
 	if (has_normal) {
 		NORMAL_MAP = mix(texture(normal_texture, UV).rgb, vec3(0.5, 0.5, 1.0), w.snow);
 	}

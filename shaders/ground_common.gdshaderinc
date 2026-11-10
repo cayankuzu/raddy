@@ -64,12 +64,17 @@ const vec3 NEEDLES = vec3(1.18, 0.98, 0.72);
 const vec3 MOSS = vec3(0.16, 0.2, 0.07);
 const float CANOPY_OCCLUSION = 0.55;
 const float CANOPY_SNOW = 0.55;
+// Dry ground shadows itself at every grain, needle and blade, as the dry road does (road_surface.gdshaderinc DRY_SPECULAR): at
+// the default the sky's sheen turned every shade blue-grey, the forest floor most. Rain makes it shine.
+const float GROUND_DRY_SPECULAR = 0.2;
+const float GROUND_WET_SPECULAR = 0.5;
 
 struct GroundSample {
 	vec3 albedo;
 	vec2 normal_rg;
 	float ao;
 	float roughness;
+	float specular;
 };
 
 float macro_at(vec2 xz) {
@@ -160,5 +165,6 @@ GroundSample ground_sample(vec3 world_pos, vec3 world_normal) {
 	s.normal_rg = nrm;
 	s.ao = arm.r;
 	s.roughness = arm.g;
+	s.specular = mix(GROUND_DRY_SPECULAR, GROUND_WET_SPECULAR, wet);
 	return s;
 }

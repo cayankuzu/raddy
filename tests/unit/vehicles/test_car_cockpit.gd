@@ -10,8 +10,11 @@ var _audio: CarAudio
 
 
 func before_each() -> void:
+	# The car makes the scene's RoadFxPool beside itself: it goes with this world after each test.
+	var world := Node3D.new()
+	add_child_autofree(world)
 	_car = load("res://scenes/vehicles/rally_car.tscn").instantiate()
-	add_child_autofree(_car)
+	world.add_child(_car)
 	_car.set_simulated(false)  # the tests say what the car is doing
 	_model = _car.get_node(^"Model") as CarModel
 	_cockpit = _model.cockpit
@@ -143,11 +146,12 @@ func test_the_steering_wheel_turns_the_right_way_about_its_column() -> void:
 
 func test_the_rear_lamps_light_with_what_the_car_does() -> void:
 	var lamps := _model.lamps
+	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR, RaceSettings.TimeOfDay.NIGHT).free()
 	lamps.set_headlights(false)
 	_car.controls.brake = 0.0
 	_car.forward_speed = 10.0
 	lamps._process(0.016)
-	assert_eq(lamps._brake.emission_energy_multiplier, 0.0, "tail lights off in daylight")
+	assert_eq(lamps._brake.emission_energy_multiplier, 0.0, "tail lights off with the headlights")
 	assert_false(lamps._brake_light.visible, "and nothing red on the road behind")
 	lamps.set_headlights(true)
 	lamps._process(0.016)
@@ -163,6 +167,16 @@ func test_the_rear_lamps_light_with_what_the_car_does() -> void:
 	lamps._process(0.016)
 	assert_almost_eq(lamps._reverse.emission_energy_multiplier, CarLamps.REVERSE_GLOW, 0.001, "reversing lights when the driver backs up")
 	assert_almost_eq(lamps._brake.emission_energy_multiplier, CarLamps.TAIL_GLOW, 0.001, "the pedal is the reverse here, not the brake")
+	assert_true(lamps._reverse_light.visible, "and they light the road behind")
+	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.RAIN).free()
+	_car.forward_speed = 10.0
+	lamps._process(0.016)
+	assert_almost_eq(lamps._brake.emission_energy_multiplier, CarLamps.BRAKE_GLOW, 0.001, "by day the glass still shows the brake")
+	assert_false(lamps._brake_light.visible, "but its light on the road is lost in the daylight, as the beams' is")
+	_car.forward_speed = -3.0
+	lamps._process(0.016)
+	assert_false(lamps._reverse_light.visible, "and so is the reversing lights'")
+	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR).free()
 
 
 func test_a_car_rolling_back_by_itself_is_not_reversing() -> void:

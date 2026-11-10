@@ -23,10 +23,11 @@ const float CLUMP_TO = 0.56;
 // On a card of needles or leaves: how far it must face up, and how square to the eye it must be, for snow to lie on it.
 const vec2 CARD_UP = vec2(0.15, 0.5);
 const vec2 CARD_FACING = vec2(0.08, 0.3);
-// What rain does: how much darker, how glossy, how much it shines.
+// What rain does: how much darker, how glossy, how much it shines (a film of water's). Drops on needles are no smooth film: glossier
+// than that, every card seen edge on mirrored the overcast sky and the crowns looked frosted.
 const float PLANT_WET_DARK = 0.35;
-const float PLANT_WET_ROUGHNESS = 0.32;
-const float PLANT_WET_SPECULAR = 0.45;
+const float PLANT_WET_ROUGHNESS = 0.55;
+const float PLANT_WET_SPECULAR = 0.35;
 
 struct PlantWeather {
 	vec3 albedo;

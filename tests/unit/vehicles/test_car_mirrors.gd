@@ -9,8 +9,11 @@ var _mirrors: CarMirrors
 
 
 func before_each() -> void:
+	# The car makes the scene's RoadFxPool beside itself: it goes with this world after each test.
+	var world := Node3D.new()
+	add_child_autofree(world)
 	_car = load("res://scenes/vehicles/rally_car.tscn").instantiate()
-	add_child_autofree(_car)
+	world.add_child(_car)
 	_model = _car.get_node(^"Model") as CarModel
 	_mirrors = _model.mirrors
 

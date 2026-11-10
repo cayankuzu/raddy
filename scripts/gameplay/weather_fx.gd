@@ -12,6 +12,9 @@ const THUNDER := preload("res://assets/audio/ambience/thunder.ogg")
 const THUNDER_GAP := Vector2(18.0, 50.0)
 ## Below this much daylight (RaceLook) the particles take the scene's light.
 const LIT_FROM := 0.5
+## Nearer the eye than the first distance (m) nothing is drawn, and it fades in up to the second: the box of weather round the camera
+## knows no cabin, and a flake passing the lens was a sheet with straight sides.
+const NEAR_FADE := Vector2(1.5, 4.0)
 
 var weather := RaceSettings.Weather.CLEAR
 
@@ -38,6 +41,11 @@ func _ready() -> void:
 	sprite.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED if RaceLook.daylight > LIT_FROM else BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	sprite.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	sprite.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+	sprite.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
+	sprite.distance_fade_min_distance = NEAR_FADE.x
+	sprite.distance_fade_max_distance = NEAR_FADE.y
+	# A round flake, a wisp of dust; a drop is a streak that thins out at both ends.
+	sprite.albedo_texture = _streak() if weather == RaceSettings.Weather.RAIN else RoadFxPool.soft_puff()
 	match weather:
 		RaceSettings.Weather.RAIN:
 			_particles.amount = 1400
@@ -57,8 +65,8 @@ func _ready() -> void:
 			material.initial_velocity_min = 1.0
 			material.initial_velocity_max = 2.2
 			material.gravity = Vector3(0, -0.6, 0)
-			mesh.size = Vector2(0.07, 0.07)
-			sprite.albedo_color = Color(1, 1, 1, 0.85)
+			mesh.size = Vector2(0.08, 0.08)
+			sprite.albedo_color = Color(1, 1, 1, 0.9)
 			sprite.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 		RaceSettings.Weather.DUST_STORM:
 			_particles.amount = 900
@@ -76,6 +84,21 @@ func _ready() -> void:
 	_particles.process_material = material
 	_particles.draw_pass_1 = mesh
 	add_child(_particles)
+
+
+## A falling drop as the eye sees it: a streak, clear at both ends.
+static func _streak() -> GradientTexture2D:
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(1, 1, 1, 0))
+	gradient.set_color(1, Color(1, 1, 1, 0))
+	gradient.add_point(0.5, Color(1, 1, 1, 1))
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.fill_from = Vector2(0.5, 0.0)
+	texture.fill_to = Vector2(0.5, 1.0)
+	texture.width = 4
+	texture.height = 64
+	return texture
 
 
 func _start_rain_sound() -> void:

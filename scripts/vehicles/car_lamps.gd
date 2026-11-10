@@ -4,7 +4,7 @@ extends Node3D
 ## pedal, reversing lights, hazards that blink when the car is stuck or badly hurt (CockpitRules), and the dome
 ## lamp the crew switches on to read the map (Cabin). All of them light up their part of the model; the
 ## headlights' beams and the dome light the world at every graphics level (they are how the crew sees at night),
-## the glow of the rear lamps from Medium up: the tail lights' faint red on the road behind, the brake lights' bright one.
+## the glow of the rear lamps from Medium up and from dusk on: the tail lights' faint red on the road behind, the brake lights' bright one.
 ## Every car stands in the others' beams as a hull of a few triangles (HULL_LAYER).
 
 ## How bright each lamp's own glass is when lit.
@@ -21,10 +21,12 @@ const DOME_LENS_DEPTH := 0.016
 const DOME_LIGHT_AT := Vector3(0.0, 0.8, 0.02)
 const DOME_RANGE := 1.45
 const DOME_ENERGY := 1.1
-## Where the rear lamps' glow starts, how bright the brake lights' glow is and how much of it the tail lights give.
+## Where the rear lamps' glow starts, how bright the brake lights' glow is at night, how much of it the tail lights give and how
+## bright the reversing lights' glow is.
 const REAR_GLOW_AT := Vector3(0.0, 0.25, 1.95)
 const REAR_GLOW_ENERGY := 1.6
 const TAIL_SHARE := 0.12
+const REVERSE_GLOW_ENERGY := 2.2
 ## The headlights: a beam each side, the lamp's own pattern across a cone this wide (half the angle, degrees), reaching this far,
 ## as bright as this at night (RaceLook.lamp_light: by day they hardly show). A real lamp throws most of its light round the
 ## horizon, where the road far ahead lies, and little onto the road close to the car, which it meets at a steeper angle: that is
@@ -90,7 +92,7 @@ func build(model: Node3D) -> void:
 	var glow := GraphicsQuality.current() != GraphicsQuality.Level.LOW
 	if glow:
 		_brake_light = _rear_glow("BrakeGlow", Color(1.0, 0.1, 0.05), 7.0, REAR_GLOW_ENERGY)
-		_reverse_light = _rear_glow("ReverseGlow", Color(1.0, 0.97, 0.9), 9.0, 2.2)
+		_reverse_light = _rear_glow("ReverseGlow", Color(1.0, 0.97, 0.9), 9.0, REVERSE_GLOW_ENERGY)
 	for side: float in [-1.0, 1.0]:
 		var beam := SpotLight3D.new()
 		beam.name = "HeadlightLeft" if side < 0.0 else "HeadlightRight"
@@ -298,9 +300,12 @@ func _process(delta: float) -> void:
 	if _reverse != null:
 		_reverse.emission_energy_multiplier = REVERSE_GLOW if reversing else 0.0
 	if _brake_light != null:
-		_brake_light.visible = braking or headlights
-		_brake_light.light_energy = REAR_GLOW_ENERGY * (1.0 if braking else TAIL_SHARE)
-		_reverse_light.visible = reversing
+		# Like the beams' (RaceLook.lamp_light): by day the lamps' glass shows, their light on the road is lost in the daylight.
+		var dark := RaceLook.lamp_light > 0.0
+		_brake_light.visible = dark and (braking or headlights)
+		_brake_light.light_energy = REAR_GLOW_ENERGY * (1.0 if braking else TAIL_SHARE) * RaceLook.lamp_light
+		_reverse_light.visible = dark and reversing
+		_reverse_light.light_energy = REVERSE_GLOW_ENERGY * RaceLook.lamp_light
 	if _blinkers != null:
 		var lit := CockpitRules.hazards_on(car.needs_recovery, car.damage_level) and CockpitRules.blink(_time)
 		_blinkers.emission_energy_multiplier = BLINK_GLOW if lit else 0.0

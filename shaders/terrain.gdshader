@@ -18,6 +18,7 @@ void fragment() {
 	GroundSample s = ground_sample(world_pos, world_normal);
 	ALBEDO = s.albedo;
 	ROUGHNESS = s.roughness;
+	SPECULAR = s.specular;
 	METALLIC = 0.0;
 	AO = s.ao;
 	AO_LIGHT_AFFECT = 0.4;

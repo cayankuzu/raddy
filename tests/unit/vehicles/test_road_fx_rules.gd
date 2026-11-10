@@ -43,7 +43,7 @@ func test_the_pool_holds_three_crews_dust() -> void:
 	var life: Vector2 = RoadFxRules.throws(Surface.GRAVEL).life
 	var thrown := 3.0 * RoadFxRules.puffs_per_second(Surface.GRAVEL, 25.0, 0.2, 1.0) * life.y
 	gut.p("three crews throw %.0f puffs in %.1f s; the pool holds %d" % [thrown, life.y, RoadFxPool.PUFFS])
-	assert_lte(thrown, RoadFxPool.PUFFS)
+	assert_lte(thrown, float(RoadFxPool.PUFFS))
 
 
 func test_no_setting_can_clear_the_air() -> void:
