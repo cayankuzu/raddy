@@ -28,14 +28,15 @@ const REAR_GLOW_AT := Vector3(0.0, 0.25, 1.95)
 const REAR_GLOW_ENERGY := 1.6
 const TAIL_SHARE := 0.12
 const REVERSE_GLOW_ENERGY := 2.2
-## The headlights: a beam each side, the lamp's own pattern across a cone this wide (half the angle, degrees), reaching this far,
-## as bright as this at night (RaceLook.lamp_light: by day they hardly show). A real lamp throws most of its light round the
-## horizon, where the road far ahead lies, and little onto the road close to the car, which it meets at a steeper angle: that is
-## how a pair of headlights reaches 80 m and more (beam_pattern).
-const BEAM_AT := Vector3(0.55, -0.05, -2.02)
+## The headlights: the lamp's own pattern across a cone this wide (half the angle, degrees), reaching this far, as bright as this at
+## night (RaceLook.lamp_light: by day they hardly show). A real lamp throws most of its light round the horizon, where the road far
+## ahead lies, and little onto the road close to the car, which it meets at a steeper angle: that is how a pair of headlights reaches
+## 80 m and more (beam_pattern). The two lamps, 1.1 m apart, are one beam from between them with the light of both: from 20 m on
+## they light the road as one, and every beam is a shadow pass on every frame (the light pod has the other one).
+const BEAM_AT := Vector3(0.0, -0.05, -2.02)
 const BEAM_ANGLE := 30.0
 const BEAM_RANGE := 130.0
-const BEAM_ENERGY := 1500.0
+const BEAM_ENERGY := 3000.0
 const BEAM_COLOR := Color(1.0, 0.96, 0.9)
 ## How much of a beam the fog scatters back: fog lit at the beams' full strength would be a white wall a metre ahead. How much
 ## it shines on what it lights: a car's flank at a grazing angle would mirror it blindingly into its own door mirror.
@@ -97,23 +98,22 @@ func build(model: Node3D) -> void:
 	if glow:
 		_brake_light = _rear_glow("BrakeGlow", Color(1.0, 0.1, 0.05), 7.0, REAR_GLOW_ENERGY)
 		_reverse_light = _rear_glow("ReverseGlow", Color(1.0, 0.97, 0.9), 9.0, REVERSE_GLOW_ENERGY)
-	for side: float in [-1.0, 1.0]:
-		var beam := SpotLight3D.new()
-		beam.name = "HeadlightLeft" if side < 0.0 else "HeadlightRight"
-		beam.light_color = BEAM_COLOR
-		beam.light_energy = BEAM_ENERGY * RaceLook.lamp_light
-		beam.spot_range = BEAM_RANGE
-		beam.spot_angle = BEAM_ANGLE
-		beam.light_volumetric_fog_energy = BEAM_IN_FOG
-		beam.light_projector = beam_texture()
-		# The pattern is drawn through the beam's shadow map: the cars' hulls only, unless the beam casts shadows (cast_shadows).
-		beam.shadow_enabled = true
-		beam.shadow_caster_mask = HULL_LAYER
-		beam.light_cull_mask = OUTSIDE_THE_CABINS
-		beam.light_specular = BEAM_SHINE
-		beam.position = Vector3(BEAM_AT.x * side, BEAM_AT.y, BEAM_AT.z)
-		add_child(beam)
-		_beams.append(beam)
+	var beam := SpotLight3D.new()
+	beam.name = "Headlights"
+	beam.light_color = BEAM_COLOR
+	beam.light_energy = BEAM_ENERGY * RaceLook.lamp_light
+	beam.spot_range = BEAM_RANGE
+	beam.spot_angle = BEAM_ANGLE
+	beam.light_volumetric_fog_energy = BEAM_IN_FOG
+	beam.light_projector = beam_texture()
+	# The pattern is drawn through the beam's shadow map: the cars' hulls only, unless the beam casts shadows (cast_shadows).
+	beam.shadow_enabled = true
+	beam.shadow_caster_mask = HULL_LAYER
+	beam.light_cull_mask = OUTSIDE_THE_CABINS
+	beam.light_specular = BEAM_SHINE
+	beam.position = BEAM_AT
+	add_child(beam)
+	_beams.append(beam)
 	if RaceLook.light_pods:
 		pod = CarLightPod.new()
 		pod.name = "LightPod"

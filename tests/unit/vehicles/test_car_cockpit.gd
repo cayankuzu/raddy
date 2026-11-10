@@ -523,8 +523,11 @@ func test_no_beam_shines_through_another_car() -> void:
 			if behind < 20.0:
 				var road := Vector3(lamp.x * 0.5, -0.62, -15.0)
 				assert_true(_crosses(hull.mesh, lamp, road), "and the road ahead of the car lies in its shade (%.0f m back)" % behind)
-	for lamp: Vector3 in [CarLamps.BEAM_AT, CarLamps.BEAM_AT * Vector3(-1.0, 1.0, 1.0)]:
+	for aside: float in [-0.55, 0.0, 0.55]:
+		var lamp := CarLamps.BEAM_AT + Vector3(aside, 0.0, 0.0)
 		assert_false(_crosses(hull.mesh, lamp, lamp + Vector3(0.0, -0.6, -20.0)), "the car's own beams go out freely")
+	assert_false(_crosses(hull.mesh, CarLightPod.MOUNT + CarLightPod.BEAM_AT, CarLightPod.MOUNT + Vector3(0.0, -0.6, -20.0)),
+		"and its light pod's")
 
 
 func test_no_lamp_shines_on_the_inside_of_a_car() -> void:
