@@ -56,6 +56,7 @@ static func build(graph: RouteGraph, gate: RouteGraph.Gate, terrain: TerrainFiel
 	var body := StaticBody3D.new()
 	body.name = "Posts"
 	body.set_meta(&"surface", Surface.TARMAC)
+	body.set_meta(CrashRules.META, CrashRules.Struck.METAL)
 	arch.add_child(body)
 	var truss := SurfaceTool.new()
 	truss.begin(Mesh.PRIMITIVE_TRIANGLES)

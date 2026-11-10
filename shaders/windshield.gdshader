@@ -1,17 +1,15 @@
 shader_type spatial;
-render_mode blend_premul_alpha, cull_disabled, depth_draw_opaque, specular_schlick_ggx;
+render_mode blend_premul_alpha, cull_disabled, depth_draw_opaque;
 // The car's windshield (WindshieldGlass): clear glass that gathers mud in blotches and streaks,
-// stays clean where the wipers sweep (the corners keep the dirt), and shows a crack star when a
-// stone hits it. Coordinates are measured in the glass's own plane (the model's UVs point into a
-// texture atlas): u across the car, v up the glass, both 0..1.
+// stays clean where the wipers sweep (the corners keep the dirt), takes a bullseye where a stone hits
+// and cracks from there (shaders/glass_crack.gdshaderinc). Coordinates are measured in the glass's own
+// plane (the model's UVs point into a texture atlas): u across the car, v up the glass, both 0..1.
 
 uniform vec3 dirt_color : source_color = vec3(0.3, 0.26, 0.2);
 // How dirty the swept part and the corners are (0..1).
 uniform float dirt = 0.0;
 uniform float edge_dirt = 0.0;
 uniform sampler2D dirt_noise : filter_linear_mipmap, repeat_enable;
-uniform sampler2D crack_texture : filter_linear_mipmap, repeat_disable;
-uniform float cracked = 0.0;
 // A stone's bullseye: whether there is one, and where (metres in u, v).
 uniform float chipped = 0.0;
 uniform vec2 chip_at = vec2(0.5);
@@ -30,6 +28,7 @@ uniform vec3 wipe_b = vec3(0.2, 0.6, 0.1);
 uniform float wipe_sweep = 1.658;
 
 #include "res://shaders/glass_ghost.gdshaderinc"
+#include "res://shaders/glass_crack.gdshaderinc"
 
 // How thick the dust gets, and the mud's specks: above which value of the noise there is one on clean glass, how much dirt
 // brings that down, how sharp a speck's edge is.
@@ -40,8 +39,10 @@ const float SPECK_EDGE = 0.03;
 
 // A bullseye's radius (m).
 const float CHIP_RADIUS = 0.011;
+const vec3 GLASS_WHITE = vec3(0.93, 0.96, 1.0);
 
 varying vec3 local_pos;
+varying float glass_specular;
 
 // A stone's bullseye: a small crater with a broken edge, lit on one side as a cone of crushed glass is, a speck in its heart and
 // the glass inside it hazed.
@@ -87,14 +88,23 @@ void fragment() {
 		smoothstep(reached, reached + SPECK_EDGE, droplets * 0.7 + thins * 0.3));
 	specks *= smoothstep(0.02, 0.2, d);
 	float mud = clamp(film + specks * (0.92 - film), 0.0, 0.94);
-	float crack = max(cracked * texture(crack_texture, uv).a, chipped * bullseye(metres - chip_at));
+	vec3 face;
+	crack_cover = crack_at(uv, plane_u, plane_v, NORMAL, VERTEX, VIEW_MATRIX * MODEL_MATRIX, face);
+	crack_face = face;
+	crack_crush = chipped * bullseye(metres - chip_at);
 	// Only mud and cracks scatter light, clean glass adds what it mirrors (car_glass.gdshader says why
 	// it mirrors nothing from a seat), so ALBEDO counts how much of them covers the glass.
 	float outside = smoothstep(2.0, 3.0, length(VERTEX));
 	vec3 mud_colour = dirt_color * mix(1.15, 0.75, specks) * mix(0.85, 1.05, streak);
-	ALBEDO = mix(mud_colour * mud, vec3(0.93, 0.96, 1.0), crack * 0.85);
-	ALPHA = max(max(mix(0.05, 0.3, outside), mud), crack * 0.85);
+	float crushed = crack_crush * 0.85;
+	ALBEDO = mix(mud_colour * mud, GLASS_WHITE, crushed) + GLASS_WHITE * crack_cover * CRACK_SCATTER;
+	ALPHA = max(max(mix(0.05, 0.3, outside), mud), max(crushed, crack_cover * CRACK_SHADE));
 	ROUGHNESS = mix(0.04, 0.85, mud);
-	SPECULAR = mix(mix(0.0, 0.65, outside), 0.2, mud);
+	glass_specular = mix(mix(0.0, 0.65, outside), 0.2, mud);
 	EMISSION = glass_ghost(VERTEX, NORMAL, (VIEW_MATRIX * MODEL_MATRIX * vec4(lamp_position, 1.0)).xyz, outside);
+}
+
+void light() {
+	glass_light(LIGHT, VIEW, NORMAL, LIGHT_COLOR, ATTENUATION, SPECULAR_AMOUNT, ROUGHNESS, glass_specular, crack_cover, crack_face, crack_crush,
+		DIFFUSE_LIGHT, SPECULAR_LIGHT);
 }

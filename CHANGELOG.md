@@ -12,6 +12,10 @@
   paint and the team colour show through at the start, by the finish of a dry stage the car is filthy. A water splash rinses the lower half; a recovery cleans nothing.
 - **Tyre marks:** every tyre leaves its mark for the rest of the race: pressed gravel, deep ruts in mud and snow, a furrow in sand, wide swept arcs where a car
   slid. The crew behind drives over the leader's line.
+- **A crack that looks like a crack:** hair-thin straight lines run out from a small star where the stone hit, with a branch here and there; every stone after
+  sends them further and leaves a little star of its own. They flare when the light catches them, most of all driving into a low sun. Side windows crack the same way.
+- **Bigger hits:** a crash throws sparks off rocks and rails, bark and a shower of leaves or needles off a tree (snow in winter), splinters off wood, straw off a
+  bale, dust off the ground; a side window that breaks drops its glass.
 - **Narrow rally roads:** 3.6-5.0 m wide (Explore 0.8 m wider, Redline 0.2 m narrower), a gravel shoulder you can use,
   a real ditch beside it and a bank a car can drive back up. Every stage is over 2 km long, with a danger at least every 500 m.
 - **A forest like a wall:** trunks from 3 m off the road, undergrowth in the ditch, the inside of every corner screened. You see

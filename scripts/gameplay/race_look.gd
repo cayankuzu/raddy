@@ -45,12 +45,20 @@ const DUST_TINT := {
 	RaceSettings.Biome.FOREST: Color(0.93, 0.89, 0.82), RaceSettings.Biome.DESERT: Color(1.06, 0.96, 0.83),
 	RaceSettings.Biome.MOUNTAIN: Color(0.93, 0.94, 0.96),
 }
+## What a tree of this biome drops when a car hits it (CarRoadFx): needles, birch leaves, dry ones; in snow, the snow off its branches.
+const FOLIAGE := {
+	RaceSettings.Biome.FOREST: [Color(0.1, 0.16, 0.06), Color(0.13, 0.2, 0.07), Color(0.32, 0.38, 0.1), Color(0.5, 0.42, 0.12), Color(0.36, 0.25, 0.1)],
+	RaceSettings.Biome.DESERT: [Color(0.36, 0.3, 0.2), Color(0.3, 0.26, 0.17)],
+	RaceSettings.Biome.MOUNTAIN: [Color(0.09, 0.14, 0.06), Color(0.11, 0.17, 0.07), Color(0.3, 0.22, 0.11)],
+}
+const SNOW_OFF_BRANCHES: Array[Color] = [Color(0.88, 0.9, 0.94), Color(0.8, 0.83, 0.88)]
 
 ## How much daylight the last race look has (the car's cabin fill stands in for it).
 static var daylight := 1.0
-## The last race look's wind (m/s) and dust colour, for what the cars throw into the air (RoadFxPool).
+## The last race look's wind (m/s), dust colour and what its trees drop, for what the cars throw into the air (RoadFxPool).
 static var wind := WIND_FROM * 1.1
 static var dust_tint := Color.WHITE
+static var foliage: Array = FOLIAGE[RaceSettings.Biome.FOREST]
 
 
 ## Whether the cars run with their headlights on.
@@ -65,6 +73,7 @@ static func create(biome: int, weather: int, dusk := false) -> Node3D:
 	daylight = DUSK_LIGHT if dusk else 1.0
 	wind = WIND_FROM * float(WIND_SPEED.get(weather, 1.0))
 	dust_tint = DUST_TINT.get(biome, Color.WHITE)
+	foliage = SNOW_OFF_BRANCHES if weather == RaceSettings.Weather.SNOW else FOLIAGE.get(biome, FOLIAGE[RaceSettings.Biome.FOREST])
 	SurfaceMaterials.set_weather(weather)
 
 	var sky_material := ProceduralSkyMaterial.new()

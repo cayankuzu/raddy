@@ -36,6 +36,8 @@ const BOULDER_KEEP_DISTANCE := 15.0
 const GRID_ROW := 7.0
 const GRID_LATERAL := 0.9
 const CAN_LIFETIME := 8.0
+## A crash touches a car at most this far from its middle (m): a report from further away is cut to it.
+const IMPACT_REACH := 3.0
 const SYNC_NODE := &"NetSync"
 ## Spec 3: a short start. The cars hold on the grid while it counts down.
 const COUNTDOWN_SECONDS := 3.0
@@ -288,34 +290,35 @@ func damage_of(team: int) -> VehicleDamage:
 
 ## Bound arguments come after the signal's own, so `team` is last.
 ## The driver's own car felt a crash (RallyCar.impact: a body contact, landings excluded). The
-## driver simulates the car, so the driver reports it; the host judges the damage.
+## driver simulates the car, so the driver reports it, with where it touched the car and what it hit; the host judges the damage.
 func _on_driver_impact(strength: float, local_direction: Vector3, team: int) -> void:
+	var car: RallyCar = _team_cars[team]
 	if Net.is_host():
-		_judge_impact(team, strength, local_direction)
+		_judge_impact(team, strength, local_direction, car.last_impact_at, car.last_impact_struck)
 	else:
-		_rpc_report_impact.rpc_id(1, team, strength, local_direction)
+		_rpc_report_impact.rpc_id(1, team, strength, local_direction, car.last_impact_at, car.last_impact_struck)
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _rpc_report_impact(team: int, strength: float, local_direction: Vector3) -> void:
+func _rpc_report_impact(team: int, strength: float, local_direction: Vector3, at: Vector3, struck: int) -> void:
 	if not Net.is_host():
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if RosterRules.driver_of(Net.roster, team) != sender:
 		return  # only the team's own driver speaks for its car
 	var hit := clampf(strength, 0.0, 60.0)
-	_judge_impact(team, hit, local_direction.normalized())
+	_judge_impact(team, hit, local_direction.normalized(), at.limit_length(IMPACT_REACH), clampi(struck, 0, CrashRules.Struck.size() - 1))
 	# The host's own car tells its Cabin directly; a client's crash knocks the map out here.
 	var car: RallyCar = _team_cars.get(team)
 	if car != null and Time.get_ticks_msec() >= _damage_ignore_until.get(team, 0):
 		(car.get_node(^"Cabin") as Cabin).host_impact(hit)
 
 
-func _judge_impact(team: int, strength: float, local_direction: Vector3) -> void:
+func _judge_impact(team: int, strength: float, local_direction: Vector3, at: Vector3, struck: int) -> void:
 	if Time.get_ticks_msec() < _damage_ignore_until.get(team, 0):
 		return  # the recovery teleport, not a crash
 	if strength >= CarAudio.CRASH_LIGHT_AT:
-		_rpc_crash_fx.rpc(team, strength)
+		_rpc_crash_fx.rpc(team, strength, at, struck)
 	var damage := damage_of(team)
 	var before := damage.level()
 	if damage.hit(strength, local_direction) <= 0.0:
@@ -326,15 +329,16 @@ func _judge_impact(team: int, strength: float, local_direction: Vector3) -> void
 			damage.total(), strength, VehicleDamage.Zone.keys()[VehicleDamage.zone_of(local_direction)].to_lower()])
 
 
-## Everyone but the driver (who heard it the moment it happened) hears another car's crash.
+## Everyone but the driver (who heard and saw it the moment it happened) hears another car's crash and sees what flies off it.
 @rpc("authority", "call_local", "unreliable")
-func _rpc_crash_fx(team: int, strength: float) -> void:
+func _rpc_crash_fx(team: int, strength: float, at: Vector3, struck: int) -> void:
 	var car: RallyCar = _team_cars.get(team)
 	if car == null or car.simulated:
 		return
 	var audio := car.get_node_or_null(^"Audio") as CarAudio
 	if audio != null:
 		audio.play_crash(strength)
+	(car.get_node(^"RoadFx") as CarRoadFx).crash(strength, at, struck)
 	# A crew member riding in a car simulated elsewhere (the navigator) feels the crash too.
 	if car == local_car:
 		var seat := ^"NavigatorCamera" if local_role == RosterRules.Role.NAVIGATOR else ^"DriverCamera"

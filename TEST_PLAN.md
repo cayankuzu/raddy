@@ -33,6 +33,8 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | How long a crew can stand the dust behind another car (a follower 2 s behind sees none of the road 30-90 m ahead) | to do |
 | Dirt on the car: filthy by the finish, the team colours still told apart in the room's results and on the road | to do |
 | Tyre marks: whether a crew reads the line of the car ahead from its marks, and whether they ever look painted on | to do |
+| The windshield crack from the seat by day, into a low sun and at night: real, and never in the way more than a real one | to do |
+| Crashes: the sparks, leaves, splinters and glass read as what was hit, at speed and from the car behind | to do |
 | The exhaust pops: heard by a person, not too loud against the engine | to do |
 | Windows SmartScreen first run on a clean PC | to do |
 

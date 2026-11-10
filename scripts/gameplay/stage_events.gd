@@ -204,6 +204,7 @@ func _spawn_local_boulder(origin: Vector3, velocity: Vector3, radius: float) -> 
 static func make_boulder(radius: float) -> RigidBody3D:
 	var body := RigidBody3D.new()
 	body.name = "Boulder"
+	body.set_meta(CrashRules.META, CrashRules.Struck.ROCK)
 	body.mass = 900.0 * radius * radius * radius
 	body.physics_material_override = PhysicsMaterial.new()
 	body.physics_material_override.friction = 0.9

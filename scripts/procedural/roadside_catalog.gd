@@ -13,7 +13,8 @@ class_name RoadsideCatalog
 ##   stone: from the seat nothing is behind it), seat (metres at scale 1: how far round a big stone the ground is read, it
 ##   goes down to the lowest of it: no air under its downhill side),
 ##   collision {shape: cylinder|sphere|box, radius, height, lift, size, offset, yaw (degrees: the box's turn about the trunk)}
-##   in metres at scale 1.
+##   in metres at scale 1; struck (CrashRules.Struck: what a car hitting it meets, when it is not what the shape says: a cylinder is a
+##   living tree, a sphere a rock, a box wood).
 ## Every asset listed here must have a row in ASSET_LICENSES.md. The Poly Haven scans and the
 ## conifer pack are in real-world metres; the birch set is in centimetres (unit 0.01).
 ##
@@ -91,7 +92,7 @@ static func entries() -> Array[Dictionary]:
 		{"id": "rooibos", "path": _model("wild_rooibos_bush"), "biomes": [DESERT], "variants": true, "foliage": true, "black_ground": true,
 			"density": 12.0, "near": 3.0, "far": 30.5, "scale": [1.2, 2.4], "sink": 0.04, "range": 180.0},
 		# --- obstacles: collide (and hurt, spec §8.2) ---
-		{"id": "stump", "path": _model("tree_stump_01"), "biomes": [FOREST], "fine": true,
+		{"id": "stump", "path": _model("tree_stump_01"), "biomes": [FOREST], "fine": true, "struck": CrashRules.Struck.WOOD,
 			"density": 2.0, "near": 4.0, "far": 28.5, "scale": [0.8, 1.3], "sink": 0.0, "range": 220.0,
 			"collision": {"shape": "cylinder", "radius": 0.55, "height": 0.6}},
 		{"id": "boulder", "path": _model("boulder_01"), "weathered": true, "biomes": [FOREST, MOUNTAIN], "fine": true,
@@ -107,7 +108,7 @@ static func entries() -> Array[Dictionary]:
 		{"id": "crag", "path": _model("boulder_01"), "weathered": true, "biomes": [MOUNTAIN],
 			"seat": BOULDER_SEAT, "density": 1.8, "near": 10.5, "far": 50.5, "scale": [2.0, 3.4], "sink": 0.3, "range": 500.0,
 			"collision": {"shape": "sphere", "radius": 0.75, "lift": 0.35}},
-		{"id": "dead_tree", "path": _model("dead_quiver_trunk"), "biomes": [DESERT],
+		{"id": "dead_tree", "path": _model("dead_quiver_trunk"), "biomes": [DESERT], "struck": CrashRules.Struck.WOOD,
 			"density": 1.6, "near": 5.5, "far": 38.5, "scale": [1.3, 2.5], "sink": 0.05, "tilt": 6.0, "range": 380.0,
 			"collision": {"shape": "cylinder", "radius": 0.16, "height": 2.0}},
 		# The desert's edge band: rock outcrops and boulders where the stage ends.
@@ -146,8 +147,9 @@ static func entries() -> Array[Dictionary]:
 			{"range": 260.0, "shadows": false, "tall": true, "biome_density": {MOUNTAIN: 0.6}}),
 		_tree("conifer_bush", CONIFERS, "ConiferousShrub_3", [FOREST], 1.5, 8.5, 32.5, [0.45, 0.7], 0.25),
 		_tree("dead_conifer", CONIFERS, "Coniferous Dead Tree_6", [FOREST, MOUNTAIN], 0.8, 6.5, 32.5, [0.8, 1.1], 0.3,
-			{"biome_density": {MOUNTAIN: 1.5}}),
-		_tree("snag", CONIFERS, "Coniferous Dead Tree 2_7", [FOREST, MOUNTAIN], 1.0, 4.5, 28.5, [0.8, 1.2], 0.2),
+			{"biome_density": {MOUNTAIN: 1.5}, "struck": CrashRules.Struck.WOOD}),
+		_tree("snag", CONIFERS, "Coniferous Dead Tree 2_7", [FOREST, MOUNTAIN], 1.0, 4.5, 28.5, [0.8, 1.2], 0.2,
+			{"struck": CrashRules.Struck.WOOD}),
 		_tree("log", CONIFERS, "Coniferous Dead Log_5", [FOREST], 1.2, 4.0, 26.5, [0.8, 1.1], 0.0,
 			{"sink": 0.1, "range": 260.0, "fine": true, "collision": {"shape": "box", "size": Vector3(7.4, 0.6, 0.75), "yaw": 41.8}}),
 		_tree("mossy_boulder", CONIFERS, "BoulderMossyLarge_8", [FOREST], 1.4, 4.5, 32.5, [0.5, 0.9], 0.0,

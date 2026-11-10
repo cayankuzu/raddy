@@ -1,19 +1,30 @@
 class_name RoadFxPool
 extends Node3D
-## What the cars throw into the air, in two world-space pools every car shares: soft puffs that hang where they were thrown
+## What the cars throw into the air, in world-space pools every car shares: soft puffs that hang where they were thrown
 ## (dust, powder, spray) and hard bits that fly and bounce (stones, clods). One draw call each however many cars there are, and the
-## puffs of different cars are sorted among themselves when one drives through another's cloud. Only script emits into them
-## (CarRoadFx from the rules in RoadFxRules); the graphics card moves what flies. A headless peer draws nothing and only counts.
+## puffs of different cars are sorted among themselves when one drives through another's cloud. What a crash throws besides (flakes of
+## glass, bark, wood and straw, leaves, sparks: Flake) has two pools more, shown only while something of it is in the air: no draw call
+## between crashes. Only script emits into them (CarRoadFx from the rules in RoadFxRules and CrashRules); the graphics card moves what flies.
+## A headless peer draws nothing and only counts.
 
 const GROUP := &"road_fx_pool"
 const PUFFS := 720
 const BITS := 192
+const FLAKES := 192
+const SPARKS := 128
+## What a crash throws that is no puff and no stone (the flake shaders read it).
+enum Flake { MATTE, GLASS, LEAF, SPARK }
+## How long the longest flake lives (s): a pool is hidden that long after the last one was thrown into it.
+const FLAKE_LIFE := 7.0
 ## How long the longest puff lives: the pool stops running this long after the last one was thrown.
 const LONGEST_LIFE := 8.0
 const ATLAS := preload("res://assets/fx/road_puffs.png")
 const PUFF_PICTURE := preload("res://shaders/road_puff.gdshader")
 const PUFF_MOTION := preload("res://shaders/road_puff_motion.gdshader")
 const BIT_MOTION := preload("res://shaders/road_bit_motion.gdshader")
+const FLAKE_MOTION := preload("res://shaders/road_flake_motion.gdshader")
+const FLAKE_PICTURE := preload("res://shaders/road_flake.gdshader")
+const SPARK_PICTURE := preload("res://shaders/road_spark.gdshader")
 ## Drawn before the glass and whatever else is see-through and nearer the eye: a puff behind a window must not hide what is on the pane.
 const PUFF_PRIORITY := -1
 ## They stay where they are thrown and the camera may be anywhere: never culled.
@@ -30,9 +41,13 @@ var bit_share := 1.0
 ## What was thrown so far, also on a headless peer.
 var puffs_thrown := 0
 var bits_thrown := 0
+var flakes_thrown := 0
 
 var _puffs: GPUParticles3D
 var _bits: GPUParticles3D
+## Sparks (true) and the other flakes (false) -> their pool, and until when (ms) it has something in the air.
+var _flake_pools: Dictionary = {}
+var _shown_until: Dictionary = {true: 0, false: 0}
 
 
 ## The scene's pool, made beside `car` if it has none yet (and null when road effects are off).
@@ -50,6 +65,7 @@ static func of(car: Node) -> RoadFxPool:
 
 func _ready() -> void:
 	top_level = true
+	set_process(false)
 	_read_settings()
 	var settings := get_node_or_null(^"/root/Settings")
 	if settings != null:
@@ -59,6 +75,10 @@ func _ready() -> void:
 		_bits = _make_bits()
 		add_child(_puffs)
 		add_child(_bits)
+		for sparks: bool in [true, false]:
+			_flake_pools[sparks] = _make_flakes(sparks)
+			_flake_pools[sparks].visible = false
+			add_child(_flake_pools[sparks])
 
 
 func _read_settings() -> void:
@@ -82,6 +102,43 @@ func bit(at: Vector3, velocity: Vector3, up: Vector3, color: Color, size: float,
 	bits_thrown += 1
 	if _bits != null:
 		_bits.emit_particle(Transform3D(Basis(Vector3.RIGHT, up, Vector3.BACK), at), velocity, color, Color(size, life, bounce, 0.0), EMIT_ALL)
+
+
+## A flake of `kind` (Flake) from `at`, going `velocity`; the ground under it has the normal `up` and lies `ground` metres below `at`.
+## `bounce` is what a bounce off the ground leaves of its speed (0: it stays where it lands).
+func flake(kind: int, at: Vector3, velocity: Vector3, up: Vector3, ground: float, color: Color, size: float, life: float, bounce: float) -> void:
+	flakes_thrown += 1
+	if _puffs == null:
+		return
+	var sparks := kind == Flake.SPARK
+	var pool: GPUParticles3D = _flake_pools[sparks]
+	pool.visible = true
+	_shown_until[sparks] = Time.get_ticks_msec() + int(FLAKE_LIFE * 1000.0)
+	set_process(true)
+	color.a = kind / 4.0
+	pool.emit_particle(Transform3D(Basis(Vector3.RIGHT, up, Vector3.BACK), at), velocity, color, Color(size, life, bounce, ground), EMIT_ALL)
+
+
+## Hides a crash's pools once nothing of them is in the air: no draw call between crashes.
+func _process(_delta: float) -> void:
+	var now := Time.get_ticks_msec()
+	var showing := false
+	for sparks: bool in _flake_pools:
+		var pool: GPUParticles3D = _flake_pools[sparks]
+		pool.visible = now < int(_shown_until[sparks])
+		showing = showing or pool.visible
+	set_process(showing)
+
+
+func _make_flakes(sparks: bool) -> GPUParticles3D:
+	var motion := ShaderMaterial.new()
+	motion.shader = FLAKE_MOTION
+	motion.set_shader_parameter(&"wind", RaceLook.wind)
+	var picture := ShaderMaterial.new()
+	picture.shader = SPARK_PICTURE if sparks else FLAKE_PICTURE
+	var card := QuadMesh.new()
+	card.material = picture
+	return _pool("Sparks" if sparks else "Flakes", SPARKS if sparks else FLAKES, motion, card)
 
 
 func _make_puffs() -> GPUParticles3D:

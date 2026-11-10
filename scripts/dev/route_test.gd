@@ -11,7 +11,7 @@ extends Node3D
 ##   --chase         start on the chase camera instead of the driver's seat
 ##   --navigator     sit in the navigator's seat (M map, Q/E windows); pair with --autodrive
 ##   --map-open      open the map right away (screenshots)
-##   --windshield=cracked|removed  --chips=N  --dirt=0.4   start with that glass state (screenshots)
+##   --windshield=cracked|removed  --chips=N  --dirt=0.4  --cracked-window=0|1   start with that glass state (screenshots)
 ##   --car-dirt=D+M+S  the body already that dirty with dust, mud and snow (screenshots)
 ##   --weather=0..4 --difficulty=0..2   race settings (default clear, rally)
 ##   --dusk          the sun low, headlights on, dials lit
@@ -129,6 +129,8 @@ func _ready() -> void:
 			cabin._rpc_set_windshield(Cabin.Windshield.REMOVED)
 	if _args.has("chips"):
 		cabin._rpc_stone_chip(int(_args["chips"]))
+	if _args.has("cracked-window"):
+		cabin._rpc_set_window_state(int(_args["cracked-window"]), Cabin.WindowState.CLOSED, true)
 	if _args.has("car-dirt"):
 		_soil(_car.get_node(^"Model") as CarModel, _args["car-dirt"].split("+"))
 	if _args.has("dirt"):

@@ -40,6 +40,9 @@ const HANG_FLAP_SPEED := 25.0
 const GRIME_SHARE := 0.22
 const GRIME_MOST := 0.6
 const DISPLAY_SHADER := preload("res://shaders/mirror_glass.gdshader")
+## A broken mirror's crack (CrackPicture): over how much glass (m) and how far it has spread.
+const BROKEN_METRES := Vector2(0.2, 0.12)
+const BROKEN_SPREAD := 0.6
 ## A door mirror's housing: moulded plastic. The model's own material there is polished metal, a white-hot glint in the sun.
 const HOUSING_ROUGHNESS := 0.55
 const HOUSING_SPECULAR := 0.3
@@ -168,7 +171,10 @@ static func _broken() -> ShaderMaterial:
 		_broken_glass.resource_name = "BrokenMirror"
 		_broken_glass.shader = DISPLAY_SHADER
 		_broken_glass.set_shader_parameter(&"broken", 1.0)
-		_broken_glass.set_shader_parameter(&"crack_texture", WindshieldGlass.crack_texture(5))
+		var crack := CrackPicture.pieces(5, BROKEN_METRES, BROKEN_METRES * 0.5)
+		_broken_glass.set_shader_parameter(&"crack_map", ImageTexture.create_from_image(CrackPicture.bake(crack, BROKEN_METRES)))
+		_broken_glass.set_shader_parameter(&"crack_metres", BROKEN_METRES)
+		_broken_glass.set_shader_parameter(&"crack_spread", BROKEN_SPREAD)
 	return _broken_glass
 
 

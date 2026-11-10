@@ -27,6 +27,9 @@ const GLASS := {
 	"Milano95_Windshield": "Windshield",
 }
 const FIXED_GLASS: Array[String] = ["Milano95_Glass_Rear", "Milano95_Glass"]
+## The metres of a side pane the glass shader's crack picture spans (car_glass.gdshader: PANE_UV), and how far a can's crack spreads.
+const PANE_METRES := Vector2(1.0 / 1.02, 1.0 / 2.18)
+const PANE_SPREAD := 0.45
 ## Placeholder meshes hidden once the model is in.
 const PLACEHOLDERS: Array[NodePath] = [^"Body", ^"CabinShell", ^"Interior"]
 ## How far the steering wheel turns for full steering lock (radians).
@@ -213,8 +216,10 @@ static var _glass: ShaderMaterial
 static func cracked_glass(seed: int) -> ShaderMaterial:
 	var material := ShaderMaterial.new()
 	material.shader = GLASS_SHADER
-	material.set_shader_parameter(&"cracked", 1.0)
-	material.set_shader_parameter(&"crack_texture", WindshieldGlass.crack_texture(seed))
+	var crack := CrackPicture.pieces(seed, PANE_METRES, PANE_METRES * WindshieldGlass.crack_center(seed))
+	material.set_shader_parameter(&"crack_map", ImageTexture.create_from_image(CrackPicture.bake(crack, PANE_METRES)))
+	material.set_shader_parameter(&"crack_metres", PANE_METRES)
+	material.set_shader_parameter(&"crack_spread", PANE_SPREAD)
 	return material
 
 

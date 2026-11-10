@@ -185,11 +185,11 @@ static func build(graph: RouteGraph, terrain: TerrainField) -> Node3D:
 				_batch(batches, "car", PROP_RANGE, true, RallyProps.car_parts(int(item.paint)), placed, anchor)
 				if int(item.paint) >= 0:
 					_batch(batches, "car_rest", PROP_RANGE, false, RallyProps.car_rest_parts(), placed, anchor)
-				_add_box_shape(body, placed, RallyProps.CAR_SIZE)
+				_add_box_shape(body, placed, RallyProps.CAR_SIZE, CrashRules.Struck.METAL)
 			"bench", "table", "chair":
 				var seat: Dictionary = RallyProps.SEATS[item.kind]
 				_batch(batches, item.kind, SMALL_RANGE, true, RallyProps.model_parts(seat.model), placed, anchor)
-				_add_box_shape(body, placed, seat.size)
+				_add_box_shape(body, placed, seat.size, CrashRules.Struck.WOOD)
 			_:
 				_batch(batches, "board", BOARD_RANGE, true, RallyProps.board_parts(item.kind, float(item.panel)), placed, anchor)
 				if item.has("text"):
@@ -577,15 +577,17 @@ static func _add_bale_shape(body: StaticBody3D, placed: Transform3D) -> void:
 	cylinder.height = RallyProps.BALE_LENGTH
 	shape.shape = cylinder
 	shape.transform = placed * Transform3D(Basis(Vector3.BACK, PI * 0.5), Vector3.UP * (RallyProps.BALE_RADIUS - RallyProps.BALE_SINK))
+	shape.set_meta(CrashRules.META, CrashRules.Struck.STRAW)
 	body.add_child(shape)
 
 
-static func _add_box_shape(body: StaticBody3D, placed: Transform3D, size: Vector3) -> void:
+static func _add_box_shape(body: StaticBody3D, placed: Transform3D, size: Vector3, struck: int) -> void:
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = size
 	shape.shape = box
 	shape.transform = placed * Transform3D(Basis.IDENTITY, Vector3.UP * size.y * 0.5)
+	shape.set_meta(CrashRules.META, struck)
 	body.add_child(shape)
 
 
@@ -655,6 +657,7 @@ static func _build_log_pile(node: Node3D, spur: RouteGraph.Spur, terrain: Terrai
 	var body := StaticBody3D.new()
 	body.name = "LogPile"
 	body.set_meta(&"surface", Surface.TARMAC)
+	body.set_meta(CrashRules.META, CrashRules.Struck.WOOD)
 	body.transform = Transform3D(Basis.looking_at(Vector3(dir.x, 0.0, dir.y), Vector3.UP), Vector3(at.x, terrain.height(at), at.y))
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -687,6 +690,7 @@ static func _build_barrier(node: Node3D, spur: RouteGraph.Spur) -> void:
 	var body := StaticBody3D.new()
 	body.name = "Barrier"
 	body.set_meta(&"surface", Surface.TARMAC)
+	body.set_meta(CrashRules.META, CrashRules.Struck.ROCK)
 	body.set_meta(&"span", span)
 	body.transform = Transform3D(Basis.looking_at(Vector3(dir.x, 0.0, dir.y), Vector3.UP), pose.position)
 	var shape := CollisionShape3D.new()

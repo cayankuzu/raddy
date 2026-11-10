@@ -55,6 +55,9 @@ var simulated := true
 ## Water splashes the car is in (WaterSplash areas) and the surface height of the last one.
 var water_contacts := 0
 var water_level := 0.0
+## Where the last impact's hardest contact touched the car (car space) and what it hit (CrashRules.Struck): on the peer that simulates the car.
+var last_impact_at := Vector3.ZERO
+var last_impact_struck := CrashRules.Struck.GROUND
 
 var _wheels: Array[CarWheel] = []
 var _drive := 0.0
@@ -514,7 +517,23 @@ func _detect_impact(state: PhysicsDirectBodyState3D, dt: float) -> void:
 	if strength < config.impact_min_speed:
 		return
 	_impact_cooldown = IMPACT_COOLDOWN
+	_remember_contact(state)
 	impact.emit(strength, (state.transform.basis.inverse() * -change).normalized())
+
+
+## The hardest contact of this tick: where it touched the car and what it hit.
+func _remember_contact(state: PhysicsDirectBodyState3D) -> void:
+	var hardest := 0
+	for i in range(1, state.get_contact_count()):
+		if state.get_contact_impulse(i).length() > state.get_contact_impulse(hardest).length():
+			hardest = i
+	last_impact_at = state.transform.affine_inverse() * state.get_contact_local_position(hardest)
+	var collider := state.get_contact_collider_object(hardest)
+	var shape: Object = null
+	if collider is CollisionObject3D:
+		var body := collider as CollisionObject3D
+		shape = body.shape_owner_get_owner(body.shape_find_owner(state.get_contact_collider_shape(hardest)))
+	last_impact_struck = CrashRules.struck(collider, shape)
 
 
 ## Stuck means overturned, hung up with no wheel down, or wedged (asking to drive or reverse but

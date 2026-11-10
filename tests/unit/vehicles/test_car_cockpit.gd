@@ -228,7 +228,7 @@ func test_a_broken_pane_is_gone_and_a_cracked_one_shows_it() -> void:
 	var pane: MeshInstance3D = _car.get_node(^"Cabin/WindowRight")
 	cabin.window_hit(Cabin.Side.RIGHT, Cabin.WINDOW_CRACK_SPEED + 1.0)
 	assert_true(pane.visible, "cracked but there")
-	assert_eq((pane.material_override as ShaderMaterial).get_shader_parameter(&"cracked"), 1.0, "with a crack star")
+	assert_eq((pane.material_override as ShaderMaterial).get_shader_parameter(&"crack_spread"), CarModel.PANE_SPREAD, "with a crack star")
 	cabin.window_hit(Cabin.Side.RIGHT, Cabin.WINDOW_BREAK_SPEED + 1.0)
 	assert_false(pane.visible, "broken: nothing left")
 

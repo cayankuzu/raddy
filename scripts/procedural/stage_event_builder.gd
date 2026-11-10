@@ -80,6 +80,7 @@ static func _tree(graph: RouteGraph, terrain: TerrainField, feature: Dictionary,
 	tree.name = "Tree"
 	tree.sync_to_physics = true
 	tree.set_meta(&"surface", Surface.TARMAC)
+	tree.set_meta(CrashRules.META, CrashRules.Struck.TREE)
 	event.add_child(tree)
 	for part in RoadsideDresser._parts_of({"id": "event_fir", "path": RoadsideCatalog.CONIFERS, "node": "FirTree_0", "foliage": true}):
 		var mesh := MeshInstance3D.new()

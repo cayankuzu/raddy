@@ -3,7 +3,8 @@ extends Node
 ## Puts the Cabin's dirt, cracks and wipers onto the real windshield (shaders/windshield.gdshader)
 ## instead of over the player's screen: mud gathers on the glass in blotches, the car's own two wipers
 ## sweep it (cut out of the model, each turning about its hinge), only where a blade really passes the glass
-## comes clean, and a stone leaves a bullseye where it hit, then a crack star from there. Every peer sees every car's glass the same way.
+## comes clean, and a stone leaves a bullseye where it hit, then a crack from there (CrackPicture) that runs further
+## with every stone after. Every peer sees every car's glass the same way.
 
 const SHADER := preload("res://shaders/windshield.gdshader")
 const WIPER_PERIOD := 1.1
@@ -13,6 +14,8 @@ const WIPER_SWEEP := 95.0
 const DRAW_RANGE := 60.0
 ## How quickly the corners lose dirt that the wipers do not reach (per second).
 const EDGE_CLEAR_RATE := 0.015
+## How fast a crack runs out to where the stones have spread it (of CrackPicture.spread per second).
+const CRACK_RUN := 4.0
 ## The wipers' hinges in car space (the thin ends of the arms), with their cut parts (CarParts).
 const WIPERS: Array[Dictionary] = [
 	{"hinge": Vector3(0.007, 0.4125, -1.102), "arm": &"wiper_arm_a", "blade": &"wiper_blade_a"},
@@ -35,6 +38,10 @@ var _u := Vector3.RIGHT
 var _v := Vector3.UP
 var _n := Vector3.BACK
 var _size := Vector2.ONE
+## The crack's picture is baked on a worker: -1 not yet asked for, -2 on the glass.
+var _crack_task := -1
+var _spread := 0.0
+var _spread_to := 0.0
 
 
 func _ready() -> void:
@@ -101,17 +108,43 @@ func _on_dirt(level: float) -> void:
 
 
 func _on_windshield(state: int) -> void:
-	var cracked := state == Cabin.Windshield.CRACKED
-	_material.set_shader_parameter(&"cracked", 1.0 if cracked else 0.0)
-	if cracked:
-		_material.set_shader_parameter(&"crack_texture", crack_texture(_seed()))
+	if state == Cabin.Windshield.CRACKED:
+		_bake_crack()
 	if state == Cabin.Windshield.REMOVED:
 		_edge_dirt = 0.0
+	_on_stone_chipped(cabin.stone_hits)
 
 
+## A stone leaves a bullseye, and from the one that cracks the glass on each spreads the crack further.
 func _on_stone_chipped(hits: int) -> void:
-	_material.set_shader_parameter(&"chipped", 1.0 if hits > 0 else 0.0)
+	var cracked := cabin.windshield == Cabin.Windshield.CRACKED
+	_material.set_shader_parameter(&"chipped", 1.0 if hits > 0 or cracked else 0.0)
 	_material.set_shader_parameter(&"chip_at", crack_center(_seed()) * _size)
+	_spread_to = maxf(CrackPicture.spread(hits), CrackPicture.FIRST_SPREAD) if cracked else 0.0
+	if hits > 0:
+		_bake_crack()
+
+
+## Baked once the first stone has marked the glass: ready long before the one that cracks it.
+func _bake_crack() -> void:
+	if _crack_task != -1 or DisplayServer.get_name() == "headless":
+		return
+	var crack := CrackPicture.pieces(_seed(), _size, crack_center(_seed()) * _size)
+	var size := _size
+	_crack_task = WorkerThreadPool.add_task(func() -> void: _on_crack_baked.call_deferred(CrackPicture.bake(crack, size)))
+
+
+func _on_crack_baked(picture: Image) -> void:
+	WorkerThreadPool.wait_for_task_completion(_crack_task)
+	_crack_task = -2
+	_material.set_shader_parameter(&"crack_map", ImageTexture.create_from_image(picture))
+	_material.set_shader_parameter(&"crack_metres", _size)
+
+
+func _exit_tree() -> void:
+	if _crack_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_crack_task)
+		_crack_task = -1
 
 
 ## What makes this car's cracks its own.
@@ -122,6 +155,9 @@ func _seed() -> int:
 func _process(delta: float) -> void:
 	if cabin == null or _wipers.is_empty():
 		return
+	if _spread != _spread_to and _crack_task == -2:
+		_spread = move_toward(_spread, _spread_to, CRACK_RUN * delta)
+		_material.set_shader_parameter(&"crack_spread", _spread)
 	_edge_dirt = maxf(_edge_dirt - EDGE_CLEAR_RATE * delta, cabin.dirt)
 	_material.set_shader_parameter(&"edge_dirt", _edge_dirt)
 	if cabin.wipers_on:
@@ -202,43 +238,3 @@ static func crack_center(seed: int) -> Vector2:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	return Vector2(rng.randf_range(0.3, 0.7), rng.randf_range(0.45, 0.75))
-
-
-## A star of jagged crack lines in a transparent image (alpha = crack), seeded per car.
-static func crack_texture(seed: int) -> ImageTexture:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed + 1
-	var size := 512
-	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
-	image.fill(Color(1, 1, 1, 0))
-	var center := crack_center(seed) * size
-	for i in rng.randi_range(6, 9):
-		var angle := TAU * i / 8.0 + rng.randf_range(-0.3, 0.3)
-		var p := center
-		for step in rng.randi_range(4, 7):
-			var next := p + Vector2(cos(angle), sin(angle)) * rng.randf_range(18.0, 46.0)
-			_line(image, p, next, 1.0 - step * 0.1)
-			if rng.randf() < 0.35:
-				var branch_angle := angle + rng.randf_range(-1.0, 1.0)
-				_line(image, next, next + Vector2(cos(branch_angle), sin(branch_angle)) * rng.randf_range(10.0, 26.0), 0.6)
-			p = next
-			angle += rng.randf_range(-0.45, 0.45)
-	# The impact point itself: a small crushed spot.
-	for y in range(-4, 5):
-		for x in range(-4, 5):
-			if x * x + y * y <= 16:
-				var q := Vector2i(center) + Vector2i(x, y)
-				if q.x >= 0 and q.y >= 0 and q.x < size and q.y < size:
-					image.set_pixelv(q, Color(1, 1, 1, 0.9))
-	image.generate_mipmaps()
-	return ImageTexture.create_from_image(image)
-
-
-static func _line(image: Image, a: Vector2, b: Vector2, strength: float) -> void:
-	var steps := int(a.distance_to(b))
-	for s in steps + 1:
-		var p := a.lerp(b, float(s) / maxf(steps, 1))
-		for o in [Vector2.ZERO, Vector2(1, 0), Vector2(0, 1)]:
-			var q := Vector2i(p + o)
-			if q.x >= 0 and q.y >= 0 and q.x < image.get_width() and q.y < image.get_height():
-				image.set_pixelv(q, Color(1, 1, 1, clampf(strength, 0.3, 1.0)))

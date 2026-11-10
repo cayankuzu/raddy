@@ -364,3 +364,12 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     on High. Looked at from above and low down on gravel, mud (rain on Misty Creek), snow, through a hairpin and a forced handbrake slide; no piece sinks into the road
     (2 cm above the ground found by a ray, marks break over creases and steep ground). Cost of drawing them, `tools\perf.ps1 -Quality 1 --flip-marks=1` (shown and
     hidden frame against frame): 40.5 ms shown, 41.6 hidden, below this PC's noise while another project loaded it.
+
+- 2026-11-10: A4 effects, third part: bigger hits and a crack that looks like a crack (spec items 5 and 10): DONE.
+  - `CrackPicture` + `glass_crack.gdshaderinc`: hair-thin straight lines from the bullseye, branches, rings, a little star per later stone, spreading with the
+    hits; lit by their own `light()` (flare square to the light, against a low sun most). Baked 762x487 in 10.8 ms (a worker after the first stone), 1.6 % of
+    the texels near a line. Looked at from the seat on Black Pine (away from, across and towards the sun, 2-6 stones, dusk with and without the dome lamp) and
+    Red Canyon (a low sun 0, 12 and 25 degrees off ahead, a high one), from outside at 4 m, and on a side pane. The side panes' crack never showed before: its
+    picture lay off the pane (the mesh runs x along the car, z up), fixed.
+  - Crashes: `CrashRules` + meta `struck` on what can be hit; sparks, leaves, splinters, straw, chips, dust and a broken window's glass, looked at beside the car
+    (metal, rock, tree, window, straw). A tree hit at 14 m/s in the GUT test: TREE at the front, 56 flakes.

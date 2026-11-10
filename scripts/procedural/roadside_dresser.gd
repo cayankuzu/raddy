@@ -489,6 +489,7 @@ static func _add_collision(body: StaticBody3D, entry: Dictionary, transform: Tra
 		log.shape = cache[box_key]
 		var turn := transform.basis.orthonormalized() * Basis(Vector3.UP, deg_to_rad(float(spec.get("yaw", 0.0))))
 		log.transform = Transform3D(turn, transform.origin + turn * (spec.get("offset", Vector3.ZERO) as Vector3) * s + Vector3.UP * size.y * 0.5)
+		log.set_meta(CrashRules.META, entry.get("struck", CrashRules.Struck.WOOD))
 		body.add_child(log)
 		return
 	var radius := snappedf(float(spec.get("radius", 0.3)) * s, 0.05)
@@ -506,6 +507,8 @@ static func _add_collision(body: StaticBody3D, entry: Dictionary, transform: Tra
 			cache[key] = cylinder
 	var shape := CollisionShape3D.new()
 	shape.shape = cache[key]
-	var offset := Vector3(0.0, height * 0.5, 0.0) if spec.get("shape", "cylinder") != "sphere" else Vector3(0.0, radius * float(spec.get("lift", 0.4)), 0.0)
+	var sphere: bool = spec.get("shape", "cylinder") == "sphere"
+	var offset := Vector3(0.0, radius * float(spec.get("lift", 0.4)), 0.0) if sphere else Vector3(0.0, height * 0.5, 0.0)
 	shape.position = transform.origin + offset
+	shape.set_meta(CrashRules.META, entry.get("struck", CrashRules.Struck.ROCK if sphere else CrashRules.Struck.TREE))
 	body.add_child(shape)

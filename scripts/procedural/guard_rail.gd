@@ -45,6 +45,7 @@ static func build(graph: RouteGraph, run: Dictionary) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = "Rail%d" % roundi(run.from)
 	body.set_meta(&"surface", Surface.TARMAC)
+	body.set_meta(CrashRules.META, CrashRules.Struck.METAL)
 	var side := float(run.side)
 	var from := maxf(float(run.from) - TrackFeatures.RAIL_OVERRUN, 0.0)
 	var to := minf(float(run.to) + TrackFeatures.RAIL_OVERRUN, graph.main_route_length())

@@ -106,6 +106,14 @@ No Blender; model in Godot only as a last resort.
   rolling tyre's mark is, how deep and wet; scrub from slides, the handbrake, hard braking and spinning away widens and darkens it; tarmac only takes
   rubber. `shaders/tyre_mark.gdshader`: a lit strip (render priority -2: under puddles, puffs and glass), rut walls from screen derivatives, tread blocks
   on soft ground, raked lines when swept. A headless peer follows the tyres and draws nothing.
+- Bigger hits: `CrashRules` (pure) says what a crash throws off what the car hit: sparks off rock and metal, leaves from the crown and bark off a
+  tree (`RaceLook.foliage`, snow off the branches in snow), splinters, straw, chips, dust. Colliders say what they are with meta `struck`
+  (`CrashRules.META`): the roadside obstacles' shapes (`RoadsideDresser`: a sphere is rock, a box wood, a cylinder a living tree unless the catalog's
+  `struck` says otherwise), rails and arches (metal), props (bales straw, parked cars metal, seats wood), log piles, barriers (concrete as rock),
+  the fallen tree, boulders; loose bodies are metal, the rest ground. The driver's peer plays its own crash at once from `RallyCar.last_impact_at` /
+  `last_impact_struck` (the tick's hardest contact); everyone else from `RaceSession._rpc_crash_fx(team, strength, at, struck)`, relayed by the host. A
+  broken side window drops its glass (`Cabin.window_state_changed`). Two more pools in `RoadFxPool` (`Flake`: flakes, `road_flake.gdshader`, and sparks,
+  `road_spark.gdshader`, both flown by `road_flake_motion.gdshader`) are hidden between crashes: no draw call.
 - Everything on the car works, on every peer. `CarParts` cuts what moves out of the Milano's one-piece meshes (by the
   island inside a box, test_car_parts.gd pins the triangle counts; meshes shared by every car, in car space). `CockpitRules`
   (pure) says what every needle, lamp and lever shows; `CarCockpit` puts it on the car near the camera: the instrument
@@ -312,6 +320,13 @@ No Blender; model in Godot only as a last resort.
   (`puddle.gdshader`, `reflection_steps`, 0 on Low).
 - Glass: `WindshieldGlass` puts the Cabin's dirt (`windshield.gdshader`: a film of dust plus specks that stay apart; a threshold of noise that joins up reads as camouflage), crack and wipers on the
   windshield mesh (its own plane is measured from the triangles); `SeatEffects` keeps only the face-hit flash and the faint.
+- Cracks: `CrackPicture` (pure, seeded per car) lays the lines (a star from the hit with a few long ones, branches, rings round it, a little star per
+  later stone, `spread(hits)` how far they have run) and bakes a picture of the distance to them (signed distance, the way a line runs, when it shows,
+  how far to trust it). `shaders/glass_crack.gdshaderinc` draws them as thin as they are at any distance (fading past 4-12 m) and lights them in a
+  `light()` of its own (`glass_light`, shared by the windshield and the side panes): a line flares where it lies square to the light passing the pane,
+  most against a light ahead, weakly for one on the eye's side; the bullseye's crushed glass is lit from anywhere. The windshield's picture is baked on a
+  worker after the first stone (about 11 ms), a cracked side pane's (`CarModel.cracked_glass`) and the broken mirror's at once. A side pane's mesh runs x
+  along the car and z up (`car_glass.gdshader` `PANE_FROM`, `PANE_UV`, `CarModel.PANE_METRES`). route_test `--cracked-window=0|1`.
 - Editor-launched games need `--accessibility disabled` too on this PC: set once via Beckett
   `call_method target=res://tools/editor_run_args.gd method=apply` (editor setting `run/main_run_args`).
 
