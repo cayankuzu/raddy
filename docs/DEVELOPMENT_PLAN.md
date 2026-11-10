@@ -360,8 +360,8 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   - `CarDirt`: the body, trim and tyres wear skins of the car's own (`car_body.gdshader`, the model's material while clean: no draw call added). Dust 0.23 after
     300 m of gravel, 0.74 after 1.5 km, 0.93 after 3 km at 20 m/s (`test_car_dirt_rules.gd`); mud 0.69 after one 300 m stretch. Looked at from the side, the back,
     above and the seat on Black Pine (clean, 0.5, 0.85 dust; 0.75 mud), Glacier snow 0.8 and Red Canyon dust 0.85: red paint readable at every level.
-  - `CarTyreMarks`: one mesh and one draw call per car, a ring of 7334 / 5867 / 4400 pieces per tyre (High / Medium / Low) for 4.4 km, about 3.5 MB of buffers a car
-    on High. Looked at from above and low down on gravel, mud (rain on Misty Creek), snow, through a hairpin and a forced handbrake slide; no piece sinks into the road
+  - `CarTyreMarks`: one mesh and one draw call per car, a ring of 7334 / 5867 / 4400 pieces per tyre (High / Medium / Low) for 4.4 km, about 4 MB of buffers a car
+    on High (3.3 MB of vertices, 0.7 MB of indices). Looked at from above and low down on gravel, mud (rain on Misty Creek), snow, through a hairpin and a forced handbrake slide; no piece sinks into the road
     (2 cm above the ground found by a ray, marks break over creases and steep ground). Cost of drawing them, `tools\perf.ps1 -Quality 1 --flip-marks=1` (shown and
     hidden frame against frame): 40.5 ms shown, 41.6 hidden, below this PC's noise while another project loaded it.
 
