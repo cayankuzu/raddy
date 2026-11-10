@@ -6,6 +6,8 @@ extends Node
 ## does comes from the seat (Cabin.hands_of, CrewRules): the driver's hands ride the turning wheel and leave it for the shock gun, the
 ## window's winder, the wipers' stalk, the horn and the handbrake; the navigator holds the real map by its edges while it is open, the hands
 ## on the lap otherwise; a gesture points the hand nearer the partner. Out cold the body slumps in its harness, a shock shakes it first.
+## The harness holds the body to the seat, the neck gives to the car's swing (CrewSway: a corner tilts the head out of it, braking nods
+## it, a hit jolts it), from how this peer sees the car move.
 ## The goals are set here every frame in the car's space, before the skeleton works them out; nothing here touches the simulation. Only a
 ## crew someone can see moves: the local player's own car's always, another's while it is on the screen within CrewBody.DRAW_RANGE or close
 ## enough to fill a mirror (MIRROR_RANGE); otherwise it rests as it sits, the skeleton left alone.
@@ -70,9 +72,19 @@ const REACH := {CrewRules.Hand.POINT: 24.0, CrewRules.Hand.MAP: 14.0, CrewRules.
 ## The throw: the right hand back by the shoulder, then out through the right window (car space), as the job runs.
 const THROW_BACK := Vector3(0.5, 0.4, 0.12)
 const THROW_OUT := Vector3(0.92, 0.52, -0.12)
-## The kick: the feet come up off the floor and back, then onto the dash under the windshield (car space, height and how far ahead).
-const KICK_LIFT := Vector3(0.0, 0.32, 0.12)
-const KICK_DASH := Vector2(0.4, -0.66)
+## The kick: the ankles slide back along the floor out from under the dash, come up behind its lower edge, over its top and onto the
+## bottom of the windshield, then back the same way (car space: height and how far ahead), the toes turning up as they go (degrees from
+## how the foot rests: the soles flat on the sloping glass at the push): each leg of the way from one place to the next (0 resting, 1
+## back, 2 tucked, 3 over the top, 4 pushing) over its share of the job's time. The knees bend up towards KICK_KNEE.
+const KICK_PLACES: Array[Vector2] = [Vector2(-0.18, -0.45), Vector2(0.08, -0.42), Vector2(0.46, -0.48), Vector2(0.55, -0.62)]
+const KICK_TOES: Array[float] = [0.0, 20.0, 105.0, 150.0, 186.0]
+const KICK_PATH := [[0, 1, 0.0, 0.14], [1, 2, 0.14, 0.26], [2, 3, 0.26, 0.38], [3, 4, 0.38, 0.5], [4, 3, 0.58, 0.68], [3, 2, 0.68, 0.78],
+	[2, 1, 0.78, 0.88], [1, 0, 0.88, 1.0]]
+const KICK_KNEE := Vector3(0.0, 1.0, -0.2)
+## How loose each seat's neck is (CrewSway): the driver holds on to the wheel, the navigator to nothing; how much of the nod the head takes
+## with it (the eyes stay on the road).
+const SWAY_LOOSENESS := {RosterRules.Role.DRIVER: 1.0, RosterRules.Role.NAVIGATOR: 1.3}
+const SWAY_NOD := 0.6
 ## The chest takes this share of a turn of the head (the harness holds it), the neck these (yaw, pitch); the head turns the rest. How far a
 ## head turns at most (degrees: either side, down, up).
 const CHEST_TURN := 0.06
@@ -106,6 +118,7 @@ var _gun: MeshInstance3D
 var _arms: TwoBoneIK3D
 var _palms: CopyTransformModifier3D
 var _legs: TwoBoneIK3D
+var _soles: CopyTransformModifier3D
 var _head: LookAtModifier3D
 var _active := true
 ## The bones the rig turns besides the IK's, and what each was last turned by (yaw, pitch, roll).
@@ -117,7 +130,11 @@ var _rest_hands: Array[Transform3D] = []
 ## How far round the wheel each hand follows it (radians, either way from where it rests).
 var _wheel_arcs: Array[Vector2] = []
 var _laps: Array[Transform3D] = []
-var _ankles: Array[Vector3] = []
+var _feet: Array[Transform3D] = []
+## Each leg's hip joint and the lengths of its thigh and shin (car space), and where its knee is in a kick.
+var _hips: Array[Vector3] = []
+var _leg_bones: Array[Vector2] = []
+var _kick_knees: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
 ## Each hand's way from where it was (the transform it left from, how far along 0..1) and its last place; the fingers' grip on the way.
 var _from: Array[Transform3D] = [Transform3D.IDENTITY, Transform3D.IDENTITY]
 var _blend := PackedFloat32Array([1.0, 1.0])
@@ -139,6 +156,7 @@ var _audio: CarAudio
 var _gear := 0
 var _shift_left := 0.0
 var _noise := FastNoiseLite.new()
+var _sway: CrewSway
 ## How far each shoulder has come forward (degrees, REACH).
 var _reach := PackedFloat32Array([0.0, 0.0])
 ## Per bone the rig turns from how it sits (the chest, the neck, the shoulders): its seated rotation and the model's up, left and ahead in
@@ -163,6 +181,7 @@ func build(crew_body: CrewBody, car_model: CarModel, eye: Vector3) -> void:
 	_eye = eye
 	_noise.frequency = 9.0
 	_noise.seed = body.role + 7
+	_sway = CrewSway.new(SWAY_LOOSENESS[body.role])
 	var pose := body.pose
 	var to_car := pose.to_car
 	var turn := to_car.basis.orthonormalized()
@@ -173,9 +192,11 @@ func build(crew_body: CrewBody, car_model: CarModel, eye: Vector3) -> void:
 		_rest_hands.append(Transform3D(turn * hand.basis, to_car * hand.origin))
 		var hip := to_car * pose.global_of(CrewPose.LEGS[side][0]).origin
 		var knee := to_car * pose.global_of(CrewPose.LEGS[side][1]).origin
-		var thigh := (knee - hip).normalized()
-		_laps.append(Transform3D(CrewPose.hand_basis(thigh, Vector3.DOWN, side), hip.lerp(knee, 0.5) + Vector3.UP * 0.075))
-		_ankles.append(to_car * pose.global_of(CrewPose.LEGS[side][2]).origin)
+		_laps.append(_lap_on(hip, knee, side))
+		var foot := pose.global_of(CrewPose.LEGS[side][2])
+		_feet.append(Transform3D(turn * foot.basis, to_car * foot.origin))
+		_hips.append(hip)
+		_leg_bones.append(Vector2(hip.distance_to(knee), knee.distance_to(_feet[side].origin)))
 	var arm := (pose.global_of(CrewPose.ARMS[0][1]).origin.distance_to(pose.global_of(CrewPose.ARMS[0][2]).origin)
 		+ pose.global_of(CrewPose.ARMS[0][2]).origin.distance_to(pose.global_of(CrewPose.ARMS[0][3]).origin)) * CrewBody.BODY_SCALE
 	for side in 2:
@@ -236,6 +257,11 @@ func _build_modifiers() -> void:
 	_legs.setting_count = 2
 	_legs.influence = 0.0
 	_legs.active = false
+	_soles = CopyTransformModifier3D.new()
+	_soles.name = "Soles"
+	_skeleton.add_child(_soles)
+	_soles.setting_count = 2
+	_soles.active = false
 	for side in 2:
 		_arms.set_root_bone_name(side, CrewPose.ARMS[side][1])
 		_arms.set_middle_bone_name(side, CrewPose.ARMS[side][2])
@@ -252,6 +278,11 @@ func _build_modifiers() -> void:
 		_legs.set_end_bone_name(side, CrewPose.LEGS[side][2])
 		_legs.set_target_node(side, _legs.get_path_to(_foot_goals[side]))
 		_legs.set_pole_node(side, _legs.get_path_to(_knee_goals[side]))
+		_soles.set_apply_bone_name(side, CrewPose.LEGS[side][2])
+		_soles.set_reference_type(side, BoneConstraint3D.REFERENCE_TYPE_NODE)
+		_soles.set_reference_node(side, _soles.get_path_to(_foot_goals[side]))
+		_soles.set_copy_position(side, false)
+		_soles.set_copy_scale(side, false)
 	_head = LookAtModifier3D.new()
 	_head.name = "Head"
 	_skeleton.add_child(_head)
@@ -270,6 +301,12 @@ func _learn_grips() -> void:
 		_grips[side] = grips
 
 
+## The neck feels the car on its ticks (where its place changes, the own car's and a snapshot's alike).
+func _physics_process(delta: float) -> void:
+	if _active:
+		_sway.follow(model.car.global_position, model.car.global_basis, delta)
+
+
 func _process(delta: float) -> void:
 	var seen := _seen(get_viewport().get_camera_3d())
 	if seen != _active:
@@ -286,6 +323,7 @@ func _process(delta: float) -> void:
 		_job_time = 0.0
 	_job_time += delta
 	var shake := _shake_left / SHAKE_SECONDS
+	_kick(seat)
 	var now := cabin.hands_of(body.role, _shifting(delta))
 	for side in 2:
 		if now[side] != held[side]:
@@ -310,7 +348,6 @@ func _process(delta: float) -> void:
 		_shape_fingers(side, delta, seat)
 	_gun.visible = held[CrewPose.Side.RIGHT] == CrewRules.Hand.GUN and _blend[CrewPose.Side.RIGHT] > 0.5
 	_turn_head(seat, delta, shake)
-	_kick(seat)
 
 
 ## Whether anyone can see this crew move: the local player's own car's, or near enough and on the screen or in a mirror.
@@ -337,7 +374,9 @@ func _set_active(on: bool) -> void:
 	if on:
 		return
 	_legs.active = false
+	_soles.active = false
 	_gun.visible = false
+	_sway.settle()
 	held = PackedInt32Array([-1, -1])
 	_grip = [-1, -1]
 	_turned_by.clear()
@@ -399,7 +438,11 @@ func _hand_place(side: int, hand: int, seat: CrewRules.Seat) -> Transform3D:
 		CrewRules.Hand.WHEEL:
 			return wheel_grip(side)
 		CrewRules.Hand.LAP:
-			return _laps[side].translated(Vector3(sign_x * 0.05, -0.05, 0.04) * _slump)
+			var lap := _laps[side]
+			if _legs.active:
+				# The hands ride the thighs up.
+				lap = lap.interpolate_with(_lap_on(_hips[side], _kick_knees[side], side), _legs.influence)
+			return lap.translated(Vector3(sign_x * 0.05, -0.05, 0.04) * _slump)
 		CrewRules.Hand.MAP:
 			return cabin.paper_map.hold(side)
 		CrewRules.Hand.GUN:
@@ -471,7 +514,7 @@ func _shape_fingers(side: int, delta: float, seat: CrewRules.Seat) -> void:
 
 
 ## The head looks where the seat's player looks (the own seat as it is, another's eased between what arrives), the chest and the neck
-## taking a share; out cold it drops to the chest, a shock shakes the back and the neck.
+## taking a share; the neck gives to the car's swing; out cold it drops to the chest, a shock shakes the back and the neck.
 func _turn_head(seat: CrewRules.Seat, delta: float, shake: float) -> void:
 	if body.role == cabin.local_role:
 		_look = seat.look
@@ -490,8 +533,9 @@ func _turn_head(seat: CrewRules.Seat, delta: float, shake: float) -> void:
 		jolt = Vector3(_noise.get_noise_2d(_since * 4.0, 80.0), _noise.get_noise_2d(_since * 4.0, 95.0), _noise.get_noise_2d(_since * 4.0, 110.0)) * SHAKE_TURN * shake
 	_turn(CrewPose.CHEST, look.x * CHEST_TURN + jolt.x, -SLUMP_BACK.x * _slump + jolt.y,
 		outboard * SLUMP_BACK.y * _slump + jolt.z)
-	_turn(CrewPose.NECK, look.x * NECK_TURN.x - jolt.z, look.y * NECK_TURN.y + jolt.x, jolt.y)
-	var way := Basis.from_euler(Vector3(deg_to_rad(look.y + jolt.y * 2.0), deg_to_rad(look.x + jolt.x * 2.0), 0.0), EULER_ORDER_YXZ) * Vector3.FORWARD
+	var sway := _sway.tilt
+	_turn(CrewPose.NECK, look.x * NECK_TURN.x - jolt.z, look.y * NECK_TURN.y + jolt.x + sway.y, jolt.y + sway.x)
+	var way := Basis.from_euler(Vector3(deg_to_rad(look.y + jolt.y * 2.0 + sway.y * SWAY_NOD), deg_to_rad(look.x + jolt.x * 2.0), 0.0), EULER_ORDER_YXZ) 		* Vector3.FORWARD
 	_look_goal.position = _head_at + way * 4.0
 
 
@@ -509,18 +553,50 @@ func _turn(bone_name: StringName, yaw: float, pitch: float, roll: float) -> void
 	_skeleton.set_bone_pose_rotation(bone, rotation)
 
 
-## The legs kick the windshield out while that job runs: up off the floor, onto the dash under the glass, and back.
+## The legs kick the windshield out while that job runs: up off the floor and back, over the dash onto the glass, and back the same way.
 func _kick(seat: CrewRules.Seat) -> void:
 	var kicking := seat.job == CrewRules.Job.KICK and _job_time < float(CrewRules.JOB_SECONDS[CrewRules.Job.KICK])
 	if kicking != _legs.active:
 		_legs.active = kicking
+		_soles.active = kicking
 	if not kicking:
 		return
 	var phase := _job_time / float(CrewRules.JOB_SECONDS[CrewRules.Job.KICK])
-	_legs.influence = smoothstep(0.0, 0.15, phase) * (1.0 - smoothstep(0.8, 1.0, phase))
-	var thrust := smoothstep(0.3, 0.5, phase) * (1.0 - smoothstep(0.6, 0.95, phase))
+	_legs.influence = smoothstep(0.0, 0.06, phase) * (1.0 - smoothstep(0.94, 1.0, phase))
+	_soles.influence = _legs.influence
 	for side in 2:
-		var lifted := _ankles[side] + KICK_LIFT
-		var dash := Vector3(_ankles[side].x, KICK_DASH.x, KICK_DASH.y)
-		_foot_goals[side].position = lifted.lerp(dash, thrust)
-		_knee_goals[side].position = _ankles[side] + Vector3(0.0, 1.0, -0.4)
+		var foot := kick_foot(_feet[side], phase)
+		_foot_goals[side].transform = foot
+		_knee_goals[side].position = foot.origin + KICK_KNEE
+		_kick_knees[side] = knee_of(_hips[side], foot.origin, foot.origin + KICK_KNEE, _leg_bones[side])
+
+
+## Where a foot resting as `rest` is `phase` (0..1) into a kick (car space: the ankle and the foot's turn): along KICK_PATH from the floor
+## back out from under the dash, up behind its lower edge, over its top, onto the glass, and back.
+static func kick_foot(rest: Transform3D, phase: float) -> Transform3D:
+	var places: Array[Vector3] = [rest.origin]
+	for place in KICK_PLACES:
+		places.append(Vector3(rest.origin.x, place.x, place.y))
+	var at := rest.origin
+	var toes := 0.0
+	for leg: Array in KICK_PATH:
+		if phase < float(leg[2]):
+			break
+		var t := smoothstep(float(leg[2]), float(leg[3]), phase)
+		at = places[leg[0]].lerp(places[leg[1]], t)
+		toes = lerpf(KICK_TOES[leg[0]], KICK_TOES[leg[1]], t)
+	return Transform3D(Basis(Vector3.RIGHT, deg_to_rad(toes)) * rest.basis, at)
+
+
+## Where the middle joint of a limb from `root` to `end` lies, bent towards `pole`, its two bones `lengths` long (as two-bone IK puts it).
+static func knee_of(root: Vector3, end: Vector3, pole: Vector3, lengths: Vector2) -> Vector3:
+	var way := (end - root).normalized()
+	var reach := clampf(root.distance_to(end), absf(lengths.x - lengths.y) + 0.001, lengths.x + lengths.y - 0.001)
+	var along := (lengths.x * lengths.x - lengths.y * lengths.y + reach * reach) / (2.0 * reach)
+	var bend := ((pole - root) - way * (pole - root).dot(way)).normalized()
+	return root + way * along + bend * sqrt(maxf(lengths.x * lengths.x - along * along, 0.0))
+
+
+## Where a hand rests on a thigh from `hip` to `knee` (car space).
+static func _lap_on(hip: Vector3, knee: Vector3, side: int) -> Transform3D:
+	return Transform3D(CrewPose.hand_basis(knee - hip, Vector3.DOWN, side), hip.lerp(knee, 0.5) + Vector3.UP * 0.075)

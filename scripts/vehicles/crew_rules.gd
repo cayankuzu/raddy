@@ -18,7 +18,7 @@ const LEFT := 0
 const RIGHT := 1
 ## How long each job takes (s): a window as long as its pane moves.
 const JOB_SECONDS := {Job.WINDOW_LEFT: Cabin.PANE_SECONDS, Job.WINDOW_RIGHT: Cabin.PANE_SECONDS, Job.WIPERS: 0.5, Job.THROW: 0.6,
-	Job.KICK: 0.6}
+	Job.KICK: 0.9}
 ## A gesture shows at least this long however short the press (s), so the partner can catch it.
 const GESTURE_SECONDS := 1.2
 ## A seat's state goes out this often (per second) through the host: a head turns and a hand moves slowly enough for that.

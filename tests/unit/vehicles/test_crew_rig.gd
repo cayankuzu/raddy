@@ -1,7 +1,8 @@
 extends GutTest
 ## The crew at work on the real car (CrewRig, headless: Godot's skeleton modifiers run without a window): the driver's hands ride the turning
 ## wheel and one leaves it for the gun, the head looks where its seat looks, the navigator holds the open map by its edges, a gesture shows
-## where the partner sees it, out cold the body slumps, and a body far from the camera rests.
+## where the partner sees it, out cold the body slumps, the head swings with the car, the kick goes over the dash, and a body far from the
+## camera rests.
 
 const DRIVER := RosterRules.Role.DRIVER
 const NAVIGATOR := RosterRules.Role.NAVIGATOR
@@ -198,3 +199,88 @@ func test_a_crew_moves_only_where_it_can_be_seen() -> void:
 	_cabin.local_role = DRIVER
 	await wait_process_frames(2)
 	assert_true(driver.rig._arms.active, "the own car's crew always moves (the mirrors, a look over the shoulder)")
+
+
+func test_the_head_swings_out_of_a_corner() -> void:
+	var driver := _body(DRIVER)
+	var still := await _drawn(driver, 10)
+	var start := _car.global_transform
+	var speed := 20.0
+	var radius := speed * speed / 9.81
+	var ticks: Array[int] = [0]
+	# A left turn at a steady g (round a centre on the car's left), the car moved every tick as a snapshot would move it.
+	var drive := func() -> void:
+		ticks[0] += 1
+		var turn := Basis(Vector3.UP, ticks[0] / 120.0 * speed / radius)
+		var centre := start.origin - start.basis.x * radius
+		_car.global_transform = Transform3D(turn * start.basis, centre + turn * (start.origin - centre))
+	get_tree().physics_frame.connect(drive)
+	var drawn := await _drawn(driver, 300)
+	get_tree().physics_frame.disconnect(drive)
+	var head := _bone(driver, CrewPose.HEAD)
+	var lean := rad_to_deg(still[head].basis.y.normalized().signed_angle_to(drawn[head].basis.y.normalized(), Vector3.FORWARD))
+	gut.p("a 1 g left turn: the neck pushed %.1f degrees to the right, the head leans %.1f degrees" % [driver.rig._sway.tilt.x, lean])
+	assert_almost_eq(driver.rig._sway.tilt.x, CrewSway.TILT_PER_G.x, 0.5, "pushed out of the corner by its g")
+	assert_gt(lean, 3.0, "the helmet leans out of the corner")
+	assert_lt(lean, CrewSway.MOST_TILT * 1.5)
+
+
+func test_the_kick_goes_over_the_dash_not_through_it() -> void:
+	var navigator := _body(NAVIGATOR)
+	# The cabin's solid parts (not the glass, nor the crew) as something a ray can meet.
+	var faces := PackedVector3Array()
+	for node in _car.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		var path := String(_car.get_path_to(mesh_instance))
+		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree() or path.contains("Navigator") or path.contains("Driver") 				or path.contains("Camera") or path.contains("Window") or path.contains("Windshield") or path.contains("Glass") 				or mesh_instance.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+			continue
+		var to_car := _car.global_transform.affine_inverse() * mesh_instance.global_transform
+		for v in mesh_instance.mesh.get_faces():
+			faces.append(_car.global_transform * (to_car * v))
+	var shape := ConcavePolygonShape3D.new()
+	shape.backface_collision = true
+	shape.set_faces(faces)
+	var cabin_body := StaticBody3D.new()
+	cabin_body.collision_layer = 1 << 25
+	var collider := CollisionShape3D.new()
+	collider.shape = shape
+	cabin_body.add_child(collider)
+	add_child_autofree(cabin_body)
+	_car.collision_layer = 0
+	await wait_physics_frames(2)
+	var space := _car.get_world_3d().direct_space_state
+	var feet: Array[Array] = []
+	var capture := func() -> void:
+		var to_world := navigator.skeleton.global_transform
+		var frame: Array[Vector3] = []
+		for side in 2:
+			for bone: StringName in [CrewPose.LEGS[side][1], CrewPose.LEGS[side][2], CrewPose.LEGS[side][3]]:
+				frame.append(to_world * navigator.skeleton.get_bone_global_pose(_bone(navigator, bone)).origin)
+		feet.append(frame)
+	navigator.skeleton.skeleton_updated.connect(capture)
+	(_cabin.seats[NAVIGATOR] as CrewRules.Seat).start_job(CrewRules.Job.KICK)
+	await wait_process_frames(roundi(float(CrewRules.JOB_SECONDS[CrewRules.Job.KICK]) * 120.0) + 10)
+	navigator.skeleton.skeleton_updated.disconnect(capture)
+	var crossings := 0
+	var highest := -INF
+	for f in feet.size():
+		var frame: Array = feet[f]
+		for side in 2:
+			var knee: Vector3 = frame[side * 3]
+			var ankle: Vector3 = frame[side * 3 + 1]
+			var toe: Vector3 = frame[side * 3 + 2]
+			highest = maxf(highest, (_car.global_transform.affine_inverse() * toe).y)
+			# The shin, the foot to the tip of the toes, and the way the ankle and the toes went since the last frame.
+			var segments: Array = [[knee, ankle], [ankle, toe + (toe - ankle).normalized() * 0.06]]
+			if f > 0:
+				segments.append([feet[f - 1][side * 3 + 1], ankle])
+				segments.append([feet[f - 1][side * 3 + 2], toe])
+			for segment: Array in segments:
+				var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(segment[0], segment[1], 1 << 25))
+				# The feet rest on the floor: what counts is the dash, above it.
+				if not hit.is_empty() and (_car.global_transform.affine_inverse() * (hit.position as Vector3)).y > -0.15:
+					crossings += 1
+	gut.p("a kick over %d frames: the toes up to %.2f m, %d crossings of the dash" % [feet.size(), highest, crossings])
+	assert_gt(feet.size(), 90, "the whole kick was seen")
+	assert_gt(highest, 0.45, "the feet come up over the dash to the glass")
+	assert_eq(crossings, 0, "never through the dash")
