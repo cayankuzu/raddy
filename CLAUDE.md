@@ -125,7 +125,7 @@ No Blender; model in Godot only as a last resort.
   (pure) says what every needle, lamp and lever shows; `CarCockpit` puts it on the car near the camera: the instrument
   panel (`shaders/gauge_panel.gdshader` over a face baked by `tools/make_gauge_face.gd`, keep both layouts in step),
   pedals, H-gate lever, fitted handbrake. `CarLamps`: tail lights only with the headlights (their glow a faint red on the
-  road behind, the brake lights' a bright one), brake, reversing, hazards on a stuck or critical car, the dome lamp
+  road behind, the brake lights' a bright one: from dusk on, by `RaceLook.lamp_light` like the beams), brake, reversing, hazards on a stuck or critical car, the dome lamp
   (`Cabin.dome_on`, L, the map holder's; shows in the glass through `shaders/glass_ghost.gdshaderinc`). Headlights: a
   projector pattern (`CarLamps.beam_pattern`, tested: brightest in a band round the horizon, so the road reaches 80 m and
   more, cut under the nose) drawn through each beam's shadow map, which holds only the cars' hulls (`CarLamps.HULL_LAYER`: a few triangles inside every
@@ -229,7 +229,8 @@ No Blender; model in Godot only as a last resort.
   above: origin → +X → +Z.
 - What the ground is: `shaders/road_surface.gdshaderinc` (road and verge, no seam): fine `loose` material, two wandering
   `packed` wheel tracks, scattered `stones`, per surface in `SurfaceMaterials.ROAD_SETS`; `ground_common.gdshaderinc`: two
-  sets, a third in patches, hummocks that only tilt the light; under the crowns (`RoadsideDresser.canopy`, the globals
+  sets, a third in patches, hummocks that only tilt the light, a dry ground's specular the dry road's (`GROUND_DRY_SPECULAR`: at the default
+  the sky's sheen turned every shade blue-grey; the verge blends the two); under the crowns (`RoadsideDresser.canopy`, the globals
   `canopy_map` and `canopy_rect`, 2 m pixels) the ground lies in shade, and in the forest needles, leaves and moss replace the
   grass (`canopy_shade`, `canopy_litter`, `canopy_moss` per biome in `SurfaceMaterials.BIOME_GROUND`). A scan's flaw is fixed
   in the shader (snow's hollows: `darkest`, `relief`); a dry road keeps `DRY_SPECULAR` (a low sun ahead turned it white).
@@ -241,7 +242,7 @@ No Blender; model in Godot only as a last resort.
 - `RoadsideDresser` (+ `RoadsideCatalog`): Poly Haven scans and the Sketchfab conifer/birch packs (`node` picks
   one tree from a pack, `unit` 0.01 for the centimetre birches, `foliage` = leaves cut out by alpha (`shaders/leaf.gdshader`)
   and bark (`bark.gdshader`), both taking rain and snow (`plant_weather.gdshaderinc`: snow in clumps on what faces up, sooner
-  on what is `low`; one material per material of the scan, no draw call added), `black_ground` = a scan
+  on what is `low`; rain a rough film of water's sheen, a smooth one looked like frost; one material per material of the scan, no draw call added), `black_ground` = a scan
   whose JPEG atlas has no alpha but a black ground, cut away by `shaders/cut_out_leaf.gdshader`: check a new plant's
   atlas, those cards are opaque black otherwise; `low` = grows in the clearings too; `weathered` = a rock the rain and snow reach,
   `shaders/weathered_scan.gdshader`), a thick edge band
@@ -342,6 +343,8 @@ No Blender; model in Godot only as a last resort.
   plus gravel crunch / rumble / squeal by surface and slide, water, wind for the crew, crashes and the horn (H).
   Assets come from `tools/cut_audio.py` (raw files in git-ignored `raw_assets/audio/`, fetched by
   `tools/fetch_audio.py`); loops carry a smpl chunk. Players do not play headless.
+- Falling weather: `WeatherFx` (rain, snow or a dust storm in one box of particles that follows the camera, rain and thunder sounds; lit
+  from dusk on): round flakes, soft wisps, drops that thin at both ends, nothing within `NEAR_FADE` 1.5 m of the eye (the box knows no cabin).
 - Reflections: `Environment.ssr_*` from Medium up (`GraphicsQuality.apply_look`, also the global `wet_mirror` that lets
   standing water on the road be a real mirror); it only sees opaque surfaces, so water pools march their own ray
   (`puddle.gdshader`, `reflection_steps`, 0 on Low).

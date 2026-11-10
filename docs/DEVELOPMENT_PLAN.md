@@ -431,3 +431,23 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     follower, alternating, two rounds each: 39.6 against 39.9 fps, the same draw calls.
   Verified: 447 GUT tests (11662 asserts), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1 -Stage 3` (2:02.2 / 2:07.6, 17.4 / 16.7 m/s, no script or engine
   error in the logs).
+- 2026-11-10: A4 final check, the finished phase looked at once more from the seat, the chase camera and beside the road (dry gravel and a follower in its
+  dust, mud and rain, snow, a dust storm, golden hour, dusk, night, a bullseye and a crack, a dusty and a muddy car): DONE.
+  - The ground's own specular was the default 0.5 (the verge's the dry road's 0.2): the sky's sheen turned every shade blue-grey, the forest floor under the
+    crowns most. Now 0.2 dry and 0.5 wet (`ground_common.gdshaderinc`), blended across the verge. A/B beside the road: Black Pine's floor reads as dark brown
+    needles, Eagle's Nest's grassy slope keeps its green, Red Canyon is unchanged.
+  - Rain on the plants: needles had a smooth film's gloss (roughness 0.32, specular 0.45) and wet bark 0.5 + 0.45, so the crowns looked frosted from the seat
+    in the rain. Now roughness 0.55, specular 0.35 (water's), bark stays at 0.5: dark wet firs, the birches' white bark still white.
+  - By day a braking car laid a red blob on the snow behind it: the rear lamps' glow on the road follows `RaceLook.lamp_light` like the beams' (the glass shows).
+  - The weather's particles (P4): snowflakes were 7 cm squares, a dust storm's wisps rectangles, and a flake passing the lens a sheet with straight sides (the box
+    of weather follows the camera and knows no cabin). Round flakes, soft wisps, drops that thin at both ends, nothing within 1.5 m of the eye, full from 4 m.
+  - Tests: two scripts left behind the RoadFxPool a car makes beside itself, one compared a float with an int (three GUT warnings, now none).
+  - Looked at and right: the cloud behind a car (a follower 2 s back on Black Pine, Medium: 94 / 96 % of the road 8-30 m ahead hidden, 97 / 79 % of 30-90 m, at 26
+    / 44 s with a 52 / 46 m gap), the stones in it, mud spray and ruts on Misty Creek, the powder plume and the marks in the snow on Eagle's Nest, the golden
+    hour into a low sun, the blue hour at a spectator place, the night (only what the beams light), the crack's thin straight lines by day, a car at 0.85 dust
+    and 0.75 mud.
+  - Known and left: the bot drives into a tree on Glacier Ridge in snow about 15 s in and stays against it braking (RouteFollower on snow; the flow tests run
+    clear weather); the windshield's dirt is the same brown in every weather (dark specks in snow, black against a low desert sun: A3's look, it could take
+    `CarDirt`'s layers); a chase camera pushed into a fir's crown shows straight-edged pale cards.
+  Verified, on the fixed build: 447 GUT tests (11666 asserts, no GUT warning; one Jolt job-system warning under load), `tools\nettest.ps1` (3 clients, 40 s),
+  `tools\flowtest.ps1 -Clients 1 -Stage 3` (2:02.2 / 2:07.6, 17.4 / 16.7 m/s), no script or engine error in their logs.

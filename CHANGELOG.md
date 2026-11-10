@@ -8,11 +8,14 @@
 - **Headlights that reach:** a real lamp's beam, brightest just under the horizon, lights the road far ahead and little
   above it; the trees by the road catch it, a corner beyond the beams stays dark. Fog and dust glow in them, and behind
   another car in its dust at night you see nothing but the glowing cloud. A car close behind you lights the trees round you,
-  never your road or your windshield through your car: your own shadow lies ahead of you. The dials light up, tail lights leave a faint red on
-  the road behind and brake lights a bright one, a follower's beams light up your mirrors. On High your own headlights cast shadows.
+  never your road or your windshield through your car: your own shadow lies ahead of you. The dials light up, after dark tail lights leave a faint red
+  on the road behind and brake lights a bright one, a follower's beams light up your mirrors. On High your own headlights cast shadows.
 - **Snow on the trees, rain on the leaves:** in snow the firs carry it in broken clumps on top of their branches and the undergrowth is white
   long before; rain darkens the leaves and makes them shine.
-- **A forest floor:** under the trees fallen needles, leaves and moss lie in the shade of the crowns instead of a lawn.
+- **A forest floor:** under the trees fallen needles, leaves and moss lie in the shade of the crowns instead of a lawn, and the shade on the ground
+  keeps the ground's own colour instead of a blue-grey sheen of the sky.
+- **Rain, snow and dust storms:** round snowflakes, soft wisps of blowing dust and raindrops that streak; nothing of the weather drifts through the
+  cabin or past your eyes.
 - **Dust that hangs in the air:** on dry gravel, dirt and sand a car drags a real cloud that lingers for seconds, drifts on the wind, is darker in the shade of
   the trees and glows when the sun or the headlights are behind it. Two seconds behind another car you lose the road: the navigator is all you have.
 - **Snow, mud and water:** snow throws a plume of powder, mud and wet roads throw clods and spray instead of dust, water leaves the flanks in sheets, and a hard
