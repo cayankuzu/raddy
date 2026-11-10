@@ -451,3 +451,21 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     `CarDirt`'s layers); a chase camera pushed into a fir's crown shows straight-edged pale cards.
   Verified, on the fixed build: 447 GUT tests (11666 asserts, no GUT warning; one Jolt job-system warning under load), `tools\nettest.ps1` (3 clients, 40 s),
   `tools\flowtest.ps1 -Clients 1 -Stage 3` (2:02.2 / 2:07.6, 17.4 / 16.7 m/s), no script or engine error in their logs.
+
+- 2026-11-10: A5 carry-over C1, windshield dirt that belongs to the road: DONE.
+  - What lands on the windshield takes the colour of the road it came from (`CarDirtRules.glass_tint`, `CarDirt`'s layers): dust in the road's own colour
+    (tan in the desert), brown mud and a splash's muddy water, grey slush in snow, each road for as much as it put there (`WindshieldGlass.tint`), worked
+    out on every peer from how it sees the car drive. The door mirrors' grime takes the same colour (`CarMirrors.grime_filter`).
+  - The dirt is a film the light comes through (`windshield.gdshader`): what it takes from the view it scatters on, the world behind it blurred (the copy
+    of the screen the seat's motion blur already makes) and a forward lobe round a light beyond the glass, so it glows round a low sun instead of going
+    black; the glass's inside sees the dark cabin, not the sky (AO). Flecks come by the square of the dirt: few, small and translucent at first, a film
+    carries the loss. Mud lays a thicker film (it takes the light), slush a thinner one (a wet haze), dust in between (the colour's alpha).
+  - What a dirty screen hides, `tools\fx_probe.ps1 -ExtraArgs "--glass-dirt=0.35+0.7+1"` (new: clean glass against each level in the same frozen
+    frame, the road 8-30 m ahead), A3's look against the new one at 35 / 70 / 100 %: Black Pine by day 0.14/0.35/0.60 against 0.12/0.37/0.62; Red Canyon
+    at the golden hour into the sun 0.17/0.44/0.76 against 0.12/0.30/0.49 (30-90 m 0.11/0.28/0.47 against 0.14/0.37/0.57: the glow lies over the far
+    road); Glacier Ridge in snow 0.07/0.22/0.51 against 0.12/0.31/0.49; Misty Creek's mud in the rain 0.22/0.51/0.77 against 0.13/0.47/0.78; Black Pine
+    at night with the dome lamp 0.07/0.21/0.40 against 0.10/0.30/0.51. Looked at from the seat at every level: no black swarm against the low sun, grey
+    slush in snow, brown mud, a beige veil under the dome lamp, the wipers' arcs clean.
+  - Cost, `tools\perf.ps1 -Stage 0 -Quality 1`, the new shader against the old, alternating, two rounds: 40.6 / 40.9 fps against 40.4 / 40.9, the same
+    draw calls (782-869).
+  Verified: 451 GUT tests (11695 asserts).

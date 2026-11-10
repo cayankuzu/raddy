@@ -1,10 +1,11 @@
 class_name WindshieldGlass
 extends Node
 ## Puts the Cabin's dirt, cracks and wipers onto the real windshield (shaders/windshield.gdshader)
-## instead of over the player's screen: mud gathers on the glass in blotches, the car's own two wipers
-## sweep it (cut out of the model, each turning about its hinge), only where a blade really passes the glass
-## comes clean, and a stone leaves a bullseye where it hit, then a crack from there (CrackPicture) that runs further
-## with every stone after. Every peer sees every car's glass the same way.
+## instead of over the player's screen: what the road throws gathers on the glass in a film and flecks of the road's
+## own colour (CarDirtRules.glass_tint: dust, mud or slush, worked out on every peer from how it sees the car drive), the
+## car's own two wipers sweep it (cut out of the model, each turning about its hinge), only where a blade really passes
+## the glass comes clean, and a stone leaves a bullseye where it hit, then a crack from there (CrackPicture) that runs
+## further with every stone after. Every peer sees every car's glass the same way.
 
 const SHADER := preload("res://shaders/windshield.gdshader")
 const WIPER_PERIOD := 1.1
@@ -29,6 +30,9 @@ var parts: Dictionary = {}
 
 ## The windshield's picture: dirt, wipers, bullseye and crack (CarModel sets where it is drawn among what is see-through).
 var material := ShaderMaterial.new()
+## The colour of the dirt on the glass: each road's for as much of it as that road put there.
+var tint := CarDirtRules.MUD_ON_GLASS
+var _dirt := 0.0
 var _edge_dirt := 0.0
 var _wipers: Array[Node3D] = []
 var _wiper_time := 0.0
@@ -57,6 +61,7 @@ func _ready() -> void:
 	material.set_shader_parameter(&"plane_v", _v)
 	material.set_shader_parameter(&"plane_size", _size)
 	material.set_shader_parameter(&"wipe_sweep", deg_to_rad(WIPER_SWEEP))
+	material.set_shader_parameter(&"dirt_color", tint)
 	glass.material_override = material
 	_build_wipers()
 	cabin.dirt_changed.connect(_on_dirt)
@@ -105,6 +110,13 @@ func _measure_plane() -> void:
 
 
 func _on_dirt(level: float) -> void:
+	var car := cabin.get_parent() as RallyCar
+	if level > _dirt and car != null:
+		# What came last counts for as much as it adds.
+		var thrown := CarDirtRules.glass_tint(tint, car.wheel_surface(0), car.water_contacts > 0, RaceLook.dust_tint)
+		tint = tint.lerp(thrown, (level - _dirt) / maxf(level, 0.02))
+		material.set_shader_parameter(&"dirt_color", tint)
+	_dirt = level
 	_edge_dirt = maxf(_edge_dirt, level)
 	material.set_shader_parameter(&"dirt", level)
 

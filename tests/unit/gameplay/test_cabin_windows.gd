@@ -180,3 +180,19 @@ func test_open_cabin_at_speed_on_gravel_faints_the_seats_for_six_seconds_and_fre
 	assert_lt(_cabin.exposure[RosterRules.Role.NAVIGATOR], 0.9, "exposure drops on waking")
 	assert_true(_faints.has([RosterRules.Role.NAVIGATOR, true]), "faint events reported: %s" % str(_faints))
 	assert_true(_faints.has([RosterRules.Role.DRIVER, true]), "no windshield exposes both seats alike")
+
+
+func test_the_glass_takes_the_colour_of_the_road_it_drives() -> void:
+	await _spawn(Surface.SNOW)
+	var glass: WindshieldGlass = _car.get_node(^"Model/WindshieldGlass")
+	_car.forward_speed = 20.0
+	await _seconds(2.0)
+	assert_gt(_cabin.dirt, 0.04, "the snow has reached the glass")
+	assert_eq(glass.tint, CarDirtRules.SLUSH_ON_GLASS, "grey slush")
+	assert_eq(glass.material.get_shader_parameter(&"dirt_color"), glass.tint, "on the glass itself")
+	var slush_dirt := _cabin.dirt
+	_car.water_contacts = 1
+	await _seconds(0.5)
+	var mud_share := (glass.tint.b - CarDirtRules.SLUSH_ON_GLASS.b) / (CarDirtRules.MUD_ON_GLASS.b - CarDirtRules.SLUSH_ON_GLASS.b)
+	gut.p("slush %.2f, then a splash to %.2f: the glass is %.0f %% muddy water" % [slush_dirt, _cabin.dirt, mud_share * 100.0])
+	assert_almost_eq(mud_share, 1.0 - slush_dirt / _cabin.dirt, 0.05, "each for as much as it put there")

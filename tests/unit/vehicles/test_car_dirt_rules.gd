@@ -62,3 +62,35 @@ func test_a_splash_washes_the_lower_half_and_the_road_brings_it_back() -> void:
 		washed = CarDirtRules.soiled(washed, Surface.GRAVEL, STAGE_SPEED, TICK)
 	assert_between(washed, 0.2, 0.7, "half way back after half the distance")
 	assert_eq(CarDirtRules.soiled(0.5, Surface.TARMAC, STAGE_SPEED, 10.0), 0.5, "tarmac does not soil it again")
+
+
+func test_what_lands_on_glass_takes_the_colour_of_the_road() -> void:
+	var forest: Color = RaceLook.DUST_TINT[RaceSettings.Biome.FOREST]
+	var desert: Color = RaceLook.DUST_TINT[RaceSettings.Biome.DESERT]
+	var gravel := CarDirtRules.glass_tint(Color.BLACK, Surface.GRAVEL, false, forest)
+	var sand := CarDirtRules.glass_tint(Color.BLACK, Surface.SAND, false, desert)
+	var mud := CarDirtRules.glass_tint(Color.BLACK, Surface.MUD, false, forest)
+	var slush := CarDirtRules.glass_tint(Color.BLACK, Surface.SNOW, false, forest)
+	gut.p("on glass: gravel %s, desert sand %s, mud %s, slush %s" % [gravel, sand, mud, slush])
+	var road: Color = RoadFxRules.throws(Surface.GRAVEL).tint * forest
+	assert_eq(Color(gravel, 1.0), Color(road, 1.0), "dust in the colour of the road, as on the paint")
+	assert_gt(sand.r - sand.b, gravel.r - gravel.b, "tan in the desert")
+	assert_lt(mud.get_luminance(), gravel.get_luminance() * 0.7, "mud is darker than dust")
+	assert_gt(mud.r, mud.b, "and brown")
+	assert_almost_eq(slush.r, slush.g, 0.04, "slush is grey")
+	assert_gte(slush.b, slush.r, "a cold grey, no brown in it")
+	assert_eq(CarDirtRules.glass_tint(Color.BLACK, Surface.WET, false, forest), mud, "a wet road throws muddy water")
+	assert_eq(CarDirtRules.glass_tint(Color.BLACK, Surface.GRAVEL, true, forest), mud, "so does a splash")
+	assert_eq(CarDirtRules.glass_tint(Color.RED, Surface.TARMAC, false, forest), Color.RED, "tarmac leaves nothing new")
+
+
+## The alpha is how much of the view a filthy screen's film takes: a pale film veils, a dark one takes the light (A3's balance, measured with
+## tools\fx_probe.ps1 --glass-dirt: a pale film hid as much with less).
+func test_mud_lays_a_thicker_film_and_slush_a_thinner_one_than_dust() -> void:
+	var forest: Color = RaceLook.DUST_TINT[RaceSettings.Biome.FOREST]
+	var dust := CarDirtRules.glass_tint(Color.BLACK, Surface.GRAVEL, false, forest).a
+	assert_almost_eq(dust, CarDirtRules.DUST_ON_GLASS, 0.0001)
+	assert_gt(CarDirtRules.glass_tint(Color.BLACK, Surface.MUD, false, forest).a, dust)
+	assert_lt(CarDirtRules.glass_tint(Color.BLACK, Surface.SNOW, false, forest).a, dust)
+	for surface: StringName in [Surface.GRAVEL, Surface.DIRT, Surface.SAND, Surface.MUD, Surface.WET, Surface.SNOW]:
+		assert_between(CarDirtRules.glass_tint(Color.BLACK, surface, false, forest).a, 0.3, 0.9, "%s: a film, never a wall" % surface)

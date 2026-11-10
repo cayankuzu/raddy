@@ -13,7 +13,8 @@ uniform float edge_shade = 0.25;
 uniform float brightest = 1.6;
 uniform float dirt = 0.0;
 uniform float broken = 0.0;
-// What a film of road dirt lets through, in linear light: a faint warm veil, the road stays readable.
+// What a film of road dirt lets through, in linear light (CarMirrors.grime_filter: the colour of the road's dirt): a faint veil, the road
+// stays readable.
 uniform vec3 dirt_filter = vec3(0.74, 0.68, 0.58);
 
 #include "res://shaders/glass_crack.gdshaderinc"

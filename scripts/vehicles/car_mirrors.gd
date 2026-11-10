@@ -36,9 +36,11 @@ const SHAKE_RATE := Vector2(47.0, 61.0)
 const HANG_DEGREES := 58.0
 const HANG_FLAP := 16.0
 const HANG_FLAP_SPEED := 25.0
-## A door mirror's grime: this share of what lands on the windshield, up to this much. No wiper reaches it.
+## A door mirror's grime: this share of what lands on the windshield, up to this much. No wiper reaches it. Its film lets through this
+## much of the colour of the road's dirt (WindshieldGlass.tint) and white light for the rest: a faint veil, the road stays readable.
 const GRIME_SHARE := 0.22
 const GRIME_MOST := 0.6
+const GRIME_TINT := 0.4
 const DISPLAY_SHADER := preload("res://shaders/mirror_glass.gdshader")
 ## A broken mirror's crack (CrackPicture): over how much glass (m) and how far it has spread.
 const BROKEN_METRES := Vector2(0.2, 0.12)
@@ -60,6 +62,8 @@ const SUN_THROUGH_TREES := 1.4
 const CAMERA_MASK := 0xFFFFF & ~(SELF_LAYER | RaceLook.SUN_LAYER | GraphicsQuality.FINE_SCENERY_LAYER)
 
 var car: RallyCar
+## The windshield: the door mirrors' grime is what lands on it (CarModel sets it).
+var windshield: WindshieldGlass
 
 ## The seat's camera while the mirrors work; null otherwise.
 var _seat: CockpitCamera
@@ -307,12 +311,20 @@ static func grime_after(grime: float, was: float, level: float) -> float:
 	return minf(grime + maxf(level - was, 0.0) * GRIME_SHARE, GRIME_MOST)
 
 
+## What a door mirror's film of dirt of `tint` (sRGB) lets through, in linear light.
+static func grime_filter(tint: Color) -> Color:
+	return Color.WHITE.lerp(tint.srgb_to_linear(), GRIME_TINT)
+
+
 ## The door mirrors stand outside, in what the road throws up.
 func _on_dirt(level: float) -> void:
 	_grime = grime_after(_grime, _dirt_seen, level)
 	_dirt_seen = level
 	for slot: int in [Slot.LEFT, Slot.RIGHT]:
-		(_mirrors[slot] as Mirror).material.set_shader_parameter(&"dirt", _grime)
+		var material := (_mirrors[slot] as Mirror).material
+		material.set_shader_parameter(&"dirt", _grime)
+		if windshield != null:
+			material.set_shader_parameter(&"dirt_filter", grime_filter(windshield.tint))
 
 
 ## A door mirror breaks (hangs from its arm, black cracked glass) or is restored. The interior one never breaks.

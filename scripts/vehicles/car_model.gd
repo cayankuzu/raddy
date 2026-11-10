@@ -207,6 +207,7 @@ func _move_glass(model: Node3D, parts: Dictionary) -> void:
 			windshield.glass = glass
 			windshield.parts = parts
 			add_child(windshield)
+			mirrors.windshield = windshield
 
 
 ## The rear window and the small side windows stay where they are, but they are clear too: they are what the

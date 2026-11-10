@@ -197,3 +197,17 @@ func test_the_glass_is_where_the_eye_sees_it_at_speed_too() -> void:
 	await wait_process_frames(2)
 	gut.p("from the eye: parked %s, at %.0f m/s %s" % [str(parked.snappedf(0.01)), _car.linear_velocity.length(), str(reader.from_the_eye.snappedf(0.01))])
 	assert_almost_eq(reader.from_the_eye.distance_to(parked), 0.0, 0.08, "a physics tick at 30 m/s is 0.25 m: it must not show")
+
+
+func test_a_door_mirrors_grime_takes_the_colour_of_the_roads_dirt() -> void:
+	var forest: Color = RaceLook.DUST_TINT[RaceSettings.Biome.FOREST]
+	var dust := CarMirrors.grime_filter(CarDirtRules.glass_tint(Color.BLACK, Surface.GRAVEL, false, forest))
+	var slush := CarMirrors.grime_filter(CarDirtRules.SLUSH_ON_GLASS)
+	var mud := CarMirrors.grime_filter(CarDirtRules.MUD_ON_GLASS)
+	gut.p("a door mirror's film lets through: dust %s, slush %s, mud %s" % [dust, slush, mud])
+	assert_gt(dust.r, dust.b, "a warm veil of dust")
+	assert_almost_eq(slush.r, slush.b, 0.06, "a grey one of slush")
+	assert_lt(mud.get_luminance(), dust.get_luminance(), "mud takes more of the light")
+	for filter: Color in [dust, slush, mud]:
+		assert_gt(filter.get_luminance(), 0.55, "the road behind stays readable")
+	assert_same(_model.mirrors.windshield, _model.get_node(^"WindshieldGlass"), "the car's own windshield says what lands on them")

@@ -1,6 +1,7 @@
 # Shots of what the cars throw into the air, with and without the cloud in the same frozen frame, and how much of the road ahead it
 # hides (tools\fx_probe.gd), into reports\screenshots\fx\<Tag>\.
 #   tools\fx_probe.ps1 -At "24+30" [-Stage 0] [-Quality 1] [-Weather 0] [-Tag now] [-ExtraArgs "--follower=9,--follower-delay=2,--ride-follower"]
+# With -ExtraArgs "--glass-dirt=0.35+0.7+1" it measures what the windshield's dirt hides instead (GLASSPROBE lines).
 param(
     [string]$At = "20",
     [string]$Stage = "0",
@@ -18,5 +19,5 @@ $probeArgs = @("--path", $ProjectDir) + $GodotWindowArgs + @("--resolution", "11
     "-s", "res://tools/fx_probe.gd", "--", "--stage=$Stage", "--quality=$Quality", "--weather=$Weather", "--autodrive",
     "--at=$At", "--out=$dir") + $ExtraArgs
 $out = & $GodotConsole @probeArgs 2>&1
-$out | Select-String "SCRIPT ERROR|^ERROR:|^FXPROBE" | ForEach-Object { Write-Host "$_" }
+$out | Select-String "SCRIPT ERROR|^ERROR:|^FXPROBE|^GLASSPROBE" | ForEach-Object { Write-Host "$_" }
 Write-Host "Shots in $dir"
