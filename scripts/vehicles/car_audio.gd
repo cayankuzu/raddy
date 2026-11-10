@@ -56,7 +56,7 @@ const PINGS: Array[AudioStream] = [
 const PING_LEVEL := Vector2(0.1, 0.32)
 const PING_PITCH := Vector2(0.85, 1.7)
 const PING_VOICES := 2
-## A stone on the windshield, and the same stone cracking it.
+## A stone on the windshield (tools/make_stone_sounds.py), heard only in that car.
 const STONE_ON_GLASS: Array[AudioStream] = [
 	preload("res://assets/audio/car/stone_glass_0.wav"), preload("res://assets/audio/car/stone_glass_1.wav"),
 	preload("res://assets/audio/car/stone_glass_2.wav"),

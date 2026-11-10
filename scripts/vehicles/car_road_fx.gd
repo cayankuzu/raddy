@@ -148,7 +148,7 @@ func _throw_bits(delta: float, surface: StringName, speed: float, slip: float, t
 	var life: Vector2 = look.life
 	var rise: Vector2 = CLOD_RISE if kind == RoadFxRules.Bit.CLOD else BIT_RISE
 	var up := car.global_basis.y
-	var tone: Color = look.color
+	var tone: Color = look.color * RaceLook.dust_tint
 	while _bits_due >= 1.0:
 		_bits_due -= 1.0
 		var velocity := _velocity * _rng.randf_range(BIT_CARRY.x, BIT_CARRY.y) + up * _rng.randf_range(rise.x, rise.y) \
