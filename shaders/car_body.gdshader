@@ -3,11 +3,13 @@ render_mode cull_disabled;
 // A car's skin (CarDirt: the paint, the trim, the wheels): the model's material with what the road has left on it. Dust is a film that climbs
 // from the sills and from behind the wheels and thickens where it arrived first; mud is thrown, so it comes as drops that run together low
 // down; snow packs like mud. Everything is measured in the car's own space, so it rides on the car and the bonnet that opens keeps what
-// is on it. With nothing on it this is the StandardMaterial3D the model came with.
+// is on it (each mesh's skin knows its own place: CarDirt.skin_of). With nothing on it this is the StandardMaterial3D the model came with.
 
 uniform vec4 albedo : source_color = vec4(1.0);
 uniform sampler2D albedo_map : source_color, hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D metal_rough_map : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
+// The model's own occlusion in the panel gaps, the trim and the tread (red, as glTF packs it).
+uniform sampler2D ao_map : hint_default_white, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float metallic = 0.0;
 uniform float roughness = 1.0;
 uniform float clearcoat = 0.0;
@@ -136,6 +138,7 @@ void fragment() {
 	}
 
 	ALBEDO = paint;
+	AO = texture(ao_map, UV).r;
 	METALLIC = metal;
 	ROUGHNESS = rough;
 	CLEARCOAT = coat;

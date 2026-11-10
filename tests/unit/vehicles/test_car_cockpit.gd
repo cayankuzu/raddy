@@ -230,11 +230,32 @@ func test_the_panes_slide_into_the_doors() -> void:
 func test_a_broken_pane_is_gone_and_a_cracked_one_shows_it() -> void:
 	var cabin: Cabin = _car.get_node(^"Cabin")
 	var pane: MeshInstance3D = _car.get_node(^"Cabin/WindowRight")
+	var started := Time.get_ticks_usec()
 	cabin.window_hit(Cabin.Side.RIGHT, Cabin.WINDOW_CRACK_SPEED + 1.0)
+	var spent := (Time.get_ticks_usec() - started) / 1000.0
 	assert_true(pane.visible, "cracked but there")
-	assert_eq((pane.material_override as ShaderMaterial).get_shader_parameter(&"crack_spread"), CarModel.PANE_SPREAD, "with a crack star")
+	var glass := pane.material_override as ShaderMaterial
+	assert_eq(glass.get_shader_parameter(&"crack_spread"), CarModel.PANE_SPREAD, "with a crack star")
+	gut.p("the crack took %.2f ms of the frame the can hit in" % spent)
+	assert_lt(spent, 4.0, "not the 10-20 ms of baking its picture")
+	assert_null(glass.get_shader_parameter(&"crack_map"), "that is a worker's job")
+	await wait_until(func() -> bool: return glass.get_shader_parameter(&"crack_map") != null, 3.0)
+	assert_not_null(glass.get_shader_parameter(&"crack_map"), "and it brings the picture")
 	cabin.window_hit(Cabin.Side.RIGHT, Cabin.WINDOW_BREAK_SPEED + 1.0)
 	assert_false(pane.visible, "broken: nothing left")
+
+
+func test_another_cars_glass_is_drawn_in_its_dust_the_seats_own_over_it() -> void:
+	var pane: MeshInstance3D = _car.get_node(^"Cabin/WindowLeft")
+	var glass := _model.get_node(^"WindshieldGlass") as WindshieldGlass
+	(_car.get_node(^"Cabin") as Cabin).window_hit(Cabin.Side.RIGHT, Cabin.WINDOW_CRACK_SPEED + 1.0)
+	var cracked := (_car.get_node(^"Cabin/WindowRight") as MeshInstance3D).material_override
+	for material: Material in [pane.mesh.surface_get_material(0), glass.material, cracked]:
+		assert_lt(material.render_priority, RoadFxPool.PUFF_PRIORITY, "another car's glass goes under the dust round it")
+	_model.bind_seat(_car.get_node(^"DriverCamera") as CockpitCamera)
+	for material: Material in [pane.mesh.surface_get_material(0), glass.material, cracked]:
+		assert_gt(material.render_priority, RoadFxPool.PUFF_PRIORITY, "the seat's own glass over the dust it looks out at")
+	assert_lt(CarTyreMarks.PRIORITY, CarModel.GLASS_PRIORITY, "a mark on the road goes under every car's glass")
 
 
 func test_the_wipers_sweep_on_their_hinges_and_park() -> void:
@@ -359,7 +380,8 @@ func _solid_triangles(box: AABB) -> PackedVector3Array:
 	var out := PackedVector3Array()
 	for node in _model.find_children("*", "MeshInstance3D", true, false):
 		var part := node as MeshInstance3D
-		if part.mesh == null or not part.is_visible_in_tree() or String(part.name).to_lower().contains("glass"):
+		if part.mesh == null or not part.is_visible_in_tree() or String(part.name).to_lower().contains("glass") \
+				or part.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
 			continue
 		var faces := part.mesh.get_faces()
 		var to_here := to_car * part.global_transform
@@ -428,13 +450,67 @@ func test_the_headlights_throw_their_light_far_down_the_road() -> void:
 		assert_gt(beam.spot_range, 100.0, "a long way")
 	_model.bind_seat(_car.get_node(^"DriverCamera") as CockpitCamera)
 	for beam in _model.lamps._beams:
-		assert_ne(beam.shadow_caster_mask, 0, "the seat's own car casts real shadows on High (headless counts as High)")
+		assert_ne(beam.shadow_caster_mask & ~CarLamps.HULL_LAYER, 0, "the seat's own car casts real shadows on High (headless counts as High)")
 		assert_eq(beam.shadow_caster_mask & GraphicsQuality.CABIN_LAYER, 0, "but nothing inside a car")
+		assert_ne(beam.shadow_caster_mask & CarLamps.HULL_LAYER, 0, "and the other cars stop its light")
 	_model.lamps.cast_shadows(false)
 	for beam in _model.lamps._beams:
-		assert_eq(beam.shadow_caster_mask, CarLamps.NO_CASTERS, "others draw the pattern through an empty shadow map")
+		assert_eq(beam.shadow_caster_mask, CarLamps.HULL_LAYER, "others draw the pattern through a shadow map of the cars' hulls")
 	for node in get_tree().root.find_children("*", "VisualInstance3D", true, false):
-		assert_eq((node as VisualInstance3D).layers & CarLamps.NO_CASTERS, 0, "%s is on the layer nothing may be on" % node.name)
+		if node.name != &"Hull":
+			assert_eq((node as VisualInstance3D).layers & CarLamps.HULL_LAYER, 0, "%s is on the hulls' layer" % node.name)
+
+
+func test_by_day_only_the_lamps_glass_shows_the_headlights_are_on() -> void:
+	var lamps := _model.lamps
+	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.RAIN).free()
+	lamps.set_headlights(true)
+	assert_almost_eq(lamps._head.emission_energy_multiplier, CarLamps.HEAD_GLOW, 0.001, "the lamps are lit in the rain")
+	for beam in lamps._beams:
+		assert_false(beam.visible, "but by day their light is lost: no beam to draw and no shadow map to fill")
+	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR, RaceSettings.TimeOfDay.DUSK).free()
+	lamps.set_headlights(true)
+	for beam in lamps._beams:
+		assert_true(beam.visible, "from dusk on they light the road")
+	lamps.set_headlights(false)
+	for beam in lamps._beams:
+		assert_false(beam.visible, "and go out with the switch")
+	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR).free()
+
+
+## Whether the segment crosses a triangle of `mesh` (car space).
+func _crosses(mesh: Mesh, from: Vector3, to: Vector3) -> bool:
+	var faces := mesh.get_faces()
+	for t in range(0, faces.size(), 3):
+		if Geometry3D.segment_intersects_triangle(from, to, faces[t], faces[t + 1], faces[t + 2]) != null:
+			return true
+	return false
+
+
+func test_no_beam_shines_through_another_car() -> void:
+	var hull := _model.get_node(^"Lamps/Hull") as MeshInstance3D
+	assert_eq(hull.layers, CarLamps.HULL_LAYER, "every car has a hull on the hulls' layer")
+	assert_eq(hull.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, "in the beams' shadow maps only, never drawn")
+	assert_true(hull.transform.is_equal_approx(Transform3D.IDENTITY) and _model.lamps.transform.is_equal_approx(Transform3D.IDENTITY),
+		"in the car's own space")
+	var box := hull.mesh.get_aabb()
+	gut.p("hull from %s to %s, %d triangles" % [box.position, box.end, hull.mesh.get_faces().size() / 3])
+	assert_gt(box.position.z, CarLamps.BEAM_AT.z + 0.1, "behind the car's own lamps: it never shades its own beams")
+	var glass := _car.get_node(^"Cabin/Windshield") as MeshInstance3D
+	var on_glass := (glass.get_parent() as Node3D).transform * glass.transform * glass.mesh.get_aabb()
+	# A follower's lamps 6 to 30 m back: its light reaches the windshield through this car from nowhere, and the road ahead of it only
+	# where it passes the car, or under it at a grazing angle.
+	for behind: float in [6.0, 12.0, 30.0]:
+		for lamp: Vector3 in [Vector3(-0.55, -0.05, behind), Vector3(0.55, -0.05, behind)]:
+			for across: float in [0.1, 0.5, 0.9]:
+				for up: float in [0.2, 0.5, 0.8]:
+					var on := on_glass.position + on_glass.size * Vector3(across, up, up)
+					assert_true(_crosses(hull.mesh, lamp, on), "the hull stands between a lamp %.0f m back and the windshield at %s" % [behind, on])
+			if behind < 20.0:
+				var road := Vector3(lamp.x * 0.5, -0.62, -15.0)
+				assert_true(_crosses(hull.mesh, lamp, road), "and the road ahead of the car lies in its shade (%.0f m back)" % behind)
+	for lamp: Vector3 in [CarLamps.BEAM_AT, CarLamps.BEAM_AT * Vector3(-1.0, 1.0, 1.0)]:
+		assert_false(_crosses(hull.mesh, lamp, lamp + Vector3(0.0, -0.6, -20.0)), "the car's own beams go out freely")
 
 
 func test_no_lamp_shines_on_the_inside_of_a_car() -> void:

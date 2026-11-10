@@ -41,11 +41,12 @@ const SUN_GROUP := &"race_sun"
 const HEADLIGHT_WEATHER := [RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG, RaceSettings.Weather.SNOW, RaceSettings.Weather.DUST_STORM]
 
 ## How much of the day's light is left: the shade's, a car's cabin fill.
-const DAYLIGHT := {DAY: 1.0, GOLDEN_HOUR: 0.8, DUSK: 0.35, NIGHT: 0.025}
-## How strong the headlights are against that light: what eyes used to the dark make of them. By day they hardly show on the
-## road; at night they are all there is (CarLamps). Snow throws so much of their light back that the eyes never quite get used
-## to the dark.
-const LAMP_LIGHT := {DAY: 0.004, GOLDEN_HOUR: 0.006, DUSK: 0.3, NIGHT: 1.0}
+const DAYLIGHT := {DAY: 1.0, GOLDEN_HOUR: 0.8, DUSK: 0.45, NIGHT: 0.025}
+## How strong the headlights are against that light: what eyes used to the dark make of them. By day their light is lost in the
+## daylight, whatever the weather: the lamps' glass shows they are on and their beams are not drawn (CarLamps). From dusk on they
+## light the road in full; at night they are all there is. Snow throws so much of their light back that the eyes never quite get
+## used to the dark.
+const LAMP_LIGHT := {DAY: 0.0, GOLDEN_HOUR: 0.0, DUSK: 1.0, NIGHT: 1.0}
 const LAMP_IN_SNOW := 0.25
 ## The sun's height (degrees) away from the day: low for the golden hour, under the horizon at dusk; at night the moon's.
 const LOW_SUN := {GOLDEN_HOUR: 12.0, DUSK: -4.0, NIGHT: 32.0}
@@ -75,9 +76,13 @@ const CLOUDS_AT := {
 }
 ## The shade's bounced light away from the day (it is then mostly the sky's) and its share against the sky's; what becomes of
 ## the biome's haze (warm at the golden hour, dim at dusk, all but black at night: a night's haze must not glow).
-const BOUNCE_AT := {GOLDEN_HOUR: Color(0.7, 0.6, 0.48), DUSK: Color(0.24, 0.22, 0.3), NIGHT: Color(0.3, 0.36, 0.55)}
+const BOUNCE_AT := {GOLDEN_HOUR: Color(0.7, 0.6, 0.48), DUSK: Color(0.42, 0.52, 0.8), NIGHT: Color(0.3, 0.36, 0.55)}
 const BOUNCE_SHARE_AT := {GOLDEN_HOUR: 0.4, DUSK: 0.6, NIGHT: 0.7}
 const FOG_TINT := {GOLDEN_HOUR: Color(1.0, 0.9, 0.78), DUSK: Color(0.29, 0.24, 0.3), NIGHT: Color(0.018, 0.021, 0.033)}
+## What the headlights' light scattered back by fog or dust adds to the colour of flat fog, a share of the fog's own colour: a volume of fog
+## glows in the beams and hides the road behind the glow (CarLamps.BEAM_IN_FOG), flat fog has nothing for them to light (Low), and Low
+## must never see further than the other levels.
+const BEAM_VEIL := 0.25
 ## The low sun's light scattered by the haze towards it, and the warmer colours of its light.
 const SUN_SCATTER := {GOLDEN_HOUR: 0.18}
 const GOLDEN_SATURATION := 1.12
@@ -93,11 +98,12 @@ const DUST_TINT := {
 	RaceSettings.Biome.FOREST: Color(0.93, 0.89, 0.82), RaceSettings.Biome.DESERT: Color(1.06, 0.96, 0.83),
 	RaceSettings.Biome.MOUNTAIN: Color(0.93, 0.94, 0.96),
 }
-## What a tree of this biome drops when a car hits it (CarRoadFx): needles, birch leaves, dry ones; in snow, the snow off its branches.
+## What a tree of this biome drops when a car hits it (CarRoadFx): sprigs of needles, birch leaves, yellowing and dry ones, dead needles
+## gone rusty (they show against the green they fall past); in snow, the snow off its branches.
 const FOLIAGE := {
-	RaceSettings.Biome.FOREST: [Color(0.1, 0.16, 0.06), Color(0.13, 0.2, 0.07), Color(0.32, 0.38, 0.1), Color(0.5, 0.42, 0.12), Color(0.36, 0.25, 0.1)],
+	RaceSettings.Biome.FOREST: [Color(0.13, 0.2, 0.07), Color(0.24, 0.32, 0.09), Color(0.42, 0.46, 0.13), Color(0.55, 0.45, 0.14), Color(0.46, 0.3, 0.12)],
 	RaceSettings.Biome.DESERT: [Color(0.36, 0.3, 0.2), Color(0.3, 0.26, 0.17)],
-	RaceSettings.Biome.MOUNTAIN: [Color(0.09, 0.14, 0.06), Color(0.11, 0.17, 0.07), Color(0.3, 0.22, 0.11)],
+	RaceSettings.Biome.MOUNTAIN: [Color(0.12, 0.18, 0.07), Color(0.22, 0.28, 0.09), Color(0.46, 0.31, 0.13), Color(0.38, 0.27, 0.13)],
 }
 const SNOW_OFF_BRANCHES: Array[Color] = [Color(0.88, 0.9, 0.94), Color(0.8, 0.83, 0.88)]
 
@@ -176,6 +182,8 @@ static func create(biome: int, weather: int, time := DAY) -> Node3D:
 	sun.visible = sun.light_energy > 0.0
 	# The moon's shadows hardly show at its strength: their pass is the headlights' on High.
 	sun.shadow_enabled = time != NIGHT
+	# The cars' hulls are for the headlights' shadows only.
+	sun.shadow_caster_mask = 0xFFFFFFFF & ~CarLamps.HULL_LAYER
 	sun.shadow_blur = 1.5 if overcast else 1.0
 	sun.directional_shadow_max_distance = 150.0
 	sun.directional_shadow_split_1 = 0.05
@@ -196,7 +204,11 @@ static func create(biome: int, weather: int, time := DAY) -> Node3D:
 	in_the_sky.sky_mode = DirectionalLight3D.SKY_MODE_SKY_ONLY
 	in_the_sky.visible = not overcast
 	root.add_child(in_the_sky)
+	var volume := env.volumetric_fog_enabled
 	GraphicsQuality.apply_look(env, sun, GraphicsQuality.current())
+	if volume and not env.volumetric_fog_enabled:
+		# Flat in place of the volume (Low): it glows with what the headlights would light in the volume (BEAM_VEIL).
+		env.fog_light_color += fog * BEAM_VEIL * lamp_light / env.fog_light_energy
 	return root
 
 

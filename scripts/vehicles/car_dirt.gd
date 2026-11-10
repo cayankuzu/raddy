@@ -25,8 +25,12 @@ var levels := PackedFloat32Array([0.0, 0.0, 0.0])
 ## How much of the lower half a water splash has washed clean.
 var washed := 0.0
 
+## The skins of the paint: the team colour goes on every one (CarModel.set_paint).
+var paints: Array[ShaderMaterial] = []
+
 ## The colour of what lies on the car as dust: the ground it came from.
 var _dust_color := Color(0.63, 0.58, 0.49)
+## [material name, the space its meshes are measured in] -> the skin.
 var _skins: Dictionary = {}
 var _shown := PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
 ## The player's effects setting: how much of the dirt shows.
@@ -93,18 +97,17 @@ func show_now() -> void:
 		skin.set_shader_parameter(&"dust_color", _dust_color)
 
 
-## This car's skin in place of the model's `material` (null when dirt has no business on it). `to_car` takes a mesh that wears it into the car's
-## space; a wheel's own space is what counts on a wheel.
+## This car's skin in place of the model's `material` on a mesh that `to_car` takes into the car's space (null when dirt has no business on
+## it). The dirt is measured where the mesh lies: meshes of one material share a skin only where they share a space. A wheel's own space is
+## what counts on a wheel (it fills from the tread in), the same on all four.
 func skin_of(material: StandardMaterial3D, to_car: Transform3D) -> ShaderMaterial:
 	if material == null or material.resource_name not in [PAINT, TRIM, TYRES]:
 		return null
-	if not _skins.has(material.resource_name):
-		_skins[material.resource_name] = _make_skin(material, to_car)
-	return _skins[material.resource_name]
-
-
-func paint() -> ShaderMaterial:
-	return _skins.get(PAINT)
+	var space := Transform3D.IDENTITY if material.resource_name == TYRES else to_car
+	var key := [material.resource_name, space]
+	if not _skins.has(key):
+		_skins[key] = _make_skin(material, space)
+	return _skins[key]
 
 
 func _make_skin(material: StandardMaterial3D, to_car: Transform3D) -> ShaderMaterial:
@@ -115,6 +118,8 @@ func _make_skin(material: StandardMaterial3D, to_car: Transform3D) -> ShaderMate
 	skin.set_shader_parameter(&"albedo", material.albedo_color)
 	skin.set_shader_parameter(&"albedo_map", material.albedo_texture)
 	skin.set_shader_parameter(&"metal_rough_map", material.metallic_texture)
+	if material.ao_enabled:
+		skin.set_shader_parameter(&"ao_map", material.ao_texture)
 	skin.set_shader_parameter(&"metallic", PAINT_METALLIC if is_paint else material.metallic)
 	skin.set_shader_parameter(&"roughness", PAINT_ROUGHNESS if is_paint else material.roughness)
 	skin.set_shader_parameter(&"clearcoat", PAINT_CLEARCOAT if is_paint else 0.0)
@@ -123,4 +128,6 @@ func _make_skin(material: StandardMaterial3D, to_car: Transform3D) -> ShaderMate
 	skin.set_shader_parameter(&"strength", _strength)
 	skin.set_shader_parameter(&"is_wheel", material.resource_name == TYRES)
 	skin.set_shader_parameter(&"to_car", to_car)
+	if is_paint:
+		paints.append(skin)
 	return skin

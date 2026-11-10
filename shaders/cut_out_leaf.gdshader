@@ -18,7 +18,9 @@ void fragment() {
 	vec3 colour = texture(albedo_texture, UV).rgb;
 	float brightest = max(colour.r, max(colour.g, colour.b));
 	vec3 world = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	PlantWeather w = plant_weather(colour * FULL / clamp(brightest, GROUND, FULL), 1.0, (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y, world);
+	float up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
+	PlantWeather w = plant_weather(colour * FULL / clamp(brightest, GROUND, FULL), 1.0, up, world,
+		card_holds(up, abs(dot(NORMAL, VIEW)), smoothstep(GROUND, FULL, brightest)));
 	ALBEDO = w.albedo;
 	ROUGHNESS = w.roughness;
 	SPECULAR = w.specular;

@@ -45,13 +45,14 @@ const SPLASH_LENGTH := 1.5
 const SPLASH_SIZE := Vector2(0.4, 1.3)
 const SPLASH_COLOR := Color(0.8, 0.8, 0.76, 0.3)
 const SPLASH_LIFE := Vector2(0.45, 0.85)
-## A crash: sparks leave the place of the hit at these speeds (m/s) and live this long (s); leaves come down from this high above it
-## (m), this far round it; how big the flakes are (m); the ground under the car is this far below its middle (m).
+## A crash: sparks leave the place of the hit at these speeds (m/s) and live this long (s); leaves and sprigs come down from this high
+## above it (m: the lowest past the windshield, where the crew sees them, the rest out of the crown), this far round it on the side of
+## what was hit; how big the leaves and sprigs and the other flakes are (m); the ground under the car is this far below its middle (m).
 const SPARK_SPEED := Vector2(1.5, 7.0)
 const SPARK_LIFE := Vector2(0.25, 0.8)
-const CROWN := Vector2(2.5, 6.0)
+const CROWN := Vector2(0.7, 5.0)
 const CROWN_REACH := 1.8
-const LEAF_SIZE := Vector2(0.06, 0.1)
+const LEAF_SIZE := Vector2(0.08, 0.24)
 const FLAKE_SIZE := Vector2(0.02, 0.06)
 const GROUND_BELOW := 0.5
 ## The colour of what splinters off: bark, wood, straw; and of glass.
@@ -260,10 +261,11 @@ func crash(strength: float, at: Vector3, struck: int) -> void:
 		_pool.flake(RoadFxPool.Flake.MATTE, where + _scatter() * 0.15, _velocity * 0.4 - toward * 1.5 + _scatter() * _rng.randf_range(0.8, 3.5)
 			+ Vector3.UP * 2.0, Vector3.UP, ground, (SPLINTERS.get(struck, Color(0.4, 0.3, 0.2)) as Color) * _rng.randf_range(0.75, 1.2),
 			_rng.randf_range(FLAKE_SIZE.x, FLAKE_SIZE.y), _rng.randf_range(2.5, 4.5), 0.15)
+	var aside := toward.cross(Vector3.UP)
 	for i in roundi(throw.leaves * share):
-		# Shaken off the crown above the hit: they come down round it for seconds.
+		# Shaken off the tree above the hit: they come down between the car and the tree and round it for seconds.
 		var high := _rng.randf_range(CROWN.x, CROWN.y)
-		var round_it := Vector3(_rng.randf_range(-1.0, 1.0), 0.0, _rng.randf_range(-1.0, 1.0)) * CROWN_REACH
+		var round_it := (toward * _rng.randf_range(0.25, 1.0) + aside * _rng.randf_range(-1.0, 1.0)) * CROWN_REACH
 		_pool.flake(RoadFxPool.Flake.LEAF, where + round_it + Vector3.UP * high, _scatter() * 0.6, Vector3.UP, ground + high,
 			RaceLook.foliage[_rng.randi() % RaceLook.foliage.size()] * _rng.randf_range(0.8, 1.2), _rng.randf_range(LEAF_SIZE.x, LEAF_SIZE.y),
 			_rng.randf_range(4.0, RoadFxPool.FLAKE_LIFE), 0.0)

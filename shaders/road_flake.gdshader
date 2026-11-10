@@ -6,6 +6,8 @@ render_mode cull_disabled, depth_draw_opaque;
 
 const float GLASS = 1.0;
 const float LEAF = 2.0;
+// A leaf this near the eye (m) has drifted into a car through its roof: nothing stops it on its way down.
+const float LEAF_NEAR = 1.1;
 
 varying float kind;
 varying float pick;
@@ -21,7 +23,7 @@ void fragment() {
 	if (kind == LEAF) {
 		// Pointed at both ends, a little bent.
 		float bent = p.x + p.y * p.y * (pick - 0.5) * 0.6;
-		inside = 1.0 - (abs(bent) / (0.62 * (1.0 - p.y * p.y)));
+		inside = length(VERTEX) < LEAF_NEAR ? -1.0 : 1.0 - (abs(bent) / (0.62 * (1.0 - p.y * p.y)));
 	} else if (kind == GLASS) {
 		// A shard: a triangle, its corners where the instance puts them.
 		vec2 a = vec2(-0.9, -0.8 + pick * 0.6);

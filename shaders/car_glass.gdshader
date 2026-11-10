@@ -37,7 +37,9 @@ void fragment() {
 	ALBEDO = vec3(0.93, 0.96, 1.0) * crack_cover * CRACK_SCATTER;
 	ALPHA = max(mix(0.05, 0.3, outside), crack_cover * CRACK_SHADE);
 	ROUGHNESS = 0.04;
+	// What it mirrors of the lights (light()) and of the sky (SPECULAR: the engine's reflections).
 	glass_specular = mix(0.0, 0.7, outside);
+	SPECULAR = glass_specular;
 	EMISSION = glass_ghost(VERTEX, NORMAL, (VIEW_MATRIX * MODEL_MATRIX * vec4(lamp_position, 1.0)).xyz, outside);
 }
 

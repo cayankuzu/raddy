@@ -578,8 +578,6 @@ func _rpc_set_window_state(side: int, state: int, cracked: bool) -> void:
 	window_cracked[side] = cracked
 	window_open[side] = state != WindowState.CLOSED
 	_show_pane(side)
-	if cracked and _window_meshes[side].material_override == null:
-		_window_meshes[side].material_override = CarModel.cracked_glass(team * 17 + side + 1)
 	window_state_changed.emit(side, state, cracked)
 	if window_open[side] != was_open:
 		window_changed.emit(side, window_open[side])

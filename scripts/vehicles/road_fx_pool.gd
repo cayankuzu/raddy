@@ -8,7 +8,9 @@ extends Node3D
 ## A headless peer draws nothing and only counts.
 
 const GROUP := &"road_fx_pool"
-const PUFFS := 720
+## Room for three crews' dust at once: a puff thrown into a full pool is lost, and it would be the youngest, right behind a car (three bots
+## on Black Pine: up to 1240 thrown within a dust puff's longest life).
+const PUFFS := 1280
 const BITS := 192
 const FLAKES := 192
 const SPARKS := 128
@@ -25,7 +27,8 @@ const BIT_MOTION := preload("res://shaders/road_bit_motion.gdshader")
 const FLAKE_MOTION := preload("res://shaders/road_flake_motion.gdshader")
 const FLAKE_PICTURE := preload("res://shaders/road_flake.gdshader")
 const SPARK_PICTURE := preload("res://shaders/road_spark.gdshader")
-## Drawn before the glass and whatever else is see-through and nearer the eye: a puff behind a window must not hide what is on the pane.
+## Drawn before the seat's own glass and whatever else is see-through and nearer the eye (a puff behind a window must not hide what is on
+## the pane), after the glass of the other cars in the cloud (CarModel.GLASS_PRIORITY).
 const PUFF_PRIORITY := -1
 ## They stay where they are thrown and the camera may be anywhere: never culled.
 const EVERYWHERE := AABB(Vector3(-5000.0, -2000.0, -5000.0), Vector3(10000.0, 4000.0, 10000.0))

@@ -267,7 +267,7 @@ func set_paint(color: Color) -> void:
 func _apply_paint() -> void:
 	var tint: float = [1.0, 0.92, 0.8, 0.62][clampi(damage_level, 0, 3)]
 	var model := get_node_or_null(^"Model") as CarModel
-	if model != null and model.paint_material != null:
+	if model != null and model.dirt != null:
 		var model_paint := paint_color * tint
 		model_paint.a = 1.0
 		model.set_paint(model_paint)

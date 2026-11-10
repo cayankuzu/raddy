@@ -14,7 +14,7 @@ uniform float roughness = 1.0;
 void fragment() {
 	vec3 colour = texture(albedo_texture, UV).rgb * albedo_color.rgb;
 	vec3 world = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	PlantWeather w = plant_weather(colour, roughness, (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y, world);
+	PlantWeather w = plant_weather(colour, roughness, (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y, world, 1.0);
 	ALBEDO = w.albedo;
 	ROUGHNESS = w.roughness;
 	SPECULAR = 0.5 + w.specular;

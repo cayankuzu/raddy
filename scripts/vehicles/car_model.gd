@@ -30,6 +30,10 @@ const FIXED_GLASS: Array[String] = ["Milano95_Glass_Rear", "Milano95_Glass"]
 ## The metres of a side pane the glass shader's crack picture spans (car_glass.gdshader: PANE_UV), and how far a can's crack spreads.
 const PANE_METRES := Vector2(1.0 / 1.02, 1.0 / 2.18)
 const PANE_SPREAD := 0.45
+## Where glass is drawn among what is see-through: another car's before the dust round it (RoadFxPool.PUFF_PRIORITY), the seat's own
+## car's with the rest, after the dust it looks out at.
+const GLASS_PRIORITY := RoadFxPool.PUFF_PRIORITY - 1
+const SEAT_GLASS_PRIORITY := 0
 ## Placeholder meshes hidden once the model is in.
 const PLACEHOLDERS: Array[NodePath] = [^"Body", ^"CabinShell", ^"Interior"]
 ## How far the steering wheel turns for full steering lock (radians).
@@ -39,7 +43,6 @@ const WHEEL_AXIS := Vector3(0.0, 0.353, 0.936)
 const WHEEL_SET_IN := Vector3(0.0, 0.0, -0.07)
 
 var car: RallyCar
-var paint_material: ShaderMaterial
 ## What the road has left on this car (its skins are the body's materials).
 var dirt: CarDirt
 ## The door and interior mirrors: plain glass until a seat is bound (bind_seat).
@@ -50,6 +53,10 @@ var heat: CarHeat
 
 var _steering: Node3D
 var _glass_panes: Array[MeshInstance3D] = []
+## This car's clear glass, and a side pane's once a can has cracked it (Cabin.Side), with the worker baking its crack (-1: none).
+var _clear := ShaderMaterial.new()
+var _cracked: Array[ShaderMaterial] = [null, null]
+var _crack_tasks: Array[int] = [-1, -1]
 ## Headlights on (bad weather); set before or after the car enters the tree.
 var headlights := false
 
@@ -67,6 +74,9 @@ func _ready() -> void:
 		var node := car.get_node_or_null(path) as Node3D
 		if node != null:
 			node.visible = false
+	_clear.resource_name = "ClearGlass"
+	_clear.shader = GLASS_SHADER
+	_clear.render_priority = GLASS_PRIORITY
 	var parts := CarParts.cut(model, _car_space)
 	mirrors = CarMirrors.new()
 	mirrors.name = "Mirrors"
@@ -90,6 +100,7 @@ func _ready() -> void:
 	var cabin := car.get_node_or_null(^"Cabin") as Cabin
 	if cabin != null:
 		cabin.dome_changed.connect(_on_dome)
+		cabin.window_state_changed.connect(_on_window)
 	heat = CarHeat.new()
 	heat.name = "Heat"
 	add_child(heat)
@@ -126,12 +137,11 @@ func _setup_paint(model: Node3D) -> void:
 			var skin := dirt.skin_of(mesh_instance.mesh.surface_get_material(s) as StandardMaterial3D, _car_space(mesh_instance))
 			if skin != null:
 				mesh_instance.set_surface_override_material(s, skin)
-	paint_material = dirt.paint()
 
 
 func set_paint(color: Color) -> void:
-	if paint_material != null:
-		paint_material.set_shader_parameter(&"albedo", color)
+	for skin in dirt.paints:
+		skin.set_shader_parameter(&"albedo", color)
 
 
 ## Each tyre mesh goes into its wheel's Visual node, centred, so RallyCar's suspension travel,
@@ -186,7 +196,7 @@ func _move_glass(model: Node3D, parts: Dictionary) -> void:
 		# darkened the whole world. The panes the crew looks through get clear glass instead.
 		var clear_mesh := glass.mesh.duplicate() as Mesh
 		for s in clear_mesh.get_surface_count():
-			clear_mesh.surface_set_material(s, _clear_glass())
+			clear_mesh.surface_set_material(s, _clear)
 		glass.mesh = clear_mesh
 		_add_pane(glass, in_car)
 		if GLASS[model_name] == "Windshield":
@@ -205,22 +215,40 @@ func _clear_fixed_glass(model: Node3D) -> void:
 	for model_name in FIXED_GLASS:
 		for mi in model.find_child(model_name, true, false).find_children("*", "MeshInstance3D", true, false):
 			var pane := mi as MeshInstance3D
-			pane.material_override = _clear_glass()
+			pane.material_override = _clear
 			_add_pane(pane, _car_space(pane))
 
 
-static var _glass: ShaderMaterial
-
-
-## A side pane with a crack star (a can hit it, spec §9.2), seeded per pane.
-static func cracked_glass(seed: int) -> ShaderMaterial:
+## A side pane a can has cracked (spec §9.2) takes a crack star, seeded per pane: the glass at once, the picture of the crack from a worker a
+## frame or two later (baking it takes 10-20 ms, too long for the frame the can hits on every peer).
+func _on_window(side: int, _state: int, cracked: bool) -> void:
+	if not cracked or _cracked[side] != null:
+		return
+	var cabin := car.get_node(^"Cabin") as Cabin
 	var material := ShaderMaterial.new()
 	material.shader = GLASS_SHADER
-	var crack := CrackPicture.pieces(seed, PANE_METRES, PANE_METRES * WindshieldGlass.crack_center(seed))
-	material.set_shader_parameter(&"crack_map", ImageTexture.create_from_image(CrackPicture.bake(crack, PANE_METRES)))
+	material.render_priority = _clear.render_priority
 	material.set_shader_parameter(&"crack_metres", PANE_METRES)
 	material.set_shader_parameter(&"crack_spread", PANE_SPREAD)
-	return material
+	_cracked[side] = material
+	(cabin.get_node(^"WindowLeft" if side == Cabin.Side.LEFT else ^"WindowRight") as MeshInstance3D).material_override = material
+	var seed := cabin.team * 17 + side + 1
+	var crack := CrackPicture.pieces(seed, PANE_METRES, PANE_METRES * WindshieldGlass.crack_center(seed))
+	_crack_tasks[side] = WorkerThreadPool.add_task(func() -> void: _on_crack_baked.call_deferred(side, CrackPicture.bake(crack, PANE_METRES)))
+
+
+func _on_crack_baked(side: int, picture: Image) -> void:
+	if _crack_tasks[side] >= 0:
+		WorkerThreadPool.wait_for_task_completion(_crack_tasks[side])
+		_crack_tasks[side] = -1
+	_cracked[side].set_shader_parameter(&"crack_map", ImageTexture.create_from_image(picture))
+
+
+func _exit_tree() -> void:
+	for side in _crack_tasks.size():
+		if _crack_tasks[side] >= 0:
+			WorkerThreadPool.wait_for_task_completion(_crack_tasks[side])
+			_crack_tasks[side] = -1
 
 
 ## The dome lamp lights the cabin, and the cabin mirrors in its own glass (shaders/glass_ghost.gdshaderinc): a real
@@ -235,15 +263,6 @@ func _on_dome(on: bool) -> void:
 func _add_pane(pane: MeshInstance3D, in_car: Transform3D) -> void:
 	_glass_panes.append(pane)
 	pane.set_instance_shader_parameter(&"lamp_position", in_car.affine_inverse() * CarLamps.DOME_LENS_AT)
-
-
-## Clear glass, shared by every car (shaders/car_glass.gdshader).
-static func _clear_glass() -> ShaderMaterial:
-	if _glass == null:
-		_glass = ShaderMaterial.new()
-		_glass.resource_name = "ClearGlass"
-		_glass.shader = GLASS_SHADER
-	return _glass
 
 
 ## The steering wheel turns about its column with the car's steering angle. It is set forward as a driver sets it
@@ -287,13 +306,21 @@ func _process(_delta: float) -> void:
 	_steering.basis = Basis(WHEEL_AXIS.normalized(), -steer * STEERING_RATIO)
 
 
-## The local player sits in this car behind `seat`: what only that player sees comes alive for that seat, and on High its
-## headlights cast shadows.
+## The local player sits in this car behind `seat`: what only that player sees comes alive for that seat, on High its
+## headlights cast shadows, and its glass is drawn after the dust beyond it (GLASS_PRIORITY).
 func bind_seat(seat: CockpitCamera) -> void:
 	if mirrors != null:
 		mirrors.bind_seat(seat)
 	if lamps != null:
 		lamps.cast_shadows(seat != null and GraphicsQuality.current() == GraphicsQuality.Level.HIGH)
+	var priority := SEAT_GLASS_PRIORITY if seat != null else GLASS_PRIORITY
+	_clear.render_priority = priority
+	for material in _cracked:
+		if material != null:
+			material.render_priority = priority
+	var windshield := get_node_or_null(^"WindshieldGlass") as WindshieldGlass
+	if windshield != null:
+		windshield.material.render_priority = priority
 
 
 ## A node's transform in the car body's space.

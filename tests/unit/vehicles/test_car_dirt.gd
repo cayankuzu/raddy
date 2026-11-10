@@ -35,10 +35,10 @@ func _drive(ticks: int, speed: float) -> void:
 
 
 func test_the_body_wears_skins_of_its_own_that_start_as_the_model() -> void:
-	var paint := (_car.get_node(^"Model") as CarModel).paint_material
-	assert_not_null(paint)
+	assert_false(_dirt.paints.is_empty())
 	_car.set_paint(Color(0.1, 0.4, 0.8))
-	assert_eq(paint.get_shader_parameter(&"albedo"), Color(0.1, 0.4, 0.8), "the team colour")
+	for paint in _dirt.paints:
+		assert_eq(paint.get_shader_parameter(&"albedo"), Color(0.1, 0.4, 0.8), "the team colour on every painted panel")
 	var skinned := {}
 	for mi in _car.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance := mi as MeshInstance3D
@@ -53,7 +53,38 @@ func test_the_body_wears_skins_of_its_own_that_start_as_the_model() -> void:
 		"all four wheels")
 	for kept in ["Milano95_Body_Badges_Carbadges_misc_U_0", "Windshield", "WindowLeft"]:
 		assert_false(skinned.has(kept), "%s is no skin: the flag and the glass stay apart" % kept)
-	assert_eq(paint.get_shader_parameter(&"dust"), null, "clean: nothing set on it yet")
+	assert_eq(_dirt.paints[0].get_shader_parameter(&"dust"), null, "clean: nothing set on it yet")
+	assert_not_null(_dirt.paints[0].get_shader_parameter(&"ao_map"), "with the model's own occlusion in the panel gaps")
+
+
+## The dirt on every mesh is measured where that mesh lies on the car: a trim strip low on the door must not take the dirt of a point a
+## metre forward and lower, nor a rim the dirt of the tread.
+func test_every_skin_measures_the_dirt_where_its_mesh_lies() -> void:
+	var to_car := _car.global_transform.affine_inverse()
+	var skinned := 0
+	for mi in _car.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := mi as MeshInstance3D
+		for s in mesh_instance.get_surface_override_material_count():
+			var skin := mesh_instance.get_surface_override_material(s) as ShaderMaterial
+			if skin == null or skin.shader != CarDirt.SHADER:
+				continue
+			skinned += 1
+			var space: Transform3D = skin.get_shader_parameter(&"to_car")
+			if skin.get_shader_parameter(&"is_wheel"):
+				assert_eq(space, Transform3D.IDENTITY, "%s: a wheel in its own space, about its axle" % mesh_instance.name)
+				var radii := Vector2(INF, 0.0)
+				for v in mesh_instance.mesh.get_faces():
+					radii = Vector2(minf(radii.x, Vector2(v.x, v.y).length()), maxf(radii.y, Vector2(v.x, v.y).length()))
+				assert_almost_eq(radii.y, 0.384, 0.01, "the tread out at the shader's WHEEL_RADIUS")
+				assert_lt(radii.x / 0.384, 0.6, "the rim inside it, where the dirt stays thinner")
+				continue
+			var real := to_car * mesh_instance.global_transform
+			var off := 0.0
+			for corner: Vector3 in [Vector3.ZERO, Vector3.RIGHT, Vector3.UP, Vector3.BACK]:
+				off = maxf(off, (space * corner).distance_to(real * corner))
+			assert_lt(off, 0.002, "%s: its dirt lies where it is" % mesh_instance.name)
+	gut.p("%d skinned meshes" % skinned)
+	assert_eq(skinned, 14, "the paint, the trim and the wheels")
 
 
 func test_the_road_dusts_a_car_and_a_recovery_does_not_clean_it() -> void:
@@ -61,7 +92,7 @@ func test_the_road_dusts_a_car_and_a_recovery_does_not_clean_it() -> void:
 	var dust := _dirt.levels[CarDirtRules.Layer.DUST]
 	gut.p("dust after 2 s at 80 km/h on gravel: %.4f" % dust)
 	assert_gt(dust, 0.01)
-	assert_almost_eq(float(_dirt.paint().get_shader_parameter(&"dust")), dust, CarDirt.SHOW_STEP, "the paint shows it")
+	assert_almost_eq(float(_dirt.paints[0].get_shader_parameter(&"dust")), dust, CarDirt.SHOW_STEP, "the paint shows it")
 	_car.reset_to(Transform3D(Basis(), Vector3(0.0, 0.8, -300.0)))
 	await wait_ticks(30)
 	assert_gte(_dirt.levels[CarDirtRules.Layer.DUST], dust, "a recovery is not a car wash")
@@ -73,7 +104,7 @@ func test_a_splash_rinses_the_lower_half() -> void:
 	await _drive(120, 14.0)
 	_car.water_contacts = 0
 	assert_gt(_dirt.washed, 0.8)
-	assert_gt(float(_dirt.paint().get_shader_parameter(&"washed")), 0.8)
+	assert_gt(float(_dirt.paints[0].get_shader_parameter(&"washed")), 0.8)
 
 
 func test_a_copy_played_back_from_snapshots_gets_dirty_too() -> void:

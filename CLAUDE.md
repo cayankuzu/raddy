@@ -94,10 +94,12 @@ No Blender; model in Godot only as a last resort.
   the crew only). `RoadFxPool` (one per scene, beside the cars, group `road_fx_pool`) holds them in two world-space `GPUParticles3D`, one draw call each for all cars: soft puffs (`shaders/road_puff.gdshader`, a
   lit card facing the view that the `tools/make_road_puffs.gd` map models like a cloud; `road_puff_motion.gdshader`) and hard bits (`road_bit_motion.gdshader`), filled only from script with
   `emit_particle` (`emitting` stays false, the engine takes emitted particles only then). `pool.puff()` and `pool.bit()` are for anything else that belongs in the air (sparks, glass, leaves). Puffs by the metre of
-  road, whatever the frame rate; puffs are drawn before the glass and after the pools (`PUFF_PRIORITY`). `RoadFxRules.cloud_share`: Low and the effects setting thin the puffs but each gets thicker and
+  road, whatever the frame rate; puffs are drawn after the pools and the other cars' glass, before the seat's own glass (`PUFF_PRIORITY`,
+  `CarModel.GLASS_PRIORITY`: `bind_seat` raises the seat's car's). `PUFFS` 1280: three crews' dust at once. `RoadFxRules.cloud_share`: Low and the effects setting thin the puffs but each gets thicker and
   bigger, so nobody sees further for choosing less; stones go with the effects setting. Wind and dust colour: `RaceLook.wind`, `dust_tint`. A headless peer only counts (`puffs_thrown`, `bits_thrown`).
 - Dirt on the car: `CarDirt` (child of the `CarModel`, every peer, never sent) gives the paint, the trim (`UCB_BOTTOM`) and the tyres a skin of the
-  car's own (`shaders/car_body.gdshader`: the model's StandardMaterial3D while clean, so no draw call of its own; `paint_material` is the paint's skin)
+  car's own (`shaders/car_body.gdshader`: the model's StandardMaterial3D while clean, so no draw call of its own, its occlusion map kept; one skin per material and mesh space, the dirt measured where each mesh lies, a
+  tyre in its own space about its axle; `CarDirt.paints` take the team colour)
   and climbs three layers, dust, mud and snow (`CarDirtRules`, pure: per metre by surface and speed, about 0.8 after a short stage, 0.93 after 3 km of gravel). The mask is in car
   space: sills first, fans behind the wheels, the rear face, what faces up last; `assets/fx/car_dirt.png` (`tools/make_car_dirt.gd`: patches, drops,
   streaks). A splash washes the lower half (`washed`, back within 500 m of dirty road); a recovery cleans nothing; the flag's badges and the glass are no
@@ -126,10 +128,11 @@ No Blender; model in Godot only as a last resort.
   road behind, the brake lights' a bright one), brake, reversing, hazards on a stuck or critical car, the dome lamp
   (`Cabin.dome_on`, L, the map holder's; shows in the glass through `shaders/glass_ghost.gdshaderinc`). Headlights: a
   projector pattern (`CarLamps.beam_pattern`, tested: brightest in a band round the horizon, so the road reaches 80 m and
-  more, cut under the nose) drawn through each beam's shadow map, an empty one on `CarLamps.NO_CASTERS` (a layer nothing
-  may be on; with no layer the engine drops the map and the pattern) except the seat's own car on High (`cast_shadows`, real
-  shadows); read without mipmaps (`rendering/textures/light_projectors/filter=1`, guarded by test_project_settings, or the
-  band smears). Their strength is `RaceLook.lamp_light` (what eyes used to the dark make of them: by day they hardly show). `CarHeat`: pops and flame on a lift at high revs, front discs that glow after
+  more, cut under the nose) drawn through each beam's shadow map, which holds only the cars' hulls (`CarLamps.HULL_LAYER`: a few triangles inside every
+  car, shadows only, so no beam shines through another car onto its road and windshield; with no layer the engine drops the map
+  and the pattern; the sun leaves the hulls out) except the seat's own car on High (`cast_shadows`, real shadows); read without mipmaps (`rendering/textures/light_projectors/filter=1`, guarded by test_project_settings, or the
+  band smears). Their strength is `RaceLook.lamp_light` (what eyes used to the dark make of them: in full from dusk on; by day 0, whatever the
+  weather: the beams and their shadow maps are not drawn, the lamps' glass shows they are on). `CarHeat`: pops and flame on a lift at high revs, front discs that glow after
   really hard braking. The wheel turns about `CarModel.WHEEL_AXIS` and is set in so the dials show through the rim.
   `Cabin` slides the side panes into the doors (along their own slant, cut at the door's sill: `sill` in `car_glass.gdshader`); the
   sun visors come down for a low sun ahead, the glove box's lid opens when a can is taken, the radio's readout lights with the engine
@@ -156,7 +159,8 @@ No Blender; model in Godot only as a last resort.
   (keys `stage`, `difficulty`, `weather`, `time`, `shock`; the stage gives `biome` and `seed`; a `time` left out is day,
   every stage comes at every time); `BiomeRules` applies weather/difficulty to the stage. UI strings: `data/locale/strings.csv` (TR/EN).
 - Times of day (`RaceSettings.TimeOfDay`, lit by `RaceLook`): day; golden hour (the sun at 12 degrees, warm, the visors
-  come down); dusk (the sun 4 degrees under the horizon: no sun light or shadow pass, the sky's afterglow, headlights on);
+  come down); dusk (the blue hour: the sun 4 degrees under the horizon, no sun light or shadow pass, the sky's afterglow, its blue light on the
+  land, a road readable without lamps, headlights on in full: dusk is never darker than night from the seat);
   night (a moon of 0.05 and stars on a clear sky, neither under clouds; the moon casts no shadow: its cascades cost High 200-300
   draw calls for shadows nobody sees). `RaceLook.daylight` (cabin fill, the
   weather's particles: lit from dusk on) and `lamp_light` follow it. The sky is `shaders/race_sky.gdshader`: by day the
@@ -247,7 +251,7 @@ No Blender; model in Godot only as a last resort.
   `graphics_quality`, AUTO = Low on integrated GPUs) scales scenery density/range, shadows, SSAO/glow,
   the render scale, the edges (`SCREEN_AA`: FXAA on Low, SMAA from Medium, `MSAA` 2x on High; no TAA: trails round a cabin that
   stands still while the world flies past) and `ANISOTROPY`; Low and the mirrors draw a volume of fog as flat fog (`flatten_fog`:
-  as dense and as dim); dev scenes take `--quality=0|1|2`. Every rock in the catalog is a whole stone (tested: a scan with no back
+  as dense and as dim; on Low from dusk on it glows with what the headlights light in the volume, `RaceLook.BEAM_VEIL`); dev scenes take `--quality=0|1|2`. Every rock in the catalog is a whole stone (tested: a scan with no back
   shows as torn strips in the sky); `seat` lets a big one down to the lowest ground round it.
 - Every flag in the game is the flag of Turkey: `TurkishFlag` (the law's geometry as a signed distance, `color_at`,
   `image`, `texture`, unit-tested), on the crowd's poles, the arches and their banners, the start's board, the HUD's
@@ -311,7 +315,8 @@ No Blender; model in Godot only as a last resort.
   checked by `PlayerCarInput`, `RouteFollower` and `CabinInput` via `cabin.is_fainted(role)`.
 - Stones on the windshield (`StoneChipRules`, pure, the host's): rare alone (one run in ten of a bot cracks, `tools\chip_odds.ps1`), much likelier within `FOLLOW_RANGE` 30 m behind a car on loose ground, more the closer and
   faster, none on tarmac, snow, mud or wet; `RaceSession._measure_gaps` gives each `Cabin.gap_ahead` from the trackers. `Cabin.stone_hits`, `_rpc_stone_chip`: the first stone is a bullseye (`windshield.gdshader` `chipped`, where
-  `WindshieldGlass.crack_center` says the crack will start), the second `CRACKED`, more up to `MOST_HITS` make it worse; a stone on glass is heard in that car only.
+  `WindshieldGlass.crack_center` says the crack will start: a centimetre, a dark pit, a half moon of crushed glass, a ring that flares
+  like a crack's lines), the second `CRACKED`, more up to `MOST_HITS` make it worse; a stone on glass is heard in that car only.
 - Shock gun (GAME_DESIGN §6, `scripts/gameplay/shock_*.gd`): `ShockRules` (pure, tested, kept by the host): 2 darts a stage,
   refilled at each split, 1.2 s reload, 8 m range; between cars the dart leaves and enters through an opening (`Cabin.is_open_for_shot`);
   inside one cabin it always reaches. Room rule `settings.shock` (`Mode`: off, rivals only, everyone). `ShockInput` (the local seat): hold
@@ -347,7 +352,8 @@ No Blender; model in Godot only as a last resort.
   how far to trust it). `shaders/glass_crack.gdshaderinc` draws them as thin as they are at any distance (fading past 4-12 m) and lights them in a
   `light()` of its own (`glass_light`, shared by the windshield and the side panes): a line flares where it lies square to the light passing the pane,
   most against a light ahead, weakly for one on the eye's side; the bullseye's crushed glass is lit from anywhere. The windshield's picture is baked on a
-  worker after the first stone (about 11 ms), a cracked side pane's (`CarModel.cracked_glass`) and the broken mirror's at once. A side pane's mesh runs x
+  worker after the first stone (about 11 ms), a cracked side pane's on a worker too (`CarModel._on_window`: the glass at once, its
+  picture a frame or two later), the broken mirror's at once. A side pane's mesh runs x
   along the car and z up (`car_glass.gdshader` `PANE_FROM`, `PANE_UV`, `CarModel.PANE_METRES`). route_test `--cracked-window=0|1`.
 - Editor-launched games need `--accessibility disabled` too on this PC: set once via Beckett
   `call_method target=res://tools/editor_run_args.gd method=apply` (editor setting `run/main_run_args`).

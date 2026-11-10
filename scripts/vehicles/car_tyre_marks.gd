@@ -16,8 +16,8 @@ const REACH := 0.5
 ## Ground steeper than a road ever is takes no mark (the cosine of its slope): a ditch's walls, a bank. A mark laid across one would
 ## sink into it in places.
 const FLOOR := 0.92
-## Drawn first of what is see-through: puddles, puffs and glass go over a mark.
-const PRIORITY := -2
+## Drawn first of what is see-through: puddles, glass and puffs go over a mark.
+const PRIORITY := CarModel.GLASS_PRIORITY - 2
 ## A mark turns and widens smoothly however the tyre jerks: the way it runs follows the tyre's by this share per piece, and how much it
 ## is swept changes by at most this much.
 const TURN_FOLLOW := 0.5

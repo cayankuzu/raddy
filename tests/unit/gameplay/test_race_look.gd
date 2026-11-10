@@ -132,8 +132,51 @@ func test_a_clear_night_has_a_moon_and_stars_an_overcast_one_neither() -> void:
 	RaceLook.create(RaceSettings.Biome.MOUNTAIN, RaceSettings.Weather.SNOW, RaceSettings.TimeOfDay.NIGHT).free()
 	assert_lt(RaceLook.lamp_light, 0.5, "snow throws so much of their light back that the eyes never get used to the dark")
 	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.RAIN).free()
-	assert_lt(RaceLook.lamp_light * CarLamps.BEAM_ENERGY, RaceLook.SUN_LIGHT[RaceLook.DAY].y * 20.0, "by day in the rain they hardly light the road")
+	assert_eq(RaceLook.lamp_light, 0.0, "by day in the rain their light is lost in the daylight")
 	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR).free()
+
+
+func test_dusk_is_the_blue_hour_not_a_darker_night() -> void:
+	var night := _environment(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR, RaceSettings.TimeOfDay.NIGHT)
+	var night_lamps := RaceLook.lamp_light
+	var dusk := _environment(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR, RaceSettings.TimeOfDay.DUSK)
+	assert_eq(RaceLook.lamp_light, night_lamps, "the headlights light the road as they do at night")
+	var shade := dusk.ambient_light_color * dusk.ambient_light_energy
+	var night_shade := night.ambient_light_color * night.ambient_light_energy
+	gut.p("the shade's own light: dusk %s, night %s" % [shade, night_shade])
+	assert_gt(shade.get_luminance(), night_shade.get_luminance() * 10.0, "and the sky's light still shows the land")
+	assert_gt(shade.b, shade.r * 1.5, "blue")
+	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR).free()
+
+
+func _at_level(level: int, weather: int, time: int) -> Environment:
+	GraphicsQuality.forced = level
+	var env := _environment(RaceSettings.Biome.FOREST, weather, time)
+	GraphicsQuality.forced = GraphicsQuality.AUTO
+	return env
+
+
+func test_low_never_sees_further_through_fog_at_night() -> void:
+	for weather: int in [RaceSettings.Weather.FOG, RaceSettings.Weather.DUST_STORM]:
+		var medium := _at_level(GraphicsQuality.Level.MEDIUM, weather, RaceSettings.TimeOfDay.NIGHT)
+		var low := _at_level(GraphicsQuality.Level.LOW, weather, RaceSettings.TimeOfDay.NIGHT)
+		assert_true(medium.volumetric_fog_enabled, "a volume the beams light (weather %d)" % weather)
+		assert_false(low.volumetric_fog_enabled, "flat fog on Low")
+		var dark := medium.fog_light_color * medium.fog_light_energy
+		var glow := low.fog_light_color * low.fog_light_energy
+		gut.p("weather %d at night: the haze %s, Low's fog in the headlights %s" % [weather, dark, glow])
+		assert_gt(glow.get_luminance(), dark.get_luminance() + 0.1, "it glows with what the beams would light in the volume, and hides the road the same")
+		var by_day := _at_level(GraphicsQuality.Level.LOW, weather, RaceSettings.TimeOfDay.DAY)
+		var day_medium := _at_level(GraphicsQuality.Level.MEDIUM, weather, RaceSettings.TimeOfDay.DAY)
+		assert_almost_eq((by_day.fog_light_color * by_day.fog_light_energy).get_luminance(),
+			(day_medium.fog_light_color * day_medium.fog_light_energy * GraphicsQuality.FLAT_FOG_LIGHT).get_luminance(), 0.001,
+			"by day it is the volume's light, flattened")
+
+
+func test_the_sun_leaves_the_cars_hulls_to_the_headlights() -> void:
+	var sun: DirectionalLight3D = _look(RaceSettings.Weather.CLEAR, RaceSettings.TimeOfDay.DAY).get_node(^"Sun")
+	assert_eq(sun.shadow_caster_mask & CarLamps.HULL_LAYER, 0, "no hull in the sun's shadows")
+	assert_ne(sun.shadow_caster_mask & 1, 0, "the world in them")
 
 
 func test_rain_and_snow_take_the_light_of_the_night() -> void:

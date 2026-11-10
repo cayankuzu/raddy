@@ -16,14 +16,16 @@ uniform vec3 translucency : source_color = vec3(0.26, 0.3, 0.14);
 void fragment() {
 	vec4 colour = texture(albedo_texture, UV) * albedo_color;
 	vec3 world = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	PlantWeather w = plant_weather(colour.rgb, roughness, (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y, world);
+	float up = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
+	PlantWeather w = plant_weather(colour.rgb, roughness, up, world, card_holds(up, abs(dot(NORMAL, VIEW)), smoothstep(scissor, 1.0, colour.a)));
 	ALBEDO = w.albedo;
 	ROUGHNESS = w.roughness;
 	SPECULAR = w.specular;
 	ALPHA = colour.a;
 	ALPHA_SCISSOR_THRESHOLD = scissor;
 	if (has_normal) {
-		NORMAL_MAP = mix(texture(normal_texture, UV).rgb, vec3(0.5, 0.5, 1.0), w.snow);
+		// Snow on needles keeps their shape in the light.
+		NORMAL_MAP = mix(texture(normal_texture, UV).rgb, vec3(0.5, 0.5, 1.0), w.snow * 0.5);
 	}
 	BACKLIGHT = translucency * (1.0 - w.snow);
 }

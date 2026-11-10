@@ -86,11 +86,11 @@ func test_the_first_stone_leaves_a_bullseye_and_the_second_cracks_the_glass() ->
 	var seen: Array[int] = []
 	_cabin.stone_chipped.connect(func(hits: int) -> void: seen.append(hits))
 	var glass: WindshieldGlass = _car.get_node(^"Model/WindshieldGlass")
-	assert_eq(glass._material.get_shader_parameter(&"chipped"), 0.0, "clean glass")
+	assert_eq(glass.material.get_shader_parameter(&"chipped"), 0.0, "clean glass")
 	await _follow_until_hit(1)
 	assert_eq(_cabin.stone_hits, 1)
 	assert_eq(_cabin.windshield, Cabin.Windshield.INTACT, "a bullseye is not a crack")
-	assert_eq(glass._material.get_shader_parameter(&"chipped"), 1.0, "the bullseye shows on the glass")
+	assert_eq(glass.material.get_shader_parameter(&"chipped"), 1.0, "the bullseye shows on the glass")
 	assert_eq(_cabin._opening_for(RosterRules.Role.DRIVER), 0.0, "and lets nothing in")
 	await _follow_until_hit(StoneChipRules.CRACKS_AT)
 	assert_eq(_cabin.windshield, Cabin.Windshield.CRACKED, "the second one cracks it")

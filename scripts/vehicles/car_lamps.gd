@@ -5,6 +5,7 @@ extends Node3D
 ## lamp the crew switches on to read the map (Cabin). All of them light up their part of the model; the
 ## headlights' beams and the dome light the world at every graphics level (they are how the crew sees at night),
 ## the glow of the rear lamps from Medium up: the tail lights' faint red on the road behind, the brake lights' bright one.
+## Every car stands in the others' beams as a hull of a few triangles (HULL_LAYER).
 
 ## How bright each lamp's own glass is when lit.
 const HEAD_GLOW := 3.0
@@ -54,9 +55,16 @@ const BEAM_SPREAD := Vector2(7.0, 24.0)
 const BEAM_WINGS := 0.1
 ## What the lamps that shine out of a car light: everything but the inside of a car.
 const OUTSIDE_THE_CABINS := 0xFFFFFFFF & ~GraphicsQuality.CABIN_LAYER
-## A render layer nothing is on: a beam that casts no shadows still needs a shadow map to draw its pattern through, an empty one
-## (with no layer at all the engine drops the map, and the pattern with it).
-const NO_CASTERS := 1 << 14
+## A render layer only the cars' hulls are on, and what a beam's shadow map holds unless it casts real shadows (cast_shadows): a beam
+## needs a shadow map to draw its pattern through (with no layer at all the engine drops the map, and the pattern with it), and with a few
+## triangles a car in it no beam shines through another car, onto the road ahead of it or the dirt on its windshield.
+const HULL_LAYER := 1 << 14
+## The hull: the body below the windows and the cabin above them as side profiles (z along the car, y up, car space, round the edge) and
+## their half widths at the bottom and the top. A little inside the bodywork and behind the lamps: it shades no beam of its own car.
+const HULL_BODY: Array[Vector2] = [Vector2(-1.86, -0.34), Vector2(-1.86, 0.1), Vector2(-0.98, 0.38), Vector2(1.76, 0.4), Vector2(1.76, -0.34)]
+const HULL_BODY_WIDTH := Vector2(0.76, 0.74)
+const HULL_CABIN: Array[Vector2] = [Vector2(-0.9, 0.4), Vector2(-0.28, 0.78), Vector2(1.3, 0.82), Vector2(1.6, 0.42)]
+const HULL_CABIN_WIDTH := Vector2(0.68, 0.5)
 
 var car: RallyCar
 var headlights := false
@@ -92,14 +100,15 @@ func build(model: Node3D) -> void:
 		beam.spot_angle = BEAM_ANGLE
 		beam.light_volumetric_fog_energy = BEAM_IN_FOG
 		beam.light_projector = beam_texture()
-		# The pattern is drawn through the beam's shadow map: an empty one unless the beam casts shadows (cast_shadows).
+		# The pattern is drawn through the beam's shadow map: the cars' hulls only, unless the beam casts shadows (cast_shadows).
 		beam.shadow_enabled = true
-		beam.shadow_caster_mask = NO_CASTERS
+		beam.shadow_caster_mask = HULL_LAYER
 		beam.light_cull_mask = OUTSIDE_THE_CABINS
 		beam.light_specular = BEAM_SHINE
 		beam.position = Vector3(BEAM_AT.x * side, BEAM_AT.y, BEAM_AT.z)
 		add_child(beam)
 		_beams.append(beam)
+	_build_hull()
 	_build_dome()
 	set_headlights(headlights)
 	set_dome(false)
@@ -140,7 +149,57 @@ static func beam_texture() -> ImageTexture:
 ## player sits in.
 func cast_shadows(on: bool) -> void:
 	for beam in _beams:
-		beam.shadow_caster_mask = OUTSIDE_THE_CABINS & ~GraphicsQuality.FINE_SCENERY_LAYER if on else NO_CASTERS
+		beam.shadow_caster_mask = OUTSIDE_THE_CABINS & ~GraphicsQuality.FINE_SCENERY_LAYER if on else HULL_LAYER
+
+
+## The car in the other cars' beams (HULL_LAYER): in their shadow maps only, never drawn.
+func _build_hull() -> void:
+	var hull := MeshInstance3D.new()
+	hull.name = "Hull"
+	hull.mesh = hull_mesh()
+	hull.layers = HULL_LAYER
+	hull.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	hull.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	add_child(hull)
+
+
+static var _hull_mesh: ArrayMesh
+
+
+## The hull's mesh (HULL_*), the same for every car.
+static func hull_mesh() -> ArrayMesh:
+	if _hull_mesh == null:
+		var tool := SurfaceTool.new()
+		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+		_solid(tool, HULL_BODY, HULL_BODY_WIDTH)
+		_solid(tool, HULL_CABIN, HULL_CABIN_WIDTH)
+		var material := StandardMaterial3D.new()
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		tool.set_material(material)
+		_hull_mesh = tool.commit()
+	return _hull_mesh
+
+
+## A closed solid from a side `profile` (z, y), its half width going from `widths.x` at its lowest point to `widths.y` at its highest.
+static func _solid(tool: SurfaceTool, profile: Array[Vector2], widths: Vector2) -> void:
+	var low := INF
+	var high := -INF
+	for point in profile:
+		low = minf(low, point.y)
+		high = maxf(high, point.y)
+	var left := PackedVector3Array()
+	var right := PackedVector3Array()
+	for point in profile:
+		var half := lerpf(widths.x, widths.y, (point.y - low) / (high - low))
+		left.append(Vector3(-half, point.y, point.x))
+		right.append(Vector3(half, point.y, point.x))
+	for i in profile.size():
+		var j := (i + 1) % profile.size()
+		for corner: Vector3 in [left[i], right[i], right[j], left[i], right[j], left[j]]:
+			tool.add_vertex(corner)
+	for k in range(1, profile.size() - 1):
+		for corner: Vector3 in [left[0], left[k], left[k + 1], right[0], right[k + 1], right[k]]:
+			tool.add_vertex(corner)
 
 
 ## A soft cone from the tail, backwards and a little down: it lights the road behind and a follower, not the cabin.
@@ -216,7 +275,9 @@ func _lamp(model: Node3D, node_name: String, color: Color) -> StandardMaterial3D
 func set_headlights(on: bool) -> void:
 	headlights = on
 	for beam in _beams:
-		beam.visible = on
+		# By day their light is lost in the daylight (RaceLook.lamp_light): only the lamps' glass shows they are on, and
+		# neither the beams nor their shadow maps are drawn.
+		beam.visible = on and RaceLook.lamp_light > 0.0
 	if _head != null:
 		_head.emission_energy_multiplier = HEAD_GLOW if on else 0.0
 

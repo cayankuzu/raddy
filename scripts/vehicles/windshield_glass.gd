@@ -27,7 +27,8 @@ var glass: MeshInstance3D
 ## The car's cut parts (CarParts.cut).
 var parts: Dictionary = {}
 
-var _material := ShaderMaterial.new()
+## The windshield's picture: dirt, wipers, bullseye and crack (CarModel sets where it is drawn among what is see-through).
+var material := ShaderMaterial.new()
 var _edge_dirt := 0.0
 var _wipers: Array[Node3D] = []
 var _wiper_time := 0.0
@@ -48,14 +49,15 @@ func _ready() -> void:
 	if glass == null or cabin == null:
 		return
 	_measure_plane()
-	_material.shader = SHADER
-	_material.set_shader_parameter(&"dirt_noise", dirt_noise())
-	_material.set_shader_parameter(&"plane_origin", _origin)
-	_material.set_shader_parameter(&"plane_u", _u)
-	_material.set_shader_parameter(&"plane_v", _v)
-	_material.set_shader_parameter(&"plane_size", _size)
-	_material.set_shader_parameter(&"wipe_sweep", deg_to_rad(WIPER_SWEEP))
-	glass.material_override = _material
+	material.shader = SHADER
+	material.render_priority = CarModel.GLASS_PRIORITY
+	material.set_shader_parameter(&"dirt_noise", dirt_noise())
+	material.set_shader_parameter(&"plane_origin", _origin)
+	material.set_shader_parameter(&"plane_u", _u)
+	material.set_shader_parameter(&"plane_v", _v)
+	material.set_shader_parameter(&"plane_size", _size)
+	material.set_shader_parameter(&"wipe_sweep", deg_to_rad(WIPER_SWEEP))
+	glass.material_override = material
 	_build_wipers()
 	cabin.dirt_changed.connect(_on_dirt)
 	cabin.windshield_changed.connect(_on_windshield)
@@ -104,7 +106,7 @@ func _measure_plane() -> void:
 
 func _on_dirt(level: float) -> void:
 	_edge_dirt = maxf(_edge_dirt, level)
-	_material.set_shader_parameter(&"dirt", level)
+	material.set_shader_parameter(&"dirt", level)
 
 
 func _on_windshield(state: int) -> void:
@@ -118,8 +120,8 @@ func _on_windshield(state: int) -> void:
 ## A stone leaves a bullseye, and from the one that cracks the glass on each spreads the crack further.
 func _on_stone_chipped(hits: int) -> void:
 	var cracked := cabin.windshield == Cabin.Windshield.CRACKED
-	_material.set_shader_parameter(&"chipped", 1.0 if hits > 0 or cracked else 0.0)
-	_material.set_shader_parameter(&"chip_at", crack_center(_seed()) * _size)
+	material.set_shader_parameter(&"chipped", 1.0 if hits > 0 or cracked else 0.0)
+	material.set_shader_parameter(&"chip_at", crack_center(_seed()) * _size)
 	_spread_to = maxf(CrackPicture.spread(hits), CrackPicture.FIRST_SPREAD) if cracked else 0.0
 	if hits > 0:
 		_bake_crack()
@@ -137,8 +139,8 @@ func _bake_crack() -> void:
 func _on_crack_baked(picture: Image) -> void:
 	WorkerThreadPool.wait_for_task_completion(_crack_task)
 	_crack_task = -2
-	_material.set_shader_parameter(&"crack_map", ImageTexture.create_from_image(picture))
-	_material.set_shader_parameter(&"crack_metres", _size)
+	material.set_shader_parameter(&"crack_map", ImageTexture.create_from_image(picture))
+	material.set_shader_parameter(&"crack_metres", _size)
 
 
 func _exit_tree() -> void:
@@ -157,9 +159,9 @@ func _process(delta: float) -> void:
 		return
 	if _spread != _spread_to and _crack_task == -2:
 		_spread = move_toward(_spread, _spread_to, CRACK_RUN * delta)
-		_material.set_shader_parameter(&"crack_spread", _spread)
+		material.set_shader_parameter(&"crack_spread", _spread)
 	_edge_dirt = maxf(_edge_dirt - EDGE_CLEAR_RATE * delta, cabin.dirt)
-	_material.set_shader_parameter(&"edge_dirt", _edge_dirt)
+	material.set_shader_parameter(&"edge_dirt", _edge_dirt)
 	if cabin.wipers_on:
 		_wiper_time += delta
 	elif _wiper_time > 0.0:
@@ -211,8 +213,8 @@ func _tell_shader(index: int, blade: Mesh, hinge: Vector3, to_mesh: Transform3D)
 		outer = maxf(outer, from_hinge.length())
 		middle += from_hinge
 	var suffix := "a" if index == 0 else "b"
-	_material.set_shader_parameter(StringName("pivot_" + suffix), pivot)
-	_material.set_shader_parameter(StringName("wipe_" + suffix), Vector3(inner, outer, middle.angle()))
+	material.set_shader_parameter(StringName("pivot_" + suffix), pivot)
+	material.set_shader_parameter(StringName("wipe_" + suffix), Vector3(inner, outer, middle.angle()))
 
 
 static var _noise_texture: NoiseTexture2D

@@ -103,8 +103,8 @@ static func _build_water(graph: RouteGraph, feature: Dictionary) -> Node3D:
 	material.shader = PUDDLE_SHADER
 	material.set_shader_parameter(&"ripples", _ripples())
 	material.set_shader_parameter(&"reflection_steps", GraphicsQuality.water_ray_steps(GraphicsQuality.current()))
-	# A puff over the water must not be cut off by the pool drawn after it.
-	material.render_priority = RoadFxPool.PUFF_PRIORITY - 1
+	# A puff over the water must not be cut off by the pool drawn after it, nor a car in the water's glass.
+	material.render_priority = CarModel.GLASS_PRIORITY - 1
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Surface"
 	mesh.mesh = surface.commit()
