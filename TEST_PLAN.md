@@ -39,6 +39,7 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | Night with people at the wheel: hard but fair (the road readable in the beams, a corner beyond them dark), and beautiful; dusk and the golden hour worth choosing | to do (contact sheets of every stage, weather and time reviewed by eye: `stage_shots.ps1 -OwnWeathers -AllTimes -Sheet`) |
 | Night in snow and in fog: the snow's glare in the beams and the fog's glowing veil still let a crew drive | to do |
 | Following a car in its dust at night (the cloud glows in your own beams and hides everything) and a follower's beams in the mirrors | to do |
+| A car close behind at night lights the trees round the car ahead (never its road through it): fair to the leader, or a help nobody should get | to do |
 | The dome lamp: the map readable by it at night and hard to read without, and how much it blinds the driver | to do |
 | Windows SmartScreen first run on a clean PC | to do |
 

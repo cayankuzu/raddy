@@ -403,3 +403,31 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     either way while other programs loaded the PC. Once a stage: the canopy map 41-73 ms, the beam's 64 x 768 pattern 13 ms (once a game).
   Verified: 439 GUT tests (11537 asserts), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1 -Stage 2 -Time 3` (a whole race at night: 2:05.1 /
   2:15.2, 18.5 / 17.1 m/s, no script or engine error in either log).
+- 2026-11-10: A4 effects, the review's findings (a player's, a bug hunter's and the spec's eyes): DONE.
+  - Dusk was darker than night from the seat (the beams at 0.3 of the night's, the forest black): it is the blue hour now, the sky's blue light on the land
+    (`RaceLook.BOUNCE_AT`, `DAYLIGHT` 0.45) and the beams in full. Black Pine from the seat at 12 and 28 s: frame mean 0.025 / 0.028 against the night's 0.013 /
+    0.014 (it was below); the road reads without lamps for the first tens of metres, Eagle's Nest's open slopes lie dim and blue under the burning sky.
+  - By day the beams are not drawn at all, whatever the weather (`lamp_light` 0): their shadow passes cost High 110-290 draw calls in the rain for nothing on screen.
+  - A follower's beams shone through the car ahead onto its road and the dirt on its windshield (only the seat's own beams have real shadows): every car stands
+    in the others' beams as a hull of 28 triangles inside its body (`CarLamps.HULL_LAYER`, shadows only, in every beam's shadow map, left out of the sun's). The
+    leader's windshield no longer glows and its own shadow lies ahead of it; what passes beside it still lights the trees there, as a real car close behind does
+    (leader's windshield, mean of 255: 93 / 36 at a 15 / 22 m gap against 20 / 18 alone, the 93 a bush beside the road in the follower's beam).
+  - The glass shaders' light() of their own had left SPECULAR at 0.5: every pane mirrored the sky from the seat, a grey veil over the view (+18 % measured).
+  - Low saw the beam-lit road crisply at night in fog and dust storms, where Medium and High see a glowing veil: Low's flat fog takes the light the beams
+    give the volume (`RaceLook.BEAM_VEIL`): the windshield's mean 0.22 / 0.19 on Low in fog / a dust storm against Medium's 0.20 / 0.11 (Low may see less,
+    never more; flat fog has no veil right in front of the car, so the near road stays a little clearer on Low).
+  - Dirt skins were made per material with the first mesh's place: the trim's dirt was measured a metre off, the rims filled like the tyres. One skin per
+    material and mesh space now, a tyre in its own space; the model's occlusion map, dropped with the skins, is back.
+  - A cracked side pane baked its picture on the main thread of every peer (7-17 ms): a worker bakes it now (`CarModel._on_window`), the glass is there at
+    once (0.3 ms of the frame the can hits in).
+  - Other cars' glass was drawn over the dust they drive in: it goes under the puffs now, the seat's own glass over them (`CarModel.GLASS_PRIORITY`, `bind_seat`).
+  - The first stone's bullseye was an opaque white splat 2 cm wide: a centimetre now, a dark pit, a half moon of crushed glass you see through, and a ring
+    that flares like the crack's lines.
+  - A tree crash's needles fell unseen (6-10 cm, dark, from up in the crown): leaves and sprigs of 8-24 cm, light and dry ones among them, come down between
+    the car and the tree from windshield height up; none in a cabin (they fell through the roof: `road_flake.gdshader` `LEAF_NEAR`).
+  - Snow on the firs read as flat white paper shards: on a card it lies only where the card faces up and is seen face on, on the blades and not their edges,
+    broken by a finer noise (`plant_weather.gdshaderinc` `card_holds`).
+  - The puff pool overflowed with three crews (720, 820 alive at the peak): 1280 (a test keeps three crews' dust in it). `tools\perf.ps1 -Stage 0` with a
+    follower, alternating, two rounds each: 39.6 against 39.9 fps, the same draw calls.
+  Verified: 447 GUT tests (11662 asserts), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1 -Stage 3` (2:02.2 / 2:07.6, 17.4 / 16.7 m/s, no script or engine
+  error in the logs).

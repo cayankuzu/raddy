@@ -82,7 +82,7 @@ const FOG_TINT := {GOLDEN_HOUR: Color(1.0, 0.9, 0.78), DUSK: Color(0.29, 0.24, 0
 ## What the headlights' light scattered back by fog or dust adds to the colour of flat fog, a share of the fog's own colour: a volume of fog
 ## glows in the beams and hides the road behind the glow (CarLamps.BEAM_IN_FOG), flat fog has nothing for them to light (Low), and Low
 ## must never see further than the other levels.
-const BEAM_VEIL := 0.25
+const BEAM_VEIL := 0.3
 ## The low sun's light scattered by the haze towards it, and the warmer colours of its light.
 const SUN_SCATTER := {GOLDEN_HOUR: 0.18}
 const GOLDEN_SATURATION := 1.12

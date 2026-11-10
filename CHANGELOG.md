@@ -2,14 +2,15 @@
 
 ## Unreleased (Phases A0, A2, A3, A4, A6: solid ground, driving feel, stages 2.0, effects, the shock gun)
 - **Times of day:** the room picks day, golden hour, dusk, night or Random, like the weather. The golden hour is a low warm
-  sun you drive into (the visors come down). At dusk the sun has set and the sky still burns orange and violet over a forest
-  falling dark. At night there is a cold moon and stars on a clear night and nothing at all under clouds: you see only what
+  sun you drive into (the visors come down). Dusk is the blue hour: the sun has set, the sky still burns orange and violet
+  and the land lies in its blue light, the road readable before the headlights reach it. At night there is a cold moon and stars on a clear night and nothing at all under clouds: you see only what
   your headlights reach.
 - **Headlights that reach:** a real lamp's beam, brightest just under the horizon, lights the road far ahead and little
   above it; the trees by the road catch it, a corner beyond the beams stays dark. Fog and dust glow in them, and behind
-  another car in its dust at night you see nothing but the glowing cloud. The dials light up, tail lights leave a faint red on
+  another car in its dust at night you see nothing but the glowing cloud. A car close behind you lights the trees round you,
+  never your road or your windshield through your car: your own shadow lies ahead of you. The dials light up, tail lights leave a faint red on
   the road behind and brake lights a bright one, a follower's beams light up your mirrors. On High your own headlights cast shadows.
-- **Snow on the trees, rain on the leaves:** in snow the firs carry it in clumps on their branches and the undergrowth is white
+- **Snow on the trees, rain on the leaves:** in snow the firs carry it in broken clumps on top of their branches and the undergrowth is white
   long before; rain darkens the leaves and makes them shine.
 - **A forest floor:** under the trees fallen needles, leaves and moss lie in the shade of the crowns instead of a lawn.
 - **Dust that hangs in the air:** on dry gravel, dirt and sand a car drags a real cloud that lingers for seconds, drifts on the wind, is darker in the shade of
@@ -17,7 +18,7 @@
 - **Snow, mud and water:** snow throws a plume of powder, mud and wet roads throw clods and spray instead of dust, water leaves the flanks in sheets, and a hard
   landing on dry ground blows a ring of dust out from under the car.
 - **Stones:** the rear wheels throw stones that bounce away, and you hear them ping under the floor.
-- **A stone on the windshield is an event now:** a stone leaves a small bullseye with a sharp tick, the next one cracks the glass. It is rare on your own (about one run in
+- **A stone on the windshield is an event now:** a stone leaves a small bullseye with a sharp tick (a dark pit and a half moon of crushed glass), the next one cracks the glass. It is rare on your own (about one run in
   ten cracks) and the price of following someone close through their stones on loose ground.
 - **A car that gets dirty:** dust climbs from the sills and fans out behind the wheels, mud flies up in drops that run together, snow packs on low down; the
   paint and the team colour show through at the start, by the finish of a dry stage the car is filthy. A water splash rinses the lower half; a recovery cleans nothing.
@@ -25,7 +26,7 @@
   slid. The crew behind drives over the leader's line.
 - **A crack that looks like a crack:** hair-thin straight lines run out from a small star where the stone hit, with a branch here and there; every stone after
   sends them further and leaves a little star of its own. They flare when the light catches them, most of all driving into a low sun. Side windows crack the same way.
-- **Bigger hits:** a crash throws sparks off rocks and rails, bark and a shower of leaves or needles off a tree (snow in winter), splinters off wood, straw off a
+- **Bigger hits:** a crash throws sparks off rocks and rails, bark and a shower of leaves, sprigs and dry needles off a tree that comes down past the windshield (snow in winter), splinters off wood, straw off a
   bale, dust off the ground; a side window that breaks drops its glass.
 - **Narrow rally roads:** 3.6-5.0 m wide (Explore 0.8 m wider, Redline 0.2 m narrower), a gravel shoulder you can use,
   a real ditch beside it and a bank a car can drive back up. Every stage is over 2 km long, with a danger at least every 500 m.
