@@ -92,6 +92,20 @@ No Blender; model in Godot only as a last resort.
   `emit_particle` (`emitting` stays false, the engine takes emitted particles only then). `pool.puff()` and `pool.bit()` are for anything else that belongs in the air (sparks, glass, leaves). Puffs by the metre of
   road, whatever the frame rate; puffs are drawn before the glass and after the pools (`PUFF_PRIORITY`). `RoadFxRules.cloud_share`: Low and the effects setting thin the puffs but each gets thicker and
   bigger, so nobody sees further for choosing less; stones go with the effects setting. Wind and dust colour: `RaceLook.wind`, `dust_tint`. A headless peer only counts (`puffs_thrown`, `bits_thrown`).
+- Dirt on the car: `CarDirt` (child of the `CarModel`, every peer, never sent) gives the paint, the trim (`UCB_BOTTOM`) and the tyres a skin of the
+  car's own (`shaders/car_body.gdshader`: the model's StandardMaterial3D while clean, so no draw call of its own; `paint_material` is the paint's skin)
+  and climbs three layers, dust, mud and snow (`CarDirtRules`, pure: per metre by surface and speed, about 0.85 after 3 km of gravel). The mask is in car
+  space: sills first, fans behind the wheels, the rear face, what faces up last; `assets/fx/car_dirt.png` (`tools/make_car_dirt.gd`: patches, drops,
+  streaks). A splash washes the lower half (`washed`, back within 500 m of dirty road); a recovery cleans nothing; the flag's badges and the glass are no
+  skins (the Cabin owns the glass). `route_test --car-dirt=D+M+S` for shots.
+- Tyre marks: `CarTyreMarks` (child of every `RallyCar`, every peer, never sent): one world-space mesh per car (one draw call, on
+  `FINE_SCENERY_LAYER` so the mirrors leave it out), a `TyreTrack` ring of pieces per tyre (pure: a piece every `TyreMarkRules.spacing` 0.6-1.0 m by
+  level, 4.4 km kept, memory fixed from the start), each piece written in place with `surface_update_vertex_region`/`attribute_region`. Every point
+  comes from a ray down to the ground, `LIFT` 2 cm above it; no mark in water, on steep ground (`FLOOR`), across a crease or a sharp turn (a new mark
+  starts). `TyreMarkRules` (pure): per surface the pressed ground's colour (about half the road's own, darker than its packed tracks), how strong a
+  rolling tyre's mark is, how deep and wet; scrub from slides, the handbrake, hard braking and spinning away widens and darkens it; tarmac only takes
+  rubber. `shaders/tyre_mark.gdshader`: a lit strip (render priority -2: under puddles, puffs and glass), rut walls from screen derivatives, tread blocks
+  on soft ground, raked lines when swept. A headless peer follows the tyres and draws nothing.
 - Everything on the car works, on every peer. `CarParts` cuts what moves out of the Milano's one-piece meshes (by the
   island inside a box, test_car_parts.gd pins the triangle counts; meshes shared by every car, in car space). `CockpitRules`
   (pure) says what every needle, lamp and lever shows; `CarCockpit` puts it on the car near the camera: the instrument

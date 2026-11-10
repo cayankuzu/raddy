@@ -31,6 +31,8 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | How often a stone should mark the windshield with people at the wheel (`StoneChipRules`: a lone bot cracks about one run in ten, following close it is the price of the dust) | to do |
 | Stones pinging under the floor and a stone on the windshield: heard by a person, loud enough and not annoying over the engine | to do |
 | How long a crew can stand the dust behind another car (a follower 2 s behind sees none of the road 30-90 m ahead) | to do |
+| Dirt on the car: filthy by the finish, the team colours still told apart in the room's results and on the road | to do |
+| Tyre marks: whether a crew reads the line of the car ahead from its marks, and whether they ever look painted on | to do |
 | The exhaust pops: heard by a person, not too loud against the engine | to do |
 | Windows SmartScreen first run on a clean PC | to do |
 

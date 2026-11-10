@@ -5,6 +5,7 @@ extends SceneTree
 ## then quits after --perf-seconds (default 30). With --flip-road-fx=S it shows and hides what the cars throw into the air every S seconds of the
 ## same run, so that the cost is measured frame against frame, and prints at the end
 ##   FLIP shown_ms=.. hidden_ms=.. cost_ms=..
+## --flip-marks=S does the same with the cars' tyre marks.
 
 var _time := 0.0
 var _window: Array[float] = []
@@ -16,6 +17,7 @@ var _flip_left := 0.0
 var _flip_skip := 0
 var _shown := true
 var _flip_ms := {true: [], false: []}
+var _flip_group := &"road_fx_pool"
 
 
 func _initialize() -> void:
@@ -24,6 +26,9 @@ func _initialize() -> void:
 			_seconds = float(arg.get_slice("=", 1))
 		elif arg.begins_with("--flip-road-fx="):
 			_flip = float(arg.get_slice("=", 1))
+		elif arg.begins_with("--flip-marks="):
+			_flip = float(arg.get_slice("=", 1))
+			_flip_group = &"tyre_marks"
 	change_scene_to_file.call_deferred("res://scenes/dev/route_test.tscn")
 
 
@@ -35,7 +40,7 @@ func _process(delta: float) -> bool:
 	if _time > 6.0:
 		_window.append(delta * 1000.0)
 		if _flip > 0.0:
-			_flip_road_fx(delta)
+			_flip_shown(delta)
 	if _time >= _next_report and not _window.is_empty():
 		_next_report += 5.0
 		var sorted := _window.duplicate()
@@ -62,7 +67,7 @@ func _process(delta: float) -> bool:
 
 
 ## Counts this frame towards whichever state it was drawn in, skipping the frames just after a change.
-func _flip_road_fx(delta: float) -> void:
+func _flip_shown(delta: float) -> void:
 	if _flip_skip > 0:
 		_flip_skip -= 1
 	else:
@@ -72,9 +77,8 @@ func _flip_road_fx(delta: float) -> void:
 		_flip_left = _flip
 		_shown = not _shown
 		_flip_skip = 3
-		var pool := get_first_node_in_group(&"road_fx_pool") as Node3D
-		if pool != null:
-			pool.visible = _shown
+		for node in get_nodes_in_group(_flip_group):
+			(node as Node3D).visible = _shown
 
 
 func _mean(values: Array) -> float:

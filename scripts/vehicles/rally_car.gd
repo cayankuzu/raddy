@@ -110,6 +110,9 @@ func _ready() -> void:
 	var road_fx := CarRoadFx.new()
 	road_fx.name = "RoadFx"
 	add_child(road_fx)
+	var marks := CarTyreMarks.new()
+	marks.name = "TyreMarks"
+	add_child(marks)
 
 
 func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:

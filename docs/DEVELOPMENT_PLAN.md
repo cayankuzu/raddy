@@ -355,3 +355,12 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   - Stone chips (`StoneChipRules`): a lone bot's run, `tools\chip_odds.ps1`, stones a run and runs of 100 with a bullseye / a crack: Black Pine 0.51 (40 / 9.2), Misty Creek 0.42 (34 / 6.7), Red Canyon 0.62 (46 / 12.9), Scorpion Hills 0.55 (42 / 10.6), Eagle Nest 0.53 (41 / 10.0), Glacier Ridge 0.55 (42 / 10.6): one run in ten cracks. Following 5 m behind at 72 km/h is 0.21 stones a second against 0.006 alone.
   - The crack's picture is still the old one (item 10, next).
   Verified: GUT, `tools\nettest.ps1`, `tools\flowtest.ps1` (a follower got its bullseye: "NET stone chip 1 team 2").
+
+- 2026-11-10: A4 effects, second part: a car that gets dirty, marks on the road (spec items 3 and 4): DONE.
+  - `CarDirt`: the body, trim and tyres wear skins of the car's own (`car_body.gdshader`, the model's material while clean: no draw call added). Dust 0.19 after
+    300 m of gravel, 0.64 after 1.5 km, 0.87 after 3 km at 20 m/s (`test_car_dirt_rules.gd`); mud 0.66 after one 300 m stretch. Looked at from the side, the back,
+    above and the seat on Black Pine (clean, 0.5, 0.85 dust; 0.75 mud), Glacier snow 0.8 and Red Canyon dust 0.85: red paint readable at every level.
+  - `CarTyreMarks`: one mesh and one draw call per car, a ring of 7334 / 5867 / 4400 pieces per tyre (High / Medium / Low) for 4.4 km, about 3.5 MB of buffers a car
+    on High. Looked at from above and low down on gravel, mud (rain on Misty Creek), snow, through a hairpin and a forced handbrake slide; no piece sinks into the road
+    (2 cm above the ground found by a ray, marks break over creases and steep ground). Cost of drawing them, `tools\perf.ps1 -Quality 1 --flip-marks=1` (shown and
+    hidden frame against frame): 40.5 ms shown, 41.6 hidden, below this PC's noise while another project loaded it.

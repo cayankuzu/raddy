@@ -8,6 +8,10 @@
 - **Stones:** the rear wheels throw stones that bounce away, and you hear them ping under the floor.
 - **A stone on the windshield is an event now:** a stone leaves a small bullseye with a sharp tick, the next one cracks the glass. It is rare on your own (about one run in
   ten cracks) and the price of following someone close through their stones on loose ground.
+- **A car that gets dirty:** dust climbs from the sills and fans out behind the wheels, mud flies up in drops that run together, snow packs on low down; the
+  paint and the team colour show through at the start, by the finish of a dry stage the car is filthy. A water splash rinses the lower half; a recovery cleans nothing.
+- **Tyre marks:** every tyre leaves its mark for the rest of the race: pressed gravel, deep ruts in mud and snow, a furrow in sand, wide swept arcs where a car
+  slid. The crew behind drives over the leader's line.
 - **Narrow rally roads:** 3.6-5.0 m wide (Explore 0.8 m wider, Redline 0.2 m narrower), a gravel shoulder you can use,
   a real ditch beside it and a bank a car can drive back up. Every stage is over 2 km long, with a danger at least every 500 m.
 - **A forest like a wall:** trunks from 3 m off the road, undergrowth in the ditch, the inside of every corner screened. You see
