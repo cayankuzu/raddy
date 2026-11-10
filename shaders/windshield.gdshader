@@ -43,13 +43,16 @@ const float CHIP_RADIUS = 0.011;
 
 varying vec3 local_pos;
 
-// A stone's bullseye: a small crater, its rim and a speck in its heart catching the light, the glass inside it hazed.
+// A stone's bullseye: a small crater with a broken edge, lit on one side as a cone of crushed glass is, a speck in its heart and
+// the glass inside it hazed.
 float bullseye(vec2 from_chip) {
-	float r = length(from_chip) / CHIP_RADIUS;
-	float rim = smoothstep(0.62, 0.82, r) * (1.0 - smoothstep(0.86, 1.05, r));
-	float heart = 1.0 - smoothstep(0.1, 0.3, r);
-	float haze = (1.0 - smoothstep(0.3, 1.0, r)) * 0.35;
-	return max(max(rim * 0.85, heart * 0.95), haze);
+	float angle = atan(from_chip.y, from_chip.x);
+	float r = length(from_chip) / (CHIP_RADIUS * (1.0 + 0.17 * sin(angle * 5.0 + 1.3) + 0.1 * sin(angle * 11.0 + 0.4)));
+	float rim = smoothstep(0.55, 0.82, r) * (1.0 - smoothstep(0.84, 1.0, r));
+	float lit = 0.3 + 0.7 * (0.5 + 0.5 * cos(angle - 0.9));
+	float heart = 1.0 - smoothstep(0.08, 0.26, r);
+	float haze = (1.0 - smoothstep(0.25, 1.0, r)) * 0.28;
+	return max(max(rim * lit * 0.8, heart * 0.9), haze);
 }
 
 // 1 where a blade passes on its way, soft at the edges.

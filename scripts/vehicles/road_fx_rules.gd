@@ -4,7 +4,7 @@ class_name RoadFxRules
 ## all but spray and sticky clods; tarmac nothing. The rear wheels kick up stones, which ping under the floor.
 
 ## What hangs in the air behind a car.
-enum Cloud { NONE, DUST, POWDER, SPRAY }
+enum Cloud { NONE, DUST, POWDER, SPRAY, BLAST }
 ## What the wheels throw.
 enum Bit { NONE, STONE, CLOD, LUMP }
 
@@ -23,7 +23,7 @@ const THROWS := {
 ## What each bit looks like: its colour, size (m), how long it lives, what a bounce leaves of its speed (0 = it stays where it lands).
 const BITS := {
 	Bit.STONE: {"color": Color(0.46, 0.43, 0.38), "size": Vector2(0.035, 0.09), "life": Vector2(0.9, 1.6), "bounce": 0.45},
-	Bit.CLOD: {"color": Color(0.14, 0.1, 0.07), "size": Vector2(0.07, 0.18), "life": Vector2(1.2, 2.2), "bounce": 0.0},
+	Bit.CLOD: {"color": Color(0.14, 0.1, 0.07), "size": Vector2(0.05, 0.13), "life": Vector2(1.2, 2.2), "bounce": 0.0},
 	Bit.LUMP: {"color": Color(0.9, 0.92, 0.96), "size": Vector2(0.05, 0.12), "life": Vector2(0.7, 1.2), "bounce": 0.15},
 }
 ## Below this nothing is thrown; a cloud is whole from CLOUD_FULL_SPEED on, the wheels are at their worst at BIT_FULL_SPEED (m/s).
@@ -36,9 +36,9 @@ const SLIDE_FULL := 0.55
 const SPIN_UP_PUFFS := 16.0
 const SPIN_UP_SPEED := 9.0
 ## A landing throws up a ring of dust from this hard a fall (m/s), one puff per this much of it.
-const LANDING_FROM := 3.0
-const LANDING_PUFF_PER := 0.42
-const LANDING_MOST := 26
+const LANDING_FROM := 2.0
+const LANDING_PUFF_PER := 0.3
+const LANDING_MOST := 34
 ## Whatever the settings, this much of a cloud is thrown: the crew behind must not see through it for choosing Low.
 const CLOUD_FLOOR := 0.6
 ## Pings start at this speed (m/s).
@@ -105,7 +105,7 @@ static func pings_per_second(surface: StringName, speed: float, throttle: float)
 static func landing_puffs(surface: StringName, fall_speed: float) -> int:
 	if throws(surface).cloud not in [Cloud.DUST, Cloud.POWDER] or fall_speed < LANDING_FROM:
 		return 0
-	return mini(6 + int((fall_speed - LANDING_FROM) / LANDING_PUFF_PER), LANDING_MOST)
+	return mini(14 + int((fall_speed - LANDING_FROM) / LANDING_PUFF_PER), LANDING_MOST)
 
 
 ## The way the water of a splash leaves the flank on `side` (-1 left, 1 right; car space). `turn` and `tilt` (0..1) pick where in

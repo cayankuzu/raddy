@@ -8,6 +8,7 @@ render_mode disable_force;
 const int DUST = 1;
 const int POWDER = 2;
 const int SPRAY = 3;
+const int BLAST = 4;
 
 // What the air does (m/s), the same for every puff.
 uniform vec3 wind = vec3(0.9, 0.0, 0.3);
@@ -43,7 +44,8 @@ void process() {
 		drag = 1.0;
 	} else {
 		// Warm from the tyres at first, then only the wind; each puff wanders on its own.
-		air.y += (kind == POWDER ? 0.35 : 0.55) * exp(-age * 0.8);
+		air.y += (kind == POWDER ? 0.35 : 0.8) * exp(-age * 0.45);
+		drag = kind == BLAST ? 3.5 : drag;
 		air.xz += vec2(sin(age * 0.9 + USERDATA2.y * 6.28), cos(age * 0.7 + USERDATA2.z * 6.28)) * 0.35;
 	}
 	VELOCITY = air + (VELOCITY - air) * exp(-drag * DELTA);

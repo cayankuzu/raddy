@@ -16,7 +16,7 @@ $args = @("--path", $ProjectDir) + $GodotWindowArgs + @("--resolution", "1920x10
     "--stage=$Stage", "--quality=$Quality", "--start=$Start", "--autodrive", "--perf-seconds=$Seconds") + $ExtraArgs
 $out = & $GodotConsole @args 2>&1
 $built = ($out | Select-String "ROUTE built in (\d+) ms" | Select-Object -Last 1)
-$perf = @($out | Select-String "^PERF ")
+$perf = @($out | Select-String "^PERF |^FLIP ")
 if (-not $perf) {
     $out | Select-Object -Last 30 | ForEach-Object { "$_" }
     Write-Host "No PERF lines." -ForegroundColor Red

@@ -4,6 +4,7 @@ extends Node
 ## of a hard landing and the water of a splash. On every peer and never sent: each works it out from how it sees the car move, so
 ## a remote copy throws the same as the real one. RoadFxRules says what, RoadFxPool holds it in the air.
 
+## RallyCar.WHEEL_NAMES of the rear axle.
 const REAR_WHEELS: Array[int] = [2, 3]
 ## A step longer than this in one tick is a recovery, not driving.
 const TELEPORT := 3.0
@@ -29,18 +30,19 @@ const BIT_RISE := Vector2(0.8, 4.5)
 const BIT_SIDE := 2.2
 ## A clod comes off the tread higher and slower.
 const CLOD_RISE := Vector2(2.5, 8.0)
-## The air under a car in flight; how long it must have been up for a landing to count (s).
+## How long a car must have been in the air for a landing to count (s), and the ring of dust a landing blows out: from how far
+## from the middle of the car, how fast, how big when born and grown, how long it hangs.
 const LANDING_MIN_AIR := 0.18
-const RING_RADIUS := 1.6
-const RING_SPEED := Vector2(5.0, 9.5)
-const RING_SIZE := Vector2(2.2, 7.0)
-const RING_LIFE := Vector2(2.0, 3.6)
+const RING_RADIUS := 1.5
+const RING_SPEED := Vector2(9.0, 17.0)
+const RING_SIZE := Vector2(1.8, 6.5)
+const RING_LIFE := Vector2(2.2, 3.8)
 ## Water of a splash: how many puffs a second off each flank at full speed, how far along the flank and how big.
-const SPLASH_PUFFS := 34.0
+const SPLASH_PUFFS := 90.0
 const SPLASH_LENGTH := 1.5
-const SPLASH_SIZE := Vector2(0.45, 2.2)
-const SPLASH_COLOR := Color(0.6, 0.56, 0.5, 0.5)
-const SPLASH_LIFE := Vector2(0.7, 1.2)
+const SPLASH_SIZE := Vector2(0.4, 1.3)
+const SPLASH_COLOR := Color(0.8, 0.8, 0.76, 0.3)
+const SPLASH_LIFE := Vector2(0.45, 0.85)
 
 var car: RallyCar
 
@@ -64,8 +66,9 @@ func _ready() -> void:
 
 ## Deferred: while a scene is being put together its nodes take no new children.
 func _find_pool() -> void:
-	_pool = RoadFxPool.of(car)
-	_was_at = car.global_position
+	if is_inside_tree():
+		_pool = RoadFxPool.of(car)
+		_was_at = car.global_position
 
 
 func _physics_process(delta: float) -> void:
@@ -115,23 +118,23 @@ func _throw_cloud(delta: float, surface: StringName, speed: float, slip: float, 
 	var color: Color = _ground_color(throw)
 	color.a = thick
 	var sizes: Array = PUFF_SIZES[cloud]
+	var born: Vector2 = sizes[0]
+	var grown: Vector2 = sizes[1]
 	var life: Vector2 = throw.life
+	# Fewer puffs are each a little bigger as well as thicker, so that they still close up.
+	var spread := share ** -0.25
 	while _puffs_due >= 1.0:
 		_puffs_due -= 1.0
-		var at := _rear_contact() + car.global_basis.y * 0.25
-		var velocity: Vector3
-		if cloud == RoadFxRules.Cloud.SPRAY:
-			velocity = _velocity * (1.0 - SPRAY_BACK) + Vector3.UP * _rng.randf_range(SPRAY_RISE.x, SPRAY_RISE.y) \
-				+ car.global_basis.x * _rng.randf_range(-SIDEWAYS, SIDEWAYS)
-		else:
-			var rise: Vector2 = POWDER_RISE if cloud == RoadFxRules.Cloud.POWDER else RISE
-			velocity = _velocity * CARRY + Vector3.UP * _rng.randf_range(rise.x, rise.y) \
-				+ car.global_basis.x * _rng.randf_range(-SIDEWAYS, SIDEWAYS)
-		var born: Vector2 = sizes[0]
-		var grown: Vector2 = sizes[1]
-		var spread := share ** -0.25
-		_pool.puff(cloud, at, velocity, color, Vector2(_rng.randf_range(born.x, born.y), _rng.randf_range(grown.x, grown.y) * spread),
-			_rng.randf_range(life.x, life.y))
+		_pool.puff(cloud, _rear_contact() + car.global_basis.y * 0.25, _puff_velocity(cloud), color,
+			Vector2(_rng.randf_range(born.x, born.y), _rng.randf_range(grown.x, grown.y) * spread), _rng.randf_range(life.x, life.y))
+
+
+## Dust stays nearly where the tyre leaves it and rises; spray is flung off the tyre.
+func _puff_velocity(cloud: int) -> Vector3:
+	var flung := cloud == RoadFxRules.Cloud.SPRAY
+	var rise: Vector2 = SPRAY_RISE if flung else (POWDER_RISE if cloud == RoadFxRules.Cloud.POWDER else RISE)
+	return _velocity * ((1.0 - SPRAY_BACK) if flung else CARRY) + Vector3.UP * _rng.randf_range(rise.x, rise.y) \
+		+ car.global_basis.x * _rng.randf_range(-SIDEWAYS, SIDEWAYS)
 
 
 func _throw_bits(delta: float, surface: StringName, speed: float, slip: float, throttle: float) -> void:
@@ -177,14 +180,14 @@ func _throw_ring(surface: StringName) -> void:
 		return
 	var throw := RoadFxRules.throws(surface)
 	var color: Color = _ground_color(throw)
-	color.a = minf(float(throw.thick) / _pool.cloud_share, 0.9)
+	color.a = minf(float(throw.thick) * 1.15 / _pool.cloud_share, 0.9)
 	var center := car.global_position - car.global_basis.y * 0.45
 	var start := _rng.randf() * TAU
 	for i in count:
 		var angle := start + TAU * i / count + _rng.randf_range(-0.15, 0.15)
 		var out := Vector3(cos(angle), 0.0, sin(angle))
 		var velocity := _velocity * 0.4 + out * _rng.randf_range(RING_SPEED.x, RING_SPEED.y) + Vector3.UP * _rng.randf_range(0.3, 1.2)
-		_pool.puff(throw.cloud, center + out * RING_RADIUS, velocity, color, RING_SIZE * _rng.randf_range(0.85, 1.2),
+		_pool.puff(RoadFxRules.Cloud.BLAST, center + out * RING_RADIUS, velocity, color, RING_SIZE * _rng.randf_range(0.85, 1.2),
 			_rng.randf_range(RING_LIFE.x, RING_LIFE.y))
 
 
@@ -197,7 +200,7 @@ func _throw_splash(delta: float, speed: float) -> void:
 	while _splash_due >= 1.0:
 		_splash_due -= 1.0
 		var side := -1.0 if _rng.randf() < 0.5 else 1.0
-		var local := Vector3(side * RoadFxRules.SPLASH_OUT, -0.35, _rng.randf_range(-SPLASH_LENGTH, SPLASH_LENGTH))
+		var local := Vector3(side * RoadFxRules.SPLASH_OUT, -0.05, _rng.randf_range(-SPLASH_LENGTH, SPLASH_LENGTH))
 		var direction := car.global_basis * RoadFxRules.splash_direction(side, _rng.randf(), _rng.randf())
 		_pool.puff(RoadFxRules.Cloud.SPRAY, car.to_global(local), _velocity * 0.75 + direction * _rng.randf_range(3.0, 4.0 + speed * 0.35),
 			SPLASH_COLOR, SPLASH_SIZE * _rng.randf_range(0.8, 1.3), _rng.randf_range(SPLASH_LIFE.x, SPLASH_LIFE.y))

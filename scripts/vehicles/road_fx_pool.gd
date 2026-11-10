@@ -14,7 +14,7 @@ const ATLAS := preload("res://assets/fx/road_puffs.png")
 const PUFF_PICTURE := preload("res://shaders/road_puff.gdshader")
 const PUFF_MOTION := preload("res://shaders/road_puff_motion.gdshader")
 const BIT_MOTION := preload("res://shaders/road_bit_motion.gdshader")
-## Drawn after the blur of speed but before everything else that is see-through: a puff behind a window must not hide what is on the glass.
+## Drawn before the glass and whatever else is see-through and nearer the eye: a puff behind a window must not hide what is on the pane.
 const PUFF_PRIORITY := -1
 ## They stay where they are thrown and the camera may be anywhere: never culled.
 const EVERYWHERE := AABB(Vector3(-5000.0, -2000.0, -5000.0), Vector3(10000.0, 4000.0, 10000.0))
