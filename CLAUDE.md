@@ -41,14 +41,20 @@ No Blender; model in Godot only as a last resort.
   what the cars throw into the air every S seconds of one run (`FLIP shown_ms hidden_ms cost_ms`).
 - `tools\fx_probe.ps1 -At "22+30" [-Stage 0] [-Quality 1] [-Weather 0] [-Tag now] [-ExtraArgs "--follower=9,--follower-delay=2,--ride-follower"]`: at those
   seconds of game time the same frame with and without the cloud into `reports\screenshots\fx\<Tag>\`, and `FXPROBE` lines with how much of the road ahead it hides.
+  `-ExtraArgs "--glass-dirt=0.35+0.7+1"` measures the windshield's dirt instead (clean glass against each level, `GLASSPROBE` lines; A3's balance and
+  A5's numbers are in DEVELOPMENT_PLAN); `--time=N` and the other route_test args pass through.
 - `tools\chip_odds.ps1 [-Stage n] [-Weather 0]`: how many runs of a lone bot end with a bullseye or a cracked windshield, per stage (`CHIPS` lines).
-- `tools\stage_shots.ps1 [-Stage n] [-Quality 1] [-Weather 0 | -OwnWeathers] [-Time 0 | -AllTimes] [-Kinds "corner,junction"] [-Tag now] [-Chase] [-Sheet]`:
+- `tools\stage_shots.ps1 [-Stage n] [-Quality 1] [-Weather 0 | -OwnWeathers] [-Time 0 | -AllTimes] [-Kinds "corner,junction"] [-Tag now] [-Chase] [-Sheet]
+  [-Compare <tag>] [-RoadLight] [-ExtraArgs "--a,--b"]`:
   every place worth a look (`tools/list_stage_spots.gd`; -Kinds keeps the first of each kind) from the driver's seat, one process per
   stage, weather and time of day (`tools/stage_shots.gd`, about 15 s for three places), plus an overview per stage, into
   `reports\screenshots\stages\<Tag>\<stage>\w<weather>t<time>\`; -Sheet adds a contact sheet per stage and weather (`tools/contact_sheet.gd`,
   windowed: a row per place, a column per time of day) into `<Tag>\sheets\`. Every stage at every time with its own weathers:
   `-OwnWeathers -AllTimes -Kinds "corner,junction,spectators" -Sheet` (about 20 min). The overview is a check of the road's layout:
-  straight down and orthographic, it shows hardly any trees.
+  straight down and orthographic, it shows hardly any trees. `-Compare <tag>` makes a sheet per stage, weather and time with that earlier
+  tag's shots beside these (before and after; the night before the pod: `-ExtraArgs "--no-light-pod"`); `-RoadLight` prints `ROADLIGHT`
+  lines: how bright the road is every 10 m ahead in each shot and how far it reads (the road drawn alone in magenta finds where it is
+  in sight). Spot kinds include `turn_in`, 8 m before a hairpin or caution corner.
 - `tools\capture_window.ps1 -Instance N -Out reports\screenshots\x.png`: PNG of a windowed instance even when
   covered (PrintWindow); use it for multi-window visual checks since Beckett sees one game only.
 - `tools\screenshot.ps1 -Scene res://x.tscn -Frames 120 -Out reports\screenshots\x.png [-ExtraArgs "--a,--b"]`:
@@ -126,13 +132,19 @@ No Blender; model in Godot only as a last resort.
   panel (`shaders/gauge_panel.gdshader` over a face baked by `tools/make_gauge_face.gd`, keep both layouts in step),
   pedals, H-gate lever, fitted handbrake. `CarLamps`: tail lights only with the headlights (their glow a faint red on the
   road behind, the brake lights' a bright one: from dusk on, by `RaceLook.lamp_light` like the beams), brake, reversing, hazards on a stuck or critical car, the dome lamp
-  (`Cabin.dome_on`, L, the map holder's; shows in the glass through `shaders/glass_ghost.gdshaderinc`). Headlights: a
+  (`Cabin.dome_on`, L, the map holder's; shows in the glass through `shaders/glass_ghost.gdshaderinc`). Headlights: one beam from
+  between the two lamps with the light of both (every beam is a shadow pass a frame), a
   projector pattern (`CarLamps.beam_pattern`, tested: brightest in a band round the horizon, so the road reaches 80 m and
   more, cut under the nose) drawn through each beam's shadow map, which holds only the cars' hulls (`CarLamps.HULL_LAYER`: a few triangles inside every
   car, shadows only, so no beam shines through another car onto its road and windshield; with no layer the engine drops the map
   and the pattern; the sun leaves the hulls out) except the seat's own car on High (`cast_shadows`, real shadows); read without mipmaps (`rendering/textures/light_projectors/filter=1`, guarded by test_project_settings, or the
   band smears). Their strength is `RaceLook.lamp_light` (what eyes used to the dark make of them: in full from dusk on; by day 0, whatever the
-  weather: the beams and their shadow maps are not drawn, the lamps' glass shows they are on). `CarHeat`: pops and flame on a lift at high revs, front discs that glow after
+  weather: the beams and their shadow maps are not drawn, the lamps' glass shows they are on). Light pod (`CarLightPod`, built in code, one draw
+  call, `shaders/light_pod.gdshader`): every car at dusk and night (`RaceLook.light_pods`, every peer) wears four lamps on the bonnet, a black
+  fairing with a cover plate in the team colour (`CarModel.set_paint`), two spot lamps and two wide ones; `CarModel` bolts it to the bonnet's
+  hinge (`CarDamageFx.mount`: a loose bonnet aims it at the sky, a torn-off one takes it, dark, `CarLamps._show_pod`). Its light is the car's
+  other beam, the headlights' way (`CarLightPod.beam_pattern`: a long band from about 60 m on and wide sides, falling as the square of the
+  angle below its band so the near road is no blaze); `route_test --no-light-pod` leaves it off. `CarHeat`: pops and flame on a lift at high revs, front discs that glow after
   really hard braking. The wheel turns about `CarModel.WHEEL_AXIS` and is set in so the dials show through the rim.
   `Cabin` slides the side panes into the doors (along their own slant, cut at the door's sill: `sill` in `car_glass.gdshader`); the
   sun visors come down for a low sun ahead, the glove box's lid opens when a can is taken, the radio's readout lights with the engine
@@ -279,7 +291,8 @@ No Blender; model in Godot only as a last resort.
   `obstacles` Callable → steers around fallen trunks/boulders at `AVOID_SPEED`) drives a `RallyCar`:
   `--autodrive`, tests, flow-test bots (which also confirm their own recovery offers). `RaceProgress` is the host's gate accounting.
 - Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N --quality=N --follower=D --follower-delay=S --ride-follower --chips=N --no-road-fx`
-  (forces the whole graphics level) `--time=0..3 --dome --follower=D` (a second car D m behind, for the mirrors); it has the
+  (forces the whole graphics level) `--time=0..3 --dome --follower=D` (a second car D m behind, for the mirrors; `--follower=14+28` three crews)
+  `--no-light-pod`; it has the
   race's weather particles (`WeatherFx`)
   `--view=M+E+H [--view-at=M+E+H]` (a fixed camera E m right of road metre M, H m up) `--quit-after-seconds=N`.
   `RaceSession.settings.stage` builds the same stage on every peer.
@@ -348,8 +361,12 @@ No Blender; model in Godot only as a last resort.
 - Reflections: `Environment.ssr_*` from Medium up (`GraphicsQuality.apply_look`, also the global `wet_mirror` that lets
   standing water on the road be a real mirror); it only sees opaque surfaces, so water pools march their own ray
   (`puddle.gdshader`, `reflection_steps`, 0 on Low).
-- Glass: `WindshieldGlass` puts the Cabin's dirt (`windshield.gdshader`: a film of dust plus specks that stay apart; a threshold of noise that joins up reads as camouflage), crack and wipers on the
-  windshield mesh (its own plane is measured from the triangles); `SeatEffects` keeps only the face-hit flash and the faint.
+- Glass: `WindshieldGlass` puts the Cabin's dirt (`windshield.gdshader`: a film plus a few small flecks that stay apart, by the square of the dirt; a threshold of noise that joins up reads as camouflage), crack and wipers on the
+  windshield mesh (its own plane is measured from the triangles); `SeatEffects` keeps only the face-hit flash and the faint. The dirt takes the
+  road's colour (`WindshieldGlass.tint`, each road for as much as it put there, from `CarDirtRules.glass_tint`: dust in the road's colour, brown
+  mud and splash water, grey slush; the colour's alpha is how thick a film it lays) and is a layer the light comes through: what it takes from
+  the view it scatters on (the screen copy the seat's motion blur makes, blurred, and a forward lobe round a light beyond the glass, so it
+  glows against a low sun); the glass's inside sees the dark cabin (AO). A door mirror's grime takes the same colour (`CarMirrors.grime_filter`).
 - Cracks: `CrackPicture` (pure, seeded per car) lays the lines (a star from the hit with a few long ones, branches, rings round it, a little star per
   later stone, `spread(hits)` how far they have run) and bakes a picture of the distance to them (signed distance, the way a line runs, when it shows,
   how far to trust it). `shaders/glass_crack.gdshaderinc` draws them as thin as they are at any distance (fading past 4-12 m) and lights them in a

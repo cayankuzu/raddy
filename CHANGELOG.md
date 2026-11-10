@@ -10,6 +10,12 @@
   another car in its dust at night you see nothing but the glowing cloud. A car close behind you lights the trees round you,
   never your road or your windshield through your car: your own shadow lies ahead of you. The dials light up, after dark tail lights leave a faint red
   on the road behind and brake lights a bright one, a follower's beams light up your mirrors. On High your own headlights cast shadows.
+- **A light pod for the night:** at dusk and at night every car carries a pod of four lamps on its bonnet, its cover plate in the team
+  colour. The two spot lamps throw their light far down the road, the two wide ones light the sides of a corner. Night stays hard, a corner
+  still shows late behind its trees, but you can drive it. A loose bonnet points the pod at the sky; a bonnet torn off takes it away, dark.
+- **Dirt on the windshield in the colour of the road:** tan dust in the desert, brown mud in the forest, grey slush in snow, and a few small
+  flecks rather than a swarm. It is a haze the light comes through: driving into a low sun it glows, as a real dusty windshield does. The
+  wipers clear what they sweep; the door mirrors gather a little of the same dirt.
 - **Snow on the trees, rain on the leaves:** in snow the firs carry it in broken clumps on top of their branches and the undergrowth is white
   long before; rain darkens the leaves and makes them shine.
 - **A forest floor:** under the trees fallen needles, leaves and moss lie in the shade of the crowns instead of a lawn, and the shade on the ground

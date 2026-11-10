@@ -4,7 +4,7 @@ class_name RaceLook
 ## in the distance, volumetric fog only where the weather calls for it, and sets the surfaces' wet/snow look.
 ## The times of day (RaceSettings.TimeOfDay): the day; the golden hour, a low sun to drive into; dusk, the sun gone and the sky
 ## still burning over a land falling dark; night, the moon and the stars when the sky is clear, and of the road only what the
-## headlights reach. The sky is shaders/race_sky.gdshader.
+## headlights and the light pods reach. The sky is shaders/race_sky.gdshader.
 
 const DAY := RaceSettings.TimeOfDay.DAY
 const GOLDEN_HOUR := RaceSettings.TimeOfDay.GOLDEN_HOUR

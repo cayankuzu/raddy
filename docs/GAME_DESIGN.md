@@ -53,8 +53,10 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   geometry and proportions, treated with respect (never on the ground, nothing printed over it).
 - 2-4 km per stage (2-3 minutes), 3 biomes x 2-3 stages, every stage at every time of day (the room's choice, or Random):
   day, golden hour (a low sun to drive into), dusk (the sun gone, the sky burning over a land falling dark) and night. Night is
-  genuinely hard: the road is seen only where the headlights reach (about 60-90 m on a straight, a corner beyond them stays
-  dark), dust and fog glow in the beams, and a crew behind another car in its dust sees nothing at all.
+  genuinely hard but drivable: from dusk on every car wears a light pod on its bonnet, as real crews do on night stages; the road
+  is seen only where the headlights and the pod reach (100 m and more on a straight where it is in sight, about 40 m into a
+  corner's side through the wide lamps; a corner still shows late behind its screen of trees and the chevrons matter), dust and
+  fog glow in the beams, and a crew behind another car in its dust sees nothing at all.
 
 ## 5. Driving feel targets
 - Between arcade and sim (Half Grip's own description): readable slides, weight you can feel,
@@ -66,8 +68,10 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
 - **Everything on the car works.** Nothing that looks functional is decoration: three mirrors that truly reflect from
   either seat (a door mirror breaks in a hard side hit, a recovery restores it), needles and warning lamps that read the
   real speed, revs and engine damage and sweep at the key, pedals, gear lever and handbrake that move, tail, brake and
-  reversing lights, hazards on a stuck car, a dome lamp to read the map by at night that half blinds the driver, windows
-  that slide into the doors, wipers that clean only where they pass, pops and a flame on the overrun, discs that glow after
+  reversing lights, hazards on a stuck car, a light pod on the bonnet at night (a loose bonnet aims it at the sky, a torn-off one
+  takes it), a dome lamp to read the map by at night that half blinds the driver, windows
+  that slide into the doors, wipers that clean only where they pass (the dirt in the colour of the road, a haze that glows against
+  a low sun), pops and a flame on the overrun, discs that glow after
   hard use, sun visors that come down for a low sun ahead, a glove box that opens when a can is taken, a radio that lights with the
   engine. The vents and the door pulls stay as they are: a crew does not touch them in a race.
 

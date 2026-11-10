@@ -469,3 +469,28 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   - Cost, `tools\perf.ps1 -Stage 0 -Quality 1`, the new shader against the old, alternating, two rounds: 40.6 / 40.9 fps against 40.4 / 40.9, the same
     draw calls (782-869).
   Verified: 451 GUT tests (11695 asserts).
+
+- 2026-11-10: A5 carry-over C2, a light pod for the night: DONE.
+  - At dusk and at night every car wears a pod of four lamps on its bonnet on every peer (`CarLightPod`, `RaceLook.light_pods`), built in code
+    in one draw call (`shaders/light_pod.gdshader`): a black fairing with a cover plate in the team colour, two spot lamps in the middle and a wide
+    lamp at each end under clear covers in chrome bezels, the lamp cans behind, two legs bolted to the bonnet (1.7 cm clear of it, tested against
+    its triangles). It rides the bonnet's hinge (`CarDamageFx.mount`): a loose bonnet at 90 km/h aims it 76 degrees up, a torn-off one takes it away
+    dark (the glass that flies off too), a recovery bolts it back. Seen from the seat its black back is a strip along the bottom of the windshield,
+    as in a real night onboard.
+  - Its light is one beam through a projector, the headlights' way (`CarLightPod.beam_pattern`, tested): a long band from about 60 m on, a wide
+    spread for a corner's sides, falling as the square of the angle below its band so the near road is no blaze; shadows for the seat's car on
+    High. The two headlights became one beam from between them with the light of both: every beam is a shadow pass a frame, a car at night
+    has two as before.
+  - Contact sheet of every stage at night from the seat, before and after (`stage_shots.ps1 -Time 3 -Compare`, 47 places, new `turn_in` places
+    and `-RoadLight`): the share of the windshield's view that reads 0.139 -> 0.198, its mean 0.049 -> 0.075. The road 100 m ahead on a
+    straight: Black Pine 0.34 -> 0.68, Red Canyon 0.45 -> 0.82, Eagle's Nest 0.62 -> 0.82 (by a cliff 0.17 -> 0.56), Glacier Ridge 0.59 -> 0.81,
+    Scorpion Hills 0.56 -> 0.76; 40 m into a corner: Black Pine 0.24 -> 0.47, Eagle's Nest 0.16 -> 0.33, Scorpion Hills 0.29 -> 0.62, a cliff on
+    Red Canyon 0.00 -> 0.17 (tone-mapped luminance; it reads from 0.06). Where the road is in sight it reads past 100 m; a corner still shows
+    late behind its screen of trees, and the wide lamps light its sides through the side windows.
+  - Cost, `tools\perf.ps1 -Stage 0`, night, three cars (`route_test --follower=14+28`), the pod against A4's two headlight beams, alternating, two
+    rounds: Medium 37.4 / 37.4 fps against 37.7 / 37.3 (draw calls 649-768 against 648-762); High 31.2 / 31.4 against 32.3 / 32.6 (1147-1337
+    against 1039-1257: the pod's real shadows for the seat's car, a wider cone). Fog and dust storms at night: Low's flat fog still veils as
+    much as Medium's volume (windshield mean 0.22 / 0.19 against 0.19 / 0.17).
+  - Mirrors: as before; two cars close behind light the forest round the leader and fill its mirrors with their lamps.
+  Verified: 459 GUT tests, `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1 -Stage 2 -Time 3` (a race at night: 2:05.0 / 2:15.1,
+  18.5 / 17.1 m/s, no script or engine error in the logs).

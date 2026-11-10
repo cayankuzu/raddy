@@ -38,6 +38,8 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | The exhaust pops: heard by a person, not too loud against the engine | to do |
 | Night with people at the wheel: hard but fair (the road readable in the beams, a corner beyond them dark), and beautiful; dusk and the golden hour worth choosing | to do (contact sheets of every stage, weather and time reviewed by eye: `stage_shots.ps1 -OwnWeathers -AllTimes -Sheet`) |
 | Night in snow and in fog: the snow's glare in the beams and the fog's glowing veil still let a crew drive | to do |
+| The light pod at night: the road readable far down a straight and into a corner's sides, the night still hard; its black back along the bottom of the windshield never more in the way than a real one; a bonnet that flaps or flies off with it | to do (contact sheets before and after: `stage_shots.ps1 -Time 3 -Compare`) |
+| The windshield's dirt: its colour on every road (dust, mud, slush), driving into a low sun with it (a glowing haze: hard, never hopeless with the wipers), the dome lamp's veil on it at night | to do |
 | Following a car in its dust at night (the cloud glows in your own beams and hides everything) and a follower's beams in the mirrors | to do |
 | A car close behind at night lights the trees round the car ahead (never its road through it): fair to the leader, or a help nobody should get | to do |
 | The dome lamp: the map readable by it at night and hard to read without, and how much it blinds the driver | to do |
