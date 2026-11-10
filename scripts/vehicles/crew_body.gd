@@ -5,7 +5,7 @@ extends Node3D
 ## rests, in a race suit of the team's colour (shaders/crew_suit.gdshader: dark gloves and boots, white stripes down the sleeves, the
 ## legs and the sides, by the bones a vertex hangs on), a full-face helmet on its head (CrewHelmet) and the seat's six-point harness
 ## buckled over it in the team colour (CarRallyKit.strap). It sits inside the cabin (its layer), lit by the cabin's fill and the dome
-## lamp, seen through the windows and in the mirrors.
+## lamp, seen through the windows and in the mirrors. Round the neck, under the shoulder straps, the carbon collar of a HANS device.
 ## The player in the seat sees their own arms and knees but not their own head: the seat's camera leaves OWN_HEAD_LAYER out, the suit
 ## folds the head away from such a camera and the helmet sits on that layer; the mirrors see both.
 
@@ -31,6 +31,8 @@ const SEATS := {
 }
 ## Further away than this nobody makes out who sits in a car.
 const DRAW_RANGE := 60.0
+## The HANS collar's thickness (radius).
+const HANS_RADIUS := 0.011
 ## The suit's regions by the bones a vertex hangs on (parts of their names) and how high a boot comes (metres, the mannequin standing).
 const GLOVE_BONES: Array[String] = ["hand", "f_", "thumb"]
 const HEAD_BONES: Array[String] = ["head", "neck"]
@@ -102,7 +104,8 @@ func set_paint(paint: Color) -> void:
 
 
 ## The harness buckled over the body as it sits (car space): each shoulder strap from its slot in the seat's back over the shoulder and
-## down the chest, each lap belt from its anchor by the hip over it, each crotch strap up between the thighs, all to the buckle on the belly.
+## down the chest, each lap belt from its anchor by the hip over it, each crotch strap up between the thighs, all to the buckle on the belly;
+## under the shoulder straps the HANS collar, from one side of the chest over the shoulders and behind the neck to the other.
 func harness_mesh() -> ArrayMesh:
 	var to_car := pose.to_car
 	var low := to_car * pose.global_of(CrewPose.HIPS).origin
@@ -115,6 +118,17 @@ func harness_mesh() -> ArrayMesh:
 	var seat_x: float = CarRallyKit.SEAT_X[role]
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var collar: Array[Vector3] = []
+	for side: int in [CrewPose.Side.LEFT, CrewPose.Side.RIGHT]:
+		var shoulder := to_car * pose.global_of(CrewPose.ARMS[side][1]).origin
+		var over := neck.lerp(shoulder, 0.32) + Vector3.UP * 0.055
+		var down := [chest_point(chest, to_car, ahead, signf(shoulder.x - neck.x)) + Vector3.UP * 0.07 + ahead * 0.005, over + ahead * 0.045, over]
+		if side == CrewPose.Side.RIGHT:
+			down.reverse()
+		collar.append_array(down)
+		if side == CrewPose.Side.LEFT:
+			collar.append(neck - ahead * 0.075 + Vector3.UP * 0.06)
+	CarRallyKit.tube(tool, collar, HANS_RADIUS, CarRallyKit.CARBON)
 	for side: int in [CrewPose.Side.LEFT, CrewPose.Side.RIGHT]:
 		var shoulder := to_car * pose.global_of(CrewPose.ARMS[side][1]).origin
 		var hip := to_car * pose.global_of(CrewPose.LEGS[side][0]).origin

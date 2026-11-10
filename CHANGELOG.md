@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased (Phases A0, A2, A3, A4, A6: solid ground, driving feel, stages 2.0, effects, the shock gun)
+## Unreleased (Phases A0, A2, A3, A4, A5, A6: solid ground, driving feel, stages 2.0, effects, the crew, the shock gun)
+- **A crew in the car:** every seat a player holds now has somebody in it: a driver and a navigator in race suits of the team
+  colour with white stripes, dark gloves and boots, full-face helmets and six-point harnesses. You see your own arms on the wheel,
+  your knees and your harness, your partner beside you and in the interior mirror, the rival crews through their windows.
+- **Sitting like a rally crew:** the seat is lower, upright and close to the wheel and the view narrower, so the road fills half of
+  the screen instead of a third under a black roof; the mirrors stay in view, the dials read through the wheel, which sits a little
+  higher. The visors come further down for a low sun.
+- **A rally car's cabin:** a roll cage with foam where a head could hit it, bucket seats, a trip meter in front of the navigator and
+  a fire extinguisher; the rear seat is gone.
 - **Times of day:** the room picks day, golden hour, dusk, night or Random, like the weather. The golden hour is a low warm
   sun you drive into (the visors come down). Dusk is the blue hour: the sun has set, the sky still burns orange and violet
   and the land lies in its blue light, the road readable before the headlights reach it. At night there is a cold moon and stars on a clear night and nothing at all under clouds: you see only what

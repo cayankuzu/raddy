@@ -145,13 +145,33 @@ No Blender; model in Godot only as a last resort.
   hinge (`CarDamageFx.mount`: a loose bonnet aims it at the sky, a torn-off one takes it, dark, `CarLamps._show_pod`). Its light is the car's
   other beam, the headlights' way (`CarLightPod.beam_pattern`: a long band from about 60 m on and wide sides, falling as the square of the
   angle below its band so the near road is no blaze); `route_test --no-light-pod` leaves it off. `CarHeat`: pops and flame on a lift at high revs, front discs that glow after
-  really hard braking. The wheel turns about `CarModel.WHEEL_AXIS` and is set in so the dials show through the rim.
+  really hard braking. The wheel turns about `CarModel.WHEEL_AXIS` and is set (`WHEEL_SET_IN`) so the dials show through the rim.
   `Cabin` slides the side panes into the doors (along their own slant, cut at the door's sill: `sill` in `car_glass.gdshader`); the
   sun visors come down for a low sun ahead, the glove box's lid opens when a can is taken, the radio's readout lights with the engine
   (`CarCockpit`, `CockpitRules`); `GraphicsQuality.CABIN_LAYER` is what is inside a car, which the car lamps' shadowless beams leave out;
   `WindshieldGlass` sweeps the model's own wipers on their hinges and
   tells the shader the ring each blade passes. The handbrake comes with the snapshot extras; gear and revs come
   from each peer's `CarAudio.gearbox`.
+- Where the crew sits: the seats' cameras in `rally_car.tscn` are the eyes (low, upright, close to the wheel), `CockpitCamera.BASE_FOV` 62
+  (vertical); `tests/unit/vehicles/test_seat_view.gd` pins it with rays against the car's own triangles: the windshield about half the frame
+  height straight ahead from either seat, the interior and the near door mirror in view, the dials' needles through the wheel, the cage hiding
+  nothing of the road. A7: seat and FOV options in the settings.
+- Crew (`CrewBody`, `CrewPose`, `CrewHelmet`): every seat a player holds has a body, on every peer (`RaceSession._seat_crew` from the roster, again
+  on `Net.roster_changed`; `CarModel.seat_crew(role, seated)`; no body in an empty seat). Quaternius's mannequin (`assets/characters/crew_mannequin.glb`,
+  UAL1's without its clips, `tools/make_crew_mannequin.gd`; bones `DEF-*`, the dots imported as `_`) posed in code: `CrewPose` (pure, tested) puts
+  the eyes on the seat's camera (`seat_position`), the pelvis and back reclined, the head upright, the legs and arms as two-bone chains to
+  `CrewBody.SEATS` (driver: clutch and throttle, the wheel at a quarter to three; navigator: the floor, hands on the thighs). The suit
+  (`shaders/crew_suit.gdshader`, one surface for both of the mannequin's, normals smoothed): vertex COLOR r glove, g boot, b head; UV2 the
+  stripe's angle round a limb (`CrewBody.suit_region`, `stripe_coordinate`, by bone groups). The helmet (`CrewHelmet.mesh()`, the one place a
+  real model would replace, on a `BoneAttachment3D` at the head) and the harness (`CrewBody.harness_mesh`, buckled over the pose) take the
+  team colour. Own head: `CarModel.bind_seat` takes `CrewBody.OWN_HEAD_LAYER` (1 << 13) out of the seat camera's mask; that body's helmet
+  sits on that layer and its suit folds the head away for a camera without it (`CAMERA_VISIBLE_LAYERS`); the mirrors keep it.
+  `route_test --crew=driver+navigator|driver|navigator|none` (default both, every car), `--look=Y+P` holds the head turned (screenshots).
+- `CarRallyKit` (one mesh, one draw call, `shaders/cabin_kit.gdshader`, parts by vertex like the pod): roll cage (black foam on the A pillars and
+  round the heads, the main hoop at z 0.43 behind the seats), bucket seats swept along `SEAT_PROFILE` round the bodies (`seat_surface` is the
+  fabric's surface; `CarParts` cuts the road seats, their buckles and the rear bench away), a trip meter by the navigator's A pillar
+  (`trip_display()` for A7's numbers), a fire extinguisher; `strap`/`buckle` make harness webbing, a loose harness lies on an empty seat
+  (`seat_taken`).
 - Mirrors: `CarMirrors` on every car, plain glass until `CarModel.bind_seat(camera)` (local seat only, never
   headless). Each mirror is a `SubViewport` + camera at the eye reflected in the glass, frustum fitted to the glass
   (`MirrorMath`, tested against the engine's projection; the picture is flipped by the display, `mirror_glass.gdshader`).
@@ -292,7 +312,7 @@ No Blender; model in Godot only as a last resort.
   `--autodrive`, tests, flow-test bots (which also confirm their own recovery offers). `RaceProgress` is the host's gate accounting.
 - Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N --quality=N --follower=D --follower-delay=S --ride-follower --chips=N --no-road-fx`
   (forces the whole graphics level) `--time=0..3 --dome --follower=D` (a second car D m behind, for the mirrors; `--follower=14+28` three crews)
-  `--no-light-pod`; it has the
+  `--no-light-pod --crew=... --look=Y+P`; it has the
   race's weather particles (`WeatherFx`)
   `--view=M+E+H [--view-at=M+E+H]` (a fixed camera E m right of road metre M, H m up) `--quit-after-seconds=N`.
   `RaceSession.settings.stage` builds the same stage on every peer.

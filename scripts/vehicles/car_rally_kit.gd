@@ -7,7 +7,7 @@ extends Node3D
 ## car, in car space. The cage follows the bodywork as a real one does: up the door pillars, along the A pillars and the roof's edges, the
 ## main hoop behind the seats with its diagonal and the stays to the rear wheel arches, two bars across each door below the window.
 ## Each seat has a six-point harness in the team colour: buckled over the crew member sitting in it (CrewBody), lying loose on an empty
-## one (`seat_taken`); `strap` and `buckle` make the webbing for both.
+## one (`seat_taken`); `strap` and `buckle` make the webbing for both, `tube` the cage and a HANS device's collar.
 
 const SHADER := preload("res://shaders/cabin_kit.gdshader")
 ## The tube's radius, how tight it is bent (the bend's radius), its rings' sides; the foam's radius.
@@ -69,8 +69,9 @@ const BOTTLE_RED := [Color(0.55, 0.02, 0.015, 0.0), 0.0, 0.3]
 const CHROME := [Color(0.78, 0.78, 0.8, 0.0), 1.0, 0.18]
 const FABRIC := [Color(0.03, 0.03, 0.032, 0.0), 0.0, 0.9]
 const SEAT_SHELL := [Color(0.018, 0.018, 0.02, 0.0), 0.2, 0.35]
-## The webbing in a deeper shade of the team colour: it shows on a suit of the same colour.
+## The webbing in a deeper shade of the team colour: it shows on a suit of the same colour. A HANS device's carbon.
 const HARNESS := [Color(0.0, 0.0, 0.0, 0.72), 0.0, 0.55]
+const CARBON := [Color(0.02, 0.02, 0.022, 0.0), 0.3, 0.32]
 ## Further away than this nobody makes out the cage through the windows.
 const DRAW_RANGE := 60.0
 
@@ -117,16 +118,16 @@ static func kit_mesh() -> ArrayMesh:
 		tool.begin(Mesh.PRIMITIVE_TRIANGLES)
 		for side: float in [1.0, -1.0]:
 			var front := _mirrored(FRONT_HOOP, side)
-			_tube(tool, front, TUBE, STEEL)
-			_tube(tool, _along(front, FRONT_FOAM.x, FRONT_FOAM.y), FOAM, FOAM_BLACK)
+			tube(tool, front, TUBE, STEEL)
+			tube(tool, _along(front, FRONT_FOAM.x, FRONT_FOAM.y), FOAM, FOAM_BLACK)
 			for bar: Array in DOOR_BARS:
-				_tube(tool, _mirrored(bar, side), TUBE, STEEL)
-			_tube(tool, _mirrored(REAR_STAY, side), TUBE, STEEL)
+				tube(tool, _mirrored(bar, side), TUBE, STEEL)
+			tube(tool, _mirrored(REAR_STAY, side), TUBE, STEEL)
 			# The main hoop's foam round each head, measured from that side's foot.
 			var hoop: Array[Vector3] = MAIN_HOOP if side > 0.0 else _reversed(MAIN_HOOP)
-			_tube(tool, _along(hoop, MAIN_FOAM.x, MAIN_FOAM.y), FOAM, FOAM_BLACK)
-		_tube(tool, MAIN_HOOP, TUBE, STEEL)
-		_tube(tool, DIAGONAL, TUBE, STEEL)
+			tube(tool, _along(hoop, MAIN_FOAM.x, MAIN_FOAM.y), FOAM, FOAM_BLACK)
+		tube(tool, MAIN_HOOP, TUBE, STEEL)
+		tube(tool, DIAGONAL, TUBE, STEEL)
 		_trip_meter(tool)
 		_extinguisher(tool)
 		for role: int in SEAT_X:
@@ -374,7 +375,7 @@ static func _bent(points: Array[Vector3]) -> Array[Vector3]:
 
 
 ## A tube of `radius` along `points` (bent at its corners), closed at both ends.
-static func _tube(tool: SurfaceTool, points: Array[Vector3], radius: float, part: Array) -> void:
+static func tube(tool: SurfaceTool, points: Array[Vector3], radius: float, part: Array) -> void:
 	if points.size() < 2:
 		return
 	var path := _bent(points)

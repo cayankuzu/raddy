@@ -43,6 +43,8 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | Following a car in its dust at night (the cloud glows in your own beams and hides everything) and a follower's beams in the mirrors | to do |
 | A car close behind at night lights the trees round the car ahead (never its road through it): fair to the leader, or a help nobody should get | to do |
 | The dome lamp: the map readable by it at night and hard to read without, and how much it blinds the driver | to do |
+| The new seat and view (lower, closer, a vertical 62 degrees): the road readable and the speed felt at the wheel, the mirrors a glance away; whether the settings need a seat and FOV option before A7 | to do |
+| The crew from the other seat and through the windows: credible people in race suits (the mannequin's facets show up close), the harness and the helmet, by day, at night under the dome lamp | to do |
 | Windows SmartScreen first run on a clean PC | to do |
 
 ## Known issues and gaps

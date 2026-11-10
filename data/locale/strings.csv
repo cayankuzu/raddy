@@ -122,10 +122,12 @@ DISCONNECT_OK,Ana menü,Main menu
 CREDITS_TEXT,"RADDY — Çayan Kuzu. Godot Engine (MIT).
 Araç: ""Milano '95 - Low poly model"" — Daniel Zhabotinsky (CC BY 4.0).
 Ağaçlar: ""Coniferous Forest Assets Pack"" — Dari; ""Birch trees"" — Igor_K.; ""Birch tree"" — evolveduk (CC BY 4.0).
+Mürettebat: ""Universal Animation Library"" — Quaternius (CC0).
 Dokular ve modeller: Poly Haven, ambientCG (CC0). Sesler: Sonniss #GameAudioGDC, Kenney, BigSoundBank.
 Tam liste: ASSET_LICENSES.md","RADDY — Çayan Kuzu. Godot Engine (MIT).
 Car: ""Milano '95 - Low poly model"" by Daniel Zhabotinsky (CC BY 4.0).
 Trees: ""Coniferous Forest Assets Pack"" by Dari; ""Birch trees"" by Igor_K.; ""Birch tree"" by evolveduk (CC BY 4.0).
+Crew: ""Universal Animation Library"" by Quaternius (CC0).
 Textures and models: Poly Haven, ambientCG (CC0). Sounds: Sonniss #GameAudioGDC, Kenney, BigSoundBank.
 Full list: ASSET_LICENSES.md"
 LOBBY_CANNOT_START_not_everyone_ready,Herkes hazır olmalı.,Everyone must be ready.

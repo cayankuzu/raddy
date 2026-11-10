@@ -65,7 +65,7 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
 | A4 Effects | lingering dust, stones, mud on the body, ruts and skid marks, night lights | per-surface checklist, frame budget |
 | A5 Crew characters | driver + navigator bodies, hands, gestures, states, network sync | screenshots from both seats + nettest |
 | A6 Chaos mechanics | shock gun, doors, intercom, hands system, more events, awards, room modes | unit + network tests per mechanic |
-| A7 AAA HUD / UI / UX | design system, role HUDs, menus, onboarding, gamepad navigation, accessibility | UX audit, new-player test |
+| A7 AAA HUD / UI / UX | design system, role HUDs, menus, onboarding, gamepad navigation, accessibility (with a seat and FOV option: A5 set the default seat and a vertical 62 degrees), the trip meter's numbers (`CarRallyKit.trip_display`) | UX audit, new-player test |
 | A8 Network + security | relay for CGNAT, reconnect, RPC audit, rate limits, anti-teleport, streamer mode, Opus | soak test, security review |
 | A9 Performance + QA | budgets met on mid and low PCs, no shader stutter, full test matrix, clean-PC run | all gates |
 | A10 Launch | itch page, trailer/GIFs, press kit, demo build, update pipeline | launch checklist |
@@ -494,3 +494,37 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   - Mirrors: as before; two cars close behind light the forest round the leader and fill its mirrors with their lamps.
   Verified: 459 GUT tests, `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1 -Stage 2 -Time 3` (a race at night: 2:05.0 / 2:15.1,
   18.5 / 17.1 m/s, no script or engine error in the logs).
+
+- 2026-11-10: A5 items 8, 1 and 4 (where the crew sits, a rally car's cabin, the crew's bodies and who sees what of them): DONE.
+  - The seat: the eyes moved 15-16 cm closer to the wheel (driver -0.32, 0.63, 0.06; navigator 0.32, 0.61, 0.10, car space) and the field of
+    view narrowed from a vertical 72 to 62 degrees. Straight ahead the windshield took 0.31 of the frame height under 0.31 of headliner from
+    either seat, now 0.50 under 0.14 (driver) and 0.47 under 0.15 (navigator); the interior mirror and the near door mirror stay in the frame,
+    the far one within a 30 degree glance (`tests/unit/vehicles/test_seat_view.gd`, rays against the car's own triangles). The wheel is set
+    4.5 cm higher than the model has it: the dials' hubs and the needles at stage speeds and revs read through the opening over the hub (14 of
+    14 points; the old eye saw 12 of 18 points of the whole sweep) and the hands reach it with the elbows bent. From the closer eye the visors
+    come down to 45 degrees (their edge 7.2 degrees over the eye line) and slide 12 cm out past the mirror; the held map came 7 cm closer.
+    The mirrors aimed themselves for the new eyes (their tests unchanged). Before and after: `reports/screenshots/a5_crew/before_*.png`,
+    `after_*.png`.
+  - The crew (`CrewBody`, `CrewPose`, `CrewHelmet`): Quaternius's UAL1 mannequin (CC0, 0.72 MB without the library's clips, 13.7k
+    triangles) in every seat a player holds on every peer (`RaceSession._seat_crew` from the roster, `NET crew team N: ...` lines), none in an
+    empty one. Posed in code: eyes on the seat's camera (within 1 mm), back reclined 16 / 18 degrees, the hip joints 9.5 cm over the bucket's
+    cushion, feet on the clutch and throttle (the navigator's on the floor), the driver's hands on the wheel at a quarter to three, the
+    navigator's on the thighs. Suit in the team colour with white stripes down the sleeves, legs and sides, dark gloves and boots (one draw
+    call), a code-built full-face helmet (shell, stripe, visor in a gasket, chin vent, HANS posts; at least 1 cm round the head everywhere),
+    a six-point harness in a deeper shade of the team colour. The seat's own camera leaves `CrewBody.OWN_HEAD_LAYER` out: your arms, knees
+    and harness show, your head never; the mirrors and your partner see it.
+  - The cabin (`CarRallyKit`, one mesh and one draw call): roll cage (front hoop up the A pillars and along the roof, main hoop with its
+    diagonal and stays, door bars, foam on the A pillars and round the heads: it hides 0.0 % of the windshield's view from either seat, the
+    helmets stay 9.3 / 10.7 cm from the tubes' middle lines), bucket seats swept round the bodies on rails (the road seats, their buckles
+    and the rear bench cut away), a loose harness on an empty seat, a trip meter by the navigator's A pillar, a fire extinguisher.
+  - Cost, `tools\perf.ps1 -Stage 0 -Quality 1`, three cars (`--follower=14+28`), full crews against `--crew=none`, alternating, two
+    rounds: 37.2 / 37.2 fps against 37.6 / 37.5 (about 0.25 ms; the bodies stand still, nothing re-skins them each frame yet), draw calls
+    +15 to +33.
+  - Looked at: both seats before and after, each seat looking at the other, the driver looking down at their arms, knees and harness, the
+    navigator from outside through the side window and through the windshield, an empty seat, the map held up beside the navigator, the
+    navigator under the dome lamp at night, the cage and the partner in the interior mirror, a rival car from a follower.
+  - Left for the next A5 parts: the hands follow nothing yet (the rim turns through the driver's gloves at lock; item 2's IK), the map is
+    not in the navigator's hands, heads do not turn with the look, gestures, states, sync, spectators, livery. The mannequin's facets show up
+    close; no HANS collar on the shoulders yet.
+  Verified: 482 GUT tests (11947 asserts), `tools\nettest.ps1` (3 clients, the crews seated on every peer), `tools\flowtest.ps1 -Clients 1`
+  (2:11.2 / 2:17.4, 16.9 / 16.1 m/s), no script or engine error in their logs.

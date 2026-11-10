@@ -95,6 +95,12 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
 - Two crew members per car in a race suit and a full-face helmet in the team colour; first-person
   body for yourself, full body for your partner and the rivals; IK hands on the wheel, the map, the
   gear lever; head turns with the mouse look; gestures; fainted slump; shock shake.
+- A body sits in every seat a player holds, on every peer; an empty seat has none (its harness lies loose on it). The crew sits as
+  a rally crew does: low, upright, close to the wheel; the eyes are the seats' cameras, so from the seat the road is the star (the
+  windshield about half the frame height at a vertical field of view of 62 degrees). Your own arms, knees and harness are in view,
+  your own head never is (it shows in the mirrors); your partner is beside you and in the interior mirror.
+- The cabin is a rally car's: a roll cage that hides no more of the road than the pillars it follows, bucket seats with six-point
+  harnesses in the team colour, a trip meter in front of the navigator, a fire extinguisher, no rear seat.
 
 ## 8. HUD and UI
 - Driver HUD: rev counter with shift lights, gear, speed, damage silhouette, split delta (green/red),
