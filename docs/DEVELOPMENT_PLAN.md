@@ -528,3 +528,33 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     close; no HANS collar on the shoulders yet.
   Verified: 482 GUT tests (11947 asserts), `tools\nettest.ps1` (3 clients, the crews seated on every peer), `tools\flowtest.ps1 -Clients 1`
   (2:11.2 / 2:17.4, 16.9 / 16.1 m/s), no script or engine error in their logs.
+
+- 2026-11-10: A5 items 2, 3 and 5 (hands and heads, states and gestures, in sync on every peer): DONE.
+  - The motion (`CrewRig`, every body in a car, every peer) runs on Godot 4.7's skeleton modifiers (ClassDB has `TwoBoneIK3D`, `ChainIK3D`,
+    `FABRIK3D`, `CCDIK3D`, `CopyTransformModifier3D`, `AimModifier3D`, `LookAtModifier3D`, `BoneTwistDisperser3D` and more; used: `TwoBoneIK3D` for the
+    arms and the kicking legs, `CopyTransformModifier3D` for each hand's turn, `LookAtModifier3D` for the head): the rig sets goal nodes in car space,
+    the skeleton solves after the wheel turned. The driver's hands ride the rim within what the arms reach (the left from -30 to +90 degrees of a
+    turn, the right from -88 to +30) and the rim slides through them past it (push-pull), within 1 cm of their grips (tested at 0, 0.15, -0.2, 0.6 and
+    full lock); one leaves it for the shock gun (code-built, in the hand; the darts' wires leave its muzzle), the window's winder, the wipers' stalk,
+    the horn's hub, the handbrake and a gear change. The navigator holds the real map by its edges, low so the notes stay readable, and rests the
+    hands on the thighs. Heads turn with each player's look (the chest 6 %, the neck 35 % of a turn and 40 % of a nod, the head the rest, within
+    0.1 degree); out cold the body slumps (chin to chest, hands to the lap), a shock shakes it first, a can goes out of the window, the legs kick.
+  - Gestures as a mechanic (`CrewRules`, pure): `gesture_left/straight/right/slow` on 1-4 and the d-pad (nothing else uses them, tested), rebindable,
+    TR/EN; the hand nearer the partner with its shoulder brought forward (the harness holds the back: the torso never leans out of its static
+    straps), just past the car's middle: the fingertip 16-44 degrees off the partner's straight ahead (the view is 47 either side); pointing away
+    from the partner the hand sweeps back into their sight. A gesture folds the navigator's map; the driver steers one-handed while a hand is on
+    the gun, a gesture, the window, the wipers or the horn (not the handbrake or a shift).
+  - Sync (`Cabin.seats`, `CrewRules.Seat`): the look, a gesture, a job and its count, the gun, 4 bytes 10 times a second from the seat's peer to the
+    host (roster and rate checked) and on to everyone else, unreliable on channel 3; heads eased between packets. `tools\nettest.ps1`: the navigator
+    turns its head 60 degrees and points left, every other peer prints `NET seat team 1 navigator gesture left job none gun down look 60 -10`.
+  - Only a crew someone can see moves: the own car's always, another's on the screen within 60 m or within 10 m (a mirror); otherwise its modifiers
+    are off and its skeleton does nothing (0 updates in 30 frames). The rig's script takes 175 us a frame for six moving bodies.
+  - Cost, `tools\perf.ps1 -Stage 0 -Quality 1`, three cars (`--follower=14+28`), crews against `--crew=none`, alternating, two rounds (mean frame
+    time): from the lead car 26.93 / 26.80 ms against 26.10 / 25.96; riding the second car, two crews in view, 27.60 / 27.76 against 27.22 / 27.13.
+  - Looked at (`reports/screenshots/a5_hands/`): the driver's hands at rest, at 0.4 and at full lock from both seats; the map held from both seats
+    and at night under the dome lamp; the four gestures of each seat from the other seat and in first person; the gun from both seats; the
+    window, the wipers, the handbrake, a gear change, a throw from outside and the kick; a fainted and a shocked driver.
+  - Left: the short motions are placed by eye (the model has no door winders or stalks); the kick's feet pass through the dash's underside for a
+    moment; a thumbs-up gesture; leaning in corners and on hits (item 4).
+  Verified: 499 GUT tests (12462 asserts), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1` (2:11.2 / 2:17.5, 16.9 / 16.1 m/s), no
+  script or engine error in their logs.

@@ -8,7 +8,7 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | Check | How | Covers | Last result |
 |---|---|---|---|
 | Unit and physics tests (GUT, 439 tests) | `tools\test.ps1` | driving (grip, brakes, handbrake, rollover, recovery offer, damage effects), gearbox, water drag, stage recipes (valid, deterministic, features shaped into the road), terrain (flat under the road, cliffs drop, banks rise), track furniture (pools, rails with one gap, walls never across another stretch, gates), a bot driving a whole stage through every gate, pace notes, paper map, roadside dressing, race progress/results/settings, recovery anchors (never past the next gate or ahead of where the car got), stage events (tree across half the road, boulders reach it, a bot drives around the tree), visible damage parts, records/medals, cabin, voice codec/capture, room codes, roster rules, snapshot buffer, settings, project settings, times of day (settings, light, moon and stars, the headlights' pattern and strength), the plants in the weather, the forest floor's shade | pass |
-| Multiplayer | `tools\nettest.ps1` (host + 3 clients, headless) | race start barrier, car sync, windows and cans on every peer, voice relay near/far, a client leaving mid-race, team recovery confirmation, host-judged damage, windscreen kick-out | pass |
+| Multiplayer | `tools\nettest.ps1` (host + 3 clients, headless) | race start barrier, car sync, windows and cans on every peer, voice relay near/far, a client leaving mid-race, team recovery confirmation, host-judged damage, windscreen kick-out, a navigator's gesture and look on every other peer | pass |
 | End to end | `tools\flowtest.ps1` | main menu → create room → join by code → seats/ready → start → bots drive the whole stage (both falling trees come down in front of them) → results → back to the room → quit | pass (2 crews: 2:05.2 / 2:15.3 on Kızıl Kanyon, no damage) |
 | Stage events by bot | `route_test.tscn --stage=N --start=M --autodrive --quit-after-seconds=22` (headless) | every falling tree and rockfall on every stage; prints the bot's progress, recoveries and hardest impact | pass (0 recoveries; boulders graze the car at most 5 m/s) |
 | Export | `tools\export_windows.ps1`, run the exe | release build packs and starts | pass |
@@ -45,11 +45,15 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | The dome lamp: the map readable by it at night and hard to read without, and how much it blinds the driver | to do |
 | The new seat and view (lower, closer, a vertical 62 degrees): the road readable and the speed felt at the wheel, the mirrors a glance away; whether the settings need a seat and FOV option before A7 | to do |
 | The crew from the other seat and through the windows: credible people in race suits (the mannequin's facets show up close), the harness and the helmet, by day, at night under the dome lamp | to do |
+| Hand signals in a real race: readable from the other seat at a glance and in motion (pointing away from the partner sweeps back into their sight), and whether a silent crew can run a stage on them | to do |
+| The crew's hands and heads in a real race: on the wheel through quick corrections and at full lock (the rim slides through them past the arms' reach), the gear and handbrake hand, the map's grip from both seats, heads that follow their players smoothly over the network | to do |
+| One-handed steering while signalling, winding the window, flicking the wipers or pressing the horn: a fair price, never annoying | to do |
 | Windows SmartScreen first run on a clean PC | to do |
 
 ## Known issues and gaps
 - No relay for players behind carrier-grade NAT (Radmin VPN workaround); no reconnect; host loss ends the room.
-- Crew bodies and hands are not modelled yet.
+- The crew's short motions (winding a window, the wipers' stalk, a throw, the kick) are placed by eye: the model has no door winders or stalks to
+  aim at, and the kick's feet pass through the dash's underside for a moment.
 - The dev laptop has a ~8 ms per-frame floor even for an empty scene (hybrid graphics); frame
   rates measured there understate other PCs.
 - Vulkan is not usable on the dev laptop (17 fps on an empty scene); the project pins D3D12.

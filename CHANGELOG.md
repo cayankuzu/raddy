@@ -4,6 +4,15 @@
 - **A crew in the car:** every seat a player holds now has somebody in it: a driver and a navigator in race suits of the team
   colour with white stripes, dark gloves and boots, full-face helmets and six-point harnesses. You see your own arms on the wheel,
   your knees and your harness, your partner beside you and in the interior mirror, the rival crews through their windows.
+- **Hands at work:** the driver's hands ride the steering wheel as it turns (at full lock the rim slides through them, as a rally
+  driver pushes and pulls), go to the gear lever on a shift, pull the handbrake, press the horn, flick the wipers and wind the window;
+  the navigator holds the map up by its edges and rests the hands on the knees when it is folded. Raise the shock gun and it is in
+  your hand, its darts leave from it. Heads turn where their players look; a fainted crew member slumps in the harness, a shock makes
+  them jerk first, and every screen sees a can thrown out of the window and a windshield kicked out.
+- **Hand signals:** point left, straight on or right, or wave "slow down" (1-4 or the d-pad, rebindable): the arm nearer your partner
+  points where they see it without looking away from the road, so a crew can talk without a word. The navigator's map folds for it.
+- **One hand on the wheel:** the driver now steers one-handed (less lock, slower) not only with the shock gun up but also while
+  signalling, winding the window, flicking the wipers or pressing the horn.
 - **Sitting like a rally crew:** the seat is lower, upright and close to the wheel and the view narrower, so the road fills half of
   the screen instead of a third under a black roof; the mirrors stay in view, the dials read through the wheel, which sits a little
   higher. The visors come further down for a low sun.

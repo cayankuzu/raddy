@@ -167,6 +167,20 @@ No Blender; model in Godot only as a last resort.
   team colour. Own head: `CarModel.bind_seat` takes `CrewBody.OWN_HEAD_LAYER` (1 << 13) out of the seat camera's mask; that body's helmet
   sits on that layer and its suit folds the head away for a camera without it (`CAMERA_VISIBLE_LAYERS`); the mirrors keep it.
   `route_test --crew=driver+navigator|driver|navigator|none` (default both, every car), `--look=Y+P` holds the head turned (screenshots).
+- What a crew member does (`CrewRig`, built by each `CrewBody` in a car, every peer): Godot's skeleton modifiers on the mannequin (`TwoBoneIK3D` arms
+  to goal nodes the rig sets in car space each frame, `CopyTransformModifier3D` gives each hand its goal's turn, `LookAtModifier3D` the head, a
+  `TwoBoneIK3D` for the legs only while kicking); the skeleton has `process_priority` 1, so it solves after the car turned its wheel and the rig set
+  the goals. The rig itself turns the chest and the neck (a share of the look) and the fingers (`Grip`, from `CrewPose.curl_fingers`); the harness
+  and HANS are static meshes, so the torso never leans: a reach brings a shoulder forward instead (`REACH`). What each hand does is
+  `Cabin.hands_of(role)` → `CrewRules.hands` (pure, tested): the driver's ride the rim (push-pull: as far round as the arm reaches, `_wheel_arcs`,
+  then the rim slides through the hand) and leave it for the shock gun (`ShockGun`, code-built, right hand; the shot's wires leave its muzzle,
+  `RaceSession._seen_from`), the window's winder, the wipers' stalk, the horn, the handbrake (`CarCockpit.handbrake_grip`) and a gear change
+  (`lever_knob`, from each peer's gearbox); the navigator's rest on the lap, hold the open map by its edges (`PaperMap.hold`), the gun, throw, wind.
+  Gestures with the hand nearer the partner, just past the car's middle where the partner sees them without turning (tested). Out cold it slumps,
+  a shock (`Cabin.shocked`) shakes it. Only a crew someone can see moves: the local player's car's always, another's on the screen within
+  `CrewBody.DRAW_RANGE` or within `MIRROR_RANGE` 10 m; otherwise the modifiers are off and the skeleton does nothing (three crews cost about
+  0.4-0.8 ms on Medium). `route_test --crew-look=R+Y+P --gesture=R+G --aim=R --job=R+J+T --faint=R+T --shock=R+T --steer=S --handbrake
+  --windows-open` pose them for screenshots.
 - `CarRallyKit` (one mesh, one draw call, `shaders/cabin_kit.gdshader`, parts by vertex like the pod): roll cage (black foam on the A pillars and
   round the heads, the main hoop at z 0.43 behind the seats), bucket seats swept along `SEAT_PROFILE` round the bodies (`seat_surface` is the
   fabric's surface; `CarParts` cuts the road seats, their buckles and the rear bench away), a trip meter by the navigator's A pillar
@@ -312,7 +326,7 @@ No Blender; model in Godot only as a last resort.
   `--autodrive`, tests, flow-test bots (which also confirm their own recovery offers). `RaceProgress` is the host's gate accounting.
 - Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N --quality=N --follower=D --follower-delay=S --ride-follower --chips=N --no-road-fx`
   (forces the whole graphics level) `--time=0..3 --dome --follower=D` (a second car D m behind, for the mirrors; `--follower=14+28` three crews)
-  `--no-light-pod --crew=... --look=Y+P`; it has the
+  `--no-light-pod --crew=... --look=Y+P` and the crew's poses (see the crew above); it has the
   race's weather particles (`WeatherFx`)
   `--view=M+E+H [--view-at=M+E+H]` (a fixed camera E m right of road metre M, H m up) `--quit-after-seconds=N`.
   `RaceSession.settings.stage` builds the same stage on every peer.
@@ -345,8 +359,14 @@ No Blender; model in Godot only as a last resort.
 - Cabin (spec §9-10): `Cabin` is the one state system for windows (state + cracked), windshield, dirt,
   wipers, per-seat exposure and faints, the map and the cans; host authority, `_broadcast(rpc, args)` runs
   the RPC everywhere or just locally offline. `SeatEffects` (CanvasLayer) shows the local seat's view of it.
-  Input: Q/E windows, F kick windshield (navigator), T wipers (driver), M map, L dome lamp, LMB throw. Fainted seats are
+  Input: Q/E windows, F kick windshield (navigator), T wipers (driver), M map, L dome lamp, LMB throw, 1-4 gestures. Fainted seats are
   checked by `PlayerCarInput`, `RouteFollower` and `CabinInput` via `cabin.is_fainted(role)`.
+- Seat state (`Cabin.seats[role]`, `CrewRules.Seat`): what a seat's player does with the head and the hands (the look from the seat camera's
+  `head_angles()`, a gesture, a job and how many so far, the gun up) is the seat's own peer's: `CabinInput` (gestures `gesture_left/straight/right/slow`,
+  1-4 and the d-pad, rebindable; a gesture folds the navigator's map) and `ShockInput` write it, `Cabin._keep_local_seat` sends its 4 bytes 10 times a
+  second (channel 3, unreliable) to the host, which checks the roster and the rate and passes it to every other player (`_rpc_seat`); a change of the
+  hands prints `NET seat team N role gesture .. job .. gun .. look Y P` (nettest). `CrewRules.one_handed`: the driver steers one-handed
+  (`PlayerCarInput`) while a hand is on the gun, a gesture, the window, the wipers or the horn (not the handbrake or a gear change).
 - Stones on the windshield (`StoneChipRules`, pure, the host's): rare alone (one run in ten of a bot cracks, `tools\chip_odds.ps1`), much likelier within `FOLLOW_RANGE` 30 m behind a car on loose ground, more the closer and
   faster, none on tarmac, snow, mud or wet; `RaceSession._measure_gaps` gives each `Cabin.gap_ahead` from the trackers. `Cabin.stone_hits`, `_rpc_stone_chip`: the first stone is a bullseye (`windshield.gdshader` `chipped`, where
   `WindshieldGlass.crack_center` says the crack will start: a centimetre, a dark pit, a half moon of crushed glass, a ring that flares
@@ -358,7 +378,8 @@ No Blender; model in Godot only as a last resort.
   picks the first head near the line → `RaceSession.request_shock` → the host's `_handle_shock` checks the seat, darts, openings, range, line
   of sight and immunity; a hit is `Cabin.host_shock`: the same 6 s faint, then 4 s immune. Every peer: `_rpc_shock_fx` → `ShockFx`
   (wires, sparks, flash, pop and crackle), `_rpc_shock_darts`, `shock_landed` → the HUD's feed; the victim's view flickers
-  (`SeatEffects`). The hands: `Cabin.aiming[role]`: an aiming driver steers one-handed, an aiming navigator folds the map and throws no cans.
+  (`SeatEffects`). The hands: `Cabin.seats[role].aiming` (synced with the seat): an aiming driver steers one-handed, an aiming navigator folds the
+  map and throws no cans; the gun shows in the right hand (`CrewRig`).
 - Damage (spec §8): the driver's `RallyCar.impact` (body contact; a landing on the wheels does not count) is
   judged by the host (`_rpc_report_impact` from a client driver), which keeps a `VehicleDamage` per team, sends
   crash sounds + a camera jolt (`_rpc_crash_fx`) and `_rpc_set_damage`; every peer calls `RallyCar.apply_damage`,
@@ -408,6 +429,8 @@ No Blender; model in Godot only as a last resort.
   so a tuning change cannot silently break the spec.
 - Print measured values with `gut.p()` so tuning changes are visible in the output.
 - `tests/unit/test_scripts_compile.gd` compiles every game script: most are only loaded by the scenes that use them.
+- Skeleton modifiers run headless; a body's drawn pose (after them) is read on `Skeleton3D.skeleton_updated`, outside it a bone's global pose is
+  the one before them (`tests/unit/vehicles/test_crew_rig.gd` `_drawn`).
 - `ResultsPanel` writes finishes into user://records.cfg unless `Flow.args` has `autodrive` (bots) or it is a flow test: a test or
   a scratch script that opens it sets that first.
 - A label from `UiTheme.label` wraps, and asks a container for no width of its own: give it a width (a `custom_minimum_size`, a full-width
