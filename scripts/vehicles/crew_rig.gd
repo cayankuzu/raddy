@@ -134,6 +134,8 @@ var _look_to := Vector2.ZERO
 var _look_blend := 1.0
 var _slump := 0.0
 var _shake_left := 0.0
+## The car's sound, whose gearbox is the gear the driver's hand follows on this peer.
+var _audio: CarAudio
 var _gear := 0
 var _shift_left := 0.0
 var _noise := FastNoiseLite.new()
@@ -153,6 +155,7 @@ func build(crew_body: CrewBody, car_model: CarModel, eye: Vector3) -> void:
 	body = crew_body
 	model = car_model
 	cabin = model.car.get_node(^"Cabin") as Cabin
+	_audio = model.car.get_node_or_null(^"Audio") as CarAudio
 	cabin.shocked.connect(func(role: int) -> void:
 		if role == body.role:
 			_shake_left = SHAKE_SECONDS)
@@ -347,12 +350,13 @@ func _set_active(on: bool) -> void:
 
 ## Whether the driver is changing gear: the gear the car's sound is in on this peer moved, a moment ago.
 func _shifting(delta: float) -> bool:
+	if body.role != RosterRules.Role.DRIVER or _audio == null:
+		return false
 	_shift_left = maxf(_shift_left - delta, 0.0)
-	var audio := model.car.get_node_or_null(^"Audio") as CarAudio
-	if body.role == RosterRules.Role.DRIVER and audio != null and audio.gearbox.gear != _gear:
+	if _audio.gearbox.gear != _gear:
 		if _gear != 0:
 			_shift_left = SHIFT_SECONDS
-		_gear = audio.gearbox.gear
+		_gear = _audio.gearbox.gear
 	return _shift_left > 0.0
 
 
