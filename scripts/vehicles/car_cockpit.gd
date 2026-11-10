@@ -59,7 +59,7 @@ const RADIO_UP := Vector3(0.056, 0.96, -0.278)
 const RADIO_READOUT_AT := Vector3(-0.088, 0.2965, -0.4815)
 const RADIO_DIGIT_HEIGHT := 0.012
 const RADIO_GLOW := Color(1.0, 0.62, 0.18)
-## A sun at least this bright (per daylight) makes a clear sky: under an overcast one the visors stay up.
+## A sun at least this bright dazzles: under an overcast sky, at dusk and under the moon the visors stay up.
 const CLEAR_SUN := 0.8
 
 var car: RallyCar
@@ -304,7 +304,7 @@ func _visors_wanted() -> bool:
 		_sun = get_tree().get_first_node_in_group(RaceLook.SUN_GROUP) as DirectionalLight3D
 		if _sun == null:
 			return false
-	return CockpitRules.visors_down(car.global_basis.inverse() * _sun.global_basis.z, _sun.light_energy >= CLEAR_SUN * RaceLook.daylight)
+	return CockpitRules.visors_down(car.global_basis.inverse() * _sun.global_basis.z, _sun.visible and _sun.light_energy >= CLEAR_SUN)
 
 
 func _update_panel() -> void:

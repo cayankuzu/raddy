@@ -148,12 +148,16 @@ func test_the_rear_lamps_light_with_what_the_car_does() -> void:
 	_car.forward_speed = 10.0
 	lamps._process(0.016)
 	assert_eq(lamps._brake.emission_energy_multiplier, 0.0, "tail lights off in daylight")
+	assert_false(lamps._brake_light.visible, "and nothing red on the road behind")
 	lamps.set_headlights(true)
 	lamps._process(0.016)
 	assert_almost_eq(lamps._brake.emission_energy_multiplier, CarLamps.TAIL_GLOW, 0.001, "on with the headlights")
+	assert_true(lamps._brake_light.visible, "a faint red on the road behind")
+	var tail := lamps._brake_light.light_energy
 	_car.controls.brake = 1.0
 	lamps._process(0.016)
 	assert_almost_eq(lamps._brake.emission_energy_multiplier, CarLamps.BRAKE_GLOW, 0.001, "bright under the pedal")
+	assert_gt(lamps._brake_light.light_energy, tail * 4.0, "and so is their glow: a follower sees the car brake")
 	_car.forward_speed = -3.0
 	_car.controls.brake = 1.0
 	lamps._process(0.016)
@@ -397,6 +401,38 @@ func test_the_map_held_up_is_clear_of_the_pillars_and_the_mirror() -> void:
 	assert_eq(hidden, 0, "every point round the sheet's edge is in sight")
 
 
+## The headlights' pattern at `up` degrees above the beam's axis and `across` to the right, in linear light.
+func _beam_at(pattern: Image, up: float, across: float) -> float:
+	var reach := tan(deg_to_rad(CarLamps.BEAM_ANGLE))
+	var row := clampi(int((1.0 - tan(deg_to_rad(up)) / reach) * 0.5 * pattern.get_height()), 0, pattern.get_height() - 1)
+	var column := clampi(int((tan(deg_to_rad(across)) / reach + 1.0) * 0.5 * pattern.get_width()), 0, pattern.get_width() - 1)
+	return pattern.get_pixel(column, row).srgb_to_linear().r
+
+
+func test_the_headlights_throw_their_light_far_down_the_road() -> void:
+	var pattern := CarLamps.beam_pattern()
+	var far := _beam_at(pattern, -0.5, 0.0)
+	gut.p("beam: %.3f at -0.5 deg (the road 55 m ahead), %.3f at -4 deg (7 m), %.3f at +3 deg, %.3f 15 deg aside" % [
+		far, _beam_at(pattern, -4.0, 0.0), _beam_at(pattern, 3.0, 0.0), _beam_at(pattern, -0.5, 15.0)])
+	assert_gt(far, 0.9, "brightest just under the horizon, where the road far ahead lies")
+	assert_lt(_beam_at(pattern, -4.0, 0.0), far * 0.25, "the road close to the car gets far less")
+	assert_gt(_beam_at(pattern, -4.0, 0.0), 0.0, "but it is lit")
+	assert_lt(_beam_at(pattern, 3.0, 0.0), far * 0.2, "little goes above the horizon")
+	assert_lt(_beam_at(pattern, -0.5, 15.0), far * 0.3, "and less to the sides")
+	assert_almost_eq(_beam_at(pattern, -0.5, -15.0), _beam_at(pattern, -0.5, 15.0), 0.01, "the same both ways")
+	for beam in _model.lamps._beams:
+		assert_eq(beam.light_projector, CarLamps.beam_texture(), "every beam draws that pattern")
+		assert_true(beam.shadow_enabled, "through its shadow map")
+		assert_gt(beam.spot_range, 100.0, "a long way")
+	_model.bind_seat(_car.get_node(^"DriverCamera") as CockpitCamera)
+	for beam in _model.lamps._beams:
+		assert_ne(beam.shadow_caster_mask, 0, "the seat's own car casts real shadows on High (headless counts as High)")
+		assert_eq(beam.shadow_caster_mask & GraphicsQuality.CABIN_LAYER, 0, "but nothing inside a car")
+	_model.lamps.cast_shadows(false)
+	for beam in _model.lamps._beams:
+		assert_eq(beam.shadow_caster_mask, 0, "others draw the pattern through an empty shadow map")
+
+
 func test_no_lamp_shines_on_the_inside_of_a_car() -> void:
 	var lamps := _model.lamps
 	for beam in lamps._beams:
@@ -457,7 +493,7 @@ func _visor_tip_height() -> float:
 func test_the_visors_come_down_for_a_low_sun_ahead_and_keep_clear_of_the_road() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.add_to_group(RaceLook.SUN_GROUP)
-	sun.light_energy = RaceLook.daylight
+	sun.light_energy = RaceLook.SUN_LIGHT[RaceLook.DAY].x
 	add_child_autofree(sun)
 	sun.global_basis = Basis.looking_at(Vector3(0.0, -0.5, 0.87))  # the light comes from ahead, low: it shines backwards
 	_steps(200)

@@ -3,12 +3,15 @@ extends Node3D
 ## Falling rain, snow or blowing dust around whatever camera is active (spec §14.2), with rain
 ## drumming on the roof and thunder rolling in now and then. One particle box follows the camera,
 ## so the cost does not grow with the size of the map. The gameplay effects (grip, fog, wet glass)
-## live in the race rules.
+## live in the race rules. By day the whole sky lights the drops and flakes; from dusk on they are lit like
+## everything else, and at night only what a lamp reaches shows.
 
 const RAIN_ON_ROOF := preload("res://assets/audio/ambience/rain_on_roof.ogg")
 const THUNDER := preload("res://assets/audio/ambience/thunder.ogg")
 ## Seconds between thunder claps in the rain.
 const THUNDER_GAP := Vector2(18.0, 50.0)
+## Below this much daylight (RaceLook) the particles take the scene's light.
+const LIT_FROM := 0.5
 
 var weather := RaceSettings.Weather.CLEAR
 
@@ -32,7 +35,7 @@ func _ready() -> void:
 	material.emission_box_extents = Vector3(22.0, 1.0, 22.0)
 	var mesh := QuadMesh.new()
 	var sprite := StandardMaterial3D.new()
-	sprite.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sprite.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED if RaceLook.daylight > LIT_FROM else BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	sprite.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	sprite.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
 	match weather:

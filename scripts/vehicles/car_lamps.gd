@@ -4,7 +4,7 @@ extends Node3D
 ## pedal, reversing lights, hazards that blink when the car is stuck or badly hurt (CockpitRules), and the dome
 ## lamp the crew switches on to read the map (Cabin). All of them light up their part of the model; the
 ## headlights' beams and the dome light the world at every graphics level (they are how the crew sees at night),
-## the glow of the rear lamps from Medium up.
+## the glow of the rear lamps from Medium up: the tail lights' faint red on the road behind, the brake lights' bright one.
 
 ## How bright each lamp's own glass is when lit.
 const HEAD_GLOW := 3.0
@@ -20,8 +20,31 @@ const DOME_LENS_DEPTH := 0.016
 const DOME_LIGHT_AT := Vector3(0.0, 0.8, 0.02)
 const DOME_RANGE := 1.45
 const DOME_ENERGY := 1.1
-## Where the rear lamps' glow starts.
+## Where the rear lamps' glow starts, how bright the brake lights' glow is and how much of it the tail lights give.
 const REAR_GLOW_AT := Vector3(0.0, 0.25, 1.95)
+const REAR_GLOW_ENERGY := 1.6
+const TAIL_SHARE := 0.12
+## The headlights: a beam each side, the lamp's own pattern across a cone this wide (half the angle, degrees), reaching this far.
+## A real lamp throws most of its light just under the horizon, where the road far ahead lies, and little onto the road close
+## to the car, which it meets at a steeper angle: that is how a pair of headlights reaches 80 m and more (beam_pattern).
+const BEAM_AT := Vector3(0.55, -0.05, -2.02)
+const BEAM_ANGLE := 30.0
+const BEAM_RANGE := 130.0
+const BEAM_ENERGY := 1500.0
+const BEAM_COLOR := Color(1.0, 0.96, 0.9)
+## How much of a beam the fog scatters back: fog lit at the beams' full strength would be a white wall a metre ahead.
+const BEAM_IN_FOG := 0.03
+## The pattern's picture (columns, rows); the band under the horizon where it is brightest (degrees: the road about 50 m ahead),
+## how fast it falls towards the car (a power of the angle) down to a floor, how fast above the horizon, the spill above it
+## (share, degrees), how wide it spreads (the core and the wings, degrees) and how much the wings give.
+const BEAM_PIXELS := Vector2i(96, 192)
+const BEAM_HOT := 0.55
+const BEAM_NEAR_FALL := 1.8
+const BEAM_FLOOR := 0.03
+const BEAM_ABOVE := 0.9
+const BEAM_SPILL := Vector2(0.06, 6.0)
+const BEAM_SPREAD := Vector2(7.0, 24.0)
+const BEAM_WINGS := 0.1
 ## What the lamps that shine out of a car light: everything but the inside of a car.
 const OUTSIDE_THE_CABINS := 0xFFFFFFFF & ~GraphicsQuality.CABIN_LAYER
 
@@ -48,26 +71,65 @@ func build(model: Node3D) -> void:
 	_blinkers = _lamp(model, "Milano95_Blinkers", Color(1.0, 0.5, 0.05))
 	var glow := GraphicsQuality.current() != GraphicsQuality.Level.LOW
 	if glow:
-		_brake_light = _rear_glow("BrakeGlow", Color(1.0, 0.1, 0.05), 7.0, 1.6)
+		_brake_light = _rear_glow("BrakeGlow", Color(1.0, 0.1, 0.05), 7.0, REAR_GLOW_ENERGY)
 		_reverse_light = _rear_glow("ReverseGlow", Color(1.0, 0.97, 0.9), 9.0, 2.2)
-	for side: float in [-0.55, 0.55]:
+	for side: float in [-1.0, 1.0]:
 		var beam := SpotLight3D.new()
 		beam.name = "Headlight"
-		beam.light_color = Color(1.0, 0.95, 0.85)
-		beam.light_energy = 4.0
-		beam.spot_range = 45.0
-		beam.spot_angle = 28.0
-		beam.spot_attenuation = 0.7
-		beam.shadow_enabled = false
+		beam.light_color = BEAM_COLOR
+		beam.light_energy = BEAM_ENERGY
+		beam.spot_range = BEAM_RANGE
+		beam.spot_angle = BEAM_ANGLE
+		beam.light_volumetric_fog_energy = BEAM_IN_FOG
+		beam.light_projector = beam_texture()
+		# The pattern is drawn through the beam's shadow map: an empty one unless the beam casts shadows (cast_shadows).
+		beam.shadow_enabled = true
+		beam.shadow_caster_mask = 0
 		beam.light_cull_mask = OUTSIDE_THE_CABINS
 		beam.light_specular = 0.25  # a car's flank at a grazing angle would mirror it blindingly into its own door mirror
-		beam.position = Vector3(side, -0.05, -2.0)
-		beam.rotation_degrees = Vector3(-4.0, 0.0, 0.0)
+		beam.position = Vector3(BEAM_AT.x * side, BEAM_AT.y, BEAM_AT.z)
 		add_child(beam)
 		_beams.append(beam)
 	_build_dome()
 	set_headlights(headlights)
 	set_dome(false)
+
+
+## The lamp's pattern (BEAM_*), rows from the top of the cone down, columns from the car's left: brightest in a band just
+## under the horizon, falling away towards the car and the sides, and fast above the horizon but for a little spill on the
+## trees and the boards. Written in sRGB: the beam reads it as a colour.
+static func beam_pattern() -> Image:
+	var image := Image.create(BEAM_PIXELS.x, BEAM_PIXELS.y, false, Image.FORMAT_RGB8)
+	var reach := tan(deg_to_rad(BEAM_ANGLE))
+	for row in BEAM_PIXELS.y:
+		var up := rad_to_deg(atan((1.0 - 2.0 * (row + 0.5) / BEAM_PIXELS.y) * reach))
+		var height := 1.0
+		if up > 0.0:
+			height = exp(-pow(up / BEAM_ABOVE, 2.0)) + BEAM_SPILL.x * exp(-pow(up / BEAM_SPILL.y, 2.0))
+		elif -up > BEAM_HOT:
+			height = maxf(pow(BEAM_HOT / -up, BEAM_NEAR_FALL), BEAM_FLOOR)
+		for column in BEAM_PIXELS.x:
+			var across := rad_to_deg(atan((2.0 * (column + 0.5) / BEAM_PIXELS.x - 1.0) * reach))
+			var width := exp(-pow(across / BEAM_SPREAD.x, 2.0)) + BEAM_WINGS * exp(-pow(across / BEAM_SPREAD.y, 2.0))
+			var value := clampf(height * width / (1.0 + BEAM_WINGS), 0.0, 1.0)
+			image.set_pixel(column, row, Color(value, value, value).linear_to_srgb())
+	return image
+
+
+static var _beam_texture: ImageTexture
+
+
+static func beam_texture() -> ImageTexture:
+	if _beam_texture == null:
+		_beam_texture = ImageTexture.create_from_image(beam_pattern())
+	return _beam_texture
+
+
+## The beams of the seat's own car cast shadows (High): a pass over the scene for each beam, so only for the car the
+## player sits in.
+func cast_shadows(on: bool) -> void:
+	for beam in _beams:
+		beam.shadow_caster_mask = OUTSIDE_THE_CABINS & ~GraphicsQuality.FINE_SCENERY_LAYER if on else 0
 
 
 ## A soft cone from the tail, backwards and a little down: it lights the road behind and a follower, not the cabin.
@@ -164,7 +226,8 @@ func _process(delta: float) -> void:
 	if _reverse != null:
 		_reverse.emission_energy_multiplier = REVERSE_GLOW if reversing else 0.0
 	if _brake_light != null:
-		_brake_light.visible = braking
+		_brake_light.visible = braking or headlights
+		_brake_light.light_energy = REAR_GLOW_ENERGY * (1.0 if braking else TAIL_SHARE)
 		_reverse_light.visible = reversing
 	if _blinkers != null:
 		var lit := CockpitRules.hazards_on(car.needs_recovery, car.damage_level) and CockpitRules.blink(_time)

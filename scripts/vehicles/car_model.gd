@@ -287,10 +287,13 @@ func _process(_delta: float) -> void:
 	_steering.basis = Basis(WHEEL_AXIS.normalized(), -steer * STEERING_RATIO)
 
 
-## The local player sits in this car behind `seat`: what only that player sees comes alive for that seat.
+## The local player sits in this car behind `seat`: what only that player sees comes alive for that seat, and on High its
+## headlights cast shadows.
 func bind_seat(seat: CockpitCamera) -> void:
 	if mirrors != null:
 		mirrors.bind_seat(seat)
+	if lamps != null:
+		lamps.cast_shadows(seat != null and GraphicsQuality.current() == GraphicsQuality.Level.HIGH)
 
 
 ## A node's transform in the car body's space.

@@ -10,7 +10,7 @@ extends Node3D
 ##                   instead
 ##   --chase         start on the chase camera instead of the driver's seat
 ##   --navigator     sit in the navigator's seat (M map, Q/E windows); pair with --autodrive
-##   --map-open      open the map right away (screenshots)
+##   --map-open      open the map right away (screenshots); --dome switches the dome lamp on
 ##   --windshield=cracked|removed  --chips=N  --dirt=0.4  --cracked-window=0|1   start with that glass state (screenshots)
 ##   --car-dirt=D+M+S  the body already that dirty with dust, mud and snow (screenshots)
 ##   --weather=0..4 --difficulty=0..2 --time=0..3   race settings (default clear, rally, day)
@@ -72,6 +72,10 @@ func _ready() -> void:
 	track.add_child(RoadsideDresser.dress(graph, terrain, settings.biome, [],
 		GraphicsQuality.scenery_density(quality), GraphicsQuality.range_scale(quality)))
 	add_child(track)
+	var weather_fx := WeatherFx.new()
+	weather_fx.name = "WeatherFx"
+	weather_fx.weather = settings.weather
+	add_child(weather_fx)
 	_events = StageEvents.new()
 	_events.name = "StageEvents"
 	add_child(_events)
@@ -121,6 +125,8 @@ func _ready() -> void:
 	add_child(effects)
 	if _args.has("map-open"):
 		cabin.request_map(true)
+	if _args.has("dome"):
+		cabin.request_dome(true)
 	match _args.get("windshield", ""):
 		"cracked":
 			cabin._rpc_set_windshield(Cabin.Windshield.CRACKED)

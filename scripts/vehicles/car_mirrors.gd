@@ -52,6 +52,9 @@ const SELF_LAYER := 1 << 19
 ## Mirrors have a sun of their own without shadows, on this layer: another shadow pass per mirror would cost
 ## more than all the rest of the picture. Only the mirrors' cameras see this layer.
 const MIRROR_SUN_LAYER := 1 << 17
+## A small atlas for the beams' patterns: a following car's headlights draw theirs through shadow maps with nothing in them
+## (CarLamps), and without one the beams would light nothing in the mirror.
+const BEAM_ATLAS := 512
 const SUN_THROUGH_TREES := 1.4
 ## What a mirror's camera leaves out.
 const CAMERA_MASK := 0xFFFFF & ~(SELF_LAYER | RaceLook.SUN_LAYER | GraphicsQuality.FINE_SCENERY_LAYER)
@@ -222,7 +225,7 @@ func _make_live(mirror: Mirror, height: int, environment: Environment) -> void:
 	mirror.viewport.size = Vector2i(roundi(height * mirror.rest.aspect()), height)
 	mirror.viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	mirror.viewport.use_hdr_2d = true
-	mirror.viewport.positional_shadow_atlas_size = 0
+	mirror.viewport.positional_shadow_atlas_size = BEAM_ATLAS
 	mirror.viewport.mesh_lod_threshold = 4.0
 	mirror.viewport.audio_listener_enable_3d = false
 	mirror.viewport.gui_disable_input = true
