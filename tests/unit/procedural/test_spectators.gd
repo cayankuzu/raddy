@@ -53,16 +53,21 @@ func test_the_crowd_dresses_for_the_biome() -> void:
 	assert_eq(sleeves[RaceSettings.Biome.MOUNTAIN], 1.0, "jackets in the mountains")
 
 
-func test_a_place_cheers_as_a_car_comes_and_settles_after() -> void:
+func test_a_place_cheers_as_a_car_goes_by_and_settles_after() -> void:
+	assert_eq(SpectatorRules.thrill(200.0, 25.0), 0.0, "nothing far off")
+	assert_eq(SpectatorRules.thrill(20.0, 25.0), 1.0, "a car going by close")
+	assert_eq(SpectatorRules.thrill(20.0, 0.0), 0.0, "a car standing on the grid, or stuck in the ditch before them: nothing to cheer")
+	assert_between(SpectatorRules.thrill(20.0, 5.0), 0.2, 0.8, "one crawling past: a clap")
+	assert_between(SpectatorRules.thrill(50.0, 25.0), 0.2, 0.8, "one coming: it starts")
 	var cheer := 0.0
 	for tick in 60:
-		cheer = SpectatorRules.cheer(cheer, 200.0, 1.0 / 60.0)
-	assert_eq(cheer, 0.0, "nothing far off")
+		cheer = SpectatorRules.cheer(cheer, SpectatorRules.thrill(200.0, 25.0), 1.0 / 60.0)
+	assert_eq(cheer, 0.0)
 	for tick in 60:
-		cheer = SpectatorRules.cheer(cheer, 20.0, 1.0 / 60.0)
+		cheer = SpectatorRules.cheer(cheer, SpectatorRules.thrill(20.0, 25.0), 1.0 / 60.0)
 	assert_almost_eq(cheer, 1.0, 0.001, "in full within a second of the car being near")
 	for tick in 60:
-		cheer = SpectatorRules.cheer(cheer, 200.0, 1.0 / 60.0)
+		cheer = SpectatorRules.cheer(cheer, SpectatorRules.thrill(200.0, 25.0), 1.0 / 60.0)
 	gut.p("a second after the car has gone: %.2f" % cheer)
 	assert_between(cheer, 0.5, 0.8, "it settles slowly")
 
@@ -123,12 +128,20 @@ func test_a_place_looks_at_the_car_and_cheers() -> void:
 	var car := Node3D.new()
 	car.add_to_group(RallyCar.GROUP)
 	add_child_autofree(car)
-	car.global_position = (spectators._places[0][1] as Vector3) + Vector3(6.0, 0.5, 0.0)
-	await wait_process_frames(90)
+	var middle: Vector3 = spectators._places[0][1]
+	car.global_position = middle + Vector3(6.0, 0.5, -12.0)
+	await wait_process_frames(30)
+	assert_eq(spectators._places[0][2], 0.0, "a car standing by: nothing to cheer")
+	assert_eq(place.get_instance_shader_parameter(&"car_near"), 1.0, "but they look at it")
+	for frame in 100:
+		car.global_position += Vector3(0.0, 0.0, 0.24)
+		await wait_process_frames(1)
 	assert_gt(float(place.get_instance_shader_parameter(&"cheer")), 0.9, "a car going by: they cheer")
-	assert_eq(place.get_instance_shader_parameter(&"car_near"), 1.0, "and look at it")
-	assert_eq(place.get_instance_shader_parameter(&"car_at"), car.global_position)
+	assert_eq(place.get_instance_shader_parameter(&"car_at"), car.global_position, "and their eyes follow it")
+	await wait_process_frames(60)
+	var settling := float(place.get_instance_shader_parameter(&"cheer"))
+	gut.p("60 frames after it stopped beside them: %.2f" % settling)
+	assert_lt(settling, 0.95, "stopped: they settle")
 	car.global_position += Vector3(500.0, 0.0, 0.0)
 	await wait_process_frames(30)
-	assert_lt(float(place.get_instance_shader_parameter(&"cheer")), 0.95, "gone: they settle")
-	assert_eq(place.get_instance_shader_parameter(&"car_near"), 0.0)
+	assert_eq(place.get_instance_shader_parameter(&"car_near"), 0.0, "gone: they look about again")

@@ -4,7 +4,7 @@ extends Node3D
 ## crowd, one MultiMesh a place, so a place is one draw call. A skeleton cannot be shared by a MultiMesh, so the body is posed once
 ## standing (CrewPose.stand) and baked with what its bones weigh on each vertex; shaders/spectator.gdshader moves the arms and the
 ## heads from that: each person rests in their own way, looks at the car coming and cheers as it passes, a flag of Turkey waving over the
-## heads of those who carry one. Every peer, never sent: each place follows the nearest car (RallyCar.GROUP).
+## heads of those who carry one. Every peer, never sent: each place follows the cars (RallyCar.GROUP) as this peer sees them move.
 
 const SHADER := preload("res://shaders/spectator.gdshader")
 ## Further than this nobody makes out a person (m); people cast shadows, but not as far as that.
@@ -18,12 +18,16 @@ const FLAG_HEIGHT := 0.22
 const STICK_RADIUS := 0.008
 ## Where the body is thinned out for the distance, vertices whose normals differ by less than this (degrees) count as one.
 const LOD_MERGE := 25.0
+## The trousers come up to the belt (m, the mannequin standing: from all trousers to all shirt).
+const WAIST := Vector2(1.03, 1.07)
 
 ## Dev: no crowd at all (route_test --no-crowd, perf comparisons).
 static var off := false
 
 ## Each place: [MultiMeshInstance3D, its middle, how excited it is, how near a car is to look at].
 var _places: Array[Array] = []
+## Each car: [where it is, how fast it goes (m/s: how far it has come since the last frame)].
+var _cars: Dictionary = {}
 
 static var _body: ArrayMesh
 static var _material: ShaderMaterial
@@ -69,16 +73,25 @@ func _add_place(zone: int, people: Array) -> void:
 
 
 func _process(delta: float) -> void:
-	var cars := get_tree().get_nodes_in_group(RallyCar.GROUP)
+	var cars := {}
+	for car: Node3D in get_tree().get_nodes_in_group(RallyCar.GROUP):
+		var at := car.global_position
+		cars[car] = [at, (_cars[car][0] as Vector3).distance_to(at) / delta if _cars.has(car) and delta > 0.0 else 0.0]
+	_cars = cars
 	for place in _places:
 		var instance: MultiMeshInstance3D = place[0]
 		var middle: Vector3 = place[1]
 		var nearest: Node3D = null
+		var distance := INF
+		var thrill := 0.0
 		for car: Node3D in cars:
-			if nearest == null or car.global_position.distance_squared_to(middle) < nearest.global_position.distance_squared_to(middle):
+			var away := middle.distance_to(cars[car][0])
+			if away < SpectatorRules.CHEER_FROM:
+				thrill = maxf(thrill, SpectatorRules.thrill(away, cars[car][1]))
+			if away < distance:
+				distance = away
 				nearest = car
-		var distance := middle.distance_to(nearest.global_position) if nearest != null else INF
-		var cheer := SpectatorRules.cheer(float(place[2]), distance, delta)
+		var cheer := SpectatorRules.cheer(float(place[2]), thrill, delta)
 		var near := 1.0 - smoothstep(SpectatorRules.CHEER_FROM, SpectatorRules.CHEER_FROM * 2.0, distance)
 		if cheer != place[2]:
 			place[2] = cheer
@@ -167,7 +180,7 @@ static func body_mesh() -> ArrayMesh:
 		var region := regions[v]
 		var rest := vertices[v]
 		var hair := region.b * (1.0 if rest.y > 1.71 or (rest.z < -0.01 and rest.y > 1.6) else 0.0)
-		var legs := 1.0 - smoothstep(0.9, 1.0, rest.y)
+		var legs := 1.0 - smoothstep(WAIST.x, WAIST.y, rest.y)
 		colours.append(Color(maxf(region.r, region.b - hair), legs * (1.0 - region.g), region.g, hair))
 		uvs.append(Vector2.ZERO)
 	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]

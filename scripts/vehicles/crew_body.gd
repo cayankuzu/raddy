@@ -38,12 +38,16 @@ const HANS_RADIUS := 0.011
 const GLOVE_BONES: Array[String] = ["hand", "f_", "thumb"]
 const HEAD_BONES: Array[String] = ["head", "neck"]
 const BOOT_TOP := Vector2(0.15, 0.19)
-## Where the stripes run (the mannequin standing in its T-pose): along the top of each arm, the outside of each leg, the sides of the body
-## from the hips up to under the arms (heights).
+## Where the stripes run (the mannequin standing in its T-pose): along the top of each arm (its axis: y, z) from past the shoulder's
+## ball (x), down the outside of each leg (its axis: x, z) from under the hip's ball, down the sides of the body (z) from the belt up to
+## under the arms (heights). None over a shoulder or a hip: the mannequin's limbs end in balls inside the body, which turn out into view
+## as it sits, and a player looks at their own shoulder from a hand's width.
 const ARM_LINE := Vector2(1.441, -0.067)
+const ARM_STRIPE_FROM := 0.24
 const LEG_LINE := Vector2(0.089, -0.01)
+const LEG_STRIPE_TOP := 0.84
 const BODY_LINE := -0.03
-const BODY_STRIPE := Vector2(0.93, 1.3)
+const BODY_STRIPE := Vector2(1.05, 1.3)
 
 var role := RosterRules.Role.DRIVER
 var skeleton: Skeleton3D
@@ -193,7 +197,7 @@ static var _suits: Dictionary = {}  # source mesh -> suit mesh
 
 
 ## The mannequin's two surfaces as one (one draw call), each vertex telling the suit's shader what it is: COLOR.r glove, .g boot,
-## .b head; UV2.x how far round its limb or the body from the stripe's line (radians), UV2.y 1 where a stripe runs. Every body shares it.
+## .b head; UV2.x how far it is from the stripe's line on its limb or the body (metres), UV2.y 1 where a stripe runs. Every body shares it.
 static func suit_mesh(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 	if _suits.has(source):
 		return _suits[source]
@@ -286,7 +290,9 @@ static func suit_region(at: Vector3, shares: Dictionary) -> Color:
 	return Color(float(shares.get(&"hand", 0.0)), boot, float(shares.get(&"head", 0.0)), 1.0)
 
 
-## How far round its limb (or round the body) a vertex is from where the stripe runs (radians), and 1 if a stripe runs on that part.
+## How far a vertex is from where the stripe runs on its part (metres, front to back: measured so, a stripe is a straight band of one
+## width whatever the mesh's triangles are), and 1 if a stripe runs there: the top of an arm, the outside of a leg, the body's sides
+## (the shader ends a stripe at the last vertices it runs on, a clean cut along the mesh's own rings).
 static func stripe_coordinate(at: Vector3, shares: Dictionary) -> Vector2:
 	var part: StringName = &"body"
 	var most := 0.0
@@ -296,9 +302,9 @@ static func stripe_coordinate(at: Vector3, shares: Dictionary) -> Vector2:
 			part = group
 	match part:
 		&"arm":
-			return Vector2(atan2(at.z - ARM_LINE.y, at.y - ARM_LINE.x), 1.0)
+			return Vector2(at.z - ARM_LINE.y, 1.0 if at.y > ARM_LINE.x and absf(at.x) > ARM_STRIPE_FROM else 0.0)
 		&"leg":
-			return Vector2(atan2(at.z - LEG_LINE.y, absf(at.x) - LEG_LINE.x), 1.0)
+			return Vector2(at.z - LEG_LINE.y, 1.0 if absf(at.x) > LEG_LINE.x and at.y < LEG_STRIPE_TOP else 0.0)
 		&"body":
-			return Vector2(atan2(at.z - BODY_LINE, absf(at.x)), 1.0 if at.y > BODY_STRIPE.x and at.y < BODY_STRIPE.y else 0.0)
-	return Vector2(PI, 0.0)
+			return Vector2(at.z - BODY_LINE, 1.0 if at.y > BODY_STRIPE.x and at.y < BODY_STRIPE.y else 0.0)
+	return Vector2.ZERO

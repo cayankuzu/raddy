@@ -2,7 +2,8 @@ class_name SpectatorRules
 extends RefCounted
 ## Who stands at a stage's places for the crowd and how they take a car going by (pure, the same on every peer from the stage's seed): a
 ## few people per place, spread along its tape, each standing their own way (arms down, arms crossed, hands on the hips, a small flag of
-## Turkey held up) in clothes for the biome's weather; a place cheers as a car comes and settles once it has gone.
+## Turkey held up) in clothes for the biome's weather; a place cheers as a car goes by and settles once it has gone; a car standing there
+## (on the grid, stuck, past the finish) gets their eyes and no more.
 
 enum Pose { REST, CROSSED, HIPS, FLAG }
 ## At most this many people at a place, never closer to each other than this (m).
@@ -10,9 +11,12 @@ const MOST := 8
 const ROOM := 1.6
 ## How often each way of standing comes (Pose order).
 const POSE_SHARES: Array[float] = [0.36, 0.2, 0.16, 0.28]
-## A car closer than this (m) gets a place going, in full from this close; the cheer comes this fast and goes this slowly (per second).
+## A car closer than this (m) gets a place going, in full from this close, if it is going by: nothing for one slower than CHEER_SLOW
+## (m/s), everything from CHEER_FAST; the cheer comes this fast and goes this slowly (per second).
 const CHEER_FROM := 70.0
 const CHEER_FULL := 30.0
+const CHEER_SLOW := 2.0
+const CHEER_FAST := 8.0
 const CHEER_RISE := 2.2
 const CHEER_FALL := 0.35
 ## Clothes, linear colours: shirts and jackets, trousers, hair, and the caps and hats some wear instead (by the hair's index).
@@ -79,10 +83,13 @@ static func long_sleeves(code: int) -> bool:
 	return (code / (TROUSERS.size() * HAIR.size())) % 2 == 1
 
 
-## How excited a place is `delta` s on from `now` (0..1), the nearest car `distance` m away: it comes quickly as the car nears, goes
-## slowly after.
-static func cheer(now: float, distance: float, delta: float) -> float:
-	var wanted := 1.0 - smoothstep(CHEER_FULL, CHEER_FROM, distance)
+## How much there is to cheer at (0..1) in a car `distance` m from a place, going `speed` m/s.
+static func thrill(distance: float, speed: float) -> float:
+	return (1.0 - smoothstep(CHEER_FULL, CHEER_FROM, distance)) * smoothstep(CHEER_SLOW, CHEER_FAST, speed)
+
+
+## How excited a place is `delta` s on from `now` (0..1) with `wanted` to cheer at (thrill): it comes quickly, goes slowly.
+static func cheer(now: float, wanted: float, delta: float) -> float:
 	return move_toward(now, wanted, delta * (CHEER_RISE if wanted > now else CHEER_FALL))
 
 

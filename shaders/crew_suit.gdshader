@@ -1,8 +1,8 @@
 shader_type spatial;
 // A crew member's race suit on the mannequin (CrewBody): fire-proof fabric in the team colour with white stripes down the sleeves, the
 // legs and the sides, dark leather gloves and boots, a black balaclava under the helmet. What each vertex is comes with it (CrewBody's
-// suit mesh): COLOR.r how much it is glove, COLOR.g boot, COLOR.b head; UV2.x how far round its limb (or the body) from the stripe's line
-// (radians), UV2.y 1 where a stripe can run.
+// suit mesh): COLOR.r how much it is glove, COLOR.g boot, COLOR.b head; UV2.x how far from the stripe's line on its limb (or the body) it
+// is (metres), UV2.y 1 where a stripe can run (it ends at the last vertices that say so: a clean cut along the mesh's rings).
 // The player's own body folds its head away from the seat's camera: that camera leaves the own-head layer out of what it sees, the
 // mirrors' cameras keep it (own_head is set on the local player's body only).
 render_mode cull_disabled;
@@ -15,9 +15,9 @@ const vec3 STRIPE = vec3(0.86, 0.86, 0.84);
 const vec3 GLOVE = vec3(0.035, 0.035, 0.038);
 const vec3 BOOT = vec3(0.022, 0.022, 0.024);
 const vec3 BALACLAVA = vec3(0.03, 0.03, 0.032);
-// Half the stripe's width (radians round the limb) and its soft edge.
-const float STRIPE_HALF = 0.16;
-const float STRIPE_EDGE = 0.04;
+// Half the stripe's width (metres) and its soft edge.
+const float STRIPE_HALF = 0.015;
+const float STRIPE_EDGE = 0.003;
 
 void vertex() {
 	if (own_head > 0.5 && COLOR.b > 0.5 && (CAMERA_VISIBLE_LAYERS & OWN_HEAD_LAYER) == 0u) {
@@ -26,7 +26,7 @@ void vertex() {
 }
 
 void fragment() {
-	float stripe = UV2.y * (1.0 - smoothstep(STRIPE_HALF, STRIPE_HALF + STRIPE_EDGE, abs(UV2.x)));
+	float stripe = smoothstep(0.9, 0.98, UV2.y) * (1.0 - smoothstep(STRIPE_HALF, STRIPE_HALF + STRIPE_EDGE, abs(UV2.x)));
 	vec3 colour = mix(suit, STRIPE, stripe);
 	colour = mix(colour, GLOVE, COLOR.r);
 	colour = mix(colour, BOOT, COLOR.g);

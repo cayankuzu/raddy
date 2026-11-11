@@ -145,15 +145,21 @@ func test_the_suit_knows_its_parts_from_the_bones() -> void:
 
 func test_the_stripes_run_along_the_outsides() -> void:
 	var top_of_arm := CrewBody.stripe_coordinate(Vector3(0.3, 1.49, -0.067), {&"arm": 1.0})
-	assert_almost_eq(top_of_arm.x, 0.0, 0.01, "along the top of the arm (the outside when it hangs)")
+	assert_almost_eq(top_of_arm.x, 0.0, 0.001, "along the top of the arm (the outside when it hangs)")
 	assert_eq(top_of_arm.y, 1.0)
-	assert_gt(absf(CrewBody.stripe_coordinate(Vector3(0.3, 1.39, -0.067), {&"arm": 1.0}).x), 3.0, "not underneath")
-	assert_almost_eq(CrewBody.stripe_coordinate(Vector3(-0.16, 0.5, -0.01), {&"leg": 1.0}).x, 0.0, 0.01, "down the outside of the leg")
-	assert_gt(absf(CrewBody.stripe_coordinate(Vector3(-0.03, 0.5, -0.01), {&"leg": 1.0}).x), 3.0, "not the inside")
+	assert_almost_eq(CrewBody.stripe_coordinate(Vector3(0.3, 1.47, -0.027), {&"arm": 1.0}).x, 0.04, 0.001, "4 cm off it, whatever the limb's girth")
+	assert_eq(CrewBody.stripe_coordinate(Vector3(0.3, 1.39, -0.067), {&"arm": 1.0}).y, 0.0, "not underneath")
+	assert_eq(CrewBody.stripe_coordinate(Vector3(0.2, 1.5, -0.067), {&"arm": 1.0}).y, 0.0, "nor over the shoulder's ball, which a player sees from a hand's width")
+	var outside_of_leg := CrewBody.stripe_coordinate(Vector3(-0.16, 0.5, -0.01), {&"leg": 1.0})
+	assert_almost_eq(outside_of_leg.x, 0.0, 0.001, "down the outside of the leg")
+	assert_eq(outside_of_leg.y, 1.0)
+	assert_eq(CrewBody.stripe_coordinate(Vector3(-0.03, 0.5, -0.01), {&"leg": 1.0}).y, 0.0, "not the inside")
+	assert_eq(CrewBody.stripe_coordinate(Vector3(-0.18, 0.9, -0.01), {&"leg": 1.0}).y, 0.0, "nor over the ball of the hip, which turns out as the body sits")
 	var side := CrewBody.stripe_coordinate(Vector3(0.15, 1.1, -0.03), {&"body": 1.0})
-	assert_almost_eq(side.x, 0.0, 0.01, "the side of the body")
+	assert_almost_eq(side.x, 0.0, 0.001, "the side of the body")
 	assert_eq(side.y, 1.0)
 	assert_eq(CrewBody.stripe_coordinate(Vector3(0.15, 1.42, -0.03), {&"body": 1.0}).y, 0.0, "but not over the shoulder")
+	assert_eq(CrewBody.stripe_coordinate(Vector3(0.17, 0.98, -0.03), {&"body": 1.0}).y, 0.0, "nor over the hips")
 	assert_eq(CrewBody.stripe_coordinate(Vector3(0.75, 1.44, -0.06), {&"hand": 1.0}).y, 0.0, "no stripe on a glove")
 
 
