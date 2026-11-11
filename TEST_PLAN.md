@@ -1,6 +1,6 @@
 # Test plan
 
-Status as of 2026-11-10 (build 0.2.0). Automated checks run on the dev PC (i7-13650HX, RTX 5070
+Status as of 2026-11-11 (build 0.2.0). Automated checks run on the dev PC (i7-13650HX, RTX 5070
 Laptop, Windows 11); manual checks need people and are listed with their state.
 
 ## Automated
@@ -43,14 +43,17 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | Following a car in its dust at night (the cloud glows in your own beams and hides everything) and a follower's beams in the mirrors | to do |
 | A car close behind at night lights the trees round the car ahead (never its road through it): fair to the leader, or a help nobody should get | to do |
 | The dome lamp: the map readable by it at night and hard to read without, and how much it blinds the driver | to do |
-| The new seat and view (lower, closer, a vertical 62 degrees): the road readable and the speed felt at the wheel, the mirrors a glance away; whether the settings need a seat and FOV option before A7 | to do |
+| The new seat and view (lower, closer, a vertical 62 degrees): the road readable and the speed felt at the wheel, the mirrors a glance away (the driver's interior mirror is 60 % in the frame at rest, 77 % at 60 km/h, 88 % at 100 km/h); whether the settings need a seat and FOV option before A7 | to do |
+| Looking round (100 degrees either way, no further than between the bucket seat's wings): enough to see out of the side window; the seat's mesh fabric credible up close | to do |
 | The crew from the other seat and through the windows: credible people in race suits (the mannequin's facets show up close), the harness and the helmet, by day, at night under the dome lamp | to do |
-| Hand signals in a real race: readable from the other seat at a glance and in motion (pointing away from the partner sweeps back into their sight), and whether a silent crew can run a stage on them | to do |
+| The roll cage from both seats and in the interior mirror (drawn only since A5's review: it hides 0.1 % of the windshield's view from the driver's seat, 0.9 % from the navigator's): a rally car's, never more in the way than a real one | to do |
+| Hand signals in a real race: each sign (the finger across, the thumb for the side away, a chop for straight on, a pat for slow down) read from the other seat at a glance and in motion, by day and at night without the dome lamp (the dials light the hands: the driver reads the navigator's well, the navigator sees the driver's as dim shapes against the beams), and whether a silent crew can run a stage on them | to do |
 | The crew's hands and heads in a real race: on the wheel through quick corrections and at full lock (the rim slides through them past the arms' reach), the gear and handbrake hand, the map's grip from both seats, heads that follow their players smoothly over the network | to do |
 | One-handed steering while signalling, winding the window, flicking the wipers or pressing the horn: a fair price, never annoying | to do |
-| The partner's head swinging with the car (out of a corner, nodding under braking, a jolt on a hit): alive, never restless or sickening beside you | to do |
+| The partner's head swinging with the car (out of a corner, nodding under braking, a jolt on a hit): alive, never restless or sickening beside you, on every screen (the navigator's own sees the car played back from the driver's snapshots), in the rivals' cars too | to do |
 | The livery: the number and the names read from the car behind, at the start and in the results' team colours, clean and filthy, in every team colour | to do |
-| The crowd: people worth having by the road from the grid and at speed (the crew's mannequin in plain clothes, no faces up close), their cheer as a car goes by, at dusk, at night and in snow | to do |
+| The crowd: people worth having by the road from the grid and at speed (the crew's mannequin in plain clothes, faces painted on), their cheer as a car goes by, at dusk, at night and in snow | to do |
+| Flags and guard rails in the beams at night: a flag red with its crescent and star, a rail a grey rail, never a white flare that hides the road behind it | to do |
 | What three crews cost on a mid-range PC (dev laptop, Medium: about 1 ms a frame, `tools\perf.ps1 -ExtraArgs "--follower=14+28,--flip-crew=0.5"`) | to do |
 | Windows SmartScreen first run on a clean PC | to do |
 
@@ -58,8 +61,8 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 - No relay for players behind carrier-grade NAT (Radmin VPN workaround); no reconnect; host loss ends the room.
 - The crew's short motions (winding a window, the wipers' stalk, a throw, the kick) are placed by eye: the model has no door winders or stalks to
   aim at.
-- The crew and the crowd are Quaternius's mannequin: its facets show from the other seat, a spectator has no face. A real helmet and
-  character models wait for a free source the owner approves.
+- The crew and the crowd are Quaternius's mannequin: its facets show from the other seat, a spectator's face is painted on. A real helmet
+  and character models wait for a free source the owner approves.
 - The trip meter is a black box against the black A pillar until A7 lights its display with numbers.
 - From outside at night a car's own headlights are flat white glass beside the glowing lamps of its light pod.
 - The dev laptop has a ~8 ms per-frame floor even for an empty scene (hybrid graphics); frame

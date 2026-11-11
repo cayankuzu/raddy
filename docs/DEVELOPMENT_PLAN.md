@@ -65,7 +65,7 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
 | A4 Effects | lingering dust, stones, mud on the body, ruts and skid marks, night lights | per-surface checklist, frame budget |
 | A5 Crew characters | driver + navigator bodies, hands, gestures, states, network sync | screenshots from both seats + nettest |
 | A6 Chaos mechanics | shock gun, doors, intercom, hands system, more events, awards, room modes | unit + network tests per mechanic |
-| A7 AAA HUD / UI / UX | design system, role HUDs, menus, onboarding, gamepad navigation, accessibility (with a seat and FOV option: A5 set the default seat and a vertical 62 degrees), the trip meter's numbers (`CarRallyKit.trip_display`) | UX audit, new-player test |
+| A7 AAA HUD / UI / UX | design system, role HUDs, menus, onboarding, gamepad navigation, accessibility (with a seat and FOV option: A5 set the default seat and a vertical 62 degrees; from the driver's seat it should bring all of the interior mirror into the frame, 60 % of it at rest by default), the trip meter's numbers (`CarRallyKit.trip_display`) | UX audit, new-player test |
 | A8 Network + security | relay for CGNAT, reconnect, RPC audit, rate limits, anti-teleport, streamer mode, Opus | soak test, security review |
 | A9 Performance + QA | budgets met on mid and low PCs, no shader stutter, full test matrix, clean-PC run | all gates |
 | A10 Launch | itch page, trailer/GIFs, press kit, demo build, update pipeline | launch checklist |
@@ -502,7 +502,8 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     the far one within a 30 degree glance (`tests/unit/vehicles/test_seat_view.gd`, rays against the car's own triangles). The wheel is set
     4.5 cm higher than the model has it: the dials' hubs and the needles at stage speeds and revs read through the opening over the hub (14 of
     14 points; the old eye saw 12 of 18 points of the whole sweep) and the hands reach it with the elbows bent. From the closer eye the visors
-    come down to 45 degrees (their edge 7.2 degrees over the eye line) and slide 12 cm out past the mirror; the held map came 7 cm closer.
+    come down to 45 degrees (their edge 7.2 degrees over the eye line) and slide 12 cm out past the mirror (gone since A5's review: a caged
+    car has none); the held map came 7 cm closer.
     The mirrors aimed themselves for the new eyes (their tests unchanged). Before and after: `reports/screenshots/a5_crew/before_*.png`,
     `after_*.png`.
   - The crew (`CrewBody`, `CrewPose`, `CrewHelmet`): Quaternius's UAL1 mannequin (CC0, 0.72 MB without the library's clips, 13.7k
@@ -515,14 +516,16 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     and harness show, your head never; the mirrors and your partner see it.
   - The cabin (`CarRallyKit`, one mesh and one draw call): roll cage (front hoop up the A pillars and along the roof, main hoop with its
     diagonal and stays, door bars, foam on the A pillars and round the heads: it hides 0.0 % of the windshield's view from either seat, the
-    helmets stay 9.3 / 10.7 cm from the tubes' middle lines), bucket seats swept round the bodies on rails (the road seats, their buckles
+    helmets stay 9.3 / 10.7 cm from the tubes' middle lines; wrong: the cage, the trip meter and the extinguisher were not drawn at all and
+    the measure lacked them too, see A5's review on 2026-11-11), bucket seats swept round the bodies on rails (the road seats, their buckles
     and the rear bench cut away), a loose harness on an empty seat, a trip meter by the navigator's A pillar, a fire extinguisher.
   - Cost, `tools\perf.ps1 -Stage 0 -Quality 1`, three cars (`--follower=14+28`), full crews against `--crew=none`, alternating, two
     rounds: 37.2 / 37.2 fps against 37.6 / 37.5 (about 0.25 ms; the bodies stand still, nothing re-skins them each frame yet), draw calls
     +15 to +33.
   - Looked at: both seats before and after, each seat looking at the other, the driver looking down at their arms, knees and harness, the
     navigator from outside through the side window and through the windshield, an empty seat, the map held up beside the navigator, the
-    navigator under the dome lamp at night, the cage and the partner in the interior mirror, a rival car from a follower.
+    navigator under the dome lamp at night, the cage and the partner in the interior mirror (no cage was there: its seats' backs were taken
+    for it), a rival car from a follower.
   - Left for the next A5 parts: the hands follow nothing yet (the rim turns through the driver's gloves at lock; item 2's IK), the map is
     not in the navigator's hands, heads do not turn with the look, gestures, states, sync, spectators, livery. The mannequin's facets show up
     close; no HANS collar on the shoulders yet.
@@ -586,7 +589,8 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     `--flip-livery`, `--flip-pod`, `--flip-crowd` beside `road-fx` and `marks`) and gives the mean frame time either way and the share spent
     before the draw (every node's `_process`, the skeletons, the deferred calls: `work_cost_ms`, steady to 0.03 ms). Medium, Black Pine, three
     crews (`--follower=14+28`), 70 s runs, frame cost (of which before the draw): from the lead car the crews 0.71 ms (0.29), their motion
-    alone 0.36 (0.30), the cage and seats -0.44 (-0.01), the livery -0.17 (-0.02), the crowd 0.19 (0.03), a flip of nothing -0.25 (-0.01);
+    alone 0.36 (0.30), the cage and seats -0.44 (-0.01; the seats alone: the cage was not drawn, see the review below), the livery -0.17
+    (-0.02), the crowd 0.19 (0.03), a flip of nothing -0.25 (-0.01);
     riding the second car, another crew moving ahead, the crews 0.79 (0.34), their motion 0.61 (0.35), nothing -0.34 (-0.03); at night the
     crews 1.14 (0.37) and the pod with its beam 1.07 (it took the place of A4's second headlight beam). So a flip of nothing reads up to a
     third of a millisecond: only the crews cost anything that can be measured, 0.7-0.8 ms by day, and the phase stays under the 1.5 ms it
@@ -605,7 +609,8 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     so the phase's earlier pictures were Low's): the driver looking at the navigator with the map open, the navigator looking at the driver's
     hands on the wheel, a fainted driver from the other seat and through the windshield, a pointing navigator at a glance and looked at, a
     pointing driver, the car through its side window, a rival from the seat behind and from in front, the framing from both seats, the cage
-    and both helmets in the interior mirror, the livery from all sides, from a follower in its dust and under 0.85 dust and 0.45 mud, the pod
+    and both helmets in the interior mirror (both helmets: the cage was not there), the livery from all sides, from a follower in its dust and
+    under 0.85 dust and 0.45 mud, the pod
     at night from both seats and from outside at night and at dusk, the crowd as a car goes by in the forest, the desert and in snow, from
     beside the road and from the seat. Fixed on the way:
     the suit's stripes were measured as angles round a limb and came out as ragged wedges where the mannequin's joints fold (a white fan on
@@ -621,3 +626,47 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     0.07 ms a body.
   Verified: 518 GUT tests (16221 asserts, no warning), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1`
   (2:11.2 / 2:17.5, 16.9 / 16.1 m/s), no script or engine error in their logs.
+
+- 2026-11-11: A5's review (three reviewers: the spec, the bugs, a player; 17 findings, two of them found twice) and what it changed: DONE.
+  - Wrong in the entries above: the cage, its foam, the trip meter, the extinguisher and the seats' rails were never drawn. The kit's mesh
+    held 16180 vertices and drew 784 triangles, the two seats': `SurfaceTool.append_from` of the cage (no indices) and the seats (indexed)
+    keeps the seats' index array only. The reviewers found it with a headless probe of the mesh (no index named a vertex of the cage) and in
+    the pictures (what passed for the cage in the mirror were the seats' backs, the trip meter's place on the dash was empty); the tests
+    passed because they measured `get_faces()`, which lacked the cage too. So "hides 0.0 % of the windshield's view", "the cage and the
+    partner in the interior mirror" and the kit's flip of -0.44 ms were measured or looked at without it. Fixed in da21138 (the cage indexed
+    before the seats join it): 6016 triangles drawn, a test asks every part to be drawn; the cage hides 0.1 % of the windshield's view from
+    the driver's seat and 0.9 % from the navigator's. Its cost, flipped inside one run, twice (Medium, Black Pine, three crews, the PC loaded
+    to 18-25 fps by another program): -0.07 and -0.36 ms (before the draw -0.04 / -0.01), nothing that can be measured.
+  - With the cage in place (da21138): the held map stood in the A pillar's tube and is held clear of it by its lower corners, the thumbs on
+    free paper the notes now leave under them (they also ran off the sheet on Glacier Ridge); the sun visors are gone, as in a caged rally
+    car (they hinged where the roof bars run and, lowered, hid 43 % of the windshield from where the crew sits); the extinguisher lies clear
+    of the heels in a kick.
+  - Heads swung only on the peer that simulates the car: a car played back from snapshots moves a frame's ticks at once, so on every other
+    peer (the navigator's own screen included) the helmets whipped to their 15-degree limits on a straight and never leaned in a corner (the
+    reviewers' probes: 0.03-0.15 degrees in a 1 g corner at 40 fps, where 6.5 is right). `CrewSway` follows `RallyCar.seen_velocity`, a test
+    plays a car back at 2-4 ticks a frame, and it was checked in a real three-instance session (da21138).
+  - Gestures (straight on looked like a fist, a sign to the side away from the partner left their sight, dark gloves on a dark dash, nothing
+    at night without the dome lamp): a sign each (the finger across, the thumb away, a chop, a pat) made against the windshield from the
+    partner's eye, the gloves' backs in the suit's colour with the stripe (da21138); after dark the dials glow on the hands. The glow sits
+    6 cm in front of the panel: a first try 14 cm out lit the wheel's hub like a lamp from 0.07 m, a second by the radio the right hand from
+    0.13 m; now 0.14 m from the hub, 0.27 / 0.28 m from the hands (tested).
+  - Smaller (da21138): both hands off the wheel steered better than one (`one_handed` asked for exactly one); the glass went 0.02 s after F
+    and the can flew before the hand moved (now when the soles land, 0.42 s, and when the hand lets go, 0.3 s); a kick seen on another peer
+    stopped half way; the navigator reached through the driver for the far winder; the gun went out through a closed window; a gesture or
+    the gun stayed up after the window lost the keyboard.
+  - In the beams at night a flag a few metres ahead burned to a white sheet in a red glow (Red Canyon 584 m) and a guard rail to a white
+    flare that veiled the road beyond the corner (Eagle's Nest 438 m). Both shade as the engine does (`shaders/lamp_cap.gdshaderinc`: by day
+    and at golden hour the same pixels, a mean difference of 0.0002 over the rail, none over the flags) but no lamp gives them more than the
+    sun: the flags stay red with the crescent and star, the rail is a grey W-beam with its bolts, the road beyond it reads as before (0.037
+    against 0.038) and where the flare was (0.31) is road again (0.03).
+  - Looking 120 degrees round filled 60-75 % of the frame with the seat's flat wing: the look stops at 100 degrees, the body's head too, and
+    the seats are a racing mesh fabric woven in the shader in two sizes, each faded out by how far its threads pass in a pixel (the first
+    weave, faded by distance, shimmered in moiré on the far wing).
+  - The crowd: faces (eyes, the nose's shadow, a mouth) where UV marks the front of the head, the fingers loosely curled; the shirt's colour
+    showed in a band across the forehead where hair met skin between vertices: the head is skin under the hair now (tested).
+  - Decided, not changed: the driver's interior mirror is 60 % in the frame at rest (77 % at 60 km/h, 88 % at 100 km/h, all of it at a
+    glance; the navigator's 87 % at rest). A rest look turned towards it would set the road off the middle, the mirror is the model's own on
+    its stalk and the eye was set for the windshield: left to A7's seat and FOV options, on `TEST_PLAN.md`.
+  - Known and left: at night without the dome lamp the navigator sees the driver's signs as dim shapes against the beams (the driver reads
+    the navigator's well); a straw bale in the hot band still glows in a halo (its material is the engine's own; not among the findings);
+    the crew and the crowd are still the mannequin (no free model the owner has approved).

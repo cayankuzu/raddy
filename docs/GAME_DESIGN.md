@@ -30,12 +30,17 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
 
 ## 3. Roles and the hands system
 - **Driver:** both hands on the wheel by default. Can take one hand off (shock gun, horn, wipers,
-  window, a gesture): steering then works one-handed (slower steering, less lock) until the hand is back.
-  A pull of the handbrake or a gear change takes the right hand for a moment without that.
+  window, a gesture): steering then works one-handed (slower steering, less lock) until the hand is back,
+  and no better with both off. A pull of the handbrake or a gear change takes the right hand for a moment
+  without that.
 - **Navigator:** the map takes both hands. One-handed jobs (can, shock gun, window, pointing) mean
-  folding or dropping the map. Gestures (1-4 or the d-pad, rebindable): point left, straight on or right,
-  or "slow down", with the hand nearer the partner, where they see it at a glance without leaving the
-  road; a thumbs-up later. Every peer sees them: a crew can talk without a word.
+  folding or dropping the map. Gestures (1-4 or the d-pad, rebindable): left, straight on, right or
+  "slow down", with the hand nearer the partner, against the windshield where they see it at a glance
+  without leaving the road, each a sign of its own: the finger across to the partner's side, the thumb
+  for the side away (a hand held out that way leaves their sight), a chop for straight on, a pat for slow
+  down. The gloves' backs are in the suit's colour with its stripe and after dark the lit dials light the
+  hands, so the signs read on a dark dash and at night. A thumbs-up later. Every peer sees them: a crew
+  can talk without a word.
 - Fainted (exposure, shock): 6 s, then 4 s immune to a new shock. A fainted driver's car coasts; a
   fainted navigator drops the map (out of an open window if the wind takes it).
 
@@ -75,8 +80,9 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   takes it), a dome lamp to read the map by at night that half blinds the driver, windows
   that slide into the doors, wipers that clean only where they pass (the dirt in the colour of the road, a haze that glows against
   a low sun), pops and a flame on the overrun, discs that glow after
-  hard use, sun visors that come down for a low sun ahead, a glove box that opens when a can is taken, a radio that lights with the
-  engine. The vents and the door pulls stay as they are: a crew does not touch them in a race.
+  hard use, a glove box that opens when a can is taken, a radio that lights with the engine. The vents and the door pulls stay as they
+  are: a crew does not touch them in a race. No sun visors: in a caged rally car the roof bars run where they would hang, and from where
+  the crew sits a lowered one hid 43 % of the windshield.
 
 ## 6. Chaos mechanics (the fun list)
 - **Shock gun** (never called "Taser", a trademark): one per player, 2 darts per stage, refilled at
@@ -99,9 +105,11 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   body for yourself, full body for your partner and the rivals. The hands work, on every peer: on the
   turning wheel (past what the arms reach the rim slides through them, push-pull), the gear lever, the
   handbrake, the horn, the wipers' stalk, the window's winder, the shock gun (in the hand), the map held
-  by its edges, a can out of the window; the legs kick the windshield out; the head turns with the mouse
-  look; gestures; fainted slump; shock shake. The harness holds the body to the seat and the neck gives to the
-  car: heads lean out of a corner, nod under braking, jolt on a hit. A crew moves only where someone can see it.
+  by its edges, a can out of the window; the legs kick the windshield out (it goes when the soles land); the head
+  turns with the mouse look, as far round as the bucket seat's wings let it (100 degrees); gestures; fainted slump;
+  shock shake. The harness holds the body to the seat and the neck gives to the car: heads lean out of a corner, nod
+  under braking, jolt on a hit, on every peer from the car's velocity as that peer sees it. A crew moves only where
+  someone can see it.
 - A body sits in every seat a player holds, on every peer; an empty seat has none (its harness lies loose on it). The crew sits as
   a rally crew does: low, upright, close to the wheel; the eyes are the seats' cameras, so from the seat the road is the star (the
   windshield about half the frame height at a vertical field of view of 62 degrees). Your own arms, knees and harness are in view,

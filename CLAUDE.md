@@ -152,15 +152,19 @@ No Blender; model in Godot only as a last resort.
   angle below its band so the near road is no blaze); `route_test --no-light-pod` leaves it off. `CarHeat`: pops and flame on a lift at high revs, front discs that glow after
   really hard braking. The wheel turns about `CarModel.WHEEL_AXIS` and is set (`WHEEL_SET_IN`) so the dials show through the rim.
   `Cabin` slides the side panes into the doors (along their own slant, cut at the door's sill: `sill` in `car_glass.gdshader`); the
-  sun visors come down for a low sun ahead, the glove box's lid opens when a can is taken, the radio's readout lights with the engine
-  (`CarCockpit`, `CockpitRules`); `GraphicsQuality.CABIN_LAYER` is what is inside a car, which the car lamps' shadowless beams leave out;
-  `WindshieldGlass` sweeps the model's own wipers on their hinges and
-  tells the shader the ring each blade passes. The handbrake comes with the snapshot extras; gear and revs come
-  from each peer's `CarAudio.gearbox`.
+  glove box's lid opens when a can is taken, the radio's readout lights with the engine, after dark the lit dials glow on the hands and on a
+  raised gesture (`CarCockpit`, `CockpitRules`; the glow 6 cm in front of the panel, as far from both hands and 0.14 m behind the hub: nearer,
+  it made a lamp of what it lit). No sun visors (`CarParts` cuts them away): the cage's roof bars run where they would hang, and from where
+  the crew sits a lowered one hid 43 % of the windshield. `GraphicsQuality.CABIN_LAYER` is what is inside a car, which the car lamps'
+  shadowless beams leave out; `WindshieldGlass` sweeps the model's own wipers on their hinges and tells the shader the ring each blade
+  passes. The handbrake comes with the snapshot extras; gear and revs come from each peer's `CarAudio.gearbox`.
 - Where the crew sits: the seats' cameras in `rally_car.tscn` are the eyes (low, upright, close to the wheel), `CockpitCamera.BASE_FOV` 62
   (vertical); `tests/unit/vehicles/test_seat_view.gd` pins it with rays against the car's own triangles: the windshield about half the frame
   height straight ahead from either seat, the interior and the near door mirror in view, the dials' needles through the wheel, the cage hiding
-  nothing of the road. A7: seat and FOV options in the settings.
+  at most 1 % of the windshield's view (0.1 % from the driver's seat, 0.9 % from the navigator's). From the driver's eye only 60 % of the
+  interior mirror is in the frame at rest (77 % at 60 km/h, 88 % at 100 km/h, all of it at a glance): left to A7's seat and FOV options in
+  the settings, the road stays the star. The head turns `CockpitCamera.LOOK_YAW` 100 degrees either way, no further than between the bucket
+  seat's wings (the body's head as far, `CrewRig.HEAD_LIMITS`).
 - Crew (`CrewBody`, `CrewPose`, `CrewHelmet`): every seat a player holds has a body, on every peer (`RaceSession._seat_crew` from the roster, again
   on `Net.roster_changed`; `CarModel.seat_crew(role, seated)`; no body in an empty seat). Quaternius's mannequin (`assets/characters/crew_mannequin.glb`,
   UAL1's without its clips, `tools/make_crew_mannequin.gd`; bones `DEF-*`, the dots imported as `_`) posed in code: `CrewPose` (pure, tested) puts
@@ -185,19 +189,29 @@ No Blender; model in Godot only as a last resort.
   then the rim slides through the hand) and leave it for the shock gun (`ShockGun`, code-built, right hand; the shot's wires leave its muzzle,
   `RaceSession._seen_from`), the window's winder, the wipers' stalk, the horn, the handbrake (`CarCockpit.handbrake_grip`) and a gear change
   (`lever_knob`, from each peer's gearbox); the navigator's rest on the lap, hold the open map by its edges (`PaperMap.hold`), the gun, throw, wind.
-  Gestures with the hand nearer the partner, just past the car's middle where the partner sees them without turning (tested). Out cold it slumps,
+  Gestures with the hand nearer the partner, against the windshield where the partner sees them without turning, placed from the partner's
+  eye (tested), each a sign of its own (`CrewRules.sign_of`): the finger across to the partner's side, the thumb for the side away (a hand held
+  out that way leaves their sight), a chop for straight on, a pat for slow down; the gloves' backs are in the suit's colour with the sleeve's
+  stripe (`CrewBody.suit_region` alpha), so a hand shows on a black wheel and a dark dash. A job's outcome waits for the body's move: the
+  windshield goes when the kick's soles meet it (`CrewRules.KICK_LANDS`), a can flies when the hand lets go (`THROW_LEAVES`), a kick another
+  player began plays to its end; the navigator does not reach across the driver for the far winder (`CrewRules.job_hand`), and the gun stops
+  at a closed window's glass. Out cold it slumps,
   a shock (`Cabin.shocked`) shakes it. The harness holds the body, the neck gives to the car (`CrewSway`, pure, tested: a corner tilts the head
-  out of it by 6.5 degrees a g, braking nods it, a hit jolts it, 15 degrees at most, the navigator's neck the looser; each peer works it out from
-  where it sees the car on its physics ticks, never sent). Only a crew someone can see moves: the local player's car's always, another's on the
-  screen within `CrewBody.DRAW_RANGE` or within `MIRROR_RANGE` 10 m; otherwise the modifiers are off and the skeleton does nothing. Three crews
-  cost about 0.7-0.8 ms a frame on Medium by day (`perf.ps1 --flip-crew`): 0.3 of it the rigs' scripts and skeletons (0.07 ms a moving body),
-  the rest some thirty draw calls. `route_test --crew-look=R+Y+P --gesture=R+G --aim=R --job=R+J+T --faint=R+T --shock=R+T --steer=S --handbrake
+  out of it by 6.5 degrees a g, braking nods it, a hit jolts it, 15 degrees at most, the navigator's neck the looser; each peer works it out on
+  its physics ticks from `RallyCar.seen_velocity`, never sent: the body's own where it is simulated, the driver's from the snapshots elsewhere,
+  since a car played back moves a frame's ticks at once and its place says nothing of how it turns). Only a crew someone can see moves: the
+  local player's car's always, another's on the screen within `CrewBody.DRAW_RANGE` or within `MIRROR_RANGE` 10 m; otherwise the modifiers
+  are off and the skeleton does nothing. Three crews cost about 0.7-0.8 ms a frame on Medium by day (`perf.ps1 --flip-crew`): 0.3 of it the
+  rigs' scripts and skeletons (0.07 ms a moving body), the rest some thirty draw calls. `route_test --crew-look=R+Y+P --gesture=R+G --aim=R --job=R+J+T --faint=R+T --shock=R+T --steer=S --handbrake
   --windows-open` pose them for screenshots.
 - `CarRallyKit` (one mesh, one draw call, `shaders/cabin_kit.gdshader`, parts by vertex like the pod): roll cage (black foam on the A pillars and
   round the heads, the main hoop at z 0.43 behind the seats), bucket seats swept along `SEAT_PROFILE` round the bodies (`seat_surface` is the
-  fabric's surface; `CarParts` cuts the road seats, their buckles and the rear bench away), a trip meter by the navigator's A pillar
+  fabric's surface, UV.x 1: the shader weaves a racing seat's mesh fabric in two sizes, each faded out by how far its threads pass in a pixel,
+  so it never shimmers; `CarParts` cuts the road seats, their buckles and the rear bench away), a trip meter by the navigator's A pillar
   (`trip_display()` for A7's numbers), a fire extinguisher; `strap`/`buckle` make harness webbing, a loose harness lies on an empty seat
-  (`seat_taken`).
+  (`seat_taken`). 6016 triangles drawn. `SurfaceTool.append_from` of a surface without indices and one with them keeps only the indexed
+  part: the cage, the trip meter and the extinguisher went undrawn for most of A5 while the tests measured `get_faces()`, which lacked them
+  too; the cage is indexed before the seats join it and `test_car_rally_kit` asks every part to be drawn.
 - Livery (`CarLivery`, child of the `CarModel`; `LiveryRules`, pure, tested): every car is lettered for its crew on every peer
   (`RaceSession._seat_crew` → `livery.show_crew(number, names)`: the team's number, the names of the seats players hold, the driver's first, in
   capitals the way the locale writes them, 20 letters at most). One picture drawn in code (`draw_picture`, 1024x512; the text through the
@@ -224,8 +238,8 @@ No Blender; model in Godot only as a last resort.
   internet code when the router allows it (CGNAT detected). `RaceSettings` resolves Random / Surprise Rally
   (keys `stage`, `difficulty`, `weather`, `time`, `shock`; the stage gives `biome` and `seed`; a `time` left out is day,
   every stage comes at every time); `BiomeRules` applies weather/difficulty to the stage. UI strings: `data/locale/strings.csv` (TR/EN).
-- Times of day (`RaceSettings.TimeOfDay`, lit by `RaceLook`): day; golden hour (the sun at 12 degrees, warm, the visors
-  come down); dusk (the blue hour: the sun 4 degrees under the horizon, no sun light or shadow pass, the sky's afterglow, its blue light on the
+- Times of day (`RaceSettings.TimeOfDay`, lit by `RaceLook`): day; golden hour (the sun at 12 degrees, warm, dazzling to
+  drive into); dusk (the blue hour: the sun 4 degrees under the horizon, no sun light or shadow pass, the sky's afterglow, its blue light on the
   land, a road readable without lamps, headlights on in full: dusk is never darker than night from the seat);
   night (a moon of 0.05 and stars on a clear sky, neither under clouds; the moon casts no shadow: its cascades cost High 200-300
   draw calls for shadows nobody sees). `RaceLook.daylight` (cabin fill, the
@@ -288,7 +302,9 @@ No Blender; model in Godot only as a last resort.
   `RoadBuilder.build(graph, terrain, palette)` → `Track` (rectangular HeightMapShape3D terrain, Roads/Road<n>
   ribbons + shoulders + a `Ditch` body with `surface` metadata, Spurs, Checkpoints spanning the corridor without reaching another
   stretch, `TrackFeatures`: water pools + `WaterSplash` areas, `GuardRail` on cliffs (corrugated W-beam, one mesh
-  per rail + one batch of posts, ends turned down, one gap with torn ends, `shaders/guard_rail.gdshader`),
+  per rail + one batch of posts, ends turned down, one gap with torn ends, `shaders/guard_rail.gdshader`; like a flag's cloth it takes its
+  light through `shaders/lamp_cap.gdshaderinc`: the engine's own shading, the same pixels by day, but no lamp gives it more than the sun, or
+  the hot band of the beams at night burned it to a white flare that hid the road behind it),
   `RallyArch` over the start and finish lines (box truss on plates behind concrete blocks, a banner printed in code
   with the word from the strings, a flag on each tower), invisible walls 36 m out and end caps). The grid's first row
   stands `StageBuilder.GRID_BEFORE_LINE` before the line, in sight of the banner. Face winding for anything hit from
@@ -340,7 +356,9 @@ No Blender; model in Godot only as a last resort.
   the stage's seed): 4-8 people a place, 1.6 m apart or more, the crew's mannequin baked standing (`CrewPose.stand`) with what its bones weigh on
   each vertex (CUSTOM0/1), one MultiMesh and one draw call a place (a MultiMesh cannot share a skeleton). `shaders/spectator.gdshader` turns the
   arms and the head about the standing pose's joints: four ways of standing (arms down, crossed, hands on the hips, a small flag of Turkey held
-  up), the head to the nearest car, clothes for the biome by index (`outfit`; the trousers come up to `WAIST`). A place cheers a car going by
+  up), the head to the nearest car, clothes for the biome by index (`outfit`; the trousers come up to `WAIST`), a face on the front of the
+  head (UV says where on it, `face_uv`: eyes, the nose's shadow, a mouth), the whole head skin under the hair (or the shirt's colour showed
+  where the two meet), the fingers loosely curled. A place cheers a car going by
   (`thrill(distance, speed)`: within 70 m and faster than 2 m/s; `cheer` comes within half a second and goes in three), a car standing on the grid
   or stuck gets their eyes only; each peer works it out from how it sees the cars move (`RallyCar.GROUP`), never sent. The body carries levels
   of detail (`ImporterMesh.generate_lods`: 13.7k triangles, 3.4k from about 10 m and 0.9k from 40 m at 1080p, the error under a pixel; a
@@ -395,7 +413,9 @@ No Blender; model in Godot only as a last resort.
   1-4 and the d-pad, rebindable; a gesture folds the navigator's map) and `ShockInput` write it, `Cabin._keep_local_seat` sends its 4 bytes 10 times a
   second (channel 3, unreliable) to the host, which checks the roster and the rate and passes it to every other player (`_rpc_seat`); a change of the
   hands prints `NET seat team N role gesture .. job .. gun .. look Y P` (nettest). `CrewRules.one_handed`: the driver steers one-handed
-  (`PlayerCarInput`) while a hand is on the gun, a gesture, the window, the wipers or the horn (not the handbrake or a gear change).
+  (`PlayerCarInput`) while a hand is on the gun, a gesture, the window, the wipers or the horn, and no better with both off (not for the
+  handbrake or a gear change while the other holds the rim). A key let go while the window had lost the keyboard never says so: `CabinInput`
+  and `ShockInput` let a gesture and the gun go once their action is no longer pressed.
 - Stones on the windshield (`StoneChipRules`, pure, the host's): rare alone (one run in ten of a bot cracks, `tools\chip_odds.ps1`), much likelier within `FOLLOW_RANGE` 30 m behind a car on loose ground, more the closer and
   faster, none on tarmac, snow, mud or wet; `RaceSession._measure_gaps` gives each `Cabin.gap_ahead` from the trackers. `Cabin.stone_hits`, `_rpc_stone_chip`: the first stone is a bullseye (`windshield.gdshader` `chipped`, where
   `WindshieldGlass.crack_center` says the crack will start: a centimetre, a dark pit, a half moon of crushed glass, a ring that flares

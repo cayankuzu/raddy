@@ -9,25 +9,29 @@
   the navigator holds the map up by its edges and rests the hands on the knees when it is folded. Raise the shock gun and it is in
   your hand, its darts leave from it. Heads turn where their players look; a fainted crew member slumps in the harness, a shock makes
   them jerk first, and every screen sees a can thrown out of the window and a windshield kicked out.
-- **Hand signals:** point left, straight on or right, or wave "slow down" (1-4 or the d-pad, rebindable): the arm nearer your partner
-  points where they see it without looking away from the road, so a crew can talk without a word. The navigator's map folds for it.
+- **Hand signals:** left, straight on, right or "slow down" (1-4 or the d-pad, rebindable), each a sign of its own made against the
+  windshield where your partner sees it without looking away from the road: a finger across to their side, a thumb for the other side,
+  a chop for straight on, a pat for slow down. The backs of the gloves are in the suit's colour with its stripe and after dark the lit
+  dials light your hands, so a crew can talk without a word, by night too. The navigator's map folds for it.
 - **One hand on the wheel:** the driver now steers one-handed (less lock, slower) not only with the shock gun up but also while
-  signalling, winding the window, flicking the wipers or pressing the horn.
+  signalling, winding the window, flicking the wipers or pressing the horn, and no better with both hands off it.
 - **Sitting like a rally crew:** the seat is lower, upright and close to the wheel and the view narrower, so the road fills half of
-  the screen instead of a third under a black roof; the mirrors stay in view, the dials read through the wheel, which sits a little
-  higher. The visors come further down for a low sun.
-- **A rally car's cabin:** a roll cage with foam where a head could hit it, bucket seats, a trip meter in front of the navigator and
-  a fire extinguisher; the rear seat is gone.
+  the screen instead of a third under a black roof; the mirrors are in view or a glance away, the dials read through the wheel, which
+  sits a little higher. You turn your head as far as the bucket seat's wings let you.
+- **A rally car's cabin:** a roll cage with foam where a head could hit it, bucket seats in a racing mesh fabric, a trip meter in
+  front of the navigator and a fire extinguisher; the rear seat and the sun visors are gone (the cage runs where they hung).
 - **Heads that feel the car:** the harness holds the crew in their seats and their necks give: your partner's helmet leans out of a
-  corner, nods under braking and jolts on a landing or a hit. The navigator's kick now goes over the dashboard, soles to the glass.
+  corner, nods under braking and jolts on a landing or a hit, on every screen, in your own car and in your rivals'. The navigator's
+  kick now goes over the dashboard and the windshield goes when the soles hit it; a can flies when it leaves the hand.
 - **A rally car's livery:** every car carries its crew's number on a panel on each front door, on a rally plate on the bonnet and on
   the rear window, the crew's names after a small flag of Turkey on the rear side windows, and a mud flap behind each wheel. The road
   covers all of it as it covers the paint.
-- **A crowd at the stages:** people stand behind the tape at the start, at the finish and at the places for spectators, dressed for
-  the weather (t-shirts and caps in the desert, jackets and beanies in the mountains), some with a small flag of Turkey. They watch a
-  car come, cheer, clap, wave and jump as it goes by, and settle when it has gone; a car standing still gets their eyes and no more.
+- **A crowd at the stages:** people with faces stand behind the tape at the start, at the finish and at the places for spectators,
+  dressed for the weather (t-shirts and caps in the desert, jackets and beanies in the mountains), some with a small flag of Turkey.
+  They watch a car come, cheer, clap, wave and jump as it goes by, and settle when it has gone; a car standing still gets their eyes and
+  no more.
 - **Times of day:** the room picks day, golden hour, dusk, night or Random, like the weather. The golden hour is a low warm
-  sun you drive into (the visors come down). Dusk is the blue hour: the sun has set, the sky still burns orange and violet
+  sun you drive into. Dusk is the blue hour: the sun has set, the sky still burns orange and violet
   and the land lies in its blue light, the road readable before the headlights reach it. At night there is a cold moon and stars on a clear night and nothing at all under clouds: you see only what
   your headlights reach.
 - **Headlights that reach:** a real lamp's beam, brightest just under the horizon, lights the road far ahead and little
@@ -35,6 +39,8 @@
   another car in its dust at night you see nothing but the glowing cloud. A car close behind you lights the trees round you,
   never your road or your windshield through your car: your own shadow lies ahead of you. The dials light up, after dark tail lights leave a faint red
   on the road behind and brake lights a bright one, a follower's beams light up your mirrors. On High your own headlights cast shadows.
+  A flag in your beams stays red with its crescent and star, a guard rail a grey rail, where they burned to a white glare that hid the
+  road behind them.
 - **A light pod for the night:** at dusk and at night every car carries a pod of four lamps on its bonnet, its cover plate in the team
   colour. The two spot lamps throw their light far down the road, the two wide ones light the sides of a corner. Night stays hard, a corner
   still shows late behind its trees, but you can drive it. A loose bonnet points the pod at the sky; a bonnet torn off takes it away, dark.
@@ -84,8 +90,8 @@
   warning lamps; dials that light up with the headlights; pedals, gear lever and a handbrake that move; tail, brake and
   reversing lights, hazards on a stuck car; a dome lamp (L) to read the map by, which half blinds the driver at
   night; windows that slide into the doors, cracks that look like cracks; the car's own wipers, which clean only where they
-  pass; pops and a flame on the overrun; brake discs that glow after really hard use; sun visors that come down for a low sun
-  ahead, a glove box that opens when you take a can, a radio that lights with the engine.
+  pass; pops and a flame on the overrun; brake discs that glow after really hard use; a glove box that opens when you take a can,
+  a radio that lights with the engine.
 - **Water and wet roads** mirror the trees, the sky and the cars (Medium and High).
 - **Flags:** every flag is the flag of Turkey, in its exact geometry and 3:2 proportions, waving on the
   crowd's poles, flying from the arches, printed on their banners and on the start's board, and on the badges of the car.
