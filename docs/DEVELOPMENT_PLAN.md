@@ -670,7 +670,28 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   - Known and left: at night without the dome lamp the navigator sees the driver's signs as dim shapes against the beams (the driver reads
     the navigator's well); a straw bale in the hot band still glows in a halo (its material is the engine's own; not among the findings);
     the crew and the crowd are still the mannequin (no free model the owner has approved).
-  Verified: 532 GUT tests (16709 asserts), `tools
-ettest.ps1` (3 clients), `toolslowtest.ps1 -Clients 1 -Stage 4` (Eagle's Nest:
+  Verified: 532 GUT tests (16709 asserts), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1 -Stage 4` (Eagle's Nest:
   2:09.0 / 2:17.5, 16.7 / 15.7 m/s over 2152 m), no script or engine error in their logs (one Jolt notice that its job queue was full while
   a bot drove a whole stage in the GUT run, with another program loading the CPU). Phase A5 is complete.
+
+- 2026-11-11: A5's final check (fresh eyes on the reviewed build, 0722e03): DONE.
+  - Run first, before any change: 532 GUT tests (16709 asserts, 313 s, no error or warning in the log), `tools\nettest.ps1` (3 clients,
+    40 s), `tools\flowtest.ps1 -Clients 1 -Stage 4` (Eagle's Nest: 2:08.6 / 2:17.1, 16.7 / 15.7 m/s over 2152 m), no script or engine
+    error in their logs.
+  - Heads in a car played back from snapshots, in a real session (a headless host, the driver's peer headless and driving by bot, the
+    navigator's windowed, looking at the driver, 60 s on Black Pine): over the same corners the driver's head swings on the navigator's
+    peer as on the peer that simulates the car (2 s windows, to the side: at 14.3 m/s a mean of 3.30 degrees against 3.44, at most 8.79
+    against 8.92, changing 23.5 degrees a second against 26.8; at 17.4 m/s 2.78 / 7.02 against 2.55 / 7.02). No whip, nothing lost.
+  - Looked at (`reports/screenshots/a5_check/`, High, 1600 x 900): both seats by day, at dusk and at night with the dome lamp off and on;
+    the cage from both seats and in the interior mirror (it frames the rear window there, the road and the car behind stay in sight, none
+    of it in the windshield's view); the trip meter from the navigator's seat; each seat's four signs from the other by day, at dusk and
+    at night; the held map and its notes; a rival's crew from behind and through the side windows; the crowd close up and cheering a car
+    going by; the flags in the beams at night (red, the crescent and the star); the pod at night from the seat and from outside.
+  - Fixed: a flat hand (the chop for straight on, the pat for slow down, the horn) kept the mannequin's rest thumb, 27 degrees out of the
+    hand's plane towards the palm: from the other seat it hung under the patting hand like a broken finger and stood up off the chop. It lies along the
+    index finger now, 5 degrees off the hand's plane (tested for both flat signs of both seats).
+  - Known and left: from the navigator's seat at night without the dome lamp the driver's signs are dim shapes (`TEST_PLAN.md`); the thumb
+    for the side away from the partner rests 58 degrees up, near a thumbs-up, and reads as a way only as it jerks to 32 (people judge it
+    with the hand signals on `TEST_PLAN.md`); the trip meter's display stays blank until A7 prints its numbers; from outside at night a
+    car's own headlights are flat white glass; concrete blocks and straw bales in the hot band of the beams glow white with a halo.
+  Verified after the fix: 532 GUT tests (16713 asserts, 196 s), no script or engine error. Phase A5 is complete.

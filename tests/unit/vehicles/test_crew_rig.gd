@@ -263,6 +263,12 @@ func test_a_gesture_is_made_against_the_glass_where_the_partner_sees_it() -> voi
 					assert_lt(palm.x * inboard, -0.7, "%s: the flat hand on its edge, its back to the partner" % what)
 				CrewRules.Sign.PAT:
 					assert_lt(palm.y, -0.7, "%s: the palm down" % what)
+			if sign == CrewRules.Sign.CHOP or sign == CrewRules.Sign.PAT:
+				var base := drawn[_bone(body, StringName("DEF-thumb_01_%s" % letter))].origin
+				var thumb := drawn[_bone(body, StringName("DEF-thumb_03_%s" % letter))]
+				var thumb_way := (thumb.origin + thumb.basis.y.normalized() * 0.025 - base).normalized()
+				gut.p("%s: the thumb %.0f degrees off the flat hand's plane" % [what, rad_to_deg(asin(clampf(thumb_way.dot(palm), -1.0, 1.0)))])
+				assert_lt(absf(thumb_way.dot(palm)), sin(deg_to_rad(12.0)), "%s: the thumb lies along the flat hand, it does not hang off the palm" % what)
 		(_cabin.seats[body.role] as CrewRules.Seat).release(CrewRules.Gesture.SLOW)
 
 

@@ -20,14 +20,15 @@ const BODY_RADIUS := 0.8
 const BLEND_SECONDS := 0.24
 const FINGER_SECONDS := 0.12
 ## How the fingers hold (curls at each knuckle of the index, middle, ring and pinky, then the thumb towards the palm, over it and out from
-## the fingers; radians): round a bar, round a gun's grip with the index on the trigger, pointing, flat, cupped over a knob, resting, flat
-## behind a sheet with the thumb round its edge onto the front, a fist with the thumb held out.
+## the fingers; radians): round a bar, round a gun's grip with the index on the trigger, pointing, flat with the thumb along the index (the
+## mannequin's thumb rests 27 degrees out of the hand's plane, towards the palm), cupped over a knob, resting, flat behind a sheet with the
+## thumb round its edge onto the front, a fist with the thumb held out.
 enum Grip { FIST, TRIGGER, POINT, FLAT, PINCH, REST, SHEET, THUMB }
 const GRIPS := {
 	Grip.FIST: [[CrewPose.CURL, CrewPose.CURL, CrewPose.CURL, CrewPose.CURL], CrewPose.THUMB_CURL, 0.0, 0.0],
 	Grip.TRIGGER: [[0.12, 1.2, 1.25, 1.3], 0.55, 0.0, 0.0],
 	Grip.POINT: [[0.03, 1.35, 1.4, 1.45], 0.35, 0.0, 0.0],
-	Grip.FLAT: [[0.06, 0.05, 0.06, 0.08], 0.05, 0.0, 0.0],
+	Grip.FLAT: [[0.06, 0.05, 0.06, 0.08], -0.38, 0.0, -0.3],
 	Grip.PINCH: [[0.75, 0.8, 0.85, 0.9], 0.3, 0.0, 0.0],
 	Grip.REST: [[0.3, 0.38, 0.45, 0.5], 0.25, 0.0, 0.0],
 	Grip.SHEET: [[0.03, 0.04, 0.05, 0.06], 0.75, 0.75, 0.0],
