@@ -670,3 +670,7 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   - Known and left: at night without the dome lamp the navigator sees the driver's signs as dim shapes against the beams (the driver reads
     the navigator's well); a straw bale in the hot band still glows in a halo (its material is the engine's own; not among the findings);
     the crew and the crowd are still the mannequin (no free model the owner has approved).
+  Verified: 532 GUT tests (16709 asserts), `tools
+ettest.ps1` (3 clients), `toolslowtest.ps1 -Clients 1 -Stage 4` (Eagle's Nest:
+  2:09.0 / 2:17.5, 16.7 / 15.7 m/s over 2152 m), no script or engine error in their logs (one Jolt notice that its job queue was full while
+  a bot drove a whole stage in the GUT run, with another program loading the CPU). Phase A5 is complete.
