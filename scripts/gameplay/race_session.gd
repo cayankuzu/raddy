@@ -570,7 +570,7 @@ func _on_throw_approved(side: int, team: int) -> void:
 	var car: RallyCar = _team_cars[team]
 	var sign_x := -1.0 if side == Cabin.Side.LEFT else 1.0
 	var origin := car.global_transform * Vector3(sign_x * 0.95, 0.85, 0.1)
-	var velocity := car.linear_velocity + car.global_basis.x * sign_x * 6.0 + Vector3.UP * 2.0
+	var velocity := car.seen_velocity() + car.global_basis.x * sign_x * 6.0 + Vector3.UP * 2.0
 	var can_id := _next_can_id
 	_next_can_id += 1
 	_rpc_spawn_can.rpc(can_id, origin, car.global_basis.get_rotation_quaternion(), velocity, Vector3(3.0, 1.0, 2.0))

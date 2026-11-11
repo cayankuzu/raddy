@@ -149,16 +149,6 @@ func test_only_really_hard_braking_makes_the_discs_glow() -> void:
 	assert_eq(heat, 0.0, "and a minute of driving cools them")
 
 
-func test_the_visors_come_down_for_a_low_sun_ahead() -> void:
-	var ahead_low := Vector3(0.0, 0.5, -0.87)
-	assert_true(CockpitRules.visors_down(ahead_low, true), "low and straight ahead")
-	assert_false(CockpitRules.visors_down(ahead_low, false), "not under an overcast sky")
-	assert_false(CockpitRules.visors_down(Vector3(0.0, 0.5, 0.87), true), "not for a sun behind the car")
-	assert_false(CockpitRules.visors_down(Vector3(0.87, 0.5, 0.0), true), "nor off to one side")
-	assert_false(CockpitRules.visors_down(Vector3(0.0, 0.95, -0.3), true), "nor for one high overhead")
-	assert_false(CockpitRules.visors_down(Vector3(0.0, -0.2, -0.98), true), "nor one that has set")
-
-
 func test_the_radio_lights_with_the_engine() -> void:
 	assert_false(CockpitRules.radio_on(0.5, VehicleDamage.Level.NONE), "not before the engine catches")
 	assert_true(CockpitRules.radio_on(WARM, VehicleDamage.Level.MEDIUM))

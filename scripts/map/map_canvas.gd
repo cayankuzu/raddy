@@ -47,6 +47,10 @@ const HAZARD := Color("b83a2a")
 const CREASE := Color(0.25, 0.18, 0.1, 0.16)
 const GATE_COLOR := Color("b83a2a")
 const NOTE_GAP := 2.0
+## The notes are printed as big as fits (a size from these), down to where the column must end: the paper under it stays free this high,
+## the navigator's thumb holds the sheet by that corner (PaperMap.hold).
+const NOTE_SIZES: Array[int] = [17, 16, 15, 14, 13, 12]
+const NOTES_CLEAR := 130.0
 const CAR := Color("1f3b8a")
 ## Height bands of the contour shading (at least CONTOUR_STEP metres apart; one band per colour
 ## over the stage's height range) and the palette, low to high.
@@ -61,6 +65,8 @@ var graph: RouteGraph
 var pixels_per_metre := 1.0
 ## True when the stage runs north-south and the map is turned a quarter so it runs across.
 var turned := false
+## How far down the sheet the column of notes ends (canvas pixels).
+var notes_end := 0.0
 
 var _camera: Camera2D
 var _content: Node2D
@@ -591,20 +597,38 @@ func _add_notes(notes: Array[Dictionary]) -> void:
 	title.add_theme_color_override(&"font_color", INK)
 	title.add_theme_font_size_override(&"font_size", 22)
 	column.add_child(title)
-	var y := 40.0
-	# Long stages print smaller, so every note fits the column.
-	var font_size := 17 if notes.size() <= 40 else 14
+	var font := title.get_theme_font(&"font")
 	var width := NOTES_WIDTH - 28.0
+	var texts := PackedStringArray()
 	for note in notes:
+		texts.append("%d  %s" % [note.number, note.get(lang, note.tr)])
+	var first := 40.0
+	# Long stages print smaller: every note fits the column above the corner the sheet is held by.
+	var font_size: int = NOTE_SIZES[-1]
+	for size in NOTE_SIZES:
+		if column.position.y + first + notes_height(font, texts, width, size) <= CANVAS.y - NOTES_CLEAR:
+			font_size = size
+			break
+	var y := first
+	for i in notes.size():
 		var label := Label.new()
-		label.text = "%d  %s" % [note.number, note.get(lang, note.tr)]
+		label.text = texts[i]
 		label.position = Vector2(0.0, y)
 		label.size = Vector2(width, 0.0)
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.add_theme_color_override(&"font_color", HAZARD if note.caution else INK)
+		label.add_theme_color_override(&"font_color", HAZARD if notes[i].caution else INK)
 		label.add_theme_font_size_override(&"font_size", font_size)
 		column.add_child(label)
-		y += label.get_theme_font(&"font").get_multiline_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, width, font_size).y + NOTE_GAP
+		y += notes_height(font, [texts[i]], width, font_size)
+	notes_end = column.position.y + y
+
+
+## How high a column of `texts` stands, each wrapped to `width`, printed in `font` at `size`.
+static func notes_height(font: Font, texts: PackedStringArray, width: float, size: int) -> float:
+	var height := 0.0
+	for text in texts:
+		height += font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, width, size).y + NOTE_GAP
+	return height
 
 
 func _add_car_marker() -> void:

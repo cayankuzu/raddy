@@ -44,15 +44,36 @@ func _seconds(seconds: float) -> void:
 	await wait_ticks(int(seconds * Engine.physics_ticks_per_second))
 
 
+## Kicks the windshield out and waits until the soles have met it.
+func _kick_the_windshield_out() -> void:
+	_cabin.request_kick_windshield()
+	await _seconds(CrewRules.KICK_LANDS + 0.05)
+
+
 func test_navigator_kicks_the_windshield_out_and_it_stays_out() -> void:
 	await _spawn(Surface.GRAVEL)
 	assert_eq(_cabin.windshield, Cabin.Windshield.INTACT)
 	assert_true(_car.get_node(^"Cabin/Windshield").visible)
 	_cabin.request_kick_windshield()
-	assert_eq(_cabin.windshield, Cabin.Windshield.REMOVED)
+	await _seconds(CrewRules.KICK_LANDS - 0.1)
+	assert_eq(_cabin.windshield, Cabin.Windshield.INTACT, "the legs are still on their way up: the glass stands")
+	await _seconds(0.15)
+	assert_eq(_cabin.windshield, Cabin.Windshield.REMOVED, "the soles met it")
 	assert_false(_car.get_node(^"Cabin/Windshield").visible, "the glass is gone from the car")
-	_cabin.request_kick_windshield()
+	await _kick_the_windshield_out()
 	assert_eq(_cabin.windshield, Cabin.Windshield.REMOVED, "kicking twice is harmless")
+
+
+func test_a_thrown_can_flies_when_the_hand_lets_go() -> void:
+	await _spawn(Surface.GRAVEL)
+	watch_signals(_cabin)
+	# As the host notes a throw it has approved.
+	_cabin._throws.append([Cabin.Side.RIGHT, CrewRules.THROW_LEAVES])
+	await _seconds(CrewRules.THROW_LEAVES - 0.1)
+	assert_signal_not_emitted(_cabin, "throw_approved", "the arm is still coming forward")
+	await _seconds(0.15)
+	assert_signal_emitted_with_parameters(_cabin, "throw_approved", [Cabin.Side.RIGHT])
+	assert_eq(_cabin._throws.size(), 0)
 
 
 func test_a_slow_can_marks_a_window_a_fast_one_breaks_it_and_broken_stays_open() -> void:
@@ -102,7 +123,7 @@ func test_the_first_stone_leaves_a_bullseye_and_the_second_cracks_the_glass() ->
 
 func test_no_stone_marks_a_windshield_that_is_gone_or_a_car_alone_on_mud() -> void:
 	await _spawn(Surface.GRAVEL)
-	_cabin.request_kick_windshield()
+	await _kick_the_windshield_out()
 	await _follow_until_hit(1)
 	assert_eq(_cabin.stone_hits, 0, "no glass to mark")
 	_world.free()
@@ -127,7 +148,7 @@ func test_dirt_builds_on_mud_and_the_wipers_clear_it() -> void:
 	gut.p("after 2 s of wipers (still on mud): %.2f" % _cabin.dirt)
 	assert_lt(_cabin.dirt, dirty * 0.6, "wipers clearly help")
 	_cabin.request_wipers(false)
-	_cabin.request_kick_windshield()
+	await _kick_the_windshield_out()
 	assert_eq(_cabin.dirt, 0.0, "no glass, no dirt on it")
 
 
@@ -147,7 +168,7 @@ func test_open_cabin_at_speed_on_gravel_faints_the_seats_for_six_seconds_and_fre
 	var input := PlayerCarInput.new()
 	input.car = _car
 	_world.add_child(input)
-	_cabin.request_kick_windshield()
+	await _kick_the_windshield_out()
 	_car.forward_speed = 25.0
 	var step := 6.0 / Engine.physics_ticks_per_second
 	var elapsed := 0.0

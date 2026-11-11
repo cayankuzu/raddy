@@ -9,6 +9,9 @@ extends Node
 var cabin: Cabin
 var role := RosterRules.Role.NONE
 
+## The gesture's action this saw go down and has not seen come up.
+var _held := &""
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if cabin == null or role == RosterRules.Role.NONE:
@@ -17,6 +20,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	for action: StringName in CrewRules.GESTURE_ACTIONS:
 		if event.is_action_released(action):
 			seat.release(CrewRules.GESTURE_ACTIONS[action])
+			if action == _held:
+				_held = &""
 	if cabin.is_fainted(role):
 		return
 	for action: StringName in CrewRules.GESTURE_ACTIONS:
@@ -24,6 +29,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if cabin.map_state == Cabin.MapState.OPEN and cabin.local_may_hold_map():
 				cabin.request_map(false)
 			seat.point(CrewRules.GESTURE_ACTIONS[action])
+			_held = action
 			get_viewport().set_input_as_handled()
 			return
 	if event.is_action_pressed(&"map_toggle") and cabin.local_may_hold_map():
@@ -54,6 +60,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif role == RosterRules.Role.DRIVER and event.is_action_pressed(&"cabin_wipers"):
 		seat.start_job(CrewRules.Job.WIPERS)
 		cabin.request_wipers(not cabin.wipers_on)
+
+
+## A key let go while the window had lost the keyboard never says so: the gesture is held only while its key really is.
+func _process(_delta: float) -> void:
+	if _held != &"" and not Input.is_action_pressed(_held):
+		(cabin.seats[role] as CrewRules.Seat).release(CrewRules.GESTURE_ACTIONS[_held])
+		_held = &""
 
 
 ## A window wound down or up by hand, if there is still glass to wind.

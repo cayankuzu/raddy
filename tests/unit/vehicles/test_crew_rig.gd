@@ -47,6 +47,32 @@ func _bone(body: CrewBody, bone_name: StringName) -> int:
 	return body.pose.bone(bone_name)
 
 
+## The cabin's solid parts (not the glass, nor the crew) become a body a ray can meet, on layer 1 << 25.
+func _make_the_cabin_solid() -> void:
+	var faces := PackedVector3Array()
+	for node in _car.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		var path := String(_car.get_path_to(mesh_instance))
+		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree() or path.contains("Navigator") or path.contains("Driver") \
+				or path.contains("Camera") or path.contains("Window") or path.contains("Windshield") or path.contains("Glass") \
+				or mesh_instance.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+			continue
+		var to_car := _car.global_transform.affine_inverse() * mesh_instance.global_transform
+		for v in mesh_instance.mesh.get_faces():
+			faces.append(_car.global_transform * (to_car * v))
+	var shape := ConcavePolygonShape3D.new()
+	shape.backface_collision = true
+	shape.set_faces(faces)
+	var cabin_body := StaticBody3D.new()
+	cabin_body.collision_layer = 1 << 25
+	var collider := CollisionShape3D.new()
+	collider.shape = shape
+	cabin_body.add_child(collider)
+	add_child_autofree(cabin_body)
+	_car.collision_layer = 0
+	await wait_physics_frames(2)
+
+
 func test_the_drivers_hands_ride_the_turning_wheel() -> void:
 	var driver := _body(DRIVER)
 	var axis := CarModel.WHEEL_AXIS.normalized()
@@ -92,6 +118,39 @@ func test_the_gun_hand_leaves_the_wheel_and_points_where_the_driver_looks() -> v
 	assert_lt(left.origin.distance_to(driver.rig._rest_hands[CrewPose.Side.LEFT].origin), 0.01, "the other hand stays on the wheel")
 
 
+func test_a_closed_window_stops_the_gun_and_an_open_one_lets_it_out() -> void:
+	var driver := _body(DRIVER)
+	var seat: CrewRules.Seat = _cabin.seats[DRIVER]
+	seat.aiming = true
+	seat.look = Vector2(100.0, 0.0)
+	var hand := _bone(driver, CrewPose.ARMS[CrewPose.Side.RIGHT][3])
+	var muzzle: Vector3 = (await _drawn(driver, 40))[hand] * ShockGun.MUZZLE
+	var glass := _cabin.get_node(^"WindowLeft") as MeshInstance3D
+	var pane := glass.transform * glass.mesh.get_aabb()
+	gut.p("aiming out of the closed left window: the muzzle at x %.2f, the pane from %.2f to %.2f" % [muzzle.x, pane.position.x, pane.end.x])
+	assert_gt(muzzle.x, -CrewRig.GLASS_INSIDE - 0.02, "the muzzle stays inside the glass")
+	_cabin._rpc_set_window_state(Cabin.Side.LEFT, Cabin.WindowState.OPEN, false)
+	muzzle = (await _drawn(driver, 40))[hand] * ShockGun.MUZZLE
+	gut.p("the window open: the muzzle at x %.2f" % muzzle.x)
+	assert_lt(muzzle.x, -CrewRig.GLASS_INSIDE - 0.1, "and goes out of the open window")
+
+
+func test_a_kick_another_player_began_is_seen_through() -> void:
+	var navigator := _body(NAVIGATOR)
+	var seat: CrewRules.Seat = _cabin.seats[NAVIGATOR]
+	await wait_process_frames(2)
+	seat.start_job(CrewRules.Job.KICK)
+	await wait_process_frames(60)
+	assert_true(navigator.rig._legs.active, "half a second in, the legs are up")
+	# The seat's own peer ends the job a moment before this peer, which heard of it later, has shown all of it.
+	seat.job = CrewRules.Job.NONE
+	await wait_process_frames(36)
+	assert_true(navigator.rig._legs.active, "the legs go on back down the way they came")
+	assert_lt(navigator.rig._legs.influence, 1.01)
+	await wait_process_frames(24)
+	assert_false(navigator.rig._legs.active, "and rest when the kick is over")
+
+
 func test_a_gear_change_takes_the_drivers_hand_to_the_lever() -> void:
 	var driver := _body(DRIVER)
 	await wait_process_frames(2)
@@ -120,42 +179,90 @@ func test_the_head_looks_where_the_seat_looks() -> void:
 		assert_gt(head.basis.y.normalized().y, 0.85, "and stays upright")
 
 
-func test_the_navigator_holds_the_open_map_by_its_edges() -> void:
+func test_the_navigator_holds_the_open_map_by_its_lower_corners() -> void:
 	var navigator := _body(NAVIGATOR)
 	_cabin._rpc_set_map(Cabin.MapState.OPEN)
 	var drawn := await _drawn(navigator, 80)
 	assert_eq(Array(navigator.rig.held), [CrewRules.Hand.MAP, CrewRules.Hand.MAP])
+	var sheet := _car.global_transform.affine_inverse() * (_cabin.paper_map.get_node(^"Sheet") as Node3D).global_transform
+	var half := PaperMap.SHEET_SIZE * 0.5
+	# What stays free paper under the column of notes, on the sheet (metres up from its bottom edge), and how thick a thumb is.
+	var free := MapCanvas.NOTES_CLEAR / MapCanvas.CANVAS.y * PaperMap.SHEET_SIZE.y
+	var thumb_radius := 0.012
 	for side in 2:
+		var letter := "L" if side == CrewPose.Side.LEFT else "R"
 		var wrist := drawn[_bone(navigator, CrewPose.ARMS[side][3])]
 		var hold := _cabin.paper_map.hold(side)
 		gut.p("%s wrist %.1f cm from where it holds the sheet" % [CrewPose.Side.keys()[side], wrist.origin.distance_to(hold.origin) * 100.0])
-		assert_lt(wrist.origin.distance_to(hold.origin), 0.01, "within reach, on its edge")
+		assert_lt(wrist.origin.distance_to(hold.origin), 0.01, "within reach, by its corner")
+		for finger: String in CrewPose.FINGERS:
+			for knuckle in 3:
+				var at := sheet.affine_inverse() * drawn[_bone(navigator, StringName("DEF-f_%s_0%d_%s" % [finger, knuckle + 1, letter]))].origin
+				assert_lt(at.z, -0.02, "the %s finger is behind the paper, not through it" % finger)
+		# The thumb comes round the side edge: its last two bones and its tip lie on the front, low on the sheet.
+		var last := drawn[_bone(navigator, StringName("DEF-thumb_03_%s" % letter))]
+		var highest := -INF
+		for point: Vector3 in [drawn[_bone(navigator, StringName("DEF-thumb_02_%s" % letter))].origin, last.origin, last.origin + last.basis.y.normalized() * 0.03]:
+			var at := sheet.affine_inverse() * point
+			if absf(at.x) < half.x:
+				assert_between(at.z, 0.005, 0.04, "the %s thumb lies on the front of the paper" % letter)
+				highest = maxf(highest, at.y + half.y + thumb_radius)
+		gut.p("%s thumb covers the lowest %.1f cm of the sheet (%.1f cm are free under the notes)" % [CrewPose.Side.keys()[side], highest * 100.0, free * 100.0])
+		assert_gt(highest, 0.0, "the thumb is on the paper")
+		assert_lt(highest, free, "and on the free paper under the notes, on none of them")
 	_cabin._rpc_set_map(Cabin.MapState.CLOSED)
 	await _drawn(navigator, 80)
 	assert_eq(Array(navigator.rig.held), [CrewRules.Hand.LAP, CrewRules.Hand.LAP], "folded, the hands go back to the lap")
 
 
-func test_a_gesture_shows_where_the_partner_sees_it() -> void:
+func test_a_gesture_is_made_against_the_glass_where_the_partner_sees_it() -> void:
 	var navigator := _body(NAVIGATOR)
 	var driver := _body(DRIVER)
-	var half_width := rad_to_deg(atan(tan(deg_to_rad(CockpitCamera.BASE_FOV * 0.5)) * 16.0 / 9.0))
+	await _make_the_cabin_solid()
+	var space := _car.get_world_3d().direct_space_state
+	var half_height := tan(deg_to_rad(CockpitCamera.BASE_FOV * 0.5))
 	for pair: Array in [[navigator, DRIVER], [driver, NAVIGATOR]]:
 		var body: CrewBody = pair[0]
 		var partner := (_car.get_node(NodePath(CarModel.seat_camera(pair[1]))) as CockpitCamera).seat_position()
+		var side := CrewRules.gesture_hand(body.role)
+		var letter := "L" if side == CrewPose.Side.LEFT else "R"
+		# Towards the partner (along x).
+		var inboard := signf(partner.x - body.rig._eye.x)
 		for gesture: int in [CrewRules.Gesture.LEFT, CrewRules.Gesture.STRAIGHT, CrewRules.Gesture.RIGHT, CrewRules.Gesture.SLOW]:
 			(_cabin.seats[body.role] as CrewRules.Seat).point(gesture)
-			var drawn := await _drawn(body, 40)
-			var side := CrewRules.gesture_hand(body.role)
-			var tip := drawn[_bone(body, StringName("DEF-f_index_03_%s" % ("L" if side == CrewPose.Side.LEFT else "R")))].origin
-			var seen := tip - partner
-			var across := rad_to_deg(atan2(absf(seen.x), -seen.z))
-			gut.p("%s %s: the fingertip %.0f degrees off the partner's straight ahead (%.0f in sight)" % [RosterRules.role_name(body.role),
-				CrewRules.Gesture.keys()[gesture], across, half_width])
-			assert_lt(across, half_width, "in the partner's sight without turning the head")
-			if gesture != CrewRules.Gesture.SLOW:
-				var finger := drawn[_bone(body, CrewPose.ARMS[side][3])].basis.y.normalized()
-				var expected := {CrewRules.Gesture.LEFT: -1.0, CrewRules.Gesture.STRAIGHT: 0.0, CrewRules.Gesture.RIGHT: 1.0}
-				assert_almost_eq(signf(roundf(finger.x * 1.4)), float(expected[gesture]), 0.01, "the hand points the right way")
+			var drawn := await _drawn(body, 50)
+			var sign := CrewRules.sign_of(body.role, gesture)
+			var what := "%s %s" % [RosterRules.role_name(body.role), CrewRules.Gesture.keys()[gesture]]
+			assert_eq(body.rig._grip[side], CrewRig.SIGN_GRIPS[sign], "%s: the hand's shape is its sign's" % what)
+			var hand := drawn[_bone(body, CrewPose.ARMS[side][3])]
+			var knuckles := drawn[_bone(body, StringName("DEF-f_middle_01_%s" % letter))].origin
+			var last := drawn[_bone(body, StringName(("DEF-thumb_03_%s" if sign == CrewRules.Sign.THUMB else "DEF-f_index_03_%s") % letter))]
+			var tip := last.origin + last.basis.y.normalized() * 0.03
+			# The palm's way (CrewPose: a hand's +X on the left, -X on the right).
+			var palm := hand.basis.x.normalized() * (1.0 if side == CrewPose.Side.LEFT else -1.0)
+			var seen: Array[Vector2] = []
+			for point: Vector3 in [knuckles, tip]:
+				var to := point - partner
+				seen.append(Vector2(to.x / -to.z / (half_height * 16.0 / 9.0), to.y / -to.z / half_height))
+				assert_lt(maxf(absf(seen[-1].x), absf(seen[-1].y)), 0.9, "%s: in the partner's sight at rest, a tenth of the frame from its edge" % what)
+				# What the partner sees behind the hand: past it the ray leaves through the glass, it meets no dash, pillar or mirror.
+				var beyond := space.intersect_ray(PhysicsRayQueryParameters3D.create(_car.global_transform * partner,
+					_car.global_transform * (partner + to.normalized() * 2.5), 1 << 25))
+				assert_true(beyond.is_empty(), "%s: against the windshield, not against the dash" % what)
+			gut.p("%s: the knuckles at %s of the partner's frame, the %s's tip at %s" % [what, str(seen[0].snappedf(0.01)),
+				"thumb" if sign == CrewRules.Sign.THUMB else "finger", str(seen[1].snappedf(0.01))])
+			match sign:
+				CrewRules.Sign.FINGER:
+					assert_gt((tip - hand.origin).x * inboard, 0.1, "%s: the finger points across to the partner's side" % what)
+				CrewRules.Sign.THUMB:
+					assert_lt((tip - hand.origin).x * inboard, -0.05, "%s: the thumb stands out on the side away from the partner" % what)
+					assert_gt(tip.y - hand.origin.y, 0.03, "%s: and up, over the fist held out ahead" % what)
+					assert_gt(hand.origin.z - knuckles.z, 0.06, "%s: the fist is held out ahead" % what)
+				CrewRules.Sign.CHOP:
+					assert_gt(hand.origin.z - tip.z, 0.12, "%s: the fingers point ahead" % what)
+					assert_lt(palm.x * inboard, -0.7, "%s: the flat hand on its edge, its back to the partner" % what)
+				CrewRules.Sign.PAT:
+					assert_lt(palm.y, -0.7, "%s: the palm down" % what)
 		(_cabin.seats[body.role] as CrewRules.Seat).release(CrewRules.Gesture.SLOW)
 
 
@@ -201,53 +308,39 @@ func test_a_crew_moves_only_where_it_can_be_seen() -> void:
 	assert_true(driver.rig._arms.active, "the own car's crew always moves (the mirrors, a look over the shoulder)")
 
 
-func test_the_head_swings_out_of_a_corner() -> void:
+func test_the_head_swings_out_of_a_corner_in_a_car_played_back_from_snapshots() -> void:
 	var driver := _body(DRIVER)
 	var still := await _drawn(driver, 10)
 	var start := _car.global_transform
 	var speed := 20.0
 	var radius := speed * speed / 9.81
 	var ticks: Array[int] = [0]
-	# A left turn at a steady g (round a centre on the car's left), the car moved every tick as a snapshot would move it.
+	# A left turn at a steady g (round a centre on the car's left). The car is not simulated here: as BodyNetSync does, it is put where
+	# the snapshots have it and told the driver's velocity, by the clock on the wall: once in the three ticks of a 40 fps frame.
 	var drive := func() -> void:
 		ticks[0] += 1
+		if ticks[0] % 3 != 0:
+			return
 		var turn := Basis(Vector3.UP, ticks[0] / 120.0 * speed / radius)
 		var centre := start.origin - start.basis.x * radius
 		_car.global_transform = Transform3D(turn * start.basis, centre + turn * (start.origin - centre))
+		_car.apply_net_extra(PackedFloat32Array(), turn * start.basis * Vector3(0.0, 0.0, -speed))
 	get_tree().physics_frame.connect(drive)
 	var drawn := await _drawn(driver, 300)
 	get_tree().physics_frame.disconnect(drive)
 	var head := _bone(driver, CrewPose.HEAD)
 	var lean := rad_to_deg(still[head].basis.y.normalized().signed_angle_to(drawn[head].basis.y.normalized(), Vector3.FORWARD))
-	gut.p("a 1 g left turn: the neck pushed %.1f degrees to the right, the head leans %.1f degrees" % [driver.rig._sway.tilt.x, lean])
-	assert_almost_eq(driver.rig._sway.tilt.x, CrewSway.TILT_PER_G.x, 0.5, "pushed out of the corner by its g")
+	gut.p("a 1 g left turn: the neck pushed %.1f degrees to the right and %.1f up, the head leans %.1f degrees" % [driver.rig._sway.tilt.x,
+		driver.rig._sway.tilt.y, lean])
+	assert_almost_eq(driver.rig._sway.tilt.x, CrewSway.TILT_PER_G.x, 0.7, "pushed out of the corner by its g")
+	assert_almost_eq(driver.rig._sway.tilt.y, 0.0, 0.7, "and not thrown back and forth by the car's place changing once a frame")
 	assert_gt(lean, 3.0, "the helmet leans out of the corner")
 	assert_lt(lean, CrewSway.MOST_TILT * 1.5)
 
 
 func test_the_kick_goes_over_the_dash_not_through_it() -> void:
 	var navigator := _body(NAVIGATOR)
-	# The cabin's solid parts (not the glass, nor the crew) as something a ray can meet.
-	var faces := PackedVector3Array()
-	for node in _car.find_children("*", "MeshInstance3D", true, false):
-		var mesh_instance := node as MeshInstance3D
-		var path := String(_car.get_path_to(mesh_instance))
-		if mesh_instance.mesh == null or not mesh_instance.is_visible_in_tree() or path.contains("Navigator") or path.contains("Driver") 				or path.contains("Camera") or path.contains("Window") or path.contains("Windshield") or path.contains("Glass") 				or mesh_instance.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
-			continue
-		var to_car := _car.global_transform.affine_inverse() * mesh_instance.global_transform
-		for v in mesh_instance.mesh.get_faces():
-			faces.append(_car.global_transform * (to_car * v))
-	var shape := ConcavePolygonShape3D.new()
-	shape.backface_collision = true
-	shape.set_faces(faces)
-	var cabin_body := StaticBody3D.new()
-	cabin_body.collision_layer = 1 << 25
-	var collider := CollisionShape3D.new()
-	collider.shape = shape
-	cabin_body.add_child(collider)
-	add_child_autofree(cabin_body)
-	_car.collision_layer = 0
-	await wait_physics_frames(2)
+	await _make_the_cabin_solid()
 	var space := _car.get_world_3d().direct_space_state
 	var feet: Array[Array] = []
 	var capture := func() -> void:

@@ -120,6 +120,16 @@ func test_the_cage_hides_little_of_the_road() -> void:
 		assert_lt(hidden / float(glass), 0.02, "%s: the A pillars' tubes hug the pillars" % seat_name)
 
 
+func test_the_navigator_reads_the_trip_meter() -> void:
+	await _build()
+	var eye := _eye(^"NavigatorCamera")
+	var display := CarRallyKit.trip_display().origin
+	var at := _in_frame(eye, display)
+	gut.p("the trip meter's display at %s of the navigator's frame" % str(at.snappedf(0.01)))
+	assert_lt(maxf(absf(at.x), absf(at.y)), 0.9, "in view at rest")
+	assert_eq(_first(eye, display - eye), &"cage", "and nothing in front of it: the box itself is what the eye meets")
+
+
 func test_the_mirrors_are_in_view_or_a_glance_away() -> void:
 	await _build()
 	var mirrors := (_car.get_node(^"Model") as CarModel).mirrors

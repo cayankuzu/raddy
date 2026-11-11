@@ -105,7 +105,9 @@ func test_the_navigators_hands() -> void:
 	seat.start_job(CrewRules.Job.THROW)
 	assert_eq(_hands(NAVIGATOR, seat), [Hand.POINT, Hand.THROW], "one hand points while the other throws")
 	seat.start_job(CrewRules.Job.WINDOW_LEFT)
-	assert_eq(_hands(NAVIGATOR, seat), [Hand.WINDOW, Hand.LAP], "reaching across for the driver's window: no gesture meanwhile")
+	assert_eq(_hands(NAVIGATOR, seat), [Hand.POINT, Hand.LAP], "the driver's winder is out of the navigator's reach: no hand goes for it, the gesture stays")
+	assert_eq(CrewRules.job_hand(CrewRules.Job.WINDOW_LEFT, NAVIGATOR), -1)
+	assert_eq(CrewRules.job_hand(CrewRules.Job.WINDOW_LEFT, DRIVER), CrewRules.LEFT, "the driver winds it with the left hand")
 	seat.release(CrewRules.Gesture.LEFT)
 	seat.step(CrewRules.GESTURE_SECONDS)
 	seat.start_job(CrewRules.Job.WINDOW_RIGHT)
@@ -115,12 +117,50 @@ func test_the_navigators_hands() -> void:
 	assert_eq(_hands(NAVIGATOR, seat, false, true), [Hand.LAP, Hand.GUN], "the gun in the right hand")
 
 
+func test_a_deed_is_done_when_the_body_gets_there_not_when_its_job_starts() -> void:
+	# The kick's soles are on their way onto the glass (CrewRig.KICK_PATH: pushing from 0.38 to 0.5 of the job), the can's hand out of
+	# the window (CrewRig: from 0.3 to 0.55 of the job).
+	var kick := CrewRules.KICK_LANDS / float(CrewRules.JOB_SECONDS[CrewRules.Job.KICK])
+	assert_between(kick, 0.42, 0.5, "the glass goes as the soles meet it")
+	var throw := CrewRules.THROW_LEAVES / float(CrewRules.JOB_SECONDS[CrewRules.Job.THROW])
+	assert_between(throw, 0.45, 0.55, "the can flies as the hand comes out of the window")
+
+
 func test_the_driver_steers_with_one_hand_while_the_other_is_busy() -> void:
 	for held: Array in [[Hand.WHEEL, Hand.GUN], [Hand.WHEEL, Hand.POINT], [Hand.WINDOW, Hand.WHEEL], [Hand.WHEEL, Hand.WIPERS], [Hand.WHEEL, Hand.HORN]]:
 		assert_true(CrewRules.one_handed(DRIVER, PackedInt32Array(held)), "%s" % [held])
-	for held: Array in [[Hand.WHEEL, Hand.WHEEL], [Hand.WHEEL, Hand.HANDBRAKE], [Hand.WHEEL, Hand.GEAR], [Hand.LAP, Hand.LAP]]:
+	for held: Array in [[Hand.WHEEL, Hand.WHEEL], [Hand.WHEEL, Hand.HANDBRAKE], [Hand.WHEEL, Hand.GEAR]]:
 		assert_false(CrewRules.one_handed(DRIVER, PackedInt32Array(held)), "%s" % [held])
 	assert_false(CrewRules.one_handed(NAVIGATOR, PackedInt32Array([Hand.LAP, Hand.GUN])), "the navigator does not steer")
+
+
+func test_both_hands_off_the_wheel_steer_no_better_than_one() -> void:
+	# The driver winds the window open (the left hand) to shoot out of it (the gun in the right), or signals meanwhile.
+	var seat := CrewRules.Seat.new()
+	seat.aiming = true
+	seat.start_job(CrewRules.Job.WINDOW_LEFT)
+	assert_eq(_hands(DRIVER, seat), [Hand.WINDOW, Hand.GUN])
+	assert_true(CrewRules.one_handed(DRIVER, CrewRules.hands(DRIVER, seat, false, false, false, false)), "the gun up while winding the window")
+	seat.aiming = false
+	seat.point(CrewRules.Gesture.LEFT)
+	assert_eq(_hands(DRIVER, seat), [Hand.WINDOW, Hand.POINT])
+	assert_true(CrewRules.one_handed(DRIVER, CrewRules.hands(DRIVER, seat, false, false, false, false)), "a gesture while winding the window")
+	for held: Array in [[Hand.WINDOW, Hand.HANDBRAKE], [Hand.WINDOW, Hand.GEAR], [Hand.WINDOW, Hand.HORN]]:
+		assert_true(CrewRules.one_handed(DRIVER, PackedInt32Array(held)), "%s: the handbrake and the lever excuse a hand only while the other holds the rim" % [held])
+
+
+func test_each_gesture_has_a_sign_of_its_own() -> void:
+	assert_eq(CrewRules.sign_of(NAVIGATOR, CrewRules.Gesture.LEFT), CrewRules.Sign.FINGER, "the navigator points across at the driver's side")
+	assert_eq(CrewRules.sign_of(NAVIGATOR, CrewRules.Gesture.RIGHT), CrewRules.Sign.THUMB, "and says the own side with the thumb: a finger held out that way would leave the driver's sight")
+	assert_eq(CrewRules.sign_of(DRIVER, CrewRules.Gesture.RIGHT), CrewRules.Sign.FINGER, "the driver's finger points across at the navigator's side")
+	assert_eq(CrewRules.sign_of(DRIVER, CrewRules.Gesture.LEFT), CrewRules.Sign.THUMB)
+	for role: int in [DRIVER, NAVIGATOR]:
+		assert_eq(CrewRules.sign_of(role, CrewRules.Gesture.STRAIGHT), CrewRules.Sign.CHOP, "straight on is a chop ahead")
+		assert_eq(CrewRules.sign_of(role, CrewRules.Gesture.SLOW), CrewRules.Sign.PAT, "slow down pats the air")
+		var signs := {}
+		for gesture: int in [CrewRules.Gesture.LEFT, CrewRules.Gesture.STRAIGHT, CrewRules.Gesture.RIGHT, CrewRules.Gesture.SLOW]:
+			signs[CrewRules.sign_of(role, gesture)] = true
+		assert_eq(signs.size(), 4, "four gestures, four shapes of the hand")
 
 
 func test_no_gesture_out_cold_or_with_the_gun_up() -> void:

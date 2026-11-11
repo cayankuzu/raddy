@@ -302,7 +302,7 @@ func test_the_glass_comes_clean_only_where_a_blade_passes() -> void:
 func test_the_windshield_going_leaves_the_wipers_on_the_car() -> void:
 	var cabin: Cabin = _car.get_node(^"Cabin")
 	var glass := _model.get_node(^"WindshieldGlass") as WindshieldGlass
-	cabin.request_kick_windshield()
+	cabin._rpc_set_windshield(Cabin.Windshield.REMOVED)
 	assert_true((glass._wipers[0] as Node3D).visible, "they sit on the cowl, not on the glass")
 
 
@@ -583,32 +583,42 @@ func test_a_pane_goes_down_behind_the_sill_and_keeps_to_the_glass() -> void:
 		cabin._process(Cabin.PANE_SECONDS * 2.0)
 
 
-func _visor_tip_height() -> float:
-	return ((_cockpit._visors[0] as Node3D).basis * Vector3(0.0, 0.0, 0.177)).y
+func test_after_dark_the_lit_dials_glow_on_the_cabin() -> void:
+	var glow := _cockpit.get_node(^"DialsGlow") as OmniLight3D
+	var daylight := RaceLook.daylight
+	_model.set_headlights(true)
+	RaceLook.daylight = RaceLook.DAYLIGHT[RaceLook.NIGHT]
+	_steps(1)
+	assert_true(glow.visible, "at night the dials light the hands on the wheel and a hand raised in a gesture")
+	assert_gt(glow.light_energy, 0.2)
+	assert_eq(glow.light_cull_mask & 1, 0, "the cabin and its crew only, nothing outside")
+	assert_ne(glow.light_cull_mask & GraphicsQuality.CABIN_LAYER, 0)
+	var wheel := _model.steering().origin
+	assert_lt(glow.position.distance_to(wheel), glow.omni_range * 0.5, "the wheel is well inside its reach")
+	RaceLook.daylight = RaceLook.DAYLIGHT[RaceLook.DAY]
+	_steps(1)
+	assert_false(glow.visible, "by day the headlights' switch lights the dials, and nothing shows of their glow")
+	RaceLook.daylight = RaceLook.DAYLIGHT[RaceLook.NIGHT]
+	_model.set_headlights(false)
+	_steps(1)
+	assert_false(glow.visible, "dials that are not lit give no light")
+	RaceLook.daylight = daylight
 
 
-func test_the_visors_come_down_for_a_low_sun_ahead_and_keep_clear_of_the_road() -> void:
-	var sun := DirectionalLight3D.new()
-	sun.add_to_group(RaceLook.SUN_GROUP)
-	sun.light_energy = RaceLook.SUN_LIGHT[RaceLook.DAY].x
-	add_child_autofree(sun)
-	sun.global_basis = Basis.looking_at(Vector3(0.0, -0.5, 0.87))  # the light comes from ahead, low: it shines backwards
-	_steps(200)
-	assert_lt(_visor_tip_height(), -0.05, "down")
-	var tip := CarCockpit.VISOR_HINGE + (_cockpit._visors[0] as Node3D).basis * Vector3(0.0, 0.0, 0.177)
-	var eye := (_car.get_node(^"DriverCamera") as CockpitCamera).seat_position()
-	var view := atan2(tip.y - eye.y, eye.z - tip.z)
-	gut.p("a lowered visor's edge is %.1f degrees above the driver's eye line" % rad_to_deg(view))
-	assert_gt(rad_to_deg(view), 4.0, "the road stays in sight")
-	var glass := CarParts.pane(&"mirror_glass", 1.0)
-	var inner_end := (_cockpit._visors[0] as Node3D).position.x + CarParts.PARTS[&"visor_driver"].box.end.x
-	var mirror_end := glass.center.x - glass.half_size.x
-	var seen_end := atan2(inner_end - eye.x, eye.z - tip.z)
-	var seen_mirror := atan2(mirror_end - eye.x, eye.z - glass.center.z)
-	assert_lt(rad_to_deg(seen_end), rad_to_deg(seen_mirror) + 2.0, "the driver's visor keeps clear of the interior mirror")
-	sun.global_basis = Basis.looking_at(Vector3(0.0, -0.5, -0.87))
-	_steps(200)
-	assert_almost_eq(_visor_tip_height(), 0.0, 0.0001, "and up again when the car has turned away")
+func test_a_rally_car_has_no_sun_visors() -> void:
+	# The cage's roof bars run where they would swing down, and from where the crew sits a lowered one hides the road.
+	var interior := _car.find_child(CarParts.INTERIOR, true, false) as MeshInstance3D
+	var to_car := _car.global_transform.affine_inverse() * interior.global_transform
+	for part: StringName in [&"visor_driver", &"visor_navigator"]:
+		var visor: Mesh = CarParts._parts[part]
+		var box := visor.get_aabb().grow(-0.005)
+		var left := 0
+		for vertex in interior.mesh.get_faces():
+			if box.has_point(to_car * vertex):
+				left += 1
+		assert_eq(left, 0, "%s is cut out of the interior" % part)
+		for node in _car.find_children("*", "MeshInstance3D", true, false):
+			assert_ne((node as MeshInstance3D).mesh, visor, "and nothing draws %s" % part)
 
 
 func test_the_glove_box_opens_when_a_can_is_taken() -> void:

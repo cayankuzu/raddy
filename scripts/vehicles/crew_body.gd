@@ -2,8 +2,9 @@ class_name CrewBody
 extends Node3D
 ## A crew member in a seat, on every peer, for every seat a player has taken (RaceSession seats them from the roster; an empty seat has
 ## nobody): Quaternius's mannequin (Universal Animation Library, CC0) posed in the seat by CrewPose with its eyes where the seat's camera
-## rests, in a race suit of the team's colour (shaders/crew_suit.gdshader: dark gloves and boots, white stripes down the sleeves, the
-## legs and the sides, by the bones a vertex hangs on), a full-face helmet on its head (CrewHelmet) and the seat's six-point harness
+## rests, in a race suit of the team's colour (shaders/crew_suit.gdshader: dark boots, gloves with dark palms and their backs in the
+## suit's colour, white stripes down the sleeves and on over the backs of the gloves, down the legs and the sides, by the bones a vertex
+## hangs on), a full-face helmet on its head (CrewHelmet) and the seat's six-point harness
 ## buckled over it in the team colour (CarRallyKit.strap). It sits inside the cabin (its layer), lit by the cabin's fill and the dome
 ## lamp, seen through the windows and in the mirrors. Round the neck, under the shoulder straps, the carbon collar of a HANS device.
 ## The player in the seat sees their own arms and knees but not their own head: the seat's camera leaves OWN_HEAD_LAYER out, the suit
@@ -38,6 +39,11 @@ const HANS_RADIUS := 0.011
 const GLOVE_BONES: Array[String] = ["hand", "f_", "thumb"]
 const HEAD_BONES: Array[String] = ["head", "neck"]
 const BOOT_TOP := Vector2(0.15, 0.19)
+## A glove's back (the mannequin standing in its T-pose, palms down): how far up its surface faces from where the back begins to where it
+## is all back; its cuff stays dark this far out along the arm (from, to); the sleeve's stripe runs on over the back as far as the knuckles.
+const GLOVE_BACK := Vector2(0.2, 0.55)
+const GLOVE_CUFF := Vector2(0.757, 0.772)
+const KNUCKLES := 0.862
 ## Where the stripes run (the mannequin standing in its T-pose): along the top of each arm (its axis: y, z) from past the shoulder's
 ## ball (x), down the outside of each leg (its axis: x, z) from under the hip's ball, down the sides of the body (z) from the belt up to
 ## under the arms (heights). None over a shoulder or a hip: the mannequin's limbs end in balls inside the body, which turn out into view
@@ -197,7 +203,8 @@ static var _suits: Dictionary = {}  # source mesh -> suit mesh
 
 
 ## The mannequin's two surfaces as one (one draw call), each vertex telling the suit's shader what it is: COLOR.r glove, .g boot,
-## .b head; UV2.x how far it is from the stripe's line on its limb or the body (metres), UV2.y 1 where a stripe runs. Every body shares it.
+## .b head, .a the back of a glove; UV2.x how far it is from the stripe's line on its limb or the body (metres), UV2.y 1 where a stripe
+## runs. Every body shares it.
 static func suit_mesh(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 	if _suits.has(source):
 		return _suits[source]
@@ -221,16 +228,17 @@ static func suit_mesh(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 		var surface_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var surface_bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
 		var surface_weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+		var surface_normals := smooth_normals(surface_vertices, arrays[Mesh.ARRAY_NORMAL])
 		var per := surface_bones.size() / surface_vertices.size()
 		for v in surface_vertices.size():
 			var shares := {}
 			for k in per:
 				var group: StringName = groups[surface_bones[v * per + k]]
 				shares[group] = float(shares.get(group, 0.0)) + surface_weights[v * per + k]
-			colours.append(suit_region(surface_vertices[v], shares))
-			stripes.append(stripe_coordinate(surface_vertices[v], shares))
+			colours.append(suit_region(surface_vertices[v], shares, surface_normals[v]))
+			stripes.append(stripe_coordinate(surface_vertices[v], shares, surface_normals[v]))
 		vertices.append_array(surface_vertices)
-		normals.append_array(smooth_normals(surface_vertices, arrays[Mesh.ARRAY_NORMAL]))
+		normals.append_array(surface_normals)
 		if arrays[Mesh.ARRAY_TANGENT] != null:
 			tangents.append_array(arrays[Mesh.ARRAY_TANGENT])
 		uvs.append_array(arrays[Mesh.ARRAY_TEX_UV])
@@ -283,17 +291,21 @@ static func bone_group(bone_name: String) -> StringName:
 	return &"body"
 
 
-## What a vertex of the suit is, from where it is on the standing mannequin and how much each bone group carries it: r glove, g boot,
-## b head (the balaclava, folded away from the own seat's camera).
-static func suit_region(at: Vector3, shares: Dictionary) -> Color:
+## What a vertex of the suit is, from where it is on the standing mannequin, how much each bone group carries it and which way its
+## surface faces there (`normal`): r glove, g boot, b head (the balaclava, folded away from the own seat's camera), a the back of a glove
+## (past its cuff: in the suit's colour, where the palm is dark leather, so a hand shows on a black wheel and against a dark dash).
+static func suit_region(at: Vector3, shares: Dictionary, normal := Vector3.ZERO) -> Color:
 	var boot := maxf(float(shares.get(&"foot", 0.0)), 1.0 - smoothstep(BOOT_TOP.x, BOOT_TOP.y, at.y))
-	return Color(float(shares.get(&"hand", 0.0)), boot, float(shares.get(&"head", 0.0)), 1.0)
+	var glove := float(shares.get(&"hand", 0.0))
+	var back := glove * smoothstep(GLOVE_BACK.x, GLOVE_BACK.y, normal.y) * smoothstep(GLOVE_CUFF.x, GLOVE_CUFF.y, absf(at.x))
+	return Color(glove, boot, float(shares.get(&"head", 0.0)), back)
 
 
 ## How far a vertex is from where the stripe runs on its part (metres, front to back: measured so, a stripe is a straight band of one
-## width whatever the mesh's triangles are), and 1 if a stripe runs there: the top of an arm, the outside of a leg, the body's sides
-## (the shader ends a stripe at the last vertices it runs on, a clean cut along the mesh's own rings).
-static func stripe_coordinate(at: Vector3, shares: Dictionary) -> Vector2:
+## width whatever the mesh's triangles are), and 1 if a stripe runs there: the top of an arm and on over the back of its glove to the
+## knuckles (where the surface faces up, `normal`), the outside of a leg, the body's sides (the shader ends a stripe at the last vertices
+## it runs on, a clean cut along the mesh's own rings).
+static func stripe_coordinate(at: Vector3, shares: Dictionary, normal := Vector3.ZERO) -> Vector2:
 	var part: StringName = &"body"
 	var most := 0.0
 	for group: StringName in shares:
@@ -307,4 +319,6 @@ static func stripe_coordinate(at: Vector3, shares: Dictionary) -> Vector2:
 			return Vector2(at.z - LEG_LINE.y, 1.0 if absf(at.x) > LEG_LINE.x and at.y < LEG_STRIPE_TOP else 0.0)
 		&"body":
 			return Vector2(at.z - BODY_LINE, 1.0 if at.y > BODY_STRIPE.x and at.y < BODY_STRIPE.y else 0.0)
+		&"hand":
+			return Vector2(at.z - ARM_LINE.y, 1.0 if normal.y > GLOVE_BACK.y and absf(at.x) < KNUCKLES else 0.0)
 	return Vector2.ZERO

@@ -7,8 +7,9 @@ extends Node3D
 ## peer and turns the local navigator's mouse into zoom/pan.
 
 const SHEET_SIZE := Vector2(0.58, 0.373)
-## Poses relative to the car: held up in front of the navigator's seat, clear of the A pillar and the mirror, and folded on the lap.
-const HELD_POSITION := Vector3(0.25, 0.52, -0.32)
+## Poses relative to the car: held up in front of the navigator's seat, clear of the A pillar, the cage's tube along it and the mirror,
+## and folded on the lap.
+const HELD_POSITION := Vector3(0.21, 0.49, -0.32)
 const HELD_ROTATION_DEG := Vector3(-24.0, 0.0, 0.0)
 const LAP_POSITION := Vector3(0.38, 0.42, -0.18)
 const LAP_ROTATION_DEG := Vector3(-72.0, 0.0, 0.0)
@@ -18,11 +19,13 @@ const FLY_TIME := 4.0
 const ZOOM_STEP := 1.18
 ## Sheet pixels moved per screen pixel dragged.
 const DRAG_SPEED := 2.2
-## The navigator holds the open sheet by its side edges this far under their middle (a share of the height), each wrist this far down from
-## the edge it holds and this far behind the sheet (CrewRig).
-const HOLD_LOW := 0.38
-const HOLD_REACH := 0.07
-const HOLD_BEHIND := 0.03
+## The navigator holds the open sheet by its lower corners, each hand behind the sheet with its fingers up its back and its thumb round the
+## side edge onto the front, on the free paper under the notes (MapCanvas.NOTES_CLEAR): the wrist this far in from the side edge (just
+## outside it: the thumb's root comes round the edge, the fingers lean in behind the paper), this far under the bottom edge and this far
+## behind the sheet (CrewRig).
+const HOLD_IN := -0.006
+const HOLD_UNDER := 0.04
+const HOLD_BEHIND := 0.036
 
 var cabin: Cabin
 var canvas: MapCanvas
@@ -71,16 +74,16 @@ func is_open() -> bool:
 	return cabin != null and cabin.map_state == Cabin.MapState.OPEN
 
 
-## How a hand holds the sheet by its left (`side` 0) or right edge (car space: the wrist and the hand's turn): the hand behind the sheet,
-## the palm in towards the middle, the fingers up the edge, the thumb over it in front. It follows the sheet as it unfolds, flutters and folds.
+## How a hand holds the sheet by its lower left (`side` 0) or right corner (car space: the wrist and the hand's turn): the hand behind the
+## sheet, its palm on the sheet's back, the fingers up it, the thumb round the side edge onto the front. It follows the sheet as it
+## unfolds, flutters and folds.
 func hold(side: int) -> Transform3D:
 	var sheet := (cabin.get_parent() as Node3D).global_transform.affine_inverse() * _sheet.global_transform
 	var outward := -1.0 if side == 0 else 1.0
 	var axes := sheet.basis.orthonormalized()
-	var along := axes * Vector3(-outward * 0.3, 0.95, 0.0)
-	var palm := axes * Vector3(-outward, 0.0, 0.0)
-	var edge := sheet * Vector3(outward * SHEET_SIZE.x * 0.5, -SHEET_SIZE.y * HOLD_LOW, 0.0)
-	return Transform3D(CrewPose.hand_basis(along, palm, side), edge - along.normalized() * HOLD_REACH - axes.z * HOLD_BEHIND)
+	var along := axes * Vector3(-outward * 0.3, 1.0, -0.1)
+	var corner := sheet * Vector3(outward * SHEET_SIZE.x * 0.5, -SHEET_SIZE.y * 0.5, 0.0)
+	return Transform3D(CrewPose.hand_basis(along, axes.z, side), corner - axes.x * outward * HOLD_IN - axes.y * HOLD_UNDER - axes.z * HOLD_BEHIND)
 
 
 ## Whether the sheet, held up, is in the way between two points in the world.

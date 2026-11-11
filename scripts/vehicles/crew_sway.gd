@@ -2,7 +2,9 @@ class_name CrewSway
 extends RefCounted
 ## How a crew member's head swings with the car (pure): the harness holds the body to the seat, the neck gives. A corner tilts the head
 ## out of it, braking nods it, pulling away and a landing press it back; a hit jolts it and it settles in a swing or two. Each peer works it
-## out from how it sees the car move (CrewRig follows the car's place every tick, its own or a snapshot's), so nothing is sent.
+## out from how it sees the car's velocity change (CrewRig follows RallyCar.seen_velocity every tick: the body's own, or the driver's from
+## the snapshots), so nothing is sent. Never from the car's place: a car played back from snapshots is put where it is by the clock on the
+## wall, a frame's ticks all at once, and its place from tick to tick says nothing of its speed.
 
 ## Degrees the head tilts for a g of the car's acceleration across it, along it (braking nods it, pulling away presses it back) and up (a
 ## landing presses it down).
@@ -14,8 +16,6 @@ const DAMPING := 0.45
 ## (degrees, either way).
 const MOST_KICK := 2.0
 const MOST_TILT := 15.0
-## The car moved further than this in one tick (m): a recovery put it somewhere else, nothing to feel.
-const TELEPORT := 2.0
 
 ## Where the head is pushed now (degrees): x to the car's right, y up.
 var tilt := Vector2.ZERO
@@ -23,30 +23,22 @@ var tilt := Vector2.ZERO
 var looseness := 1.0
 
 var _rate := Vector2.ZERO
-var _at := Vector3.ZERO
 var _velocity := Vector3.ZERO
-## How much of the car's way is known: a velocity takes two places, a change of it three.
-var _known := 0
+## Whether the car's velocity a tick ago is known: its change takes two.
+var _known := false
 
 
 func _init(neck_looseness := 1.0) -> void:
 	looseness = neck_looseness
 
 
-## One physics tick: the car is now `at`, turned `turn` (world), `delta` after the last.
-func follow(at: Vector3, turn: Basis, delta: float) -> void:
-	if _known > 0 and (at.distance_to(_at) > TELEPORT or delta <= 0.0):
-		_known = 0
-	if _known == 0:
-		_at = at
-		_known = 1
-		return
-	var velocity := (at - _at) / delta
-	_at = at
-	if _known == 2:
+## One physics tick: the car now moves at `velocity` and is turned `turn` (world), `delta` after the last. A car first seen already moving
+## gives nothing to feel, nor does one put somewhere else (a recovery): its velocity is what counts.
+func follow(velocity: Vector3, turn: Basis, delta: float) -> void:
+	if _known and delta > 0.0:
 		push((turn.inverse() * (velocity - _velocity)).limit_length(MOST_KICK), delta)
 	_velocity = velocity
-	_known = 2
+	_known = true
 
 
 ## The car's velocity changed by `change` (m/s, in the car's space: x right, y up, z back) over a tick of `delta`. The head lags: it is pushed
@@ -68,4 +60,4 @@ func push(change: Vector3, delta: float) -> void:
 func settle() -> void:
 	tilt = Vector2.ZERO
 	_rate = Vector2.ZERO
-	_known = 0
+	_known = false

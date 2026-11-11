@@ -4,7 +4,7 @@ extends RefCounted
 ## show it (CrewRig), and a seat's state as it travels the network. Every hand holds one thing: the wheel, the map, the shock gun, a
 ## window's winder, the wipers' stalk, the horn, the handbrake, a can, a pointing finger. A gesture is a way to talk without a voice:
 ## pointing left, straight on or right, or patting the air for "slow down", with the hand nearer the partner (the driver's right, the
-## navigator's left), where the partner sees it at a glance.
+## navigator's left), where the partner sees it at a glance; each has a sign of its own, told apart by the hand's shape alone.
 
 enum Gesture { NONE, LEFT, STRAIGHT, RIGHT, SLOW }
 ## What a player sent a hand (or the legs) to do for a moment: wind a window (each side), switch the wipers, throw a can out of the right
@@ -13,12 +13,20 @@ enum Job { NONE, WINDOW_LEFT, WINDOW_RIGHT, WIPERS, THROW, KICK }
 ## What a hand does: holds the wheel, rests on the lap (or hangs there, out cold), holds the map, the shock gun, points (a gesture), winds a
 ## window, flicks the wipers' stalk, presses the horn, pulls the handbrake, throws a can, changes gear.
 enum Hand { WHEEL, LAP, MAP, GUN, POINT, WINDOW, WIPERS, HORN, HANDBRAKE, THROW, GEAR }
+## How the hand shows a gesture: the index finger pointing across the car, to the partner's side; the thumb out to the side away from them
+## (a finger held out that way would leave their sight: the fist stays in it and the thumb says the way); the flat hand on its edge
+## chopping ahead for straight on; the flat hand patting the air, palm down, for "slow down".
+enum Sign { FINGER, THUMB, CHOP, PAT }
 
 const LEFT := 0
 const RIGHT := 1
 ## How long each job takes (s): a window as long as its pane moves.
 const JOB_SECONDS := {Job.WINDOW_LEFT: Cabin.PANE_SECONDS, Job.WINDOW_RIGHT: Cabin.PANE_SECONDS, Job.WIPERS: 0.5, Job.THROW: 0.6,
 	Job.KICK: 0.9}
+## How far into its job a deed is done (s): the soles meet the windshield, the can leaves the hand outside the window. The host lets the
+## glass go and the can fly then, not when the job starts (Cabin).
+const KICK_LANDS := 0.42
+const THROW_LEAVES := 0.3
 ## A gesture shows at least this long however short the press (s), so the partner can catch it.
 const GESTURE_SECONDS := 1.2
 ## A seat's state goes out this often (per second) through the host: a head turns and a hand moves slowly enough for that.
@@ -101,17 +109,28 @@ static func gesture_hand(role: int) -> int:
 	return RIGHT if role == RosterRules.Role.DRIVER else LEFT
 
 
+## The sign a seat makes for a gesture: the side the partner sits on is pointed at with the finger, the other with the thumb.
+static func sign_of(role: int, gesture: int) -> int:
+	match gesture:
+		Gesture.STRAIGHT:
+			return Sign.CHOP
+		Gesture.SLOW:
+			return Sign.PAT
+	return Sign.FINGER if gesture == (Gesture.RIGHT if role == RosterRules.Role.DRIVER else Gesture.LEFT) else Sign.THUMB
+
+
 ## A player can gesture unless out cold or aiming the shock gun (the right hand holds it, and the gesture would need the other).
 static func can_gesture(seat: Seat, fainted: bool) -> bool:
 	return not fainted and not seat.aiming
 
 
-## The hand a job is done with (LEFT or RIGHT; -1: none, the legs kick): the left winds the left window (the navigator reaches across for
-## it), the right winds the right one, flicks the wipers' stalk (the driver) and throws (the navigator).
-static func job_hand(job: int) -> int:
+## The hand `role` does a job with (LEFT or RIGHT; -1: none): the driver's left winds the left window, the right winds the right one,
+## flicks the wipers' stalk (the driver) and throws (the navigator); the legs kick. The driver's winder is across the car and the driver
+## from the navigator, further than an arm in a harness goes: that window goes without a hand of the navigator's on it.
+static func job_hand(job: int, role: int) -> int:
 	match job:
 		Job.WINDOW_LEFT:
-			return LEFT
+			return LEFT if role == RosterRules.Role.DRIVER else -1
 		Job.WINDOW_RIGHT, Job.WIPERS, Job.THROW:
 			return RIGHT
 	return -1
@@ -139,7 +158,7 @@ static func hands(role: int, seat: Seat, fainted: bool, map_open: bool, horn: bo
 	var out := PackedInt32Array([idle, idle])
 	if seat.aiming:
 		out[RIGHT] = Hand.GUN
-	var side := job_hand(seat.job)
+	var side := job_hand(seat.job, role)
 	if side >= 0 and out[side] == idle:
 		out[side] = job_does(seat.job)
 	side = gesture_hand(role)
@@ -159,7 +178,10 @@ static func hands(role: int, seat: Seat, fainted: bool, map_open: bool, horn: bo
 	return out
 
 
-## The driver steers with one hand while the other is off the wheel on a job (GAME_DESIGN §3), but not for a pull of the handbrake or a
-## gear change: a rally driver's hand is back on the rim before the car has turned.
+## The driver steers with one hand while the other is off the wheel on a job (GAME_DESIGN §3), and no better with both off it (the gun up
+## and the window's winder in the other hand). Not for a pull of the handbrake or a gear change while the left hand holds the rim: a rally
+## driver's hand is back on it before the car has turned.
 static func one_handed(role: int, held: PackedInt32Array) -> bool:
-	return role == RosterRules.Role.DRIVER and held.count(Hand.WHEEL) == 1 and not held.has(Hand.HANDBRAKE) and not held.has(Hand.GEAR)
+	if role != RosterRules.Role.DRIVER or held.count(Hand.WHEEL) == 2:
+		return false
+	return held.count(Hand.WHEEL) == 0 or not (held.has(Hand.HANDBRAKE) or held.has(Hand.GEAR))

@@ -4,10 +4,10 @@ extends Node
 ## to where its hand works and the hand takes that place's turn (TwoBoneIK3D, CopyTransformModifier3D), the head looks where its player
 ## looks, the chest and the neck taking part of a turn (LookAtModifier3D), the legs kick the windshield out (TwoBoneIK3D). What each hand
 ## does comes from the seat (Cabin.hands_of, CrewRules): the driver's hands ride the turning wheel and leave it for the shock gun, the
-## window's winder, the wipers' stalk, the horn and the handbrake; the navigator holds the real map by its edges while it is open, the hands
+## window's winder, the wipers' stalk, the horn and the handbrake; the navigator holds the real map by its lower corners while it is open, the hands
 ## on the lap otherwise; a gesture points the hand nearer the partner. Out cold the body slumps in its harness, a shock shakes it first.
 ## The harness holds the body to the seat, the neck gives to the car's swing (CrewSway: a corner tilts the head out of it, braking nods
-## it, a hit jolts it), from how this peer sees the car move.
+## it, a hit jolts it), from how this peer sees the car's velocity change.
 ## The goals are set here every frame in the car's space, before the skeleton works them out; nothing here touches the simulation. Only a
 ## crew someone can see moves: the local player's own car's always, another's while it is on the screen within CrewBody.DRAW_RANGE or close
 ## enough to fill a mirror (MIRROR_RANGE); otherwise it rests as it sits, the skeleton left alone.
@@ -19,18 +19,23 @@ const BODY_RADIUS := 0.8
 ## A hand goes from one thing to the next in this long (s); the fingers change their grip in this long.
 const BLEND_SECONDS := 0.24
 const FINGER_SECONDS := 0.12
-## How the fingers hold (curls at each knuckle of the index, middle, ring and pinky, then the thumb across the palm; radians): round a bar,
-## round a gun's grip with the index on the trigger, pointing, flat, pinching a sheet's edge, resting.
-enum Grip { FIST, TRIGGER, POINT, FLAT, PINCH, REST }
+## How the fingers hold (curls at each knuckle of the index, middle, ring and pinky, then the thumb towards the palm, over it and out from
+## the fingers; radians): round a bar, round a gun's grip with the index on the trigger, pointing, flat, cupped over a knob, resting, flat
+## behind a sheet with the thumb round its edge onto the front, a fist with the thumb held out.
+enum Grip { FIST, TRIGGER, POINT, FLAT, PINCH, REST, SHEET, THUMB }
 const GRIPS := {
-	Grip.FIST: [[CrewPose.CURL, CrewPose.CURL, CrewPose.CURL, CrewPose.CURL], CrewPose.THUMB_CURL],
-	Grip.TRIGGER: [[0.12, 1.2, 1.25, 1.3], 0.55],
-	Grip.POINT: [[0.03, 1.35, 1.4, 1.45], 0.35],
-	Grip.FLAT: [[0.06, 0.05, 0.06, 0.08], 0.05],
-	Grip.PINCH: [[0.75, 0.8, 0.85, 0.9], 0.3],
-	Grip.REST: [[0.3, 0.38, 0.45, 0.5], 0.25],
+	Grip.FIST: [[CrewPose.CURL, CrewPose.CURL, CrewPose.CURL, CrewPose.CURL], CrewPose.THUMB_CURL, 0.0, 0.0],
+	Grip.TRIGGER: [[0.12, 1.2, 1.25, 1.3], 0.55, 0.0, 0.0],
+	Grip.POINT: [[0.03, 1.35, 1.4, 1.45], 0.35, 0.0, 0.0],
+	Grip.FLAT: [[0.06, 0.05, 0.06, 0.08], 0.05, 0.0, 0.0],
+	Grip.PINCH: [[0.75, 0.8, 0.85, 0.9], 0.3, 0.0, 0.0],
+	Grip.REST: [[0.3, 0.38, 0.45, 0.5], 0.25, 0.0, 0.0],
+	Grip.SHEET: [[0.03, 0.04, 0.05, 0.06], 0.75, 0.75, 0.0],
+	Grip.THUMB: [[CrewPose.CURL, CrewPose.CURL, CrewPose.CURL, CrewPose.CURL], -0.45, 0.0, 1.1],
 }
-const GRIP_OF := {CrewRules.Hand.WHEEL: Grip.FIST, CrewRules.Hand.LAP: Grip.REST, CrewRules.Hand.MAP: Grip.PINCH,
+## The grip of each sign a gesture is made with.
+const SIGN_GRIPS := {CrewRules.Sign.FINGER: Grip.POINT, CrewRules.Sign.THUMB: Grip.THUMB, CrewRules.Sign.CHOP: Grip.FLAT, CrewRules.Sign.PAT: Grip.FLAT}
+const GRIP_OF := {CrewRules.Hand.WHEEL: Grip.FIST, CrewRules.Hand.LAP: Grip.REST, CrewRules.Hand.MAP: Grip.SHEET,
 	CrewRules.Hand.GUN: Grip.TRIGGER, CrewRules.Hand.POINT: Grip.POINT, CrewRules.Hand.WINDOW: Grip.FIST, CrewRules.Hand.WIPERS: Grip.REST,
 	CrewRules.Hand.HORN: Grip.FLAT, CrewRules.Hand.HANDBRAKE: Grip.FIST, CrewRules.Hand.THROW: Grip.FIST, CrewRules.Hand.GEAR: Grip.PINCH}
 ## A hand follows the turning wheel as far round as its arm reaches with this much to spare (a share of the arm's length); past that the
@@ -54,19 +59,29 @@ const STALK := Vector3(-0.235, 0.275, -0.41)
 const FLICK := 0.03
 const HUB_OUT := 0.05
 ## The gun hand from the eye in the look's frame (the right hand: right, down, ahead) and how far round the arm follows the look (degrees).
+## A side window that is not open stops the gun's muzzle this far from the car's middle, inside its glass.
 const GUN_HAND := Vector3(0.1, -0.16, -0.36)
 const GUN_YAW := 100.0
-## A gesture is made just past the middle of the car, where the partner sees it at a glance (35-40 degrees off their straight ahead): the
-## wrist this far across from the eye towards the other seat (a share of the way to the middle), down and ahead of it, and this much further
-## towards the partner when pointing away from them, where it then sweeps out further along its way and back into their sight. Pointing:
-## the ways the finger points (left, straight on, right), how often the hand jabs along its way (per second) and how far. Slow down: the flat
-## hand pats the air this often and this high, a little higher up.
-const GESTURE_HAND := Vector3(1.05, -0.04, -0.42)
-const POINT_AWAY := Vector2(0.14, 0.06)
-const POINT_WAYS := {CrewRules.Gesture.LEFT: Vector3(-0.87, 0.06, -0.5), CrewRules.Gesture.STRAIGHT: Vector3(0.0, 0.16, -1.0),
-	CrewRules.Gesture.RIGHT: Vector3(0.87, 0.06, -0.5)}
+const GLASS_INSIDE := 0.55
+## A gesture is made where the partner sees it at a glance: just past the middle of the car at the height of the eyes, as far ahead as
+## the arm reaches with its shoulder brought forward, under the interior mirror. There the hand shows against the windshield, not against
+## the dash, and at night against the road the lamps light. The wrist, from the partner's eye: this far across towards the own seat, up
+## and ahead (about 40 degrees off their straight ahead). The signs (CrewRules.Sign), each jabbed along its way JAB.x times a second: the
+## index finger points across to the partner's side and a little ahead (FINGER_WAY: across, up, ahead), the hand going JAB.y along it;
+## for the side away from the partner the fist is held out ahead (THUMB_HAND: nearer the partner and a little lower, so that the thumb
+## stays in their sight) with the thumb up and out to that side, and jerks it that way (THUMB_UP: degrees above level, at rest and at
+## the jerk's end); for straight on the flat hand stands on its edge, its back to the partner, the fingers ahead and up (CHOP_WAY), and
+## chops CHOP_REACH along them. Slow down: the flat hand pats the air this often and this high, a little higher up, tipping with it
+## by PAT_TILT degrees.
+const GESTURE_HAND := Vector3(0.25, -0.01, -0.29)
+const FINGER_WAY := Vector3(0.8, 0.05, -0.6)
+const THUMB_HAND := Vector3(0.17, -0.05, -0.31)
+const THUMB_UP := Vector2(58.0, 32.0)
+const CHOP_WAY := Vector3(0.0, 0.3, -1.0)
+const CHOP_REACH := 0.07
 const JAB := Vector2(1.7, 0.03)
-const PAT := Vector3(2.0, 0.06, 0.03)
+const PAT := Vector3(2.0, 0.03, 0.06)
+const PAT_TILT := 10.0
 ## The harness holds the back to the seat: to reach ahead a hand's shoulder comes forward instead (degrees round, for what the hand does).
 const REACH := {CrewRules.Hand.POINT: 24.0, CrewRules.Hand.MAP: 14.0, CrewRules.Hand.GUN: 12.0, CrewRules.Hand.GEAR: 24.0}
 ## The throw: the right hand back by the shoulder, then out through the right window (car space), as the job runs.
@@ -124,6 +139,8 @@ var _active := true
 ## The bones the rig turns besides the IK's, and what each was last turned by (yaw, pitch, roll).
 var _turned_by: Dictionary = {}
 var _eye := Vector3.ZERO
+## Where the partner's eyes rest (car space): a gesture is made in their sight.
+var _partner_eye := Vector3.ZERO
 var _head_at := Vector3.ZERO
 var _shoulders: Array[Vector3] = []
 var _rest_hands: Array[Transform3D] = []
@@ -145,6 +162,9 @@ var _grip_blend := PackedFloat32Array([1.0, 1.0])
 var _since := 0.0
 var _job_seen := -1
 var _job_time := 0.0
+## The job this body began last: it runs its time here, whatever its seat says meanwhile (another player's seat says it is over a
+## moment before this peer has seen it through).
+var _job := CrewRules.Job.NONE
 var _look := Vector2.ZERO
 var _look_from := Vector2.ZERO
 var _look_to := Vector2.ZERO
@@ -179,6 +199,8 @@ func build(crew_body: CrewBody, car_model: CarModel, eye: Vector3) -> void:
 			_shake_left = SHAKE_SECONDS)
 	_skeleton = body.skeleton
 	_eye = eye
+	var partner := RosterRules.Role.NAVIGATOR if body.role == RosterRules.Role.DRIVER else RosterRules.Role.DRIVER
+	_partner_eye = (model.car.get_node(NodePath(CarModel.seat_camera(partner))) as CockpitCamera).seat_position()
 	_noise.frequency = 9.0
 	_noise.seed = body.role + 7
 	_sway = CrewSway.new(SWAY_LOOSENESS[body.role])
@@ -297,14 +319,14 @@ func _learn_grips() -> void:
 	for side: int in [CrewPose.Side.LEFT, CrewPose.Side.RIGHT]:
 		var grips := {}
 		for grip: int in GRIPS:
-			grips[grip] = shaper.curl_fingers(side, GRIPS[grip][0], GRIPS[grip][1])
+			grips[grip] = shaper.curl_fingers(side, GRIPS[grip][0], GRIPS[grip][1], GRIPS[grip][2], GRIPS[grip][3])
 		_grips[side] = grips
 
 
-## The neck feels the car on its ticks (where its place changes, the own car's and a snapshot's alike).
+## The neck feels the car on its ticks, from its velocity as this peer sees it (the own car's and a snapshot's alike).
 func _physics_process(delta: float) -> void:
 	if _active:
-		_sway.follow(model.car.global_position, model.car.global_basis, delta)
+		_sway.follow(model.car.seen_velocity(), model.car.global_basis, delta)
 
 
 func _process(delta: float) -> void:
@@ -321,9 +343,10 @@ func _process(delta: float) -> void:
 	if seat.jobs != _job_seen:
 		_job_seen = seat.jobs
 		_job_time = 0.0
+		_job = seat.job
 	_job_time += delta
 	var shake := _shake_left / SHAKE_SECONDS
-	_kick(seat)
+	_kick()
 	var now := cabin.hands_of(body.role, _shifting(delta))
 	for side in 2:
 		if now[side] != held[side]:
@@ -375,6 +398,7 @@ func _set_active(on: bool) -> void:
 		return
 	_legs.active = false
 	_soles.active = false
+	_job = CrewRules.Job.NONE
 	_gun.visible = false
 	_sway.settle()
 	held = PackedInt32Array([-1, -1])
@@ -447,7 +471,13 @@ func _hand_place(side: int, hand: int, seat: CrewRules.Seat) -> Transform3D:
 			return cabin.paper_map.hold(side)
 		CrewRules.Hand.GUN:
 			var aim := Basis.from_euler(Vector3(deg_to_rad(seat.look.y), deg_to_rad(clampf(seat.look.x, -GUN_YAW, GUN_YAW)), 0.0), EULER_ORDER_YXZ)
-			return Transform3D(CrewPose.hand_basis(aim * Vector3(0.0, 0.08, -1.0), aim * Vector3.LEFT, side), _eye + aim * GUN_HAND)
+			var barrel := (aim * Vector3(0.0, 0.08, -1.0)).normalized()
+			var at := _eye + aim * GUN_HAND
+			# Out of an open window the gun goes; glass stops it.
+			var through := absf(at.x + barrel.x * ShockGun.MUZZLE.y) - GLASS_INSIDE
+			if through > 0.0 and not cabin.is_open_for_shot(ShockRules.Opening.LEFT if barrel.x < 0.0 else ShockRules.Opening.RIGHT):
+				at -= barrel * through / maxf(absf(barrel.x), 0.4)
+			return Transform3D(CrewPose.hand_basis(barrel, aim * Vector3.LEFT, side), at)
 		CrewRules.Hand.POINT:
 			return _gesture(side, seat.gesture)
 		CrewRules.Hand.WINDOW:
@@ -476,28 +506,36 @@ func _hand_place(side: int, hand: int, seat: CrewRules.Seat) -> Transform3D:
 	return _rest_hands[side]
 
 
-## The hand nearer the partner makes the gesture over the middle of the car: pointing left, straight on or right with a jab along the way,
-## or patting the air flat for "slow down".
+## The hand nearer the partner makes the gesture over the middle of the car, in the sign that says it (CrewRules.sign_of).
 func _gesture(side: int, gesture: int) -> Transform3D:
-	var at := _eye + Vector3(-_eye.x * GESTURE_HAND.x, GESTURE_HAND.y, GESTURE_HAND.z)
-	if gesture == CrewRules.Gesture.SLOW:
-		var pat := sin(TAU * PAT.x * _since)
-		var flat := CrewPose.hand_basis(Vector3.FORWARD, Vector3.DOWN, side)
-		return Transform3D(Basis(Vector3.RIGHT, deg_to_rad(16.0) * pat) * flat, at + Vector3.UP * (PAT.z + PAT.y * pat))
-	var along := (POINT_WAYS[gesture] as Vector3).normalized()
-	var jab := JAB.y
-	var inboard := -signf(_eye.x)
-	if along.x * inboard < -0.5:
-		at.x += inboard * POINT_AWAY.x
-		jab += POINT_AWAY.y
-	return Transform3D(CrewPose.hand_basis(along, Vector3.DOWN, side), at + along * jab * (0.5 - 0.5 * cos(TAU * JAB.x * _since)))
+	var sign := CrewRules.sign_of(body.role, gesture)
+	var hand: Vector3 = THUMB_HAND if sign == CrewRules.Sign.THUMB else GESTURE_HAND
+	# Towards the partner (along x).
+	var inboard := signf(_partner_eye.x - _eye.x)
+	var at := _partner_eye + Vector3(-inboard * hand.x, hand.y, hand.z)
+	var beat := 0.5 - 0.5 * cos(TAU * JAB.x * _since)
+	match sign:
+		CrewRules.Sign.PAT:
+			var pat := sin(TAU * PAT.x * _since)
+			var flat := CrewPose.hand_basis(Vector3.FORWARD, Vector3.DOWN, side)
+			return Transform3D(Basis(Vector3.RIGHT, deg_to_rad(PAT_TILT) * pat) * flat, at + Vector3.UP * (PAT.z + PAT.y * pat))
+		CrewRules.Sign.CHOP:
+			return Transform3D(CrewPose.hand_basis(CHOP_WAY, Vector3.LEFT * inboard, side), at + CHOP_WAY.normalized() * CHOP_REACH * beat)
+		CrewRules.Sign.THUMB:
+			var up := deg_to_rad(lerpf(THUMB_UP.x, THUMB_UP.y, beat))
+			var thumb := Vector3(-inboard * cos(up), sin(up), 0.0)
+			var knuckles := Vector3(0.0, 0.1, -1.0)
+			# A hand's thumb is on its +Z: the palm is turned so that it points the thumb's way.
+			return Transform3D(CrewPose.hand_basis(knuckles, knuckles.cross(thumb) * (1.0 if side == CrewPose.Side.LEFT else -1.0), side), at)
+	var along := Vector3(inboard * FINGER_WAY.x, FINGER_WAY.y, FINGER_WAY.z).normalized()
+	return Transform3D(CrewPose.hand_basis(along, Vector3.DOWN, side), at + along * JAB.y * beat)
 
 
 ## The fingers take the grip of what the hand does, quickly.
 func _shape_fingers(side: int, delta: float, seat: CrewRules.Seat) -> void:
 	var grip: int = GRIP_OF[held[side]]
-	if held[side] == CrewRules.Hand.POINT and seat.gesture == CrewRules.Gesture.SLOW:
-		grip = Grip.FLAT
+	if held[side] == CrewRules.Hand.POINT:
+		grip = SIGN_GRIPS[CrewRules.sign_of(body.role, seat.gesture)]
 	if grip != _grip[side]:
 		var first := _grip[side] < 0
 		_grip[side] = grip
@@ -553,9 +591,10 @@ func _turn(bone_name: StringName, yaw: float, pitch: float, roll: float) -> void
 	_skeleton.set_bone_pose_rotation(bone, rotation)
 
 
-## The legs kick the windshield out while that job runs: up off the floor and back, over the dash onto the glass, and back the same way.
-func _kick(seat: CrewRules.Seat) -> void:
-	var kicking := seat.job == CrewRules.Job.KICK and _job_time < float(CrewRules.JOB_SECONDS[CrewRules.Job.KICK])
+## The legs kick the windshield out once that job has begun: up off the floor and back, over the dash onto the glass, and back the same
+## way, to the end.
+func _kick() -> void:
+	var kicking := _job == CrewRules.Job.KICK and _job_time < float(CrewRules.JOB_SECONDS[CrewRules.Job.KICK])
 	if kicking != _legs.active:
 		_legs.active = kicking
 		_soles.active = kicking

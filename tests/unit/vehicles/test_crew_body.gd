@@ -137,6 +137,10 @@ func test_the_suit_knows_its_parts_from_the_bones() -> void:
 	assert_eq(CrewBody.bone_group("DEF-foot_L"), &"foot")
 	assert_eq(CrewBody.bone_group("DEF-spine_002"), &"body")
 	assert_eq(CrewBody.suit_region(Vector3(0.75, 1.44, -0.06), {&"hand": 1.0}).r, 1.0, "a glove")
+	assert_eq(CrewBody.suit_region(Vector3(0.8, 1.46, -0.06), {&"hand": 1.0}, Vector3.UP).a, 1.0, "its back, in the suit's colour")
+	assert_eq(CrewBody.suit_region(Vector3(0.8, 1.4, -0.06), {&"hand": 1.0}, Vector3.DOWN).a, 0.0, "its palm, dark leather")
+	assert_eq(CrewBody.suit_region(Vector3(0.75, 1.46, -0.06), {&"hand": 1.0}, Vector3.UP).a, 0.0, "its cuff, dark all round")
+	assert_eq(CrewBody.suit_region(Vector3(0.6, 1.49, -0.06), {&"arm": 1.0}, Vector3.UP).a, 0.0, "a sleeve is no glove")
 	assert_eq(CrewBody.suit_region(Vector3(0.09, 0.05, 0.0), {&"foot": 1.0}).g, 1.0, "a boot")
 	assert_eq(CrewBody.suit_region(Vector3(0.09, 0.12, 0.0), {&"leg": 1.0}).g, 1.0, "the boot comes over the ankle")
 	assert_eq(CrewBody.suit_region(Vector3(0.09, 0.5, 0.0), {&"leg": 1.0}).g, 0.0, "the knee is suit")
@@ -160,7 +164,11 @@ func test_the_stripes_run_along_the_outsides() -> void:
 	assert_eq(side.y, 1.0)
 	assert_eq(CrewBody.stripe_coordinate(Vector3(0.15, 1.42, -0.03), {&"body": 1.0}).y, 0.0, "but not over the shoulder")
 	assert_eq(CrewBody.stripe_coordinate(Vector3(0.17, 0.98, -0.03), {&"body": 1.0}).y, 0.0, "nor over the hips")
-	assert_eq(CrewBody.stripe_coordinate(Vector3(0.75, 1.44, -0.06), {&"hand": 1.0}).y, 0.0, "no stripe on a glove")
+	var back_of_glove := CrewBody.stripe_coordinate(Vector3(0.8, 1.46, -0.067), {&"hand": 1.0}, Vector3.UP)
+	assert_almost_eq(back_of_glove.x, 0.0, 0.001, "the sleeve's stripe runs on over the back of the glove")
+	assert_eq(back_of_glove.y, 1.0)
+	assert_eq(CrewBody.stripe_coordinate(Vector3(0.8, 1.4, -0.067), {&"hand": 1.0}, Vector3.DOWN).y, 0.0, "not across the palm")
+	assert_eq(CrewBody.stripe_coordinate(Vector3(0.9, 1.45, -0.06), {&"hand": 1.0}, Vector3.UP).y, 0.0, "nor down the fingers")
 
 
 func test_the_suit_is_one_draw_call_and_every_vertex_is_told_what_it_is() -> void:

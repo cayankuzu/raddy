@@ -138,6 +138,29 @@ func test_no_number_covers_another_or_a_cross_or_the_road_on_any_stage() -> void
 		assert_eq(crowded, 0, "%s: every number stands free" % graph.stage_id)
 
 
+func test_the_notes_end_above_the_corner_the_sheet_is_held_by_on_every_stage() -> void:
+	var locale := TranslationServer.get_locale()
+	for language: String in ["tr", "en"]:
+		TranslationServer.set_locale(language)
+		for i in StageCatalog.count():
+			var graph := StageBuilder.build(StageCatalog.get_stage(i))
+			for difficulty in RaceSettings.Difficulty.size():
+				var notes := PaceNotes.build(graph, RaceSettings.note_detail(difficulty))
+				var canvas := MapCanvas.new()
+				add_child_autofree(canvas)
+				canvas.build(graph, notes, null)
+				var labels := canvas.get_node(^"Content/Notes").get_children()
+				var print_size := (labels[-1] as Label).get_theme_font_size(&"font_size")
+				if difficulty == 0:
+					gut.p("%s in %s, the fullest notes: %d of them at %d px end %d px down the %d px sheet" % [graph.stage_id, language, notes.size(), print_size,
+						roundi(canvas.notes_end), MapCanvas.CANVAS.y])
+				assert_eq(labels.size(), notes.size() + 1, "%s: a title and every note" % graph.stage_id)
+				assert_lte(canvas.notes_end, MapCanvas.CANVAS.y - MapCanvas.NOTES_CLEAR, "%s at difficulty %d in %s: the column leaves the corner free for the thumb" % [
+					graph.stage_id, difficulty, language])
+				assert_gte(print_size, 13, "%s: still a print to read" % graph.stage_id)
+	TranslationServer.set_locale(locale)
+
+
 func test_wrong_ways_are_thin_dashed_tracks_under_the_road() -> void:
 	var graph := StageBuilder.build(StageCatalog.get_stage(0))
 	var canvas := MapCanvas.new()

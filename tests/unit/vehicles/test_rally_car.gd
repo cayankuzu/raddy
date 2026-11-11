@@ -43,6 +43,16 @@ func test_accelerates_forward_in_a_straight_line() -> void:
 	assert_lt(absf(_heading_degrees()), 2.0, "keeps its heading")
 
 
+func test_a_car_knows_its_velocity_simulated_or_played_back_from_snapshots() -> void:
+	await _drive(2.0, 1.0)
+	assert_gt(_car.seen_velocity().length(), 5.0)
+	assert_eq(_car.seen_velocity(), _car.linear_velocity, "where it is simulated, the body's own")
+	_car.set_simulated(false)
+	var from_the_driver := Vector3(3.0, 0.5, -21.0)
+	_car.apply_net_extra(PackedFloat32Array(), from_the_driver)
+	assert_eq(_car.seen_velocity(), from_the_driver, "a frozen copy has the driver's, from the snapshot")
+
+
 func test_brakes_to_a_stop_in_a_straight_line() -> void:
 	await _drive(3.0, 1.0)
 	var start_speed := _car.forward_speed

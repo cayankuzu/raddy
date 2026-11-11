@@ -66,6 +66,8 @@ var _drive := 0.0
 var _brake_input := 0.0
 var _stuck_time := 0.0
 var _previous_velocity := Vector3.ZERO
+## The driver's velocity from the last snapshot, on a peer that does not simulate the car (world, m/s).
+var _net_velocity := Vector3.ZERO
 var _impact_cooldown := 0.0
 var _pending_reset := false
 var _reset_interpolation := false
@@ -185,6 +187,7 @@ func get_net_extra() -> PackedFloat32Array:
 
 ## Applies a snapshot's extras on a remote copy; `velocity` is the sender's linear velocity.
 func apply_net_extra(extra: PackedFloat32Array, velocity: Vector3) -> void:
+	_net_velocity = velocity
 	forward_speed = velocity.dot(-global_basis.z)
 	if extra.size() < 1 + _wheels.size():
 		return
@@ -208,6 +211,12 @@ func apply_net_extra(extra: PackedFloat32Array, velocity: Vector3) -> void:
 		controls.brake = extra[5 + _wheels.size()]
 	if extra.size() > 6 + _wheels.size():
 		controls.handbrake = extra[6 + _wheels.size()] > 0.5
+
+
+## The car's velocity as this peer sees it (world, m/s): the body's own where it is simulated, the driver's from the snapshots elsewhere
+## (a frozen copy's own is nothing, and its place moves a frame's ticks at once: no velocity to be had from it).
+func seen_velocity() -> Vector3:
+	return linear_velocity if simulated else _net_velocity
 
 
 ## Largest front wheel angle allowed at `speed` m/s: full lock when slow, a few degrees when fast.

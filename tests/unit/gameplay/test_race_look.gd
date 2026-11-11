@@ -108,7 +108,7 @@ func test_the_light_goes_with_the_time_of_day() -> void:
 	assert_gt((_sky(dusk).get_shader_parameter(&"afterglow") as Color).r, 0.5, "and the horizon still burns where it went")
 	var golden := _look(RaceSettings.Weather.CLEAR, RaceSettings.TimeOfDay.GOLDEN_HOUR)
 	var low_sun: DirectionalLight3D = golden.get_node(^"Sun")
-	assert_gt(low_sun.light_energy, CarCockpit.CLEAR_SUN, "a golden hour sun dazzles: the visors come down")
+	assert_gt(low_sun.light_energy, RaceLook.SUN_LIGHT[RaceLook.DAY].x, "a golden hour sun dazzles: brighter than the day's on what faces it")
 	assert_gt(low_sun.light_color.r - low_sun.light_color.b, 0.5, "and it is warm")
 
 

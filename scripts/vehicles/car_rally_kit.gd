@@ -53,9 +53,9 @@ const TRIP_AT := Vector3(0.47, 0.47, -0.66)
 const TRIP_EYE := Vector3(0.32, 0.61, 0.10)
 const TRIP_BOX := Vector3(0.13, 0.06, 0.045)
 const TRIP_DISPLAY := Vector2(0.1, 0.028)
-## The fire extinguisher: the bottle's middle on the floor in front of the navigator's seat, lying across the car, its radius and length,
-## the valve's head at its inboard end; the two straps of its bracket.
-const BOTTLE_AT := Vector3(0.36, -0.215, -0.36)
+## The fire extinguisher: the bottle's middle on the floor under the front of the navigator's seat, lying across the car behind where the
+## heels come back to in a kick, its radius and length, the valve's head at its inboard end; the two straps of its bracket.
+const BOTTLE_AT := Vector3(0.36, -0.22, -0.34)
 const BOTTLE_RADIUS := 0.045
 const BOTTLE_LENGTH := 0.30
 const STRAPS: Array[float] = [-0.08, 0.08]
@@ -141,6 +141,8 @@ static func kit_mesh() -> ArrayMesh:
 		_extinguisher(tool)
 		for role: int in SEAT_X:
 			_rails(tool, role)
+		# Indexed like the seats: SurfaceTool.append_from draws only the indexed part of a mix of the two.
+		tool.index()
 		_mesh = tool.commit()
 		for role: int in SEAT_X:
 			_mesh = _with(_mesh, _seat(role))

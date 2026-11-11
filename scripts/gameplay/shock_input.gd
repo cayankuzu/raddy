@@ -42,7 +42,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if aiming and (cabin == null or cabin.is_fainted(role)):
+	# Out cold the gun drops; so it does when its button is no longer held (let go while the window had lost the keyboard and the mouse,
+	# which never says so).
+	if aiming and (cabin == null or cabin.is_fainted(role) or not Input.is_action_pressed(&"shock_aim")):
 		_set_aiming(false)
 	if _crosshair.visible:
 		(_crosshair as Crosshair).darts = session.darts_of(Net.local_id())

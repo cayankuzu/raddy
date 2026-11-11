@@ -129,23 +129,35 @@ func _arm(side: int, wrist: Vector3, palm: Vector3, pole: Vector3) -> void:
 	curl_fingers(side, [CURL, CURL, CURL, CURL], THUMB_CURL)
 
 
-## Curls a hand's fingers from straight: the index, middle, ring and pinky by `curls` at each knuckle (radians), the thumb across the palm by
-## `thumb`. Returns the fingers' rotations (bone -> local Quaternion), which are the same whatever the hand does.
-func curl_fingers(side: int, curls: Array, thumb: float) -> Dictionary:
+## Curls a hand's fingers from straight: the index, middle, ring and pinky by `curls` at each knuckle (radians). The thumb, which rests
+## along the index finger, first swings out from it in the palm's plane by `thumb_out` (a thumb held out), then towards the palm by `thumb`
+## (less than nothing: away from it), then round the hand's length over the palm by `thumb_over`, its two joints bending on by as much and
+## half as much (the thumb round the edge of a sheet the fingers are behind, its pad on the front). Returns the fingers' rotations (bone ->
+## local Quaternion), which are the same whatever the hand does.
+func curl_fingers(side: int, curls: Array, thumb: float, thumb_over := 0.0, thumb_out := 0.0) -> Dictionary:
 	var hand := bone(ARMS[side][3])
 	var letter := "L" if side == Side.LEFT else "R"
 	var fingers: Array[int] = []
 	for finger: String in FINGERS:
 		for knuckle in 3:
 			fingers.append(bone(StringName("DEF-f_%s_0%d_%s" % [finger, knuckle + 1, letter])))
-	fingers.append(bone(StringName("DEF-thumb_01_%s" % letter)))
-	for each in fingers:
+	var thumbs: Array[int] = []
+	for joint in 3:
+		thumbs.append(bone(StringName("DEF-thumb_0%d_%s" % [joint + 1, letter])))
+	for each: int in fingers + thumbs:
 		rotations[each] = _rest[each].basis.get_rotation_quaternion()
 	_update_globals()
 	for each in fingers.size():
-		_curl(fingers[each], hand, thumb if each == fingers.size() - 1 else float(curls[each / 3]))
+		_curl(fingers[each], hand, float(curls[each / 3]))
+	# A hand's +Y runs along its fingers and its +Z is its thumb's side: about its +X the thumb swings out from the fingers.
+	_turn_global(thumbs[0], Basis(_global[hand].basis.x.normalized(), thumb_out))
+	_curl(thumbs[0], hand, thumb)
+	# Round the hand's length, the thumb goes over the palm towards the little finger.
+	var over := _global[hand].basis.z.normalized().cross(_palm(hand)).normalized()
+	for joint in 3:
+		_turn_global(thumbs[joint], Basis(over, thumb_over * (0.5 if joint == 2 else 1.0)))
 	var out := {}
-	for each in fingers:
+	for each: int in fingers + thumbs:
 		out[each] = rotations[each]
 	return out
 

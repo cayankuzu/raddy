@@ -8,7 +8,7 @@ extends Node3D
 
 signal window_changed(side: int, open: bool)
 signal cans_changed(cans_left: int)
-## Host only: a throw was validated; RaceSession spawns the can.
+## Host only: a throw was validated and the hand lets go; RaceSession spawns the can.
 signal throw_approved(side: int)
 signal map_changed(state: int)
 ## The wind is about to take the map (true) or the danger passed (false).
@@ -120,6 +120,10 @@ var _seat_send := 0.0
 var _seat_heard: Dictionary = {RosterRules.Role.DRIVER: 0, RosterRules.Role.NAVIGATOR: 0}
 var _pane_closed: Array[Vector3] = []
 var _pane_sills: Array[Plane] = []
+## Host: seconds until the soles of a kick on its way meet the windshield (0: none), and the cans on their way out of a window, each
+## [side, seconds until the hand lets it go].
+var _kick_lands_in := 0.0
+var _throws: Array[Array] = []
 
 @onready var _window_meshes: Array[MeshInstance3D] = [$WindowLeft, $WindowRight]
 @onready var _windshield_mesh: MeshInstance3D = $Windshield
@@ -378,13 +382,14 @@ func _rpc_request_dome(on: bool) -> void:
 		_handle_dome_request(multiplayer.get_remote_sender_id(), on)
 
 
-## Only the navigator kicks the windshield out (spec §9.1); a solo driver may too.
+## Only the navigator kicks the windshield out (spec §9.1); a solo driver may too. The glass goes when the soles meet it (the bodies
+## show the kick, CrewRig), not as the legs come up.
 func _handle_kick_request(peer_id: int) -> void:
 	if Net.is_active() and not may_hold_map(peer_id):
 		return
-	if windshield == Windshield.REMOVED:
+	if windshield == Windshield.REMOVED or _kick_lands_in > 0.0:
 		return
-	_broadcast(_rpc_set_windshield, [Windshield.REMOVED])
+	_kick_lands_in = CrewRules.KICK_LANDS
 
 
 func _handle_wipers_request(peer_id: int, on: bool) -> void:
@@ -524,6 +529,7 @@ func _physics_process(delta: float) -> void:
 		return
 	for role in shock_immune_left:
 		shock_immune_left[role] = maxf(float(shock_immune_left[role]) - delta, 0.0)
+	_finish_deeds(delta)
 	_update_cabin_weather(delta)
 	if fainted[RosterRules.Role.NAVIGATOR] and map_state == MapState.OPEN and RosterRules.navigator_of(Net.roster, team) != 0:
 		_broadcast_map(MapState.CLOSED)  # the map slips out of unconscious hands
@@ -548,6 +554,19 @@ func _physics_process(delta: float) -> void:
 			_rpc_map_warning.rpc(warning)
 	if map_risk >= 1.0:
 		_lose_map(Side.RIGHT if window_open[Side.RIGHT] else Side.LEFT)
+
+
+## Host (or offline): what a seat set going comes about when the body's move gets there: the kicked windshield goes, a thrown can flies.
+func _finish_deeds(delta: float) -> void:
+	if _kick_lands_in > 0.0:
+		_kick_lands_in -= delta
+		if _kick_lands_in <= 0.0 and windshield != Windshield.REMOVED:
+			_broadcast(_rpc_set_windshield, [Windshield.REMOVED])
+	for i in range(_throws.size() - 1, -1, -1):
+		_throws[i][1] -= delta
+		if _throws[i][1] <= 0.0:
+			throw_approved.emit(_throws[i][0])
+			_throws.remove_at(i)
 
 
 ## The car's own impact signal: only where this peer both simulates the car and owns the cabin
@@ -636,7 +655,7 @@ func _handle_throw_request(peer_id: int, side: int) -> void:
 	if not window_open[side] or cans_left <= 0:
 		return  # closed window or empty glovebox: nothing happens (P2 adds the bounce)
 	_rpc_set_cans.rpc(cans_left - 1)
-	throw_approved.emit(side)
+	_throws.append([side, CrewRules.THROW_LEAVES])
 
 
 func _may_touch(peer_id: int) -> bool:
