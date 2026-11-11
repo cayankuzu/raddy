@@ -81,6 +81,9 @@ No Blender; model in Godot only as a last resort.
   when a feature is verified. `docs/GAME_DESIGN.md` is the design bible: pillars, the rules every phase builds against,
   the 9.8 quality bar; it records the decisions taken since the spec. `docs/ART_DIRECTION.md` and
   `docs/REFERENCE_RESEARCH.md` hold the research. `CHANGELOG.md` is for players, `TEST_PLAN.md` holds what only people can check.
+- `docs/phases/*.md` are the briefs of the phases still to build, in this order: A5b (`a5b_crew_look.md`), A9a (`a9a_perf.md`),
+  A7 (`a7_ui.md`), A8 (`a8_net.md`), A6 (`a6_chaos.md`), A9b and A10 (`a9_a10.md`). A phase's brief is its spec; what was done goes into
+  DEVELOPMENT_PLAN.
 
 ## Vehicle code (scripts/vehicles)
 - `RallyCar` (RigidBody3D) simulates in `_integrate_forces`: ray wheels cast by the car, spring/damper/bump stop,
