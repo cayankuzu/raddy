@@ -70,6 +70,7 @@ func build(seat_role: int, eye: Vector3, paint: Color) -> void:
 	_suit.material_override = _material
 	_suit.layers = GraphicsQuality.CABIN_LAYER
 	_suit.visibility_range_end = DRAW_RANGE
+	_suit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	pose = CrewPose.new(skeleton)
 	pose.sit(eye, BODY_SCALE, SEATS[role])
 	for bone in skeleton.get_bone_count():
@@ -84,6 +85,7 @@ func build(seat_role: int, eye: Vector3, paint: Color) -> void:
 	helmet.mesh = CrewHelmet.mesh()
 	helmet.layers = GraphicsQuality.CABIN_LAYER
 	helmet.visibility_range_end = DRAW_RANGE
+	helmet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	on_head.add_child(helmet)
 	harness = MeshInstance3D.new()
 	harness.name = "Harness"
@@ -92,6 +94,8 @@ func build(seat_role: int, eye: Vector3, paint: Color) -> void:
 	harness.material_override = _harness_material
 	harness.layers = GraphicsQuality.CABIN_LAYER
 	harness.visibility_range_end = DRAW_RANGE
+	# The webbing lies on what it would shade.
+	harness.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(harness)
 	# The harness is made in car space.
 	harness.transform = pose.to_car.affine_inverse()
@@ -169,6 +173,14 @@ static func _strap(tool: SurfaceTool, points: Array, low: Vector3, neck: Vector3
 		on.append(point)
 		faces.append((point - nearest).normalized())
 	CarRallyKit.strap(tool, on, faces, width, CarRallyKit.HARNESS)
+
+
+## The body and its helmet shade the cabin the local player sits in (`on`: their own arms on their knees, the partner beside them); a
+## rival's crew sits in the dark of its own bodywork, and each shadow would be a draw call in every shadow map the car is in.
+func cast_shadows(on: bool) -> void:
+	var casting := GeometryInstance3D.SHADOW_CASTING_SETTING_ON if on else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_suit.cast_shadow = casting
+	helmet.cast_shadow = casting
 
 
 ## The local player sits here (`own` true): their seat's camera, which leaves OWN_HEAD_LAYER out, sees no head; the mirrors do.

@@ -355,6 +355,7 @@ func seat_crew(role: int, seated: bool) -> void:
 	body.build(role, (car.get_node(NodePath(seat_camera(role))) as CockpitCamera).seat_position(), car.paint_color)
 	crew[role] = body
 	body.set_own(_seat != null and _seat.name == seat_camera(role))
+	body.cast_shadows(_seat != null)
 
 
 ## The name of a seat's camera.
@@ -364,13 +365,16 @@ static func seat_camera(role: int) -> StringName:
 
 ## The local player sits in this car behind `seat`: what only that player sees comes alive for that seat, on High its
 ## headlights cast shadows, and its glass is drawn after the dust beyond it (GLASS_PRIORITY). They see their own body but not their own
-## head (CrewBody.OWN_HEAD_LAYER).
+## head (CrewBody.OWN_HEAD_LAYER). Only this cabin's crew, cage and seats cast shadows.
 func bind_seat(seat: CockpitCamera) -> void:
 	_seat = seat
 	if seat != null:
 		seat.cull_mask &= ~CrewBody.OWN_HEAD_LAYER
 	for crew_role: int in crew:
 		(crew[crew_role] as CrewBody).set_own(seat != null and seat.name == seat_camera(crew_role))
+		(crew[crew_role] as CrewBody).cast_shadows(seat != null)
+	if rally_kit != null:
+		rally_kit.cast_shadows(seat != null)
 	if mirrors != null:
 		mirrors.bind_seat(seat)
 	if lamps != null:

@@ -101,6 +101,29 @@ func test_the_seat_holder_sees_no_head_of_their_own_but_the_mirrors_do() -> void
 	assert_ne(late.cull_mask & CrewBody.OWN_HEAD_LAYER, 0, "a seat nobody sits behind sees every head")
 
 
+func test_only_the_local_players_cabin_casts_shadows() -> void:
+	var off := GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var on := GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var kit := _model.rally_kit.get_node(^"Kit") as MeshInstance3D
+	_model.seat_crew(RosterRules.Role.DRIVER, true)
+	var driver: CrewBody = _model.crew[RosterRules.Role.DRIVER]
+	assert_eq(driver._suit.cast_shadow, off, "a car nobody here sits in: its crew shades nothing")
+	assert_eq(driver.helmet.cast_shadow, off)
+	assert_eq(kit.cast_shadow, off, "nor do its cage and seats")
+	_model.bind_seat(_camera(RosterRules.Role.NAVIGATOR))
+	_model.seat_crew(RosterRules.Role.NAVIGATOR, true)
+	for body: CrewBody in _model.crew.values():
+		assert_eq(body._suit.cast_shadow, on, "the local player's cabin: %s shades it" % body.name)
+		assert_eq(body.helmet.cast_shadow, on)
+		assert_eq(body.harness.cast_shadow, off, "the webbing lies on what it would shade")
+	assert_eq(kit.cast_shadow, on, "and so do the cage and the seats")
+	assert_eq(_loose_harness(RosterRules.Role.DRIVER).cast_shadow, off)
+	assert_eq((_model.livery.get_node(^"MudFlaps") as MeshInstance3D).cast_shadow, off, "the flaps hang in the body's shadow")
+	_model.bind_seat(null)
+	assert_eq(driver._suit.cast_shadow, off, "the seat left: nothing to shade for anyone")
+	assert_eq(kit.cast_shadow, off)
+
+
 func test_the_suit_knows_its_parts_from_the_bones() -> void:
 	assert_eq(CrewBody.bone_group("DEF-hand_L"), &"hand")
 	assert_eq(CrewBody.bone_group("DEF-f_index_01_R"), &"hand")

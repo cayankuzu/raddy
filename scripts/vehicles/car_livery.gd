@@ -77,6 +77,8 @@ func build(model: Node3D, dirt: CarDirt, car_space: Callable) -> void:
 	_flaps.name = "MudFlaps"
 	_flaps.mesh = flap_mesh()
 	_flaps.set_surface_override_material(0, dirt.skin_of(_flaps.mesh.surface_get_material(0) as StandardMaterial3D, Transform3D.IDENTITY))
+	# They hang in the shadow of the body and the wheels.
+	_flaps.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_flaps)
 
 

@@ -16,6 +16,11 @@ const STAND_OUT := 9.0
 const FLAG_STICK := Vector2(0.08, 0.62)
 const FLAG_HEIGHT := 0.22
 const STICK_RADIUS := 0.008
+## Where the body is thinned out for the distance, vertices whose normals differ by less than this (degrees) count as one.
+const LOD_MERGE := 25.0
+
+## Dev: no crowd at all (route_test --no-crowd, perf comparisons).
+static var off := false
 
 ## Each place: [MultiMeshInstance3D, its middle, how excited it is, how near a car is to look at].
 var _places: Array[Array] = []
@@ -28,7 +33,7 @@ static var _material: ShaderMaterial
 static func build(spots: Array, biome: int, stage_seed: int) -> Spectators:
 	var node := Spectators.new()
 	node.name = "Spectators"
-	var people := SpectatorRules.crowd(spots, biome, stage_seed)
+	var people := SpectatorRules.crowd(spots, biome, stage_seed) if not off else ([] as Array[Dictionary])
 	var by_place := {}
 	for person in people:
 		var place: Array = by_place.get(person.zone, [])
@@ -177,9 +182,13 @@ static func body_mesh() -> ArrayMesh:
 	baked[Mesh.ARRAY_CUSTOM1] = parts
 	baked[Mesh.ARRAY_INDEX] = indices
 	var custom := Mesh.ARRAY_CUSTOM_RGBA_FLOAT
-	_body = ArrayMesh.new()
-	_body.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, baked, [], {},
+	# Thinned out for a place seen from further off: the same vertices under fewer triangles, which the engine picks by how big the place
+	# is on the screen (a body is 13.7k triangles, a place eight bodies in the view and in each of the sun's shadow maps).
+	var thinned := ImporterMesh.new()
+	thinned.add_surface(Mesh.PRIMITIVE_TRIANGLES, baked, [], {}, null, "",
 		(custom << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) | (custom << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT))
+	thinned.generate_lods(LOD_MERGE, 0.0, [])
+	_body = thinned.get_mesh()
 	for side: int in [CrewPose.Side.LEFT, CrewPose.Side.RIGHT]:
 		var letter := "l" if side == CrewPose.Side.LEFT else "r"
 		_body.set_meta(StringName("shoulder_" + letter), pose.global_of(CrewPose.ARMS[side][1]).origin)

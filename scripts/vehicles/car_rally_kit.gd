@@ -77,13 +77,15 @@ const DRAW_RANGE := 60.0
 
 var material := ShaderMaterial.new()
 
+var _kit: MeshInstance3D
 var _loose: Dictionary = {}  # role -> the harness lying on that seat while it is empty
 
 
 func build(paint: Color) -> void:
 	material.shader = SHADER
 	set_paint(paint)
-	add_child(_part("Kit", kit_mesh()))
+	_kit = _part("Kit", kit_mesh())
+	add_child(_kit)
 	for role: int in SEAT_X:
 		_loose[role] = _part("LooseHarness%d" % role, loose_harness(role))
 		add_child(_loose[role])
@@ -96,7 +98,14 @@ func _part(part_name: String, mesh: Mesh) -> MeshInstance3D:
 	part.material_override = material
 	part.layers = GraphicsQuality.CABIN_LAYER
 	part.visibility_range_end = DRAW_RANGE
+	part.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return part
+
+
+## The cage and the seats shade the cabin the local player sits in (`on`); in any other car nobody sees their shadows under its roof, and
+## each would be a draw call in every shadow map the car is in. A harness lies on what it would shade.
+func cast_shadows(on: bool) -> void:
+	_kit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if on else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 ## Somebody sits in `role`'s seat (their harness is buckled over them, CrewBody) or it is empty (the harness lies on it).

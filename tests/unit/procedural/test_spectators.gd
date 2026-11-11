@@ -103,6 +103,16 @@ func test_one_draw_call_a_place_and_a_body_that_knows_what_moves_it() -> void:
 	assert_gt(flag, 0, "a flag's cloth to carry")
 	for joint: StringName in [&"shoulder_l", &"elbow_l", &"shoulder_r", &"elbow_r", &"neck"]:
 		assert_true(mesh.has_meta(joint), "the shader turns about %s" % joint)
+	# Thinned out for the distance: [the error it stands for (m), its indices (two bytes each)] a level.
+	var triangles := (arrays[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+	var lods: Array = ((mesh.get(&"_surfaces") as Array)[0] as Dictionary).lods
+	var levels := PackedStringArray()
+	for i in range(0, lods.size(), 2):
+		levels.append("%.0f mm %d" % [float(lods[i]) * 1000.0, (lods[i + 1] as PackedByteArray).size() / 6])
+	gut.p("%d triangles, thinned for the distance: %s" % [triangles, ", ".join(levels)])
+	assert_gte(lods.size() / 2, 5, "coarser cuts of the body for a place further off")
+	assert_lt(float(lods[0]), 0.005, "the first one a few millimetres off")
+	assert_lt((lods[5] as PackedByteArray).size() / 6, triangles / 6, "a place 20 m off draws a sixth of the triangles or fewer")
 
 
 func test_a_place_looks_at_the_car_and_cheers() -> void:

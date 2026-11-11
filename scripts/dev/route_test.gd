@@ -21,6 +21,7 @@ extends Node3D
 ##   --ride-follower the camera and the mirrors go to that second car
 ##   --no-road-fx    the cars throw nothing into the air (perf comparisons)
 ##   --no-light-pod  no light pod on the cars at dusk and at night (perf comparisons, the night before it)
+##   --no-crowd      nobody at the places for the crowd (perf comparisons)
 ##   --crew=driver+navigator  who sits in every car (the default: both), --crew=driver, --crew=navigator or --crew=none
 ##   --names=A+B     the crew's names lettered on every car's rear side windows (an underscore for a space; default: the seats' names)
 ##   --look=Y+P      the seat's head turned Y degrees left (negative: right) and P up, and held there (screenshots)
@@ -62,6 +63,7 @@ func _ready() -> void:
 	graph = StageBuilder.build(stage)
 	BiomeRules.apply_to_graph(graph, settings)
 	RoadFxPool.off = _args.has("no-road-fx")
+	Spectators.off = _args.has("no-crowd")
 	if _args.has("quality"):
 		GraphicsQuality.forced = int(_args["quality"])
 		GraphicsQuality.apply_viewport(get_tree().root, GraphicsQuality.forced)
