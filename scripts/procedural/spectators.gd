@@ -20,6 +20,13 @@ const STICK_RADIUS := 0.008
 const LOD_MERGE := 25.0
 ## The trousers come up to the belt (m, the mannequin standing: from all trousers to all shirt).
 const WAIST := Vector2(1.03, 1.07)
+## The face: the front of the head (the mannequin standing: further forward than this, between these heights). Its vertices tell the
+## shader where they are on it: UV = metres to the person's left and up from the middle of the face, plus FACE_UV (no other vertex of
+## the body has a UV that big).
+const FACE_FRONT := 0.03
+const FACE_HEIGHTS := Vector2(1.555, 1.78)
+const FACE_MIDDLE := 1.7
+const FACE_UV := 8.0
 
 ## Dev: no crowd at all (route_test --no-crowd, perf comparisons).
 static var off := false
@@ -124,8 +131,8 @@ static func material() -> ShaderMaterial:
 
 ## The mannequin standing (CrewPose.stand), skinned once into a plain mesh, and a flag on a stick in its right hand. Each vertex says what
 ## moves it (CUSTOM0: the weight of the left upper arm, the left forearm and hand, the right's; CUSTOM1: the head's, how much of it is
-## forearm (bare in short sleeves), the flag's cloth, its stick) and what it is (COLOR: skin, trousers, shoes, hair). The joints of the
-## standing pose are the mesh's meta.
+## forearm (bare in short sleeves), the flag's cloth, its stick), what it is (COLOR: skin, trousers, shoes, hair) and, on the face, where
+## (UV, face_uv). The joints of the standing pose are the mesh's meta.
 static func body_mesh() -> ArrayMesh:
 	if _body != null:
 		return _body
@@ -177,12 +184,14 @@ static func body_mesh() -> ArrayMesh:
 		arms.append_array(PackedFloat32Array(arm))
 		parts.append_array(PackedFloat32Array([head, forearm, 0.0, 0.0]))
 		# The suit's regions (CrewBody.suit_region) become clothes: gloves are bare hands, boots shoes, the balaclava a face under hair.
+		# The whole head is skin and the hair lies over it: where the two meet between vertices, the forehead blends into the hair, not
+		# into the shirt underneath both.
 		var region := regions[v]
 		var rest := vertices[v]
 		var hair := region.b * (1.0 if rest.y > 1.71 or (rest.z < -0.01 and rest.y > 1.6) else 0.0)
 		var legs := 1.0 - smoothstep(WAIST.x, WAIST.y, rest.y)
-		colours.append(Color(maxf(region.r, region.b - hair), legs * (1.0 - region.g), region.g, hair))
-		uvs.append(Vector2.ZERO)
+		colours.append(Color(maxf(region.r, region.b), legs * (1.0 - region.g), region.g, hair))
+		uvs.append(face_uv(rest) if head > 0.5 else Vector2.ZERO)
 	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	_add_flag(pose, skeleton, out_vertices, out_normals, arms, parts, colours, uvs, indices)
 	var baked := []
@@ -209,6 +218,13 @@ static func body_mesh() -> ArrayMesh:
 	_body.set_meta(&"neck", pose.global_of(CrewPose.HEAD).origin)
 	mannequin.free()
 	return _body
+
+
+## Where on the face a vertex of the head is (the mannequin standing at `rest`), as the shader takes it: zero off the face.
+static func face_uv(rest: Vector3) -> Vector2:
+	if rest.z < FACE_FRONT or rest.y < FACE_HEIGHTS.x or rest.y > FACE_HEIGHTS.y:
+		return Vector2.ZERO
+	return Vector2(rest.x + FACE_UV, rest.y - FACE_MIDDLE + FACE_UV)
 
 
 enum Group { UPPER_LEFT, FORE_LEFT, UPPER_RIGHT, FORE_RIGHT, HEAD, NECK, BODY }

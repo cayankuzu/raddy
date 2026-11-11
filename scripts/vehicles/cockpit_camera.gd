@@ -2,9 +2,9 @@ class_name CockpitCamera
 extends Camera3D
 ## A seat's first-person camera (spec §7.3): the head rides the car, leans with the G-forces,
 ## shakes with the road surface and with impacts, and the field of view opens with speed. The
-## mouse turns the head (free look, out of the side windows and back over the shoulder); the
-## driver's head also turns a little into corners and drifts back to the road when the mouse
-## rests. It follows the car's interpolated transform every frame, so it is smooth at any refresh
+## mouse turns the head (free look, out of the side windows, as far round as the seat's wings
+## let it); the driver's head also turns a little into corners and drifts back to the road when
+## the mouse rests. It follows the car's interpolated transform every frame, so it is smooth at any refresh
 ## rate. Shake, mouse sensitivity, inverted Y and the recentring follow the player's settings.
 ## The eyes rest where a rally crew sits (the cameras in rally_car.tscn): low, upright and close to the wheel.
 
@@ -24,8 +24,9 @@ const TRAUMA_DECAY := 1.6
 const ROUGH_FULL := 2.4
 ## Impact strength (m/s of velocity lost) that gives full trauma.
 const IMPACT_FULL := 14.0
-## How far the head turns (degrees): left/right and down/up.
-const LOOK_YAW := 120.0
+## How far the head turns (degrees): left/right and down/up. No further round than a helmet turns between a bucket seat's wings: past it
+## the wing by the head is all there is to see.
+const LOOK_YAW := 100.0
 const LOOK_PITCH_DOWN := 55.0
 const LOOK_PITCH_UP := 30.0
 ## Degrees per mouse pixel at sensitivity 0 and 1.

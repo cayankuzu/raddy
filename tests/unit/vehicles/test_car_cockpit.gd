@@ -593,8 +593,15 @@ func test_after_dark_the_lit_dials_glow_on_the_cabin() -> void:
 	assert_gt(glow.light_energy, 0.2)
 	assert_eq(glow.light_cull_mask & 1, 0, "the cabin and its crew only, nothing outside")
 	assert_ne(glow.light_cull_mask & GraphicsQuality.CABIN_LAYER, 0)
-	var wheel := _model.steering().origin
-	assert_lt(glow.position.distance_to(wheel), glow.omni_range * 0.5, "the wheel is well inside its reach")
+	var wheel := _model.steering()
+	assert_lt(glow.position.distance_to(wheel.origin), glow.omni_range * 0.5, "the wheel is well inside its reach")
+	assert_gt(glow.position.distance_to(wheel.origin), 0.12, "a hand's width from the hub: it does not light up like a lamp")
+	var hands: Array[float] = []
+	for hand: Vector3 in CrewBody.SEATS[RosterRules.Role.DRIVER].hands:
+		hands.append(glow.position.distance_to(hand))
+	gut.p("the dials' glow: %.2f m from the hub, %.2f and %.2f m from the hands at a quarter to three" % [glow.position.distance_to(wheel.origin), hands[0], hands[1]])
+	assert_almost_eq(hands[0], hands[1], 0.02, "both hands on the rim lit alike")
+	assert_gt(minf(hands[0], hands[1]), 0.2, "neither close enough to burn")
 	RaceLook.daylight = RaceLook.DAYLIGHT[RaceLook.DAY]
 	_steps(1)
 	assert_false(glow.visible, "by day the headlights' switch lights the dials, and nothing shows of their glow")

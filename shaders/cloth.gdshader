@@ -12,6 +12,9 @@ uniform float speed = 7.0;
 // The cloth in full sun stays the flag's own deep red through the tone mapper instead of paling to salmon.
 const float SUNLIT = 0.6;
 
+// In the hot band of a car's beams at night a flag burned past red to a white sheet in a red glow, the crescent and the star lost in it.
+#include "res://shaders/lamp_cap.gdshaderinc"
+
 void vertex() {
 	vec3 root = MODEL_MATRIX[3].xyz;
 	float phase = root.x * 1.73 + root.z * 2.31;
@@ -30,4 +33,9 @@ void fragment() {
 	ALBEDO = texture(cloth, UV).rgb * SUNLIT;
 	ROUGHNESS = 0.8;
 	BACKLIGHT = vec3(0.35);
+}
+
+void light() {
+	lamp_capped_light(LIGHT, VIEW, NORMAL, LIGHT_COLOR, ATTENUATION, LIGHT_IS_DIRECTIONAL, ALBEDO, METALLIC, ROUGHNESS, SPECULAR_AMOUNT, BACKLIGHT,
+		DIFFUSE_LIGHT, SPECULAR_LIGHT);
 }

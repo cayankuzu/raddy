@@ -5,7 +5,9 @@ shader_type spatial;
 // (INSTANCE_CUSTOM.r: arms down, arms crossed, hands on the hips, a flag of Turkey held up), turns to the car coming and cheers as it
 // passes (the place's `cheer`): arms up, clapping, a wave, the flag swung over the head; some jump. INSTANCE_CUSTOM.g is a seed of the
 // person's own, .b the clothes (SpectatorRules.outfit), .a the skin (light to dark). The mesh says what each vertex is (COLOR: skin,
-// trousers, shoes, hair; CUSTOM1.y how much of it is forearm, .z the flag's cloth, .w its stick).
+// trousers, shoes, hair; CUSTOM1.y how much of it is forearm, .z the flag's cloth, .w its stick) and where on the face it is (UV:
+// metres to the person's left and up from the middle of the face, plus FACE_UV; anything smaller is not the face): a face is drawn
+// there, eyes, the shadow under the nose and a mouth, enough for a head to be somebody's from the road.
 
 // The standing pose's joints (model space) and the flag's cloth.
 uniform vec3 shoulder_l;
@@ -30,6 +32,14 @@ const vec3 SHOES = vec3(0.04, 0.036, 0.032);
 const vec3 SKIN_LIGHT = vec3(0.72, 0.47, 0.33);
 const vec3 SKIN_DARK = vec3(0.28, 0.13, 0.07);
 const vec3 STICK = vec3(0.55, 0.45, 0.3);
+// Spectators.FACE_UV, and on the face (metres from its middle): the eyes (across, up, half their width and height), the shadow under
+// the nose and the mouth (up, half their width), how thick the lines are, the eyes' colour.
+const float FACE_UV = 8.0;
+const vec4 EYES = vec4(0.031, -0.012, 0.0085, 0.0055);
+const vec2 NOSE = vec2(-0.046, 0.009);
+const vec2 MOUTH = vec2(-0.076, 0.022);
+const float LINE = 0.0032;
+const vec3 EYE_DARK = vec3(0.035, 0.028, 0.022);
 
 varying vec4 region;
 varying float skin_tone;
@@ -159,6 +169,14 @@ void fragment() {
 	albedo = mix(albedo, SHOES, region.b);
 	albedo = mix(albedo, mix(SKIN_LIGHT, SKIN_DARK, skin_tone), bare);
 	albedo = mix(albedo, dress.z == 1 ? hats[dress.y] : hair[dress.y], region.a);
+	vec2 face = UV - FACE_UV;
+	if (min(face.x, face.y) > -0.12 && cloth + stick < 0.5) {
+		float eyes = 1.0 - smoothstep(0.8, 1.25, length(vec2((abs(face.x) - EYES.x) / EYES.z, (face.y - EYES.y) / EYES.w)));
+		float nose = (1.0 - smoothstep(LINE, LINE * 2.0, abs(face.y - NOSE.x))) * (1.0 - smoothstep(NOSE.y * 0.6, NOSE.y, abs(face.x)));
+		float mouth = (1.0 - smoothstep(LINE, LINE * 2.0, abs(face.y - MOUTH.x))) * (1.0 - smoothstep(MOUTH.y * 0.7, MOUTH.y, abs(face.x)));
+		albedo = mix(albedo, albedo * 0.5, max(mouth, nose * 0.6) * (1.0 - region.a));
+		albedo = mix(albedo, EYE_DARK, eyes * (1.0 - region.a));
+	}
 	albedo = mix(albedo, texture(flag_cloth, UV).rgb, cloth);
 	albedo = mix(albedo, STICK, stick);
 	ALBEDO = albedo;

@@ -106,6 +106,24 @@ func test_one_draw_call_a_place_and_a_body_that_knows_what_moves_it() -> void:
 	assert_between(top, 1.75, 1.9, "standing")
 	assert_lt(lowest_hand, 0.95, "the arms hang by the sides")
 	assert_gt(flag, 0, "a flag's cloth to carry")
+	# The front of the head says where on the face it is (the shader draws the eyes, the nose's shadow and the mouth there); the hair lies
+	# over skin, so the forehead blends into it and not into the shirt.
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var face := 0
+	var off_the_head := 0
+	var hair_over_cloth := 0
+	for v in vertices.size():
+		if uvs[v].x > Spectators.FACE_UV - 1.0:
+			face += 1
+			if vertices[v].y < Spectators.FACE_HEIGHTS.x - 0.01 or vertices[v].y > Spectators.FACE_HEIGHTS.y + 0.01 or vertices[v].z < 0.0:
+				off_the_head += 1
+		if colours[v].a > colours[v].r + 0.001:
+			hair_over_cloth += 1
+	gut.p("%d vertices of the face" % face)
+	assert_gt(face, 50, "a face")
+	assert_eq(off_the_head, 0, "on the front of the head only")
+	assert_eq(hair_over_cloth, 0, "skin under the hair")
 	for joint: StringName in [&"shoulder_l", &"elbow_l", &"shoulder_r", &"elbow_r", &"neck"]:
 		assert_true(mesh.has_meta(joint), "the shader turns about %s" % joint)
 	# Thinned out for the distance: [the error it stands for (m), its indices (two bytes each)] a level.

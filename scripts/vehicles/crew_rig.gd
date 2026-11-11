@@ -101,10 +101,10 @@ const KICK_KNEE := Vector3(0.0, 1.0, -0.2)
 const SWAY_LOOSENESS := {RosterRules.Role.DRIVER: 1.0, RosterRules.Role.NAVIGATOR: 1.3}
 const SWAY_NOD := 0.6
 ## The chest takes this share of a turn of the head (the harness holds it), the neck these (yaw, pitch); the head turns the rest. How far a
-## head turns at most (degrees: either side, down, up).
+## head turns at most (degrees: either side, as far as the seat's camera does; down, up).
 const CHEST_TURN := 0.06
 const NECK_TURN := Vector2(0.35, 0.4)
-const HEAD_LIMITS := Vector3(110.0, -60.0, 35.0)
+const HEAD_LIMITS := Vector3(CockpitCamera.LOOK_YAW, -60.0, 35.0)
 ## Out cold: the head drops to the chest and towards the door (degrees round, down), the back sags forward and to the door in the harness
 ## (degrees), over this long (s); waking takes longer.
 const SLUMP_HEAD := Vector2(22.0, -58.0)

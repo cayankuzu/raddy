@@ -16,6 +16,9 @@ const float BOLT_RADIUS = 0.016;
 const float POST_BOLT_RADIUS = 0.024;
 const float SPLICE_REACH = 0.11;
 
+// The zinc a few metres ahead in the hot band of a car's beams at night burned to a white flare that hid the road beyond the corner.
+#include "res://shaders/lamp_cap.gdshaderinc"
+
 float bolt_at(vec2 metres, vec2 centre, float radius) {
 	return 1.0 - smoothstep(radius - 0.003, radius + 0.002, length(metres - centre));
 }
@@ -91,4 +94,9 @@ void fragment() {
 	METALLIC = metallic;
 	AO = 1.0 - (1.0 - ridge) * 0.35 - bolts * 0.1;
 	AO_LIGHT_AFFECT = 0.5;
+}
+
+void light() {
+	lamp_capped_light(LIGHT, VIEW, NORMAL, LIGHT_COLOR, ATTENUATION, LIGHT_IS_DIRECTIONAL, ALBEDO, METALLIC, ROUGHNESS, SPECULAR_AMOUNT, vec3(0.0),
+		DIFFUSE_LIGHT, SPECULAR_LIGHT);
 }

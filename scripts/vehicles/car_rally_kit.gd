@@ -204,12 +204,12 @@ static func _seat(role: int) -> ArrayMesh:
 
 
 ## A triangle of a seat, its front where its corners wind counter-clockwise (the rings run so that it is outwards); no normal: they are
-## made smooth after.
+## made smooth after. The fabric says so (UV.x 1): the shader weaves it.
 static func _seat_triangle(tool: SurfaceTool, corners: Array, part: Array) -> void:
 	for i: int in [0, 2, 1]:
 		tool.set_color(part[0])
 		tool.set_uv2(Vector2(part[1], part[2]))
-		tool.set_uv(Vector2.ZERO)
+		tool.set_uv(Vector2(1.0 if part == FABRIC else 0.0, 0.0))
 		tool.add_vertex(corners[i])
 
 

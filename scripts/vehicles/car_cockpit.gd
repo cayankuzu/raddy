@@ -17,8 +17,9 @@ const PANEL_LIFT := 0.0025
 const PANEL_SHADER := preload("res://shaders/gauge_panel.gdshader")
 const PANEL_FACE := preload("res://assets/vehicles/milano95/gauge_face.png")
 ## After dark the lit dials glow on what is in the cabin (the hands on the wheel, a hand raised in a gesture, the crew's suits): a faint
-## amber light this far in front of the panel, this strong in full darkness, reaching this far.
-const GLOW_OUT := 0.14
+## amber light this far in front of the panel's middle, behind the wheel's hub and as far from either hand on the rim (nearer to any of
+## them, it made a lamp of it), this strong in full darkness, reaching this far.
+const GLOW_OUT := 0.06
 const GLOW_ENERGY := 0.35
 const GLOW_RANGE := 1.25
 ## Pedals swing on arms from under the dash: the hinge above a pad, where they are let go and pressed down
