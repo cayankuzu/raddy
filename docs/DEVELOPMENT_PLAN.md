@@ -683,13 +683,14 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     peer as on the peer that simulates the car (2 s windows, to the side: at 14.3 m/s a mean of 3.30 degrees against 3.44, at most 8.79
     against 8.92, changing 23.5 degrees a second against 26.8; at 17.4 m/s 2.78 / 7.02 against 2.55 / 7.02). No whip, nothing lost.
   - Looked at (`reports/screenshots/a5_check/`, High, 1600 x 900): both seats by day, at dusk and at night with the dome lamp off and on;
-    the cage from both seats and in the interior mirror (it frames the rear window there, the road and the car behind stay in sight, none
-    of it in the windshield's view); the trip meter from the navigator's seat; each seat's four signs from the other by day, at dusk and
-    at night; the held map and its notes; a rival's crew from behind and through the side windows; the crowd close up and cheering a car
-    going by; the flags in the beams at night (red, the crescent and the star); the pod at night from the seat and from outside.
+    the cage from both seats and in the interior mirror (it frames the rear window there, the road and the car behind stay in sight; through
+    the windshield only the foam on the A pillars shows, at its edges); the trip meter from the navigator's seat; each seat's four signs
+    from the other by day, at dusk and at night; the held map and its notes; a rival's crew from behind and through the side windows; the
+    crowd close up and cheering a car going by; the flags in the beams at night (red, the crescent and the star); the pod at night from the
+    seat and from outside; the real race from the main menu (`--flow-test`), from the driver's seat with the empty seat beside it.
   - Fixed: a flat hand (the chop for straight on, the pat for slow down, the horn) kept the mannequin's rest thumb, 27 degrees out of the
-    hand's plane towards the palm: from the other seat it hung under the patting hand like a broken finger and stood up off the chop. It lies along the
-    index finger now, 5 degrees off the hand's plane (tested for both flat signs of both seats).
+    hand's plane towards the palm: from the other seat it hung under the patting hand like a broken finger and stood up off the chop. It
+    lies along the index finger now, 5 degrees off the hand's plane (tested for both flat signs of both seats).
   - Known and left: from the navigator's seat at night without the dome lamp the driver's signs are dim shapes (`TEST_PLAN.md`); the thumb
     for the side away from the partner rests 58 degrees up, near a thumbs-up, and reads as a way only as it jerks to 32 (people judge it
     with the hand signals on `TEST_PLAN.md`); the trip meter's display stays blank until A7 prints its numbers; from outside at night a
