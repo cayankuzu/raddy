@@ -48,12 +48,20 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | Hand signals in a real race: readable from the other seat at a glance and in motion (pointing away from the partner sweeps back into their sight), and whether a silent crew can run a stage on them | to do |
 | The crew's hands and heads in a real race: on the wheel through quick corrections and at full lock (the rim slides through them past the arms' reach), the gear and handbrake hand, the map's grip from both seats, heads that follow their players smoothly over the network | to do |
 | One-handed steering while signalling, winding the window, flicking the wipers or pressing the horn: a fair price, never annoying | to do |
+| The partner's head swinging with the car (out of a corner, nodding under braking, a jolt on a hit): alive, never restless or sickening beside you | to do |
+| The livery: the number and the names read from the car behind, at the start and in the results' team colours, clean and filthy, in every team colour | to do |
+| The crowd: people worth having by the road from the grid and at speed (the crew's mannequin in plain clothes, no faces up close), their cheer as a car goes by, at dusk, at night and in snow | to do |
+| What three crews cost on a mid-range PC (dev laptop, Medium: about 1 ms a frame, `tools\perf.ps1 -ExtraArgs "--follower=14+28,--flip-crew=0.5"`) | to do |
 | Windows SmartScreen first run on a clean PC | to do |
 
 ## Known issues and gaps
 - No relay for players behind carrier-grade NAT (Radmin VPN workaround); no reconnect; host loss ends the room.
 - The crew's short motions (winding a window, the wipers' stalk, a throw, the kick) are placed by eye: the model has no door winders or stalks to
-  aim at, and the kick's feet pass through the dash's underside for a moment.
+  aim at.
+- The crew and the crowd are Quaternius's mannequin: its facets show from the other seat, a spectator has no face. A real helmet and
+  character models wait for a free source the owner approves.
+- The trip meter is a black box against the black A pillar until A7 lights its display with numbers.
+- From outside at night a car's own headlights are flat white glass beside the glowing lamps of its light pod.
 - The dev laptop has a ~8 ms per-frame floor even for an empty scene (hybrid graphics); frame
   rates measured there understate other PCs.
 - Vulkan is not usable on the dev laptop (17 fps on an empty scene); the project pins D3D12.

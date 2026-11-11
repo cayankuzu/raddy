@@ -37,8 +37,12 @@ No Blender; model in Godot only as a last resort.
   foreground call may (about 20 min with -AllStages): run its steps one by one or in the background.
 - `tools\perf.ps1 [-Stage 0] [-Quality 1] [-Seconds 30] [-Start 0] [-ExtraArgs "--a,--b"]`: the bot drives, windowed at 1920x1080, vsync off
   (`tools/perf_probe.gd`): build ms, then `PERF fps_avg p95_ms p99_ms draw_calls primitives physics_ms` lines; its cpu/gpu render
-  times read 0 here. This PC's fps wander run to run: compare alternating runs, never one run each; `--flip-road-fx=S` shows and hides
-  what the cars throw into the air every S seconds of one run (`FLIP shown_ms hidden_ms cost_ms`).
+  times read 0 here. This PC's fps wander run to run by more than most things cost (alternating runs of two commits told nothing about A5's
+  millisecond): measure a thing inside one run. `--flip-<what>=S` shows and hides it every S seconds (0.5 is good) and prints `FLIP <what> nodes
+  shown_ms hidden_ms cost_ms median_cost_ms work_cost_ms` (the last is the share spent before the draw, in scripts and skeletons, steady to
+  0.03 ms; `cost_ms` wanders by 0.3 ms and more from run to run, so run it twice): `road-fx` (what the cars throw into the air), `marks`, `crew`
+  (the bodies and their rigs), `crew-motion` (the rigs only), `kit`, `livery`, `pod`, `crowd`. The probe is compiled before the autoloads exist:
+  it may name no class of the game that leans on one (`Net`, `Settings`), it finds nodes by `find_children("*", "<class>")`.
 - `tools\fx_probe.ps1 -At "22+30" [-Stage 0] [-Quality 1] [-Weather 0] [-Tag now] [-ExtraArgs "--follower=9,--follower-delay=2,--ride-follower"]`: at those
   seconds of game time the same frame with and without the cloud into `reports\screenshots\fx\<Tag>\`, and `FXPROBE` lines with how much of the road ahead it hides.
   `-ExtraArgs "--glass-dirt=0.35+0.7+1"` measures the windshield's dirt instead (clean glass against each level, `GLASSPROBE` lines; A3's balance and
@@ -59,7 +63,8 @@ No Blender; model in Godot only as a last resort.
   covered (PrintWindow); use it for multi-window visual checks since Beckett sees one game only.
 - `tools\screenshot.ps1 -Scene res://x.tscn -Frames 120 -Out reports\screenshots\x.png [-ExtraArgs "--a,--b"]`:
   Movie Maker capture; open the PNG with Read. The PNG has the project viewport size; `-Resolution` only
-  sizes the window. 60 movie frames = 1 s of game time.
+  sizes the window. 60 movie frames = 1 s of game time. A dev scene draws at the player's graphics level, and Auto is Low on this PC
+  (no glow, no SSAO, flat fog): pass `--quality=2` to judge a look.
 - The main scene is `scenes/ui/main_menu.tscn`. Screenshots of a running room or race: `screenshot.ps1 -Scene
   res://scenes/ui/main_menu.tscn -ExtraArgs "--flow-test,--role=server,--players=1,--autodrive"`.
 - `tools\export_windows.ps1 [-Debug]`: `builds\windows\RADDY.exe` via the "Windows Desktop" preset.
@@ -161,11 +166,15 @@ No Blender; model in Godot only as a last resort.
   UAL1's without its clips, `tools/make_crew_mannequin.gd`; bones `DEF-*`, the dots imported as `_`) posed in code: `CrewPose` (pure, tested) puts
   the eyes on the seat's camera (`seat_position`), the pelvis and back reclined, the head upright, the legs and arms as two-bone chains to
   `CrewBody.SEATS` (driver: clutch and throttle, the wheel at a quarter to three; navigator: the floor, hands on the thighs). The suit
-  (`shaders/crew_suit.gdshader`, one surface for both of the mannequin's, normals smoothed): vertex COLOR r glove, g boot, b head; UV2 the
-  stripe's angle round a limb (`CrewBody.suit_region`, `stripe_coordinate`, by bone groups). The helmet (`CrewHelmet.mesh()`, the one place a
+  (`shaders/crew_suit.gdshader`, one surface for both of the mannequin's, normals smoothed): vertex COLOR r glove, g boot, b head; UV2 how far
+  a vertex is from a stripe's line (metres) and whether one runs there (`CrewBody.suit_region`, `stripe_coordinate`, by bone groups: straight
+  bands of one width along the arms, the legs and the flanks; none over a shoulder or a hip, where the mannequin's limbs end in balls that
+  turn out of the body as it sits and a player looks at their own shoulder from a hand's width). The helmet (`CrewHelmet.mesh()`, the one place a
   real model would replace, on a `BoneAttachment3D` at the head) and the harness (`CrewBody.harness_mesh`, buckled over the pose) take the
   team colour. Own head: `CarModel.bind_seat` takes `CrewBody.OWN_HEAD_LAYER` (1 << 13) out of the seat camera's mask; that body's helmet
   sits on that layer and its suit folds the head away for a camera without it (`CAMERA_VISIBLE_LAYERS`); the mirrors keep it.
+  Only the cabin the local player sits in casts shadows of its crew, cage and seats (`bind_seat` → `CrewBody.cast_shadows`,
+  `CarRallyKit.cast_shadows`): in a rival's nobody sees them, and each was a draw call in every shadow map; a harness and the mud flaps never do.
   `route_test --crew=driver+navigator|driver|navigator|none` (default both, every car), `--look=Y+P` holds the head turned (screenshots).
 - What a crew member does (`CrewRig`, built by each `CrewBody` in a car, every peer): Godot's skeleton modifiers on the mannequin (`TwoBoneIK3D` arms
   to goal nodes the rig sets in car space each frame, `CopyTransformModifier3D` gives each hand its goal's turn, `LookAtModifier3D` the head, a
@@ -177,15 +186,26 @@ No Blender; model in Godot only as a last resort.
   `RaceSession._seen_from`), the window's winder, the wipers' stalk, the horn, the handbrake (`CarCockpit.handbrake_grip`) and a gear change
   (`lever_knob`, from each peer's gearbox); the navigator's rest on the lap, hold the open map by its edges (`PaperMap.hold`), the gun, throw, wind.
   Gestures with the hand nearer the partner, just past the car's middle where the partner sees them without turning (tested). Out cold it slumps,
-  a shock (`Cabin.shocked`) shakes it. Only a crew someone can see moves: the local player's car's always, another's on the screen within
-  `CrewBody.DRAW_RANGE` or within `MIRROR_RANGE` 10 m; otherwise the modifiers are off and the skeleton does nothing (three crews cost about
-  0.4-0.8 ms on Medium). `route_test --crew-look=R+Y+P --gesture=R+G --aim=R --job=R+J+T --faint=R+T --shock=R+T --steer=S --handbrake
+  a shock (`Cabin.shocked`) shakes it. The harness holds the body, the neck gives to the car (`CrewSway`, pure, tested: a corner tilts the head
+  out of it by 6.5 degrees a g, braking nods it, a hit jolts it, 15 degrees at most, the navigator's neck the looser; each peer works it out from
+  where it sees the car on its physics ticks, never sent). Only a crew someone can see moves: the local player's car's always, another's on the
+  screen within `CrewBody.DRAW_RANGE` or within `MIRROR_RANGE` 10 m; otherwise the modifiers are off and the skeleton does nothing. Three crews
+  cost about 0.7-0.8 ms a frame on Medium by day (`perf.ps1 --flip-crew`): 0.3 of it the rigs' scripts and skeletons (0.07 ms a moving body),
+  the rest some thirty draw calls. `route_test --crew-look=R+Y+P --gesture=R+G --aim=R --job=R+J+T --faint=R+T --shock=R+T --steer=S --handbrake
   --windows-open` pose them for screenshots.
 - `CarRallyKit` (one mesh, one draw call, `shaders/cabin_kit.gdshader`, parts by vertex like the pod): roll cage (black foam on the A pillars and
   round the heads, the main hoop at z 0.43 behind the seats), bucket seats swept along `SEAT_PROFILE` round the bodies (`seat_surface` is the
   fabric's surface; `CarParts` cuts the road seats, their buckles and the rear bench away), a trip meter by the navigator's A pillar
   (`trip_display()` for A7's numbers), a fire extinguisher; `strap`/`buckle` make harness webbing, a loose harness lies on an empty seat
   (`seat_taken`).
+- Livery (`CarLivery`, child of the `CarModel`; `LiveryRules`, pure, tested): every car is lettered for its crew on every peer
+  (`RaceSession._seat_crew` → `livery.show_crew(number, names)`: the team's number, the names of the seats players hold, the driver's first, in
+  capitals the way the locale writes them, 20 letters at most). One picture drawn in code (`draw_picture`, 1024x512; the text through the
+  TextServer's glyph cache, which works headless): a panel on each front door and the rally plate on the bonnet are printed on the paint's own
+  skins (`car_body.gdshader`: `livery_map`, `door_box`, `plate_box`; no draw call, `CarDirt` covers them like paint), the names after a small flag
+  of Turkey on the rear side windows and the number on the rear window are vinyl on the glass's own triangles (`sticker_mesh`,
+  `shaders/car_sticker.gdshader`, one draw call), a mud flap hangs behind each wheel (one mesh, a `CarDirt` skin). The event's name is
+  `LIVERY_EVENT` in the strings; no maker's logo anywhere. `route_test --names=A+B` (an underscore for a space).
 - Mirrors: `CarMirrors` on every car, plain glass until `CarModel.bind_seat(camera)` (local seat only, never
   headless). Each mirror is a `SubViewport` + camera at the eye reflected in the glass, frustum fitted to the glass
   (`MirrorMath`, tested against the engine's projection; the picture is flipped by the display, `mirror_glass.gdshader`).
@@ -308,7 +328,7 @@ No Blender; model in Godot only as a last resort.
   control, start, split boards, finish warning, finish, STOP, end bales, chevrons on every hairpin and caution corner except where
   a wrong way leaves it, caution boards, a bale before each rail, tape, flags, parked cars, seats, `spot`s for
   people); `build()` makes `Features/Rally` (batched by mesh, one chunk per place; `Props` collides; meta
-  `spectator_spots` for A5), `clearings()` is where `RoadsideDresser` plants nothing tall (a place's ribs, the road's end,
+  `spectator_spots`, where `Spectators` stands its people), `clearings()` is where `RoadsideDresser` plants nothing tall (a place's ribs, the road's end,
   the view onto each board; `bare` capsules: the footprints of what stands there, not even grass). `RallyProps` is how it
   looks: generated signs, straw and tape
   (`shaders/board.gdshader`, `cloth.gdshader`), Poly Haven seats and covered car, the Milano '95 as an ordinary car.
@@ -316,6 +336,15 @@ No Blender; model in Godot only as a last resort.
   cliff, beside a wrong way or under an event; `Sightline.screens` opens the side, 10 m past the segment) and `crowd`
   features `StageBuilder` adds on both sides of the start and finish lines. The forest also closes the view past the
   road's end.
+- Spectators (`Spectators`, built by `TrackFeatures` at the `spectator_spots`; `SpectatorRules`, pure, tested, the same crowd on every peer from
+  the stage's seed): 4-8 people a place, 1.6 m apart or more, the crew's mannequin baked standing (`CrewPose.stand`) with what its bones weigh on
+  each vertex (CUSTOM0/1), one MultiMesh and one draw call a place (a MultiMesh cannot share a skeleton). `shaders/spectator.gdshader` turns the
+  arms and the head about the standing pose's joints: four ways of standing (arms down, crossed, hands on the hips, a small flag of Turkey held
+  up), the head to the nearest car, clothes for the biome by index (`outfit`; the trousers come up to `WAIST`). A place cheers a car going by
+  (`thrill(distance, speed)`: within 70 m and faster than 2 m/s; `cheer` comes within half a second and goes in three), a car standing on the grid
+  or stuck gets their eyes only; each peer works it out from how it sees the cars move (`RallyCar.GROUP`), never sent. The body carries levels
+  of detail (`ImporterMesh.generate_lods`: 13.7k triangles, 3.4k from about 10 m and 0.9k from 40 m at 1080p, the error under a pixel; a
+  MultiMesh picks one for the whole place); on `FINE_SCENERY_LAYER` (not in the mirrors), drawn to 160 m. `route_test --no-crowd`.
 - Stage events: `StageEventBuilder` (from `TrackFeatures`) puts `Event<n>` bodies with a trigger area
   before the spot (a fir that falls across the road, rocks off a bank); `StageEvents` (child of the race)
   lets the host decide and every peer play it (`_rpc_stage_event`); boulders are host-simulated props like
@@ -326,7 +355,7 @@ No Blender; model in Godot only as a last resort.
   `--autodrive`, tests, flow-test bots (which also confirm their own recovery offers). `RaceProgress` is the host's gate accounting.
 - Dev scene `scenes/dev/route_test.tscn`: `--stage=N|id --start=M --autodrive --chase --overview --weather=N --quality=N --follower=D --follower-delay=S --ride-follower --chips=N --no-road-fx`
   (forces the whole graphics level) `--time=0..3 --dome --follower=D` (a second car D m behind, for the mirrors; `--follower=14+28` three crews)
-  `--no-light-pod --crew=... --look=Y+P` and the crew's poses (see the crew above); it has the
+  `--no-light-pod --no-crowd --names=A+B --crew=... --look=Y+P` and the crew's poses (see the crew above); it has the
   race's weather particles (`WeatherFx`)
   `--view=M+E+H [--view-at=M+E+H]` (a fixed camera E m right of road metre M, H m up) `--quit-after-seconds=N`.
   `RaceSession.settings.stage` builds the same stage on every peer.

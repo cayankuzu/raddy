@@ -18,6 +18,14 @@
   higher. The visors come further down for a low sun.
 - **A rally car's cabin:** a roll cage with foam where a head could hit it, bucket seats, a trip meter in front of the navigator and
   a fire extinguisher; the rear seat is gone.
+- **Heads that feel the car:** the harness holds the crew in their seats and their necks give: your partner's helmet leans out of a
+  corner, nods under braking and jolts on a landing or a hit. The navigator's kick now goes over the dashboard, soles to the glass.
+- **A rally car's livery:** every car carries its crew's number on a panel on each front door, on a rally plate on the bonnet and on
+  the rear window, the crew's names after a small flag of Turkey on the rear side windows, and a mud flap behind each wheel. The road
+  covers all of it as it covers the paint.
+- **A crowd at the stages:** people stand behind the tape at the start, at the finish and at the places for spectators, dressed for
+  the weather (t-shirts and caps in the desert, jackets and beanies in the mountains), some with a small flag of Turkey. They watch a
+  car come, cheer, clap, wave and jump as it goes by, and settle when it has gone; a car standing still gets their eyes and no more.
 - **Times of day:** the room picks day, golden hour, dusk, night or Random, like the weather. The golden hour is a low warm
   sun you drive into (the visors come down). Dusk is the blue hour: the sun has set, the sky still burns orange and violet
   and the land lies in its blue light, the road readable before the headlights reach it. At night there is a cold moon and stars on a clear night and nothing at all under clouds: you see only what

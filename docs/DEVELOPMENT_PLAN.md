@@ -558,3 +558,66 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     moment; a thumbs-up gesture; leaning in corners and on hits (item 4).
   Verified: 499 GUT tests (12462 asserts), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1` (2:11.2 / 2:17.5, 16.9 / 16.1 m/s), no
   script or engine error in their logs.
+
+- 2026-11-11: A5 items 4 (heads that swing with the car), 9 (the livery), 7 (the crowd), 6 (what the phase costs) and the final look: DONE.
+  Phase A5 is complete.
+  - Heads that swing (`CrewSway`, pure; `CrewRig` feeds it the car's place on every physics tick, its own or a snapshot's, nothing is sent): the
+    harness holds the body to the seat and the neck gives: 6.5 degrees out of a 1 g corner (8.45 for the navigator, who holds on to nothing), a
+    nod of 3.6 degrees under 0.8 g of braking, 7.4 when the car stops dead from 20 m/s and upright again within 2.5 s; 15 degrees at most,
+    nothing from a recovery's jump. The navigator's kick slides the feet back out from under the dash, up behind its edge and over it onto the
+    glass, soles first (the toes up to 0.62 m, 0 crossings of the dash in 118 frames, tested); the hands ride the thighs meanwhile.
+  - The livery (`CarLivery`, `LiveryRules`, `shaders/car_sticker.gdshader`): every car is lettered for its crew on every peer from the roster
+    (`RaceSession._seat_crew`): the team's number on a white panel on each front door (62 x 30 cm, the event's name on a black band over a
+    stripe of the team colour) and on the rally plate on the bonnet (42 x 20 cm), printed on the paint's own skins, so they cost no draw call
+    and the road covers them as it covers the paint; the crew's names, the driver's first, each after a small flag of Turkey on the rear side
+    windows (40 x 13 cm; capitals the way the locale writes them, i to İ in Turkish; 20 letters at most) and the number at the top of the rear
+    window, white vinyl on the glass's own triangles (one draw call); a mud flap behind each wheel with the game's name (one mesh, a `CarDirt`
+    skin). One 1024 x 512 picture a car, drawn in code through the TextServer's glyph cache (it works headless) at 880 pixels a metre; no
+    maker's logo anywhere.
+  - The crowd (`Spectators`, `SpectatorRules`, `shaders/spectator.gdshader`): people at RallyDressing's places, the same on every peer from the
+    stage's seed: 55 at 7 places on Black Pine, 46 at 6 on Red Canyon, 4-8 a place and 1.6 m apart. The crew's mannequin baked standing with
+    what its bones weigh on each vertex, one MultiMesh and one draw call a place; the shader turns the arms and the heads about the standing
+    pose's joints: arms down, crossed, hands on the hips or a small flag of Turkey held up; clothes for the biome (long sleeves on 0.23 of the
+    desert's crowd and on all of the mountains', caps and beanies). Heads turn to the nearest car within 140 m; a place cheers a car going by
+    within 70 m (arms up, clapping, a wave, the flag swung overhead, some jump) and is back to 0.65 a second after it has gone.
+  - Cost (item 6). Two commits against each other say nothing on this PC: the phase's base against its head, alternating, read 39.2 / 28.5 fps
+    against 32.6 / 30.4 (another program's load moves a run by 10 fps; the 2-3 ms read off such runs before was inside that). So
+    `tools/perf_probe.gd` now shows and hides one thing every half second inside one run (`--flip-crew`, `--flip-crew-motion`, `--flip-kit`,
+    `--flip-livery`, `--flip-pod`, `--flip-crowd` beside `road-fx` and `marks`) and gives the mean frame time either way and the share spent
+    before the draw (every node's `_process`, the skeletons, the deferred calls: `work_cost_ms`, steady to 0.03 ms). Medium, Black Pine, three
+    crews (`--follower=14+28`), 70 s runs, frame cost (of which before the draw): from the lead car the crews 0.71 ms (0.29), their motion
+    alone 0.36 (0.30), the cage and seats -0.44 (-0.01), the livery -0.17 (-0.02), the crowd 0.19 (0.03), a flip of nothing -0.25 (-0.01);
+    riding the second car, another crew moving ahead, the crews 0.79 (0.34), their motion 0.61 (0.35), nothing -0.34 (-0.03); at night the
+    crews 1.14 (0.37) and the pod with its beam 1.07 (it took the place of A4's second headlight beam). So a flip of nothing reads up to a
+    third of a millisecond: only the crews cost anything that can be measured, 0.7-0.8 ms by day, and the phase stays under the 1.5 ms it
+    was allowed.
+  - Where the crews' cost goes: the rigs' scripts and the skeletons 0.2-0.35 ms (0.07 ms a moving body, 0.01 a resting one; all of the game's
+    scripts together take 0.9 ms a frame), re-skinning nothing that can be measured (twenty bodies re-posed every frame in an empty scene:
+    within 0.02 ms a body), the rest draw calls: 26-32 of 870 on Medium, 44 of 1120 on High for three crews standing at the start.
+  - Cut: only the cabin the local player sits in casts shadows of its crew, cage and seats, a harness and a mud flap never (nobody sees them
+    under a rival's roof, and each was a draw call in every shadow map the car is in): with three cars at the start 868 -> 862 draw calls on
+    Medium from the lead car, 873 -> 863 riding the second, 1119 -> 1093 on High. The spectators' body carries levels of detail
+    (`ImporterMesh.generate_lods`: 13756 triangles, 6878 within 3 mm, 3438 within 10 mm, 1718 within 21 mm, 858 within 40 mm; the engine
+    picks one for a whole place by the error's size on the screen, under a pixel): the start's two places were 0.62 M triangles in the view
+    and the sun's shadow maps on Medium (0.83 M on High), now 0.015 M (0.03 M); with and without it 0.02-0.14 % of a picture's pixels
+    differ, all on the people's outlines.
+  - The final look (`reports/screenshots/a5_final/`, and `high/` on High: a dev scene draws at the player's level and Auto is Low on this PC,
+    so the phase's earlier pictures were Low's): the driver looking at the navigator with the map open, the navigator looking at the driver's
+    hands on the wheel, a fainted driver from the other seat and through the windshield, a pointing navigator at a glance and looked at, a
+    pointing driver, the car through its side window, a rival from the seat behind and from in front, the framing from both seats, the cage
+    and both helmets in the interior mirror, the livery from all sides, from a follower in its dust and under 0.85 dust and 0.45 mud, the pod
+    at night from both seats and from outside at night and at dusk, the crowd as a car goes by in the forest, the desert and in snow, from
+    beside the road and from the seat. Fixed on the way:
+    the suit's stripes were measured as angles round a limb and came out as ragged wedges where the mannequin's joints fold (a white fan on
+    the hip, and from the own seat a saw-toothed patch on the own shoulder a hand's width from the eye): they are now measured in metres,
+    straight bands of 3 cm that end in clean cuts along the mesh's rings, none over a shoulder or a hip; the crowd cheered a car that stood
+    (the whole wait on the grid, the cars parked past the finish): it cheers one going by faster than 2 m/s, a standing one gets its eyes
+    (0.82 half a second after a car has stopped beside it, then it settles); the spectators' shirts reached down to the crotch like a
+    romper: the trousers come up to the belt; a pointing hand's thumb stuck straight down: it lies by the hand.
+  - Known and left: the mannequin's facets show from the other seat and a spectator has no face (no free character or helmet model the
+    owner has approved); the trip meter is black against the black A pillar until A7 lights its numbers; from outside at night a car's own
+    headlights are flat white glass beside the pod's glowing lamps; the crowd makes no sound yet and does not flinch at a crash (the spec
+    left sound for later; people jumping aside is GAME_DESIGN §6's); a rival's rig could work every second or third frame if A9 needs the
+    0.07 ms a body.
+  Verified: 518 GUT tests (16221 asserts, no warning), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1`
+  (2:11.2 / 2:17.5, 16.9 / 16.1 m/s), no script or engine error in their logs.
