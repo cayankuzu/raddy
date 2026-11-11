@@ -228,7 +228,7 @@ static func suit_mesh(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 		var surface_vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var surface_bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
 		var surface_weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
-		var surface_normals := smooth_normals(surface_vertices, arrays[Mesh.ARRAY_NORMAL])
+		var surface_normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		var per := surface_bones.size() / surface_vertices.size()
 		for v in surface_vertices.size():
 			var shares := {}
@@ -260,18 +260,6 @@ static func suit_mesh(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, merged)
 	_suits[source] = mesh
 	return mesh
-
-
-## The mannequin is shaded in facets; a suit is cloth over a body: each vertex takes the mean of the normals of every vertex where it is.
-static func smooth_normals(vertices: PackedVector3Array, normals: PackedVector3Array) -> PackedVector3Array:
-	var sums := {}
-	for v in vertices.size():
-		var key := vertices[v].snappedf(0.0005)
-		sums[key] = (sums.get(key, Vector3.ZERO) as Vector3) + normals[v]
-	var out := PackedVector3Array()
-	for v in vertices.size():
-		out.append((sums[vertices[v].snappedf(0.0005)] as Vector3).normalized())
-	return out
 
 
 ## Which part of the body a bone carries: the hands, the head, the arms, the legs, the feet or the body.

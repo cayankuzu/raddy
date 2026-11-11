@@ -138,6 +138,114 @@ func test_one_draw_call_a_place_and_a_body_that_knows_what_moves_it() -> void:
 	assert_lt((lods[5] as PackedByteArray).size() / 6, triangles / 6, "a place 20 m off draws a sixth of the triangles or fewer")
 
 
+## The mannequin standing as the crowd's body is baked from (CrewPose.stand), before it is dressed: [each vertex's place, its normal, its
+## place at rest].
+func _undressed() -> Array:
+	var mannequin: Node3D = CrewBody.MANNEQUIN.instantiate()
+	add_child_autofree(mannequin)
+	var skeleton := mannequin.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+	var source := (skeleton.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D).mesh
+	var arrays := CrewBody.suit_mesh(source, skeleton).surface_get_arrays(0)
+	var pose := CrewPose.new(skeleton)
+	pose.stand(deg_to_rad(Spectators.STAND_OUT))
+	var rest: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	var places := PackedVector3Array()
+	var ways := PackedVector3Array()
+	for v in rest.size():
+		var at := Vector3.ZERO
+		var way := Vector3.ZERO
+		for k in 4:
+			at += pose.skin(bones[v * 4 + k]) * rest[v] * weights[v * 4 + k]
+			way += pose.skin(bones[v * 4 + k]).basis * normals[v] * weights[v * 4 + k]
+		places.append(at)
+		ways.append(way.normalized())
+	return [places, ways, rest]
+
+
+func test_the_crowd_wears_clothes_with_a_shape_of_their_own() -> void:
+	var undressed := _undressed()
+	var body: PackedVector3Array = undressed[0]
+	var normals: PackedVector3Array = undressed[1]
+	var rest: PackedVector3Array = undressed[2]
+	var arrays := Spectators.body_mesh().surface_get_arrays(0)
+	var dressed: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var cuts: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	var parts: PackedFloat32Array = arrays[Mesh.ARRAY_CUSTOM1]
+	# How far off the body each kind of cloth stands, along the body's normals: [sum, count, least] by name.
+	var off := {}
+	var measure := func(kind: String, v: int) -> void:
+		var out := (dressed[v] - body[v]).dot(normals[v])
+		var seen: Array = off.get(kind, [0.0, 0, INF])
+		off[kind] = [float(seen[0]) + out, int(seen[1]) + 1, minf(float(seen[2]), out)]
+	var shirt_tops := 0
+	for v in body.size():
+		var nothing := colours[v] == Color(0, 0, 0, 0)
+		var on_arm := parts[v * 4 + 1] > -0.5
+		if nothing and not on_arm and cuts[v].y > 0.02:
+			measure.call("shirt", v)
+			if rest[v].y > 1.25 and rest[v].y < 1.38 and normals[v].z > 0.7:
+				measure.call("chest", v)
+			if rest[v].y > 1.25 and rest[v].y < 1.32 and absf(normals[v].x) > 0.7:
+				measure.call("chest's sides", v)
+			if rest[v].y > Spectators.HEM + 0.03 and rest[v].y < Spectators.HEM + 0.1 and absf(normals[v].x) > 0.7:
+				measure.call("waist's sides", v)
+		if nothing and not on_arm and cuts[v].y > 0.015 and cuts[v].y < 0.03 and rest[v].y < Spectators.HEM + 0.04:
+			measure.call("hem", v)
+		if colours[v].g > 0.5 and rest[v].y > Spectators.HEM - 0.05 and rest[v].y < Spectators.HEM - 0.02:
+			measure.call("under the hem", v)
+		if colours[v].g > 0.5 and rest[v].y > 0.2 and rest[v].y < 0.26:
+			measure.call("trousers' bottom", v)
+		if on_arm and parts[v * 4 + 1] > 0.0 and colours[v].r < 0.5:
+			assert_between(cuts[v].x, 0.0, 0.05, "a long sleeve stands off a bare arm, worn or not by each person")
+		elif not on_arm:
+			assert_eq(cuts[v].x, 0.0, "no long sleeve off the arms")
+		shirt_tops += 1 if nothing and on_arm and parts[v * 4 + 1] < 0.0 else 0
+	var report := PackedStringArray()
+	for kind: String in off:
+		report.append("%s %.1f cm (at least %.1f)" % [kind, 100.0 * float(off[kind][0]) / int(off[kind][1]), 100.0 * float(off[kind][2])])
+	gut.p("off the body: " + ", ".join(report))
+	var mean := func(kind: String) -> float: return float(off[kind][0]) / int(off[kind][1])
+	assert_between(mean.call("chest"), 0.01, 0.02, "a shirt stands a centimetre or two off the chest")
+	assert_gt(mean.call("waist's sides"), mean.call("chest's sides") + 0.008, "and hangs from it instead of following the mannequin's waist in")
+	assert_gt(float(off["shirt"][2]), SpectatorClothes.RELAX_LEAST - 0.001, "it never sinks into the body")
+	assert_gt(mean.call("hem"), mean.call("under the hem") + 0.008, "its hem stands proud of the trousers")
+	assert_gt(mean.call("trousers' bottom"), 0.015, "trousers hang straight from the calf, loose round the ankle")
+	assert_gt(shirt_tops, 100, "a short sleeve on the upper arms")
+
+
+func test_the_arms_rest_by_the_sides_and_the_face_has_a_shape() -> void:
+	var mannequin: Node3D = CrewBody.MANNEQUIN.instantiate()
+	add_child_autofree(mannequin)
+	var pose := CrewPose.new(mannequin.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D)
+	pose.stand(deg_to_rad(Spectators.STAND_OUT))
+	for side: int in [CrewPose.Side.LEFT, CrewPose.Side.RIGHT]:
+		var wrist := pose.global_of(CrewPose.ARMS[side][3]).origin
+		var shoulder := pose.global_of(CrewPose.ARMS[side][1]).origin
+		gut.p("%s wrist %.1f cm further out than the shoulder" % [CrewPose.Side.keys()[side], (absf(wrist.x) - absf(shoulder.x)) * 100.0])
+		assert_lt(absf(wrist.x) - absf(shoulder.x), 0.06, "the arms hang by the sides, not held out")
+	# The nose stands out of the face, the eyes sit under the brows, the chin and the lips come forward.
+	var nose := Spectators.face_relief(Vector2(0.0, -0.03))
+	assert_gt(nose, 0.01, "a nose")
+	assert_lt(Spectators.face_relief(Vector2(0.031, -0.012)), Spectators.face_relief(Vector2(0.031, 0.008)), "the eyes in hollows under the brows")
+	assert_lt(Spectators.face_relief(Vector2(0.031, -0.012)), 0.0)
+	assert_gt(Spectators.face_relief(Vector2(0.0, -0.112)), 0.002, "a chin")
+	assert_eq(Spectators.face_relief(Vector2(0.09, 0.0)), 0.0, "and nothing off the face")
+	var arrays := Spectators.body_mesh().surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var front := Vector3(0.0, 0.0, -INF)
+	for v in vertices.size():
+		if uvs[v].x > Spectators.FACE_UV - 1.0 and vertices[v].z > front.z:
+			front = vertices[v]
+	gut.p("the face's front-most point %s" % front)
+	assert_lt(absf(front.x), 0.012, "the tip of the nose is the front of the face")
+	assert_between(front.y, Spectators.FACE_MIDDLE - 0.06, Spectators.FACE_MIDDLE)
+
+
 func test_a_place_looks_at_the_car_and_cheers() -> void:
 	var stage := _stage(0)
 	var spectators := Spectators.build(stage.spots, stage.biome, stage.graph.seed)

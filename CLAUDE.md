@@ -170,10 +170,13 @@ No Blender; model in Godot only as a last resort.
   seat's wings (the body's head as far, `CrewRig.HEAD_LIMITS`).
 - Crew (`CrewBody`, `CrewPose`, `CrewHelmet`): every seat a player holds has a body, on every peer (`RaceSession._seat_crew` from the roster, again
   on `Net.roster_changed`; `CarModel.seat_crew(role, seated)`; no body in an empty seat). Quaternius's mannequin (`assets/characters/crew_mannequin.glb`,
-  UAL1's without its clips, `tools/make_crew_mannequin.gd`; bones `DEF-*`, the dots imported as `_`) posed in code: `CrewPose` (pure, tested) puts
+  UAL1's without its clips, `tools/make_crew_mannequin.gd`; bones `DEF-*`, the dots imported as `_`), rounded when it is baked: one step of Loop
+  subdivision (`subdivide`, 13.7k triangles to 32.8k: all but the balls at the fingers' joints, already round), the rims of the soles and the
+  fingertips creased, each new vertex's weights blended by the same masks (four bones, summing to one), the normals smooth across the rest
+  (`tests/unit/vehicles/test_crew_mannequin.gd`; the suit, the crowd and the own-head folding read its vertices as before). Posed in code: `CrewPose` (pure, tested) puts
   the eyes on the seat's camera (`seat_position`), the pelvis and back reclined, the head upright, the legs and arms as two-bone chains to
   `CrewBody.SEATS` (driver: clutch and throttle, the wheel at a quarter to three; navigator: the floor, hands on the thighs). The suit
-  (`shaders/crew_suit.gdshader`, one surface for both of the mannequin's, normals smoothed): vertex COLOR r glove, g boot, b head; UV2 how far
+  (`shaders/crew_suit.gdshader`, one surface for both of the mannequin's, the baked normals): vertex COLOR r glove, g boot, b head; UV2 how far
   a vertex is from a stripe's line (metres) and whether one runs there (`CrewBody.suit_region`, `stripe_coordinate`, by bone groups: straight
   bands of one width along the arms, the legs and the flanks; none over a shoulder or a hip, where the mannequin's limbs end in balls that
   turn out of the body as it sits and a player looks at their own shoulder from a hand's width). The helmet (`CrewHelmet.mesh()`, the one place a
@@ -356,16 +359,24 @@ No Blender; model in Godot only as a last resort.
   features `StageBuilder` adds on both sides of the start and finish lines. The forest also closes the view past the
   road's end.
 - Spectators (`Spectators`, built by `TrackFeatures` at the `spectator_spots`; `SpectatorRules`, pure, tested, the same crowd on every peer from
-  the stage's seed): 4-8 people a place, 1.6 m apart or more, the crew's mannequin baked standing (`CrewPose.stand`) with what its bones weigh on
-  each vertex (CUSTOM0/1), one MultiMesh and one draw call a place (a MultiMesh cannot share a skeleton). `shaders/spectator.gdshader` turns the
-  arms and the head about the standing pose's joints: four ways of standing (arms down, crossed, hands on the hips, a small flag of Turkey held
-  up), the head to the nearest car, clothes for the biome by index (`outfit`; the trousers come up to `WAIST`), a face on the front of the
-  head (UV says where on it, `face_uv`: eyes, the nose's shadow, a mouth), the whole head skin under the hair (or the shirt's colour showed
-  where the two meet), the fingers loosely curled. A place cheers a car going by
+  the stage's seed): 4-8 people a place, 1.6 m apart or more, the crew's mannequin baked standing (`CrewPose.stand`: the arms by the sides, the
+  palms to the thighs) with what its bones weigh on each vertex (CUSTOM0/1), one MultiMesh and one draw call a place (a MultiMesh cannot share
+  a skeleton). Dressed when it is baked (`SpectatorClothes`, pure, tested): each piece stands off the body by its cloth along the normals and
+  hangs round its limb's axis from where the limb is widest, less a taper (`hang`: a shirt from the chest, 1.5 cm off it and looser down to its
+  hem; trousers from the hips over the groin and from the calf, loose to the shoes; sleeves from under the shoulder), then is smoothed where it
+  folded over the mannequin's grooves (`relax`, the edges stay); its hem over the trousers and theirs over the shoes stand proud, a collar and
+  a short sleeve's end roll down to the skin (`EDGE_ROLL`). The arms are an ordinary man's (`SLIM`), the hair stands off the scalp, the face is
+  shaped (`face_relief`: a nose, brows over sunken eyes, lips, a chin). `shaders/spectator.gdshader` turns the arms and the head about the
+  standing pose's joints: four ways of standing (arms down, crossed, hands on the hips, a small flag of Turkey held up), the head to the nearest
+  car, clothes for the biome by index (`outfit`; a long sleeve put on along the normals from UV2.x; the shirt's hem and collar cut straight at
+  UV2.y = `_shirt_edge`, a short sleeve's end at CUSTOM1.y), the face painted to read at 10 m (UV says where, `face_uv`: the eyes in dark
+  hollows, brows, the nose's shadow, lips, a short beard on some), the whole head skin under the hair (or the shirt's colour showed where the
+  two meet), the fingers relaxed. A place cheers a car going by
   (`thrill(distance, speed)`: within 70 m and faster than 2 m/s; `cheer` comes within half a second and goes in three), a car standing on the grid
   or stuck gets their eyes only; each peer works it out from how it sees the cars move (`RallyCar.GROUP`), never sent. The body carries levels
-  of detail (`ImporterMesh.generate_lods`: 13.7k triangles, 3.4k from about 10 m and 0.9k from 40 m at 1080p, the error under a pixel; a
-  MultiMesh picks one for the whole place); on `FINE_SCENERY_LAYER` (not in the mirrors), drawn to 160 m. `route_test --no-crowd`.
+  of detail (`ImporterMesh.generate_lods`: 32.8k triangles, 4.1k within 9 mm and 1.0k within 31 mm, the engine picking by the error on the
+  screen, under a pixel: a place of eight at 10 m and at 40 m differs from full detail in 0.4 % and 0.8 % of its pixels; a MultiMesh picks one
+  for the whole place); baked once a session (0.1-0.3 s); on `FINE_SCENERY_LAYER` (not in the mirrors), drawn to 160 m. `route_test --no-crowd`.
 - Stage events: `StageEventBuilder` (from `TrackFeatures`) puts `Event<n>` bodies with a trigger area
   before the spot (a fir that falls across the road, rocks off a bank); `StageEvents` (child of the race)
   lets the host decide and every peer play it (`_rpc_stage_event`); boulders are host-simulated props like

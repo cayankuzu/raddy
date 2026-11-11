@@ -79,14 +79,14 @@ func sit(eye: Vector3, body_scale: float, seat: Dictionary) -> void:
 
 
 ## Stands the body as a spectator does (Spectators): the arms hang down by the sides, `out` (radians) away from them, the elbows a little
-## bent, the fingers loosely curled.
+## bent, the palms to the thighs, the fingers relaxed (a little more curled towards the little finger).
 func stand(out: float) -> void:
 	for side: int in [Side.LEFT, Side.RIGHT]:
 		var mirror := 1.0 if side == Side.LEFT else -1.0
 		_aim_way(bone(ARMS[side][1]), Vector3(sin(out) * mirror, -cos(out), 0.02).normalized())
 		_aim_way(bone(ARMS[side][2]), Vector3(sin(out) * mirror * 0.6, -cos(out), 0.18).normalized())
 		_aim_way(bone(ARMS[side][3]), Vector3(sin(out) * mirror * 0.6, -cos(out), 0.12).normalized())
-		curl_fingers(side, [0.4, 0.5, 0.58, 0.65], 0.3)
+		curl_fingers(side, [0.22, 0.3, 0.36, 0.42], 0.15)
 
 
 ## How a bone moves its vertices from the rest pose to this one (model space), as skinning takes it.
