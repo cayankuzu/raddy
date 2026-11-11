@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (Phases A0, A2, A3, A4, A5, A6: solid ground, driving feel, stages 2.0, effects, the crew, the shock gun)
+## Unreleased (Phases A0, A2, A3, A4, A5, A5b, A6: solid ground, driving feel, stages 2.0, effects, the crew, the shock gun)
 - **A crew in the car:** every seat a player holds now has somebody in it: a driver and a navigator in race suits of the team
   colour with white stripes, dark gloves and boots, full-face helmets and six-point harnesses. You see your own arms on the wheel,
   your knees and your harness, your partner beside you and in the interior mirror, the rival crews through their windows.
@@ -30,6 +30,10 @@
   dressed for the weather (t-shirts and caps in the desert, jackets and beanies in the mountains), some with a small flag of Turkey.
   They watch a car come, cheer, clap, wave and jump as it goes by, and settle when it has gone; a car standing still gets their eyes and
   no more.
+- **Rounder crews, a dressed crowd:** the crews' bodies are smooth instead of faceted and their harness webbing bends over the shoulders.
+  The spectators wear shirts, jackets and trousers that hang like clothes, with hems over the trousers and the shoes and short or long
+  sleeves, stand with their arms by their sides, and have faces you can read from the start grid: eyes under brows, a nose, lips, some
+  with a beard.
 - **Times of day:** the room picks day, golden hour, dusk, night or Random, like the weather. The golden hour is a low warm
   sun you drive into. Dusk is the blue hour: the sun has set, the sky still burns orange and violet
   and the land lies in its blue light, the road readable before the headlights reach it. At night there is a cold moon and stars on a clear night and nothing at all under clouds: you see only what

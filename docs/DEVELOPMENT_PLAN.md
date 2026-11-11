@@ -696,3 +696,41 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     with the hand signals on `TEST_PLAN.md`); the trip meter's display stays blank until A7 prints its numbers; from outside at night a
     car's own headlights are flat white glass; concrete blocks and straw bales in the hot band of the beams glow white with a halo.
   Verified after the fix: 532 GUT tests (16713 asserts, 196 s), no script or engine error. Phase A5 is complete.
+
+- 2026-11-11: A5b items 1 (a smooth body) and 5 (the crowd too), BODY_SOURCE mannequin: DONE.
+  - The body (`tools/make_crew_mannequin.gd`): one step of Loop subdivision when it is baked, 13.7k triangles to 32.8k (2.4 times: the 7.4k
+    of the balls at the fingers' joints are round already and stay as they are; the rest four times), the rims of the soles and of the
+    fingertips' ends creased, every new vertex's weights blended by the same masks and cut to its four heaviest bones (the sums are one to
+    5e-5 after the import's compression), the normals smooth across the rest and across the source's two materials: 3.0 % of the edges
+    bend more than 30 degrees, against 14 % on the source; the soles stay on the ground (1.1 mm). A sliver at the nape (four triangles on
+    one edge) needed masks that add a point named twice. The asset grows from 0.72 MB to 1.39 MB. `CrewBody.suit_mesh` takes the baked
+    normals (its averaging would have undone the creases). The suit's regions stay where they were: gloves from 0.737 m out (0.743 on the
+    source), the head from 1.497 m up (1.496), boots up to 0.170 m (0.138: a new ring that `BOOT_TOP`'s blend reaches), the stripes' rules
+    unchanged; the head fills its helmet to 91 % at the tightest; the own head still folds away (tested as before).
+  - From the other seat most of the facets were the harness: flat webbing folded at each of its points in the suit's colour (with
+    `route_test --hide=Harness` the rounded body read smooth). Its straps now bend over the body (a curve through their points, four
+    pieces between two, shaded smooth along them).
+  - The crowd (`SpectatorClothes`, pure, tested; `Spectators.body_mesh`): each piece stands off the body by its cloth and hangs round its
+    limb's axis from where the limb is widest, then is smoothed where it folded over the mannequin's grooves, its edges kept. Measured on
+    the baked body: a shirt 1.5 cm off the chest, 3.5 cm at the waist's sides (2.2 at the chest's), its hem 2.8 cm off the body over the
+    trousers' 1.4; trousers 2.6 cm off the ankles, loose from the calf; short and long sleeves per person (a long one put on in the
+    shader), the hem, the collar and a short sleeve's end cut straight across the triangles. Arms an ordinary man's (0.82 and 0.92 of
+    the mannequin's girth) resting by the sides (the wrists 2.3 cm further out than the shoulders: `STAND_OUT` 9 to 3 degrees, the
+    shader's rest 4 to 1.5), the palms to the thighs, the fingers relaxed; hair off the scalp, the hairline lower at the temples. The face
+    is shaped (a nose 1.5 cm out, brows over sunken eyes, lips, a chin) and painted to read at 10 m: dark hollows round the eyes with their
+    whites and irises, brows, the shadow under the nose, lips, a short beard on three in ten.
+  - Levels of detail, regenerated: 32.8k triangles, 16.4k within 2 mm, 4.1k within 9 mm, 1.0k within 31 mm; a place of eight at 10 m and
+    at 40 m differs from full detail in 0.44 % and 0.78 % of its pixels (by more than 24/255), checked by eye. The bake takes 0.1-0.26 s once
+    a session (it was 0.04 s); a stage still builds in 2.9-3.0 s.
+  - Cost (Medium, Black Pine, three crews, `tools\perf.ps1 -Seconds 60 -ExtraArgs "--follower=14+28,--flip-..."`, inside one run, twice;
+    another project's Godot running): before, the same day, the crews 0.66 / 0.61 ms (before the draw 0.27 / 0.28), the crowd 0.21 / 0.22
+    (0.03 / 0.03); after, the crews 0.70 / 0.57 (0.26 / 0.26), the crowd 0.08 / 0.09 (0.02 / 0.03). Skinning twice the vertices costs
+    nothing that can be measured.
+  - Looked at (`reports/screenshots/a5b_body/`, High, 1600 x 900; `ba/` puts before and after side by side): the partner from both seats,
+    with the map open, the driver's hands on the wheel, the crew through both side windows, the interior mirror, the crowd from the grid
+    (11 m) and from the roadside (3-5 m), a place of eight at 4.5, 10 and 40 m with and without its levels of detail.
+  - Known and left: the suit (item 2: a glossy red, the mannequin's seams at the shoulders and elbows), the gloves' palms (item 3) and the
+    helmet (item 4) are as A5 left them; the harness is in the suit's colour (item 2's to choose); on a long sleeve the shoulders stay
+    broad; the crotch's V shows faintly on light trousers; close up the collar's edge wanders by a few millimetres.
+  Verified: 542 GUT tests (26994 asserts), `tools\flowtest.ps1 -Clients 1` (2:11.1 / 2:17.5, 16.9 / 16.1 m/s), no script or shader
+  error in their logs (the Jolt notice that its job queue was full, once, as in A5).

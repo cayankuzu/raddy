@@ -262,20 +262,25 @@ static func loose_harness(role: int) -> ArrayMesh:
 	return _loose_meshes[role]
 
 
-## A strap of webbing `width` wide along `points`, lying with its face towards `faces` at each, a few millimetres thick.
+## A strap of webbing `width` wide along `points`, lying with its face towards `faces` at each, a few millimetres thick; its faces shaded
+## smooth along it (webbing bends, it does not fold).
 static func strap(tool: SurfaceTool, points: Array[Vector3], faces: Array[Vector3], width: float, part: Array) -> void:
 	var tops: Array[Vector3] = []
 	var bottoms: Array[Vector3] = []
 	var sides: Array[Vector3] = []
+	var normals: Array[Vector3] = []
 	for i in points.size():
 		var along := (points[mini(i + 1, points.size() - 1)] - points[maxi(i - 1, 0)]).normalized()
-		sides.append(along.cross(faces[i]).normalized() * width * 0.5)
+		var face := faces[i].normalized()
+		sides.append(along.cross(face).normalized() * width * 0.5)
+		normals.append((face - along * face.dot(along)).normalized())
 		tops.append(points[i])
-		bottoms.append(points[i] - faces[i].normalized() * 0.003)
+		bottoms.append(points[i] - face * 0.003)
 	for i in points.size() - 1:
-		var face := (faces[i] + faces[i + 1]).normalized()
-		_flat_quad(tool, [tops[i] - sides[i], tops[i + 1] - sides[i + 1], tops[i + 1] + sides[i + 1], tops[i] + sides[i]], part, face)
-		_flat_quad(tool, [bottoms[i] - sides[i], bottoms[i + 1] - sides[i + 1], bottoms[i + 1] + sides[i + 1], bottoms[i] + sides[i]], part, -face)
+		_smooth_quad(tool, [tops[i] - sides[i], tops[i + 1] - sides[i + 1], tops[i + 1] + sides[i + 1], tops[i] + sides[i]],
+			[normals[i], normals[i + 1], normals[i + 1], normals[i]], part)
+		_smooth_quad(tool, [bottoms[i] - sides[i], bottoms[i + 1] - sides[i + 1], bottoms[i + 1] + sides[i + 1], bottoms[i] + sides[i]],
+			[-normals[i], -normals[i + 1], -normals[i + 1], -normals[i]], part)
 		for edge: float in [-1.0, 1.0]:
 			_flat_quad(tool, [tops[i] + sides[i] * edge, tops[i + 1] + sides[i + 1] * edge, bottoms[i + 1] + sides[i + 1] * edge,
 				bottoms[i] + sides[i] * edge], part, sides[i].normalized() * edge)

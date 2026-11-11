@@ -33,8 +33,9 @@ const SEATS := {
 }
 ## Further away than this nobody makes out who sits in a car.
 const DRAW_RANGE := 60.0
-## The HANS collar's thickness (radius).
+## The HANS collar's thickness (radius); a harness strap bends over the body in this many pieces between two of its points.
 const HANS_RADIUS := 0.011
+const STRAP_STEPS := 4
 ## The suit's regions by the bones a vertex hangs on (parts of their names) and how high a boot comes (metres, the mannequin standing).
 const GLOVE_BONES: Array[String] = ["hand", "f_", "thumb"]
 const HEAD_BONES: Array[String] = ["head", "neck"]
@@ -173,15 +174,19 @@ static func chest_point(chest: Transform3D, to_car: Transform3D, ahead: Vector3,
 	return to_car * chest.origin + ahead * 0.14 + Vector3(outward * 0.065, 0.0, 0.0)
 
 
-## A strap through `points`, lying on the body: each point's face looks away from the spine (from `low` to `neck`).
+## A strap through `points`, lying on the body and bending over it as webbing does (a curve through them, STRAP_STEPS pieces from one
+## to the next, not a fold at each): each point's face looks away from the spine (from `low` to `neck`).
 static func _strap(tool: SurfaceTool, points: Array, low: Vector3, neck: Vector3, width: float) -> void:
 	var on: Array[Vector3] = []
+	for i in points.size() - 1:
+		var from: Vector3 = points[i]
+		for step in STRAP_STEPS:
+			on.append(from.cubic_interpolate(points[i + 1], points[maxi(i - 1, 0)], points[mini(i + 2, points.size() - 1)], float(step) / STRAP_STEPS))
+	on.append(points[-1])
 	var faces: Array[Vector3] = []
-	for point: Vector3 in points:
-		var along := (neck - low).normalized()
-		var nearest := low + along * clampf((point - low).dot(along), 0.0, low.distance_to(neck))
-		on.append(point)
-		faces.append((point - nearest).normalized())
+	var along := (neck - low).normalized()
+	for point in on:
+		faces.append((point - (low + along * clampf((point - low).dot(along), 0.0, low.distance_to(neck)))).normalized())
 	CarRallyKit.strap(tool, on, faces, width, CarRallyKit.HARNESS)
 
 

@@ -180,7 +180,8 @@ No Blender; model in Godot only as a last resort.
   a vertex is from a stripe's line (metres) and whether one runs there (`CrewBody.suit_region`, `stripe_coordinate`, by bone groups: straight
   bands of one width along the arms, the legs and the flanks; none over a shoulder or a hip, where the mannequin's limbs end in balls that
   turn out of the body as it sits and a player looks at their own shoulder from a hand's width). The helmet (`CrewHelmet.mesh()`, the one place a
-  real model would replace, on a `BoneAttachment3D` at the head) and the harness (`CrewBody.harness_mesh`, buckled over the pose) take the
+  real model would replace, on a `BoneAttachment3D` at the head) and the harness (`CrewBody.harness_mesh`, buckled over the pose; its webbing
+  bends over the body as a curve through its points, `STRAP_STEPS`, shaded smooth along it: folded flat it read as the body's facets) take the
   team colour. Own head: `CarModel.bind_seat` takes `CrewBody.OWN_HEAD_LAYER` (1 << 13) out of the seat camera's mask; that body's helmet
   sits on that layer and its suit folds the head away for a camera without it (`CAMERA_VISIBLE_LAYERS`); the mirrors keep it.
   Only the cabin the local player sits in casts shadows of its crew, cage and seats (`bind_seat` → `CrewBody.cast_shadows`,
