@@ -102,10 +102,16 @@ const KICK_KNEE := Vector3(0.0, 1.0, -0.2)
 const SWAY_LOOSENESS := {RosterRules.Role.DRIVER: 1.0, RosterRules.Role.NAVIGATOR: 1.3}
 const SWAY_NOD := 0.6
 ## The chest takes this share of a turn of the head (the harness holds it), the neck these (yaw, pitch); the head turns the rest. How far a
-## head turns at most (degrees: either side, as far as the seat's camera does; down, up).
+## head turns at most (degrees: either side, as far as the seat's camera does; down, up looking ahead), and how far up looking aside (from
+## 60 degrees round on): further, the helmet's back would go into the seat's head restraint and wings.
 const CHEST_TURN := 0.06
 const NECK_TURN := Vector2(0.35, 0.4)
-const HEAD_LIMITS := Vector3(CockpitCamera.LOOK_YAW, -60.0, 35.0)
+const HEAD_LIMITS := Vector3(CockpitCamera.LOOK_YAW, -60.0, 12.0)
+const HEAD_UP_ASIDE := 0.0
+## The seat holds the head: the car's swing tilts it this far at most to either side, against the wings (degrees: looking ahead, looking
+## aside from 30 degrees round on, where the helmet's front and back come to the wings); back no further than the look leaves room for
+## under its limit, against the head restraint; forward as far as the neck lets it.
+const SWAY_SIDE := Vector2(9.0, 4.0)
 ## Out cold: the head drops to the chest and towards the door (degrees round, down), the back sags forward and to the door in the harness
 ## (degrees), over this long (s); waking takes longer.
 const SLUMP_HEAD := Vector2(22.0, -58.0)
@@ -565,14 +571,16 @@ func _turn_head(seat: CrewRules.Seat, delta: float, shake: float) -> void:
 		_look_blend = minf(_look_blend + delta * CrewRules.SEND_RATE, 1.0)
 		_look = _look_from.lerp(_look_to, _look_blend)
 	var outboard := -1.0 if body.role == RosterRules.Role.DRIVER else 1.0
-	var look := Vector2(clampf(_look.x, -HEAD_LIMITS.x, HEAD_LIMITS.x), clampf(_look.y, HEAD_LIMITS.y, HEAD_LIMITS.z))
+	var up := lerpf(HEAD_LIMITS.z, HEAD_UP_ASIDE, smoothstep(0.0, 60.0, absf(_look.x)))
+	var look := Vector2(clampf(_look.x, -HEAD_LIMITS.x, HEAD_LIMITS.x), clampf(_look.y, HEAD_LIMITS.y, up))
 	look = look.lerp(Vector2(-outboard * SLUMP_HEAD.x, SLUMP_HEAD.y), smoothstep(0.0, 1.0, _slump))
 	var jolt := Vector3.ZERO
 	if shake > 0.0:
 		jolt = Vector3(_noise.get_noise_2d(_since * 4.0, 80.0), _noise.get_noise_2d(_since * 4.0, 95.0), _noise.get_noise_2d(_since * 4.0, 110.0)) * SHAKE_TURN * shake
 	_turn(CrewPose.CHEST, look.x * CHEST_TURN + jolt.x, -SLUMP_BACK.x * _slump + jolt.y,
 		outboard * SLUMP_BACK.y * _slump + jolt.z)
-	var sway := _sway.tilt
+	var side := lerpf(SWAY_SIDE.x, SWAY_SIDE.y, smoothstep(0.0, 30.0, absf(look.x)))
+	var sway := Vector2(clampf(_sway.tilt.x, -side, side), minf(_sway.tilt.y, maxf(up - look.y, 0.0)))
 	_turn(CrewPose.NECK, look.x * NECK_TURN.x - jolt.z, look.y * NECK_TURN.y + jolt.x + sway.y, jolt.y + sway.x)
 	var way := Basis.from_euler(Vector3(deg_to_rad(look.y + jolt.y * 2.0 + sway.y * SWAY_NOD), deg_to_rad(look.x + jolt.x * 2.0), 0.0), EULER_ORDER_YXZ) * Vector3.FORWARD
 	_look_goal.position = _head_at + way * 4.0

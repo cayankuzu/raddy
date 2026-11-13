@@ -4,10 +4,11 @@ extends Node3D
 ## nobody): Quaternius's mannequin (Universal Animation Library, CC0) posed in the seat by CrewPose with its eyes where the seat's camera
 ## rests, in a race suit of the team's colour cut over it (race_suit, CrewSuit; shaders/crew_suit.gdshader: panels, stretch panels, stitched
 ## seams, white stripes down the sleeves and on over the backs of the gloves, down the legs and the sides, Turkey's flag on the left sleeve,
-## the player's name on the chest (wear_name), race gloves with suede palms and their backs in the suit's colour, race boots), a full-face
-## helmet on its head (CrewHelmet) and the seat's six-point harness
-## buckled over it in black webbing (CarRallyKit.strap). It sits inside the cabin (its layer), lit by the cabin's fill and the dome
-## lamp, seen through the windows and in the mirrors. Round the neck, under the shoulder straps, the carbon collar of a HANS device.
+## the player's name on the chest (wear_name), race gloves with suede palms and their backs in the suit's colour, race boots), an open-face
+## rally helmet on its head (CrewHelmet: the same name on its flanks; skinned to the head, its HANS tethers and intercom cable ending on the
+## hips) and the seat's six-point harness buckled over it in black webbing (CarRallyKit.strap). It sits inside the cabin (its layer), lit by
+## the cabin's fill and the dome lamp, seen through the windows and in the mirrors. Under the shoulder straps, the carbon collar of a HANS
+## device, the helmet's tethers clipped to its back.
 ## The player in the seat sees their own arms and knees but not their own head: the seat's camera leaves OWN_HEAD_LAYER out, the suit
 ## folds the head away from such a camera and the helmet sits on that layer; the mirrors see both. What the body does from moment to
 ## moment (the hands, the head, a gesture, a faint) is its CrewRig's.
@@ -34,8 +35,10 @@ const SEATS := {
 }
 ## Further away than this nobody makes out who sits in a car.
 const DRAW_RANGE := 60.0
-## The HANS collar's thickness (radius); a harness strap bends over the body in this many pieces between two of its points.
-const HANS_RADIUS := 0.011
+## The HANS collar: how high its back stands, how thick it is; a harness strap bends over the body in this many pieces between two of its
+## points.
+const HANS_BACK := 0.05
+const HANS_THICKNESS := 0.008
 const STRAP_STEPS := 4
 ## The suit's regions by the bones a vertex hangs on (parts of their names) and how high a boot comes (metres, the mannequin standing).
 const GLOVE_BONES: Array[String] = ["hand", "f_", "thumb"]
@@ -80,6 +83,7 @@ var name_picture: ImageTexture
 
 var _suit: MeshInstance3D
 var _material := ShaderMaterial.new()
+var _helmet_material := CrewHelmet.material(Color.WHITE)
 var _harness_material := ShaderMaterial.new()
 
 
@@ -105,17 +109,17 @@ func build(seat_role: int, eye: Vector3, paint: Color) -> void:
 	for bone in skeleton.get_bone_count():
 		skeleton.set_bone_pose_rotation(bone, pose.rotations[bone])
 	transform = pose.to_car
-	var on_head := BoneAttachment3D.new()
-	on_head.name = "Head"
-	on_head.bone_name = CrewPose.HEAD
-	skeleton.add_child(on_head)
+	# The helmet rides the head, its tethers and cable end on the hips (CrewHelmet.skin).
 	helmet = MeshInstance3D.new()
 	helmet.name = "Helmet"
 	helmet.mesh = CrewHelmet.mesh()
+	skeleton.add_child(helmet)
+	helmet.skeleton = ^".."
+	helmet.skin = CrewHelmet.skin(pose)
+	helmet.material_override = _helmet_material
 	helmet.layers = GraphicsQuality.CABIN_LAYER
 	helmet.visibility_range_end = DRAW_RANGE
 	helmet.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	on_head.add_child(helmet)
 	harness = MeshInstance3D.new()
 	harness.name = "Harness"
 	harness.mesh = harness_mesh()
@@ -140,7 +144,7 @@ func build(seat_role: int, eye: Vector3, paint: Color) -> void:
 ## The suit and the helmet in the team's colour.
 func set_paint(paint: Color) -> void:
 	_material.set_shader_parameter(&"suit", paint)
-	helmet.material_override = CrewHelmet.material(paint)
+	_helmet_material.set_shader_parameter(&"paint", paint)
 
 
 ## The name the player in this seat goes by, lettered (LiveryRules.seat_name), embroidered on the chest; nothing for an empty one.
@@ -149,8 +153,9 @@ func wear_name(lettered: String) -> void:
 		return
 	worn_name = lettered
 	name_picture = null if lettered.is_empty() else ImageTexture.create_from_image(CarLivery.name_picture(lettered))
-	_material.set_shader_parameter(&"name_map", name_picture)
-	_material.set_shader_parameter(&"named", name_picture != null)
+	for material: ShaderMaterial in [_material, _helmet_material]:
+		material.set_shader_parameter(&"name_map", name_picture)
+		material.set_shader_parameter(&"named", name_picture != null)
 
 
 ## The harness buckled over the body as it sits (car space): each shoulder strap from its slot in the seat's back over the shoulder and
@@ -168,17 +173,7 @@ func harness_mesh() -> ArrayMesh:
 	var seat_x: float = CarRallyKit.SEAT_X[role]
 	var tool := SurfaceTool.new()
 	tool.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var collar: Array[Vector3] = []
-	for side: int in [CrewPose.Side.LEFT, CrewPose.Side.RIGHT]:
-		var shoulder := to_car * pose.global_of(CrewPose.ARMS[side][1]).origin
-		var over := neck.lerp(shoulder, 0.32) + Vector3.UP * 0.055
-		var down := [chest_point(chest, to_car, ahead, signf(shoulder.x - neck.x)) + Vector3.UP * 0.07 + ahead * 0.005, over + ahead * 0.045, over]
-		if side == CrewPose.Side.RIGHT:
-			down.reverse()
-		collar.append_array(down)
-		if side == CrewPose.Side.LEFT:
-			collar.append(neck - ahead * 0.075 + Vector3.UP * 0.06)
-	CarRallyKit.tube(tool, collar, HANS_RADIUS, CarRallyKit.CARBON)
+	_hans(tool, low, neck, chest, ahead)
 	for side: int in [CrewPose.Side.LEFT, CrewPose.Side.RIGHT]:
 		var shoulder := to_car * pose.global_of(CrewPose.ARMS[side][1]).origin
 		var hip := to_car * pose.global_of(CrewPose.LEGS[side][0]).origin
@@ -201,9 +196,53 @@ static func chest_point(chest: Transform3D, to_car: Transform3D, ahead: Vector3,
 	return to_car * chest.origin + ahead * 0.14 + Vector3(outward * 0.065, 0.0, 0.0)
 
 
-## A strap through `points`, lying on the body and bending over it as webbing does (a curve through them, STRAP_STEPS pieces from one
-## to the next, not a fold at each): each point's face looks away from the spine (from `low` to `neck`).
+## The HANS device under the shoulder straps: a carbon collar from the chest on either side up over the shoulders and round behind the neck,
+## where it stands up to where the helmet's tethers are clipped to it (CrewHelmet.TETHER_LOW, as the body sits: the helmet's skin keeps
+## their lower ends there).
+func _hans(tool: SurfaceTool, low: Vector3, neck: Vector3, chest: Transform3D, ahead: Vector3) -> void:
+	var to_car := pose.to_car
+	var head := to_car * pose.global_of(CrewPose.HEAD)
+	var points := []
+	var widths := PackedFloat32Array()
+	var clips: Array[Vector3] = []
+	for side: int in [CrewPose.Side.LEFT, CrewPose.Side.RIGHT]:
+		var shoulder := to_car * pose.global_of(CrewPose.ARMS[side][1]).origin
+		var over := neck.lerp(shoulder, 0.32) + Vector3.UP * 0.055
+		var front := chest_point(chest, to_car, ahead, signf(shoulder.x - neck.x))
+		var tether := CrewHelmet.TETHER_LOW
+		var clip := head * Vector3(tether.x if side == CrewPose.Side.LEFT else -tether.x, tether.y, tether.z)
+		clips.append(clip)
+		var half := [front - Vector3.UP * 0.04 - ahead * 0.004, front + Vector3.UP * 0.07, over + ahead * 0.045, over,
+			clip + Vector3.DOWN * HANS_BACK * 0.45]
+		var half_widths := PackedFloat32Array([0.04, 0.045, 0.04, 0.036, HANS_BACK])
+		if side == CrewPose.Side.RIGHT:
+			half.reverse()
+			half_widths.reverse()
+		points.append_array(half)
+		widths.append_array(half_widths)
+	# Its back curves round behind the neck between the clips.
+	points.insert(5, (clips[0] + clips[1]) * 0.5 + Vector3.DOWN * HANS_BACK * 0.45 - ahead * 0.008)
+	widths.insert(5, HANS_BACK)
+	var lying := _on_body(points, low, neck)
+	var along := PackedFloat32Array()
+	for i in widths.size() - 1:
+		for step in STRAP_STEPS:
+			along.append(lerpf(widths[i], widths[i + 1], float(step) / STRAP_STEPS))
+	along.append(widths[-1])
+	CarRallyKit.band(tool, lying[0], lying[1], along, HANS_THICKNESS, CarRallyKit.CARBON)
+	for clip in clips:
+		CarRallyKit.tube(tool, [clip - Vector3.RIGHT * 0.007, clip + Vector3.RIGHT * 0.007], 0.0045, CarRallyKit.CHROME)
+
+
+## A strap through `points`, lying on the body and bending over it as webbing does (_on_body).
 static func _strap(tool: SurfaceTool, points: Array, low: Vector3, neck: Vector3, width: float) -> void:
+	var lying := _on_body(points, low, neck)
+	CarRallyKit.strap(tool, lying[0], lying[1], width, CarRallyKit.HARNESS)
+
+
+## How something laid on the body through `points` lies: a curve through them, STRAP_STEPS pieces from one to the next (it bends, it does
+## not fold at each), and at each of its points the way that looks away from the spine (from `low` to `neck`).
+static func _on_body(points: Array, low: Vector3, neck: Vector3) -> Array[Array]:
 	var on: Array[Vector3] = []
 	for i in points.size() - 1:
 		var from: Vector3 = points[i]
@@ -214,7 +253,7 @@ static func _strap(tool: SurfaceTool, points: Array, low: Vector3, neck: Vector3
 	var along := (neck - low).normalized()
 	for point in on:
 		faces.append((point - (low + along * clampf((point - low).dot(along), 0.0, low.distance_to(neck)))).normalized())
-	CarRallyKit.strap(tool, on, faces, width, CarRallyKit.HARNESS)
+	return [on, faces]
 
 
 ## The body and its helmet shade the cabin the local player sits in (`on`: their own arms on their knees, the partner beside them); a

@@ -7,7 +7,7 @@ extends Node3D
 ## car, in car space. The cage follows the bodywork as a real one does: up the door pillars, along the A pillars and the roof's edges, the
 ## main hoop behind the seats with its diagonal and the stays to the rear wheel arches, two bars across each door below the window.
 ## Each seat has a six-point harness in the team colour: buckled over the crew member sitting in it (CrewBody), lying loose on an empty
-## one (`seat_taken`); `strap` and `buckle` make the webbing for both, `tube` the cage and a HANS device's collar.
+## one (`seat_taken`); `strap` and `buckle` make the webbing for both, `tube` the cage, `band` a HANS device's collar.
 
 const SHADER := preload("res://shaders/cabin_kit.gdshader")
 ## The tube's radius, how tight it is bent (the bend's radius), its rings' sides; the foam's radius.
@@ -284,6 +284,35 @@ static func strap(tool: SurfaceTool, points: Array[Vector3], faces: Array[Vector
 		for edge: float in [-1.0, 1.0]:
 			_flat_quad(tool, [tops[i] + sides[i] * edge, tops[i + 1] + sides[i + 1] * edge, bottoms[i + 1] + sides[i + 1] * edge,
 				bottoms[i] + sides[i] * edge], part, sides[i].normalized() * edge)
+
+
+## A band `widths` wide along `points` and `thickness` thick, its flat face towards `faces` at each, its edges rounded (a HANS device's
+## collar); shaded smooth along it.
+static func band(tool: SurfaceTool, points: Array[Vector3], faces: Array[Vector3], widths: PackedFloat32Array, thickness: float, part: Array) -> void:
+	var rings: Array[Array] = []
+	for i in points.size():
+		var along := (points[mini(i + 1, points.size() - 1)] - points[maxi(i - 1, 0)]).normalized()
+		var face := (faces[i] - along * faces[i].dot(along)).normalized()
+		var across := along.cross(face)
+		var ring: Array[Array] = []
+		for k in SIDES:
+			var angle := TAU * k / SIDES
+			# A rounded rectangle (a superellipse): where its edge is and which way it faces there.
+			var c := cos(angle)
+			var s := sin(angle)
+			var at := points[i] + across * signf(c) * pow(absf(c), 0.4) * widths[i] * 0.5 + face * signf(s) * pow(absf(s), 0.4) * thickness * 0.5
+			var normal := (across * signf(c) * pow(absf(c), 1.6) / widths[i] + face * signf(s) * pow(absf(s), 1.6) / thickness).normalized()
+			ring.append([at, normal])
+		rings.append(ring)
+	for i in points.size() - 1:
+		for k in SIDES:
+			var j := (k + 1) % SIDES
+			_smooth_quad(tool, [rings[i][k][0], rings[i + 1][k][0], rings[i + 1][j][0], rings[i][j][0]],
+				[rings[i][k][1], rings[i + 1][k][1], rings[i + 1][j][1], rings[i][j][1]], part)
+	for end: int in [0, points.size() - 1]:
+		var facing := (points[end] - points[1 if end == 0 else end - 1]).normalized()
+		for k in SIDES:
+			_triangle(tool, [points[end], rings[end][k][0], rings[end][(k + 1) % SIDES][0]], facing, part)
 
 
 ## The harness's round buckle at `at`, its face towards `facing`: a chrome disc.

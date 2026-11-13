@@ -168,13 +168,16 @@ func test_a_gear_change_takes_the_drivers_hand_to_the_lever() -> void:
 
 func test_the_head_looks_where_the_seat_looks() -> void:
 	var navigator := _body(NAVIGATOR)
-	for look: Vector2 in [Vector2(45.0, -10.0), Vector2(-70.0, 15.0)]:
-		(_cabin.seats[NAVIGATOR] as CrewRules.Seat).look = look
+	# Where the seat looks and where the head turns: as far up as the helmet clears the seat's head restraint, less looking aside.
+	for looks: Array in [[Vector2(45.0, -10.0), Vector2(45.0, -10.0)], [Vector2(-70.0, -15.0), Vector2(-70.0, -15.0)],
+			[Vector2(0.0, 30.0), Vector2(0.0, CrewRig.HEAD_LIMITS.z)], [Vector2(-80.0, 25.0), Vector2(-80.0, CrewRig.HEAD_UP_ASIDE)]]:
+		(_cabin.seats[NAVIGATOR] as CrewRules.Seat).look = looks[0]
 		var drawn := await _drawn(navigator, 30)
 		var head := drawn[_bone(navigator, CrewPose.HEAD)]
+		var look: Vector2 = looks[1]
 		var way := Basis.from_euler(Vector3(deg_to_rad(look.y), deg_to_rad(look.x), 0.0), EULER_ORDER_YXZ) * Vector3.FORWARD
 		var facing := head.basis.z.normalized()
-		gut.p("looking %s: the head faces %.1f degrees off it" % [look, rad_to_deg(facing.angle_to(way))])
+		gut.p("looking %s: the head faces %.1f degrees off %s" % [looks[0], rad_to_deg(facing.angle_to(way)), look])
 		assert_lt(rad_to_deg(facing.angle_to(way)), 3.0)
 		assert_gt(head.basis.y.normalized().y, 0.85, "and stays upright")
 

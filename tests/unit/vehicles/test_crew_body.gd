@@ -1,7 +1,7 @@
 extends GutTest
 ## The crew on the real car (CrewBody, headless): a body in each seat a player holds and none in an empty one, its eyes at its seat's
 ## camera, in its bucket seat, its hands clear of the dials; the player in a seat sees no head of their own while the mirrors do; the
-## suit knows its gloves, boots, head and stripes from the bones, in one draw call; a helmet round the head; a harness either way.
+## suit knows its gloves, boots, head and stripes from the bones, in one draw call; a harness either way (the helmet: test_crew_helmet.gd).
 
 var _car: RallyCar
 var _model: CarModel
@@ -248,42 +248,6 @@ func test_the_gloves_backs_keep_the_team_colour() -> void:
 	gut.p("finger vertices on the back: %d of %d" % [finger_backs, fingers])
 	assert_between(float(finger_backs) / fingers, 0.3, 0.6, "about the upper half of every finger")
 	assert_eq((CarRallyKit.HARNESS[0] as Color).a, 0.0, "the harness's webbing black, whatever the team's colour")
-
-
-func test_the_helmet_is_round_the_head_with_its_visor_ahead() -> void:
-	_model.seat_crew(RosterRules.Role.DRIVER, true)
-	var body: CrewBody = _model.crew[RosterRules.Role.DRIVER]
-	var helmet := CrewHelmet.mesh()
-	assert_eq(helmet.get_surface_count(), 1, "one draw call")
-	var arrays := helmet.surface_get_arrays(0)
-	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
-	var coats: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	var visor := Vector3.ZERO
-	var count := 0
-	for i in vertices.size():
-		# Dark, clear-coated and not in the team colour: the visor's glass.
-		if coats[i].x > 0.5 and colours[i].a < 0.5 and colours[i].r < 0.1:
-			visor += vertices[i]
-			count += 1
-	visor /= maxf(count, 1)
-	assert_gt(count, 0)
-	assert_gt(visor.z, 0.1, "the visor faces ahead")
-	assert_almost_eq(visor.y, (CrewPose.EYES_AT_REST.y - body.pose._rest_global(body.pose.bone(CrewPose.HEAD)).origin.y), 0.03, "at the eyes' height")
-	# Every point of the mannequin's head inside the shell, with room for the padding.
-	var head_bone := body.pose._rest_global(body.pose.bone(CrewPose.HEAD))
-	var suit := body._suit.mesh.surface_get_arrays(0)
-	var suit_vertices: PackedVector3Array = suit[Mesh.ARRAY_VERTEX]
-	var suit_colours: PackedColorArray = suit[Mesh.ARRAY_COLOR]
-	var tightest := INF
-	for i in suit_vertices.size():
-		if suit_colours[i].b < 0.9 or suit_vertices[i].y < head_bone.origin.y + 0.03:
-			continue
-		var at := head_bone.affine_inverse() * suit_vertices[i] - CrewHelmet.MIDDLE
-		var half := Vector3(CrewHelmet.HALF.x, CrewHelmet.HALF.y, CrewHelmet.HALF.z if at.z > 0.0 else CrewHelmet.HALF_BEHIND)
-		tightest = minf(tightest, 1.0 - Vector3(at.x / half.x, at.y / half.y, at.z / half.z).length())
-	gut.p("the head fills the shell to %.0f%% of its size at the tightest" % ((1.0 - tightest) * 100.0))
-	assert_gt(tightest, 0.05, "the head stays inside the helmet, a centimetre of padding at the least")
 
 
 func test_the_harness_is_buckled_over_the_body() -> void:

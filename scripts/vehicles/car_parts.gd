@@ -12,7 +12,7 @@ const UNDERBODY := "Milano95_Bottom_UCB_BOTTOM_0"
 ## Part -> mesh node it lies in, its box and optionally the way its triangles face. Earlier parts are gone
 ## from the mesh before later ones are cut, so a pane comes before the housing around it. The road seats, the rear bench and the sun
 ## visors are only cut away: a rally car has bucket seats (CarRallyKit), nothing behind them but the cage, and no visors (the cage's
-## roof bars run where they would swing down, and from where the crew sits one would hide the road: the helmets' own are tinted).
+## roof bars run where they would swing down, and from where the crew sits one would hide the road).
 const PARTS := {
 	&"road_seat_driver": {"from": INTERIOR, "box": AABB(Vector3(-0.62, -0.28, -0.38), Vector3(0.54, 0.83, 0.72))},
 	&"road_seat_navigator": {"from": INTERIOR, "box": AABB(Vector3(0.08, -0.28, -0.38), Vector3(0.55, 0.83, 0.72))},
