@@ -167,7 +167,8 @@ No Blender; model in Godot only as a last resort.
   at most 1 % of the windshield's view (0.1 % from the driver's seat, 0.9 % from the navigator's). From the driver's eye only 60 % of the
   interior mirror is in the frame at rest (77 % at 60 km/h, 88 % at 100 km/h, all of it at a glance): left to A7's seat and FOV options in
   the settings, the road stays the star. The head turns `CockpitCamera.LOOK_YAW` 100 degrees either way, no further than between the bucket
-  seat's wings (the body's head as far, `CrewRig.HEAD_LIMITS`).
+  seat's wings (the body's head as far, `CrewRig.HEAD_LIMITS`; up only 12 degrees looking ahead and not at all from 60 degrees aside,
+  `HEAD_UP_ASIDE`: further, the helmet's back went into the head restraint; the eyes look on, the camera to 30).
 - Crew (`CrewBody`, `CrewPose`, `CrewHelmet`): every seat a player holds has a body, on every peer (`RaceSession._seat_crew` from the roster, again
   on `Net.roster_changed`; `CarModel.seat_crew(role, seated)`; no body in an empty seat). Quaternius's mannequin (`assets/characters/crew_mannequin.glb`,
   UAL1's without its clips, `tools/make_crew_mannequin.gd`; bones `DEF-*`, the dots imported as `_`), rounded when it is baked: one step of Loop
@@ -190,7 +191,25 @@ No Blender; model in Godot only as a last resort.
   `LiveryRules.seat_name`, the livery's capitals; `CarLivery.name_picture` draws it, white on nothing, `CrewBody.name_picture` keeps it for the
   helmet; no name, nothing; thread white on a dark suit, black on a light one); gloves with a suede palm and a stitched elastic cuff; thin-soled
   boots (toe cap, laces, suede ankle, the team colour on the heel tab). `route_test --names=A+B` letters car and suits. The helmet
-  (`CrewHelmet.mesh()`, the one place a real model would replace, on a `BoneAttachment3D` at the head) takes the team colour; the harness
+  (`CrewHelmet.mesh()`, the one place a real model would replace; one surface, about 29k triangles, built once a session in 0.3 s) is an
+  open-face rally helmet in the head bone's space: a shell (`shell_point`: an egg taller than wide, narrowing to the brow, the nape tucked in,
+  the lower edge flared, ear cup bulges) cut out of a grid where its edges cross (`presence`: the lower edge `RIM`, the face `OPENING`
+  closing in on the jaw, the cheeks' corners rounded; each grid triangle clipped, the crossing found on the shell), a rubber trim round the
+  edge and the liner and cheek pads going in under it to the face and the neck, intakes over the brow and exhausts behind; no peak and no
+  visor (the cage is overhead). The face: a black balaclava over the mannequin's (`face_point`, a height field fitted to it, 2.6 mm in front
+  of it at least, with brow, nose, cheeks, lips and chin under the fabric) and its slot round the eyes (`EYE`). An intercom boom from the
+  left cheek to 1.4 cm before the lips (`MIC_TIP`), its cable down to a plug on the HANS collar, a chin strap, the HANS posts and tethers.
+  It is skinned (`CrewHelmet.skin`, a child of the skeleton): all of it rides the head but the tethers' and the cable's lower ends, which ride
+  the hips (they hold still in the seat, as the HANS collar does), so they stay clipped however the head turns. `shaders/crew_helmet.gdshader`
+  (cull disabled: the shell's inside is liner wherever it shows): the team colour under a gloss coat whose own glint is the lamps' (capped at
+  the sun's, `lamp_cap`) and whose mirror sees the world only through the windows (`window`, in the body's space: the roof, doors and seat
+  leave the cabin's dark sheen), a white stripe between black lines, a darker band along the lower edge, on both flanks the flag of Turkey in
+  a white border and the seat's player's name (`CrewBody.name_picture`, `wear_name` sets both materials), read from the left as on the
+  windows; in the slot, skin and eyes (anti-aliased by their own screen derivative, `covered`) wet enough to glint. The HANS
+  (`CrewBody._hans`, `CarRallyKit.band`: a rounded carbon band) runs from the chest under the straps over the shoulders and stands up behind
+  the neck to the tethers' clips at `CrewHelmet.TETHER_LOW`. `tests/unit/vehicles/test_crew_helmet.gd` pins the fit, the name and flag, the
+  skin and that the helmet clears the seat's wings and head restraint (>= 3 mm) and the cage's padding at the look's, the swing's and a faint's
+  extremes; the harness
   (`CrewBody.harness_mesh`, buckled over the pose; its webbing bends over the body as a curve through its points, `STRAP_STEPS`, shaded smooth
   along it: folded flat it read as the body's facets) is black (`CarRallyKit.HARNESS`). Own head: `CarModel.bind_seat` takes `CrewBody.OWN_HEAD_LAYER` (1 << 13) out of the seat camera's mask; that body's helmet
   sits on that layer and its suit folds the head away for a camera without it (`CAMERA_VISIBLE_LAYERS`); the mirrors keep it.
@@ -214,7 +233,8 @@ No Blender; model in Godot only as a last resort.
   player began plays to its end; the navigator does not reach across the driver for the far winder (`CrewRules.job_hand`), and the gun stops
   at a closed window's glass. Out cold it slumps,
   a shock (`Cabin.shocked`) shakes it. The harness holds the body, the neck gives to the car (`CrewSway`, pure, tested: a corner tilts the head
-  out of it by 6.5 degrees a g, braking nods it, a hit jolts it, 15 degrees at most, the navigator's neck the looser; each peer works it out on
+  out of it by 6.5 degrees a g, braking nods it, a hit jolts it, 15 degrees at most, the navigator's neck the looser, the seat stopping it
+  where the helmet meets it: 9 degrees to a side, 4 looking aside, back only as far as the look's limit leaves, `CrewRig.SWAY_SIDE`; each peer works it out on
   its physics ticks from `RallyCar.seen_velocity`, never sent: the body's own where it is simulated, the driver's from the snapshots elsewhere,
   since a car played back moves a frame's ticks at once and its place says nothing of how it turns). Only a crew someone can see moves: the
   local player's car's always, another's on the screen within `CrewBody.DRAW_RANGE` or within `MIRROR_RANGE` 10 m; otherwise the modifiers

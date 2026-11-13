@@ -2,7 +2,7 @@
 
 ## Unreleased (Phases A0, A2, A3, A4, A5, A5b, A6: solid ground, driving feel, stages 2.0, effects, the crew, the shock gun)
 - **A crew in the car:** every seat a player holds now has somebody in it: a driver and a navigator in race suits of the team
-  colour with white stripes, dark gloves and boots, full-face helmets and six-point harnesses. You see your own arms on the wheel,
+  colour with white stripes, dark gloves and boots, open-face rally helmets and six-point harnesses. You see your own arms on the wheel,
   your knees and your harness, your partner beside you and in the interior mirror, the rival crews through their windows.
 - **Hands at work:** the driver's hands ride the steering wheel as it turns (at full lock the rim slides through them, as a rally
   driver pushes and pulls), go to the gear lever on a shift, pull the handbrake, press the horn, flick the wipers and wind the window;
@@ -34,6 +34,11 @@
   over the shoulders and knees, a collar, a covered zip, stitched seams and tape stripes. The flag of Turkey is sewn on the upper left
   sleeve and each player's name is embroidered on the chest (nothing for a seat without a name). Race gloves have a suede palm and an
   elastic cuff, the boots thin soles, laces and a suede ankle, and the harness is black so it stands out on every suit.
+- **Real rally helmets:** the crews wear open-face rally helmets in the team colour under a glossy clear coat that mirrors the sky
+  through the windows, with a white stripe over the top, the flag of Turkey and the player's name on both sides, a rubber trim, vents,
+  the intercom's boom microphone in front of the mouth and its cable, and the HANS device's tethers down to the carbon collar on the
+  shoulders. Under it a black fireproof balaclava with a slot for the eyes, which catch the light. Heads stop where the helmet meets the
+  bucket seat's wings and head restraint instead of passing through them.
 - **Rounder crews, a dressed crowd:** the crews' bodies are smooth instead of faceted and their harness webbing bends over the shoulders.
   The spectators wear shirts, jackets and trousers that hang like clothes, with hems over the trousers and the shoes and short or long
   sleeves, stand with their arms by their sides, and have faces you can read from the start grid: eyes under brows, a nose, lips, some

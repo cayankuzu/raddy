@@ -763,3 +763,32 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     ImageTexture, null with no name) or `CarLivery.name_picture(lettered)` gives the same name; the helmet is untouched.
   Verified: 548 GUT tests (27035 asserts), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1` (2:11.2 / 2:17.5,
   16.9 / 16.1 m/s), no script or shader error in their logs; the T-pose close-ups shot again on the commit (`r6_tpose`).
+
+- 2026-11-13: A5b item 4 (a real rally helmet): DONE.
+  - Open face, no peak, no visor: most rally crews' helmet, the boom microphone shows in front of the mouth, nothing hangs into the cage
+    overhead; a full-face helmet's chin bar would hide the microphone and its visor would need a second, transparent draw call.
+    `CrewHelmet.mesh()` (one surface, 29k triangles, 0.3 s once a session): the shell an egg taller than wide (`shell_point`), cut out of a
+    3 x 2.5 degree grid where its edges cross (`presence`: the lower edge, the face opening closing in on the jaw; each grid triangle clipped,
+    the crossing found on the shell), a rubber trim and the liner and cheek pads under every edge, ear cup bulges, two intakes and two
+    exhausts, the HANS posts, an intercom boom from the left cheek to 1.4 cm before the lips with its cable, a chin strap. The face: a black
+    balaclava (a height field fitted to the mannequin's face, the shapes under the fabric) with a slot for the eyes; the shader paints the skin,
+    the eyes (iris, pupil, lashes, the lid's shade, wet enough to glint) and the knit.
+  - Skinned (`CrewHelmet.skin`): the tethers and the cable end on the hips, which hold still as the HANS collar does; the collar
+    (`CrewBody._hans`, `CarRallyKit.band`) is a carbon band from the chest over the shoulders standing up behind the neck to the clips.
+  - The shader: team colour under a coat whose mirror sees only the windows (the roof, doors and seat leave the cabin's dark sheen), its glint
+    the lamps' capped at the sun's (`lamp_cap`); a white stripe between black lines, a darker band along the lower edge, the flag of Turkey
+    (white border) and the seat's player's name (`CrewBody.name_picture`) on both flanks, read from the left.
+  - The head stops where the helmet meets the seat (measured against the seat's own cross-sections and the cage's tube lines at every
+    combination of the look, the swing and a faint): up 12 degrees looking ahead, 0 from 60 degrees aside (`CrewRig.HEAD_LIMITS`,
+    `HEAD_UP_ASIDE`; the camera still looks up 30), the swing 9 degrees to a side, 4 aside, back only as far as the look leaves room
+    (`SWAY_SIDE`); the shell 0.118 wide, 0.139 behind (half sizes), the head inside with 4.6 mm at the tightest. At the extremes the helmet keeps
+    3.0 mm off the seat and 19 mm off the cage's padding (`test_crew_helmet.gd`), more than 30 mm off the harness and the HANS (measured once).
+  - Looked at (`reports/screenshots/a5b_helmet/`: `h4_car`, `f1`, `n1` night with the dome lamp, `k1` dusk, `t2` blue, `t3` yellow at golden
+    hour, `game_day`, `game_more`; High): both seats close up and from the other seat, from outside through both side windows and the
+    windshield, the interior mirror (the own helmet in it), turned and fainted heads, a crew from the car 7 m behind (the seats' head
+    restraints hide most of the helmets from there, as in a real car).
+  - Cost (Medium, Black Pine, three crews, `tools\perf.ps1 -Seconds 40 -ExtraArgs "--follower=14+28,--flip-crew=0.5"`, twice): 0.85 / 1.25 ms
+    (median 0.80 / 1.03, before the draw 0.30 / 0.34), against 0.74 / 1.16 with the old helmet: nothing measurable.
+  - Known and left: the balaclava's face is a fitted height field, not a sculpted head; from 7 m behind a rival's helmets hide behind the
+    seats.
+  Verified: 551 GUT tests, `tools\nettest.ps1` (3 clients), no script or shader error in their logs.
