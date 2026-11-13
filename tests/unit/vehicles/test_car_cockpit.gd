@@ -151,27 +151,27 @@ func test_the_rear_lamps_light_with_what_the_car_does() -> void:
 	_car.controls.brake = 0.0
 	_car.forward_speed = 10.0
 	lamps._process(0.016)
-	assert_eq(lamps._brake.emission_energy_multiplier, 0.0, "tail lights off with the headlights")
+	assert_eq(CarLamps.glow_of(lamps._brake), 0.0, "tail lights off with the headlights")
 	assert_false(lamps._brake_light.visible, "and nothing red on the road behind")
 	lamps.set_headlights(true)
 	lamps._process(0.016)
-	assert_almost_eq(lamps._brake.emission_energy_multiplier, CarLamps.TAIL_GLOW, 0.001, "on with the headlights")
+	assert_almost_eq(CarLamps.glow_of(lamps._brake), CarLamps.TAIL_GLOW, 0.001, "on with the headlights")
 	assert_true(lamps._brake_light.visible, "a faint red on the road behind")
 	var tail := lamps._brake_light.light_energy
 	_car.controls.brake = 1.0
 	lamps._process(0.016)
-	assert_almost_eq(lamps._brake.emission_energy_multiplier, CarLamps.BRAKE_GLOW, 0.001, "bright under the pedal")
+	assert_almost_eq(CarLamps.glow_of(lamps._brake), CarLamps.BRAKE_GLOW, 0.001, "bright under the pedal")
 	assert_gt(lamps._brake_light.light_energy, tail * 4.0, "and so is their glow: a follower sees the car brake")
 	_car.forward_speed = -3.0
 	_car.controls.brake = 1.0
 	lamps._process(0.016)
-	assert_almost_eq(lamps._reverse.emission_energy_multiplier, CarLamps.REVERSE_GLOW, 0.001, "reversing lights when the driver backs up")
-	assert_almost_eq(lamps._brake.emission_energy_multiplier, CarLamps.TAIL_GLOW, 0.001, "the pedal is the reverse here, not the brake")
+	assert_almost_eq(CarLamps.glow_of(lamps._reverse), CarLamps.REVERSE_GLOW, 0.001, "reversing lights when the driver backs up")
+	assert_almost_eq(CarLamps.glow_of(lamps._brake), CarLamps.TAIL_GLOW, 0.001, "the pedal is the reverse here, not the brake")
 	assert_true(lamps._reverse_light.visible, "and they light the road behind")
 	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.RAIN).free()
 	_car.forward_speed = 10.0
 	lamps._process(0.016)
-	assert_almost_eq(lamps._brake.emission_energy_multiplier, CarLamps.BRAKE_GLOW, 0.001, "by day the glass still shows the brake")
+	assert_almost_eq(CarLamps.glow_of(lamps._brake), CarLamps.BRAKE_GLOW, 0.001, "by day the glass still shows the brake")
 	assert_false(lamps._brake_light.visible, "but its light on the road is lost in the daylight, as the beams' is")
 	_car.forward_speed = -3.0
 	lamps._process(0.016)
@@ -186,12 +186,12 @@ func test_a_car_rolling_back_by_itself_is_not_reversing() -> void:
 	_car.forward_speed = -3.0
 	lamps._process(0.016)
 	_audio.gearbox.update(0.016, _car.forward_speed, 0.0, false, _car.is_backing_up())
-	assert_eq(lamps._reverse.emission_energy_multiplier, 0.0, "no reversing lights")
+	assert_eq(CarLamps.glow_of(lamps._reverse), 0.0, "no reversing lights")
 	assert_eq(_audio.gearbox.gear, 1, "and the lever stays in its gate")
 	_car.controls.brake = 1.0
 	lamps._process(0.016)
 	_audio.gearbox.update(0.016, _car.forward_speed, 0.0, false, _car.is_backing_up())
-	assert_almost_eq(lamps._reverse.emission_energy_multiplier, CarLamps.REVERSE_GLOW, 0.001, "they light when the driver backs up")
+	assert_almost_eq(CarLamps.glow_of(lamps._reverse), CarLamps.REVERSE_GLOW, 0.001, "they light when the driver backs up")
 	assert_eq(_audio.gearbox.gear, -1, "and the lever goes to R")
 
 
@@ -199,14 +199,14 @@ func test_hazards_blink_on_a_stuck_car() -> void:
 	var lamps := _model.lamps
 	lamps._time = 0.0
 	lamps._process(0.001)
-	assert_eq(lamps._blinkers.emission_energy_multiplier, 0.0, "not on a healthy car")
+	assert_eq(CarLamps.glow_of(lamps._blinkers), 0.0, "not on a healthy car")
 	_car.needs_recovery = true
 	lamps._time = 0.0
 	lamps._process(0.001)
-	assert_almost_eq(lamps._blinkers.emission_energy_multiplier, CarLamps.BLINK_GLOW, 0.001, "lit")
+	assert_almost_eq(CarLamps.glow_of(lamps._blinkers), CarLamps.BLINK_GLOW, 0.001, "lit")
 	lamps._time = CockpitRules.HAZARD_PERIOD * 0.6
 	lamps._process(0.001)
-	assert_eq(lamps._blinkers.emission_energy_multiplier, 0.0, "and dark half the time")
+	assert_eq(CarLamps.glow_of(lamps._blinkers), 0.0, "and dark half the time")
 
 
 func test_the_dome_lamp_is_the_map_holders_switch_and_lights_the_glass() -> void:
@@ -475,11 +475,30 @@ func test_the_headlights_throw_their_light_far_down_the_road() -> void:
 			assert_eq((node as VisualInstance3D).layers & CarLamps.HULL_LAYER, 0, "%s is on the hulls' layer" % node.name)
 
 
+func test_a_lit_headlight_is_a_lamp_not_a_plate() -> void:
+	var lamps := _model.lamps
+	var glass := _model.find_child("Milano95_Headlights", true, false).find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
+	assert_eq(glass.material_override, lamps._head, "the headlights' glass")
+	assert_eq(lamps._head.shader, CarLamps.LAMP_SHADER)
+	assert_not_null(lamps._head.get_shader_parameter(&"picture"), "glows through the model's own picture of the lamp")
+	var uvs: PackedVector2Array = glass.mesh.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV]
+	var picture := Rect2(uvs[0], Vector2.ZERO)
+	for uv in uvs:
+		picture = picture.expand(uv)
+	var lens: Vector3 = lamps._head.get_shader_parameter(&"lens")
+	assert_eq(lens, CarLamps.HEAD_LENS, "with its projector's hot core")
+	assert_true(picture.grow(-lens.z).has_point(Vector2(lens.x, lens.y)), "the lens lies in the picture the glass shows")
+	for lamp in [lamps._brake, lamps._reverse, lamps._blinkers]:
+		assert_eq((lamp.get_shader_parameter(&"lens") as Vector3).z, 0.0, "only a headlight has a projector")
+	lamps.set_headlights(false)
+	assert_eq(CarLamps.glow_of(lamps._head), 0.0, "dark when off")
+
+
 func test_by_day_only_the_lamps_glass_shows_the_headlights_are_on() -> void:
 	var lamps := _model.lamps
 	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.RAIN).free()
 	lamps.set_headlights(true)
-	assert_almost_eq(lamps._head.emission_energy_multiplier, CarLamps.HEAD_GLOW, 0.001, "the lamps are lit in the rain")
+	assert_almost_eq(CarLamps.glow_of(lamps._head), CarLamps.HEAD_GLOW, 0.001, "the lamps are lit in the rain")
 	for beam in lamps._beams:
 		assert_false(beam.visible, "but by day their light is lost: no beam to draw and no shadow map to fill")
 	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.CLEAR, RaceSettings.TimeOfDay.DUSK).free()

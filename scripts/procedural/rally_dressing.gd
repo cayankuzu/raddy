@@ -700,7 +700,7 @@ static func _build_barrier(node: Node3D, spur: RouteGraph.Spur) -> void:
 	shape.position = Vector3.UP * 0.5
 	body.add_child(shape)
 	if ResourceLoader.exists(BARRIER_MODEL):
-		var parts := RoadsideDresser._parts_of({"id": "barrier", "path": BARRIER_MODEL})
+		var parts := RoadsideDresser._parts_of({"id": "barrier", "path": BARRIER_MODEL, "weathered": true})
 		for x: float in [-half * 0.55, half * 0.55]:
 			for part in parts:
 				var mesh := MeshInstance3D.new()

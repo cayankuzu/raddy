@@ -8,13 +8,18 @@ extends Node3D
 ## the glow of the rear lamps from Medium up and from dusk on: the tail lights' faint red on the road behind, the brake lights' bright one.
 ## Every car stands in the others' beams as a hull of a few triangles (HULL_LAYER).
 
-## How bright each lamp's own glass is when lit.
-const HEAD_GLOW := 3.0
+const LAMP_SHADER := preload("res://shaders/car_lamp.gdshader")
+## How bright each lamp's own glass is when lit (shaders/car_lamp.gdshader: its picture's brightest parts).
+const HEAD_GLOW := 12.0
 const TAIL_GLOW := 0.9
 const BRAKE_GLOW := 4.5
 const REVERSE_GLOW := 3.0
 const BLINK_GLOW := 3.5
 const DOME_GLOW := 2.5
+## The headlight's projector lens in the model's picture of the lamp (its atlas: UV middle and radius), and how much brighter than the glass
+## its core glows: lit, it is a hot point in a lamp, the way a dipped headlight looks from in front of the car.
+const HEAD_LENS := Vector3(0.5654, 0.7522, 0.0232)
+const HEAD_LENS_GLOW := 3.0
 ## The dome lamp on the headliner, and the light it gives.
 const DOME_LENS_AT := Vector3(0.0, 0.856, 0.02)
 const DOME_LENS_RADIUS := 0.038
@@ -75,10 +80,10 @@ var headlights := false
 ## The light pod on the bonnet, for a stage at dusk or at night (null by day).
 var pod: CarLightPod
 
-var _brake: StandardMaterial3D
-var _reverse: StandardMaterial3D
-var _head: StandardMaterial3D
-var _blinkers: StandardMaterial3D
+var _brake: ShaderMaterial
+var _reverse: ShaderMaterial
+var _head: ShaderMaterial
+var _blinkers: ShaderMaterial
 var _dome_lens: StandardMaterial3D
 var _beams: Array[SpotLight3D] = []
 var _brake_light: SpotLight3D
@@ -92,7 +97,7 @@ func build(model: Node3D) -> void:
 	car = get_parent().get_parent() as RallyCar
 	_brake = _lamp(model, "Milano95_Brakelights", Color(1.0, 0.05, 0.03))
 	_reverse = _lamp(model, "Milano95_Reverse", Color(1.0, 0.97, 0.9))
-	_head = _lamp(model, "Milano95_Headlights", Color(1.0, 0.95, 0.82))
+	_head = _lamp(model, "Milano95_Headlights", Color(1.0, 0.95, 0.82), HEAD_LENS)
 	_blinkers = _lamp(model, "Milano95_Blinkers", Color(1.0, 0.5, 0.05))
 	var glow := GraphicsQuality.current() != GraphicsQuality.Level.LOW
 	if glow:
@@ -263,25 +268,41 @@ func _build_dome() -> void:
 	add_child(_dome_light)
 
 
-## An emissive copy of a lamp's material on all its meshes, dark until lit.
-func _lamp(model: Node3D, node_name: String, color: Color) -> StandardMaterial3D:
+## A lamp's glass that lights up (shaders/car_lamp.gdshader: the model's picture of it, a projector's `lens` in it) on all its meshes, dark
+## until lit (_light).
+func _lamp(model: Node3D, node_name: String, color: Color, lens := Vector3.ZERO) -> ShaderMaterial:
 	var holder := model.find_child(node_name, true, false)
 	if holder == null:
 		return null
 	var meshes := holder.find_children("*", "MeshInstance3D", true, false)
 	if meshes.is_empty() and holder is MeshInstance3D:
 		meshes = [holder]
-	var material: StandardMaterial3D
+	var material: ShaderMaterial
 	for mi in meshes:
 		var mesh_instance := mi as MeshInstance3D
-		var base := mesh_instance.mesh.surface_get_material(0) as StandardMaterial3D
 		if material == null:
-			material = (base.duplicate() if base != null else StandardMaterial3D.new()) as StandardMaterial3D
-			material.emission_enabled = true
-			material.emission = color
-			material.emission_energy_multiplier = 0.0
+			material = ShaderMaterial.new()
+			material.shader = LAMP_SHADER
+			var base := mesh_instance.mesh.surface_get_material(0) as StandardMaterial3D
+			if base != null:
+				material.set_shader_parameter(&"picture", base.albedo_texture)
+				material.set_shader_parameter(&"roughness", base.roughness)
+			material.set_shader_parameter(&"glow_color", color)
+			material.set_shader_parameter(&"lens", lens)
+			material.set_shader_parameter(&"lens_glow", HEAD_LENS_GLOW)
+			material.set_shader_parameter(&"glow", 0.0)
 		mesh_instance.material_override = material
 	return material
+
+
+## How bright a lamp's glass glows (0: off).
+static func glow_of(lamp: ShaderMaterial) -> float:
+	return lamp.get_shader_parameter(&"glow")
+
+
+static func _light(lamp: ShaderMaterial, glow: float) -> void:
+	if lamp != null:
+		lamp.set_shader_parameter(&"glow", glow)
 
 
 func set_headlights(on: bool) -> void:
@@ -290,8 +311,7 @@ func set_headlights(on: bool) -> void:
 		# By day their light is lost in the daylight (RaceLook.lamp_light): only the lamps' glass shows they are on, and
 		# neither the beams nor their shadow maps are drawn.
 		beam.visible = on and RaceLook.lamp_light > 0.0
-	if _head != null:
-		_head.emission_energy_multiplier = HEAD_GLOW if on else 0.0
+	_light(_head, HEAD_GLOW if on else 0.0)
 	_show_pod()
 
 
@@ -320,11 +340,9 @@ func _process(delta: float) -> void:
 		return
 	_time += delta
 	var braking := car.controls.brake > 0.1 and car.forward_speed > -0.5
-	if _brake != null:
-		_brake.emission_energy_multiplier = BRAKE_GLOW if braking else (TAIL_GLOW if headlights else 0.0)
+	_light(_brake, BRAKE_GLOW if braking else (TAIL_GLOW if headlights else 0.0))
 	var reversing := car.is_backing_up()
-	if _reverse != null:
-		_reverse.emission_energy_multiplier = REVERSE_GLOW if reversing else 0.0
+	_light(_reverse, REVERSE_GLOW if reversing else 0.0)
 	if _brake_light != null:
 		# Like the beams' (RaceLook.lamp_light): by day the lamps' glass shows, their light on the road is lost in the daylight.
 		var dark := RaceLook.lamp_light > 0.0
@@ -332,7 +350,5 @@ func _process(delta: float) -> void:
 		_brake_light.light_energy = REAR_GLOW_ENERGY * (1.0 if braking else TAIL_SHARE) * RaceLook.lamp_light
 		_reverse_light.visible = dark and reversing
 		_reverse_light.light_energy = REVERSE_GLOW_ENERGY * RaceLook.lamp_light
-	if _blinkers != null:
-		var lit := CockpitRules.hazards_on(car.needs_recovery, car.damage_level) and CockpitRules.blink(_time)
-		_blinkers.emission_energy_multiplier = BLINK_GLOW if lit else 0.0
+	_light(_blinkers, BLINK_GLOW if CockpitRules.hazards_on(car.needs_recovery, car.damage_level) and CockpitRules.blink(_time) else 0.0)
 	_show_pod()

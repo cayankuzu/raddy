@@ -377,6 +377,28 @@ func test_bales_show_their_outside() -> void:
 	assert_eq(inward, 0, "no face of the %d looks inward" % (indices.size() / 3))
 
 
+func test_bales_boards_and_barriers_in_the_beams_take_no_more_than_the_sun() -> void:
+	var lit_no_brighter_than_the_sun := preload("res://tests/unit/procedural/test_rally_arch.gd").lit_no_brighter_than_the_sun
+	assert_true(lit_no_brighter_than_the_sun.call(RallyProps.bale_parts()[0].mesh.surface_get_material(0)), "a straw bale")
+	for kind in RallyDressing.BOARD_KINDS:
+		assert_true(lit_no_brighter_than_the_sun.call((RallyProps.board_parts(kind, 1.5)[0].mesh as QuadMesh).material), "the %s board" % kind)
+	var barriers := 0
+	for world in _worlds:
+		var graph: RouteGraph = world.graph
+		var furniture := RallyDressing.junction_furniture(graph, world.terrain)
+		for n in furniture.size():
+			add_child_autofree(furniture[n])
+			if graph.spurs[n].end == &"barrier":
+				var barrier := furniture[n].get_node(^"Barrier")
+				for child in barrier.get_children():
+					if child is MeshInstance3D and not (child as MeshInstance3D).mesh is QuadMesh:
+						barriers += 1
+						assert_true(lit_no_brighter_than_the_sun.call((child as MeshInstance3D).mesh.surface_get_material(0)), "a concrete block across a closed road")
+				var face := barrier.get_node(^"Board").get_child(0) as MeshInstance3D
+				assert_true(lit_no_brighter_than_the_sun.call((face.mesh as QuadMesh).material), "its no-entry board")
+	assert_gt(barriers, 0, "some stage closes a wrong way with blocks")
+
+
 func test_a_post_stands_clear_behind_its_board() -> void:
 	for kind in RallyDressing.BOARD_KINDS:
 		var parts := RallyProps.board_parts(kind, 1.5)

@@ -191,7 +191,7 @@ static func _add_collision(body: StaticBody3D, center: Vector3, size: Vector3) -
 ## A concrete block lying along the road, its foot at `at`.
 static func _add_block(body: StaticBody3D, at: Vector3) -> void:
 	var turn := Transform3D(Basis(Vector3.UP, PI * 0.5), at)
-	for part in RoadsideDresser._parts_of({"id": "arch_block", "path": BLOCK_MODEL}):
+	for part in RoadsideDresser._parts_of({"id": "arch_block", "path": BLOCK_MODEL, "weathered": true}):
 		var mesh := MeshInstance3D.new()
 		mesh.mesh = part.mesh
 		mesh.transform = turn * (part.transform as Transform3D)

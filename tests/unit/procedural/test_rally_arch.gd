@@ -81,6 +81,22 @@ func test_the_banner_prints_the_flag_at_both_ends() -> void:
 	assert_ne(finish.get_data(), start.get_data(), "chequers at the finish, chevrons at the start")
 
 
+## At night a car's beams are many times the day's sun a few metres ahead: what is pale and stands in their hot band burned to a white
+## flare in a halo. Its shader lights it as the engine does, but no lamp brighter than the sun (shaders/lamp_cap.gdshaderinc).
+static func lit_no_brighter_than_the_sun(material: Material) -> bool:
+	return material is ShaderMaterial and (material as ShaderMaterial).shader.code.contains("lamp_capped_light(")
+
+
+func test_the_blocks_and_the_rail_in_the_beams_take_no_more_than_the_sun() -> void:
+	var blocks := _arch(0).get_node(^"Posts").find_children("*", "MeshInstance3D", false, false)
+	assert_eq(blocks.size(), 2, "a block before each tower")
+	for block: MeshInstance3D in blocks:
+		assert_true(lit_no_brighter_than_the_sun(block.mesh.surface_get_material(0)), "the concrete stays concrete in the beams")
+		assert_eq((block.mesh.surface_get_material(0) as ShaderMaterial).shader, RoadsideDresser.WEATHERED_SHADER, "and takes the rain and the snow")
+	assert_true(lit_no_brighter_than_the_sun(GuardRail.material()), "the rail's zinc")
+	assert_true(lit_no_brighter_than_the_sun(RallyProps.flag_parts()[1].mesh.surface_get_material(0)), "the arch's flags")
+
+
 func test_the_w_beam_has_two_ridges_and_a_valley() -> void:
 	assert_almost_eq(GuardRail.profile_depth(0.0), 0.0, 0.001, "the bottom edge lies back")
 	assert_almost_eq(GuardRail.profile_depth(0.25), GuardRail.BEAM_DEPTH, 0.001, "the lower ridge")

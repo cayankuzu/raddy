@@ -1,6 +1,7 @@
 shader_type spatial;
 // A scanned rock out in the weather (RoadsideDresser, `weathered` in the catalog): the scan's own textures. Rain darkens it
-// and makes it shine; snow lies on every ledge that faces up, by the scan's own relief. Without weather it is the scan.
+// and makes it shine; snow lies on every ledge that faces up, by the scan's own relief. Without weather it is the scan. A concrete block
+// is one too (RallyArch, RallyDressing's barriers).
 
 global uniform float wetness;
 global uniform float snow_cover;
@@ -18,6 +19,9 @@ const float SNOW_TO = 0.62;
 const float WET_DARK = 0.42;
 const float WET_POLISH = 0.5;
 
+// A pale block or rock a few metres ahead in the hot band of a car's beams at night burned to a white flare in a halo.
+#include "res://shaders/lamp_cap.gdshaderinc"
+
 void fragment() {
 	vec3 albedo = texture(albedo_texture, UV).rgb;
 	vec2 relief = texture(normal_texture, UV).rg * 2.0 - 1.0;
@@ -30,4 +34,9 @@ void fragment() {
 	ALBEDO = mix(albedo, SNOW, snow);
 	ROUGHNESS = mix(roughness, SNOW_ROUGHNESS, snow);
 	NORMAL_MAP = vec3(mix(relief, vec2(0.0), snow) * 0.5 + 0.5, 1.0);
+}
+
+void light() {
+	lamp_capped_light(LIGHT, VIEW, NORMAL, LIGHT_COLOR, ATTENUATION, LIGHT_IS_DIRECTIONAL, ALBEDO, METALLIC, ROUGHNESS, SPECULAR_AMOUNT, vec3(0.0),
+		DIFFUSE_LIGHT, SPECULAR_LIGHT);
 }

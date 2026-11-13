@@ -7,6 +7,7 @@ class_name RallyProps
 
 const BOARD_SHADER := preload("res://shaders/board.gdshader")
 const CLOTH_SHADER := preload("res://shaders/cloth.gdshader")
+const STRAW_SHADER := preload("res://shaders/straw.gdshader")
 const COVERED_CAR_MODEL := "res://assets/models/covered_car/covered_car_1k.gltf"
 const CIVILIAN_CAR_MODEL := "res://assets/vehicles/milano95/milano95.glb"
 
@@ -413,7 +414,7 @@ static func _flag_mesh() -> Mesh:
 # --- straw bales ---
 
 ## A round bale: a bulging barrel round X with soft shoulders and slightly domed ends, one texture
-## (the wrapped side on the left half, the rolled end on the right half).
+## (the wrapped side on the left half, the rolled end on the right half), out in the weather (shaders/straw.gdshader).
 static func _bale_mesh() -> Mesh:
 	const SEGMENTS := 20
 	# Across the barrel: position along the axis (-1..1), radius factor.
@@ -463,14 +464,12 @@ static func _bale_mesh() -> Mesh:
 			surface.add_index(base + k + (1 if end < 0.0 else 2))
 		base += SEGMENTS + 2
 	surface.generate_tangents()
-	var material := StandardMaterial3D.new()
+	var material := ShaderMaterial.new()
+	material.shader = STRAW_SHADER
 	var maps := _straw_textures()
-	material.albedo_texture = maps[0]
-	material.normal_enabled = true
-	material.normal_texture = maps[1]
-	material.normal_scale = 1.2
-	material.roughness = 0.95
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	material.set_shader_parameter(&"albedo_texture", maps[0])
+	material.set_shader_parameter(&"normal_texture", maps[1])
+	material.set_shader_parameter(&"weather_noise", SurfaceMaterials.noise())
 	surface.set_material(material)
 	return surface.commit()
 
