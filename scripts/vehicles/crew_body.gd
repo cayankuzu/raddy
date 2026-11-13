@@ -55,6 +55,17 @@ const LEG_LINE := Vector2(0.089, -0.01)
 const LEG_STRIPE_TOP := 0.84
 const BODY_LINE := -0.03
 const BODY_STRIPE := Vector2(1.05, 1.3)
+## The trunk, which the suit's body spans as one piece: from under the collarbones down to the hips (m up, the mannequin standing).
+const TRUNK := Vector2(1.42, 0.92)
+## The flag patch on the upper left sleeve (the left arm lies along +x, the mannequin standing in its T-pose, palms down): its middle, how
+## far out along the arm (m) and how far round it from the top towards the front (radians), and its size (m: 3:2 like every flag), the
+## hoist towards the wearer's front.
+const PATCH_AT := Vector2(0.315, 0.3)
+const PATCH_SIZE := Vector2(0.069, 0.046)
+## The name embroidered on the right of the chest, beside the harness's shoulder strap: its middle, how far round the body from the
+## front's middle (m along the cloth, the right side negative) and how high (m), and the box it is fitted into (m, NAME_PICTURE's shape).
+const NAME_AT := Vector2(-0.152, 1.36)
+const NAME_SIZE := Vector2(0.072, 0.012)
 
 var role := RosterRules.Role.DRIVER
 var skeleton: Skeleton3D
@@ -62,6 +73,9 @@ var pose: CrewPose
 var helmet: MeshInstance3D
 var harness: MeshInstance3D
 var rig: CrewRig
+## The name this crew member wears (wear_name) and its picture (CarLivery.name_picture; null with no name), for whatever else carries it.
+var worn_name := ""
+var name_picture: ImageTexture
 
 var _suit: MeshInstance3D
 var _material := ShaderMaterial.new()
@@ -76,8 +90,11 @@ func build(seat_role: int, eye: Vector3, paint: Color) -> void:
 	add_child(mannequin)
 	skeleton = mannequin.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
 	_suit = skeleton.find_children("*", "MeshInstance3D", true, false)[0] as MeshInstance3D
-	_suit.mesh = suit_mesh(_suit.mesh, skeleton)
+	_suit.mesh = race_suit(_suit.mesh, skeleton)
 	_material.shader = SUIT_SHADER
+	_material.set_shader_parameter(&"flag", TurkishFlag.texture())
+	_material.set_shader_parameter(&"patch_box", Vector4(PATCH_AT.x, PATCH_AT.y, PATCH_SIZE.x, PATCH_SIZE.y))
+	_material.set_shader_parameter(&"name_box", Vector4(NAME_AT.x, NAME_AT.y, NAME_SIZE.x, NAME_SIZE.y))
 	_suit.material_override = _material
 	_suit.layers = GraphicsQuality.CABIN_LAYER
 	_suit.visibility_range_end = DRAW_RANGE
@@ -119,11 +136,20 @@ func build(seat_role: int, eye: Vector3, paint: Color) -> void:
 		rig.build(self, car_model, eye)
 
 
-## The suit, the helmet and the harness in the team's colour.
+## The suit and the helmet in the team's colour.
 func set_paint(paint: Color) -> void:
 	_material.set_shader_parameter(&"suit", paint)
-	_harness_material.set_shader_parameter(&"paint", paint)
 	helmet.material_override = CrewHelmet.material(paint)
+
+
+## The name the player in this seat goes by, lettered (LiveryRules.seat_name), embroidered on the chest; nothing for an empty one.
+func wear_name(lettered: String) -> void:
+	if lettered == worn_name:
+		return
+	worn_name = lettered
+	name_picture = null if lettered.is_empty() else ImageTexture.create_from_image(CarLivery.name_picture(lettered))
+	_material.set_shader_parameter(&"name_map", name_picture)
+	_material.set_shader_parameter(&"named", name_picture != null)
 
 
 ## The harness buckled over the body as it sits (car space): each shoulder strap from its slot in the seat's back over the shoulder and
@@ -265,6 +291,81 @@ static func suit_mesh(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, merged)
 	_suits[source] = mesh
 	return mesh
+
+
+static var _race_suits: Dictionary = {}  # source mesh -> the crew's suit
+
+
+## The crew's race suit: the mannequin's one surface (suit_mesh) cut as cloth over it (CrewSuit.cut: a sleeve spans the elbow's groove, a
+## leg the knee's, the body its blocks), each vertex also saying where on the suit it is for the shader's panels, seams and patches
+## (CUSTOM0: its place on the cut suit as the mannequin stands, m, and in w the piece it is of, CrewSuit.Part; UV.x how far it is from
+## where its piece meets another, CrewSuit.meeting, the seam round a shoulder and a hip; UV.y how much it is of a glove's back, COLOR.a
+## but a finger's by CrewSuit.finger_backs). Every body shares it.
+static func race_suit(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
+	if _race_suits.has(source):
+		return _race_suits[source]
+	var arrays := suit_mesh(source, rig).surface_get_arrays(0)
+	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	var regions: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var per := bones.size() / vertices.size()
+	var of_bone: Array[StringName] = []
+	for bone in rig.get_bone_count():
+		of_bone.append(bone_group(rig.get_bone_name(bone)))
+	var groups: Array[StringName] = []
+	var cloth := PackedByteArray()
+	for v in vertices.size():
+		var heaviest := 0
+		for k in range(1, per):
+			if weights[v * per + k] > weights[v * per + heaviest]:
+				heaviest = k
+		groups.append(of_bone[bones[v * per + heaviest]])
+		cloth.append(1 if maxf(regions[v].r, maxf(regions[v].g, regions[v].b)) < 0.5 else 0)
+	var parts := CrewSuit.parts(vertices, indices, groups)
+	var limbs := [[CrewSuit.Part.BODY, Vector3(0.0, TRUNK.x, BODY_LINE), Vector3(0.0, TRUNK.y, BODY_LINE), Vector2(0.06, 0.08)]]
+	var balls := []
+	for side: int in [CrewPose.Side.LEFT, CrewPose.Side.RIGHT]:
+		var shoulder := _rest(rig, CrewPose.ARMS[side][1])
+		var hip := _rest(rig, CrewPose.LEGS[side][0])
+		var ankle := _rest(rig, CrewPose.LEGS[side][2])
+		limbs.append([CrewSuit.Part.ARM, shoulder, _rest(rig, CrewPose.ARMS[side][3]), Vector2(0.05, 0.04)])
+		limbs.append([CrewSuit.Part.LEG, hip, hip.lerp(ankle, (hip.y - BOOT_TOP.y) / (hip.y - ankle.y)), Vector2(0.08, 0.04)])
+		balls.append([shoulder, CrewSuit.SHOULDER_BALL])
+		balls.append([hip, CrewSuit.HIP_BALL])
+	var cut := CrewSuit.cut(vertices, normals, indices, parts, cloth, limbs, balls)
+	var cut_normals := CrewSuit.normals(cut, indices, cloth, normals)
+	var meeting := CrewSuit.meeting(cut, cut_normals, parts)
+	var backs := PackedFloat32Array()
+	for v in vertices.size():
+		backs.append(regions[v].a)
+	backs = CrewSuit.finger_backs(vertices, parts, CrewSuit.islands(vertices, indices), backs)
+	var places := PackedFloat32Array()
+	var seams := PackedVector2Array()
+	var stripes: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
+	for v in cut.size():
+		places.append_array(PackedFloat32Array([cut[v].x, cut[v].y, cut[v].z, parts[v]]))
+		seams.append(Vector2(meeting[v], backs[v]))
+		# A stripe is measured front to back (stripe_coordinate): it moves with the cloth.
+		stripes[v] += Vector2(cut[v].z - vertices[v].z, 0.0)
+	arrays[Mesh.ARRAY_VERTEX] = cut
+	arrays[Mesh.ARRAY_NORMAL] = cut_normals
+	# The mannequin's tangents are the body's, not the cloth's, and nothing reads them.
+	arrays[Mesh.ARRAY_TANGENT] = null
+	arrays[Mesh.ARRAY_TEX_UV] = seams
+	arrays[Mesh.ARRAY_TEX_UV2] = stripes
+	arrays[Mesh.ARRAY_CUSTOM0] = places
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	_race_suits[source] = mesh
+	return mesh
+
+
+## Where a bone's joint is on the mannequin as it stands at rest.
+static func _rest(rig: Skeleton3D, bone_name: StringName) -> Vector3:
+	return rig.get_bone_global_rest(rig.find_bone(bone_name)).origin
 
 
 ## Which part of the body a bone carries: the hands, the head, the arms, the legs, the feet or the body.

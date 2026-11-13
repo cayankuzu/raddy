@@ -31,3 +31,16 @@ func test_a_name_is_lettered_clean_and_short_enough() -> void:
 	assert_eq(long, "ABCDEFGHIJKLMNOPQRST")
 	var roster := {4: {"name": "  ", "team": 1, "role": DRIVER, "ready": true}}
 	assert_eq(Array(LiveryRules.crew_names(roster, 1, "tr")), [], "a blank name puts nothing on the glass")
+
+
+func test_each_seat_wears_its_players_name() -> void:
+	var roster := {
+		7: {"name": "Deniz Kaya", "team": 2, "role": NAVIGATOR, "ready": true},
+		3: {"name": "ali şimşek", "team": 2, "role": DRIVER, "ready": true},
+		4: {"name": "  ", "team": 1, "role": DRIVER, "ready": true},
+	}
+	assert_eq(LiveryRules.seat_name(roster, 2, DRIVER, "tr"), "ALİ ŞİMŞEK", "the roster's name in Turkish capitals, İ and Ş")
+	assert_eq(LiveryRules.seat_name(roster, 2, NAVIGATOR, "tr"), "DENİZ KAYA")
+	assert_eq(LiveryRules.seat_name(roster, 1, NAVIGATOR, "tr"), "", "an empty seat wears no name")
+	assert_eq(LiveryRules.seat_name(roster, 1, DRIVER, "tr"), "", "nor a player with a blank one")
+	assert_eq(LiveryRules.seat_name(roster, 3, DRIVER, "tr"), "", "nor a team nobody holds")

@@ -257,7 +257,7 @@ static func _role(role_name: String) -> int:
 	return RosterRules.Role.NAVIGATOR if role_name == "navigator" else RosterRules.Role.DRIVER
 
 
-## Who sits in a car (--crew), and the car lettered for them (--names).
+## Who sits in a car (--crew), and the car and their suits lettered for them (--names).
 func _seat_crew(car: RallyCar, team: int) -> void:
 	var seats: String = _args.get("crew", "driver+navigator")
 	var model := car.get_node(^"Model") as CarModel
@@ -269,6 +269,7 @@ func _seat_crew(car: RallyCar, team: int) -> void:
 		if seated:
 			var name := given[names.size()] if names.size() < given.size() else tr("LOBBY_DRIVER" if role == RosterRules.Role.DRIVER else "LOBBY_NAVIGATOR")
 			names.append(LiveryRules.lettered(name, TranslationServer.get_locale()))
+			(model.crew[role] as CrewBody).wear_name(names[-1])
 	model.livery.show_crew(LiveryRules.number(team), names)
 
 

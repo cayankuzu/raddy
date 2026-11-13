@@ -8,9 +8,11 @@ extends Node3D
 ## skin). All of it is drawn here: the event's name from the strings, the number and the names; no maker's logo anywhere.
 
 const STICKER_SHADER := preload("res://shaders/car_sticker.gdshader")
-## The picture every part is drawn into, and how many of its pixels make a metre on the car.
+## The picture every part is drawn into, and how many of its pixels make a metre on the car; a crew member's name for the suit and the
+## helmet (name_picture: as long against its height as the chest's box, CrewBody.NAME_SIZE).
 const PICTURE := Vector2i(1024, 512)
 const PER_METRE := 880.0
+const NAME_PICTURE := Vector2i(576, 96)
 ## Each part: where its middle lies on the car (car space: a door panel along and up either flank (z, y); the plate across and along the
 ## bonnet (x, z); the names along and up either rear side window (z, y); the number across and up the rear window (x, y)), how big it is
 ## there (metres) and where it starts in the picture (pixels).
@@ -110,6 +112,15 @@ func _draw() -> void:
 		skin.set_shader_parameter(&"livery", not number.is_empty())
 	_sticker_material.set_shader_parameter(&"picture", picture)
 	_stickers.visible = not number.is_empty()
+
+
+## A crew member's name (LiveryRules.seat_name) as it is embroidered on the suit and carried on the helmet: white letters on nothing (the
+## alpha is the ink), as large as NAME_PICTURE holds them, every name the same height unless it is too long for the width.
+static func name_picture(lettered: String) -> Image:
+	var image := Image.create(NAME_PICTURE.x, NAME_PICTURE.y, false, Image.FORMAT_RGBA8)
+	_print(image, lettered, UiTheme.hud_font(700, 100), Rect2i(Vector2i.ZERO, NAME_PICTURE).grow(-4))
+	image.generate_mipmaps()
+	return image
 
 
 ## A part's box on the car (from, to: the two lengths of `at`).

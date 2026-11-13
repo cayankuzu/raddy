@@ -1,7 +1,8 @@
 class_name LiveryRules
 extends RefCounted
 ## What a rally car carries for its crew (pure): the crew's number (on the door panels, the plate on the bonnet and the rear window, as
-## the results number the teams) and the names lettered on the rear side windows, the driver's first, for the seats players hold.
+## the results number the teams) and the names lettered on the rear side windows, the driver's first, for the seats players hold; the
+## same name on each crew member's suit and helmet.
 
 ## A name longer than this is cut (letters): it has to fit a rear side window.
 const NAME_MOST := 20
@@ -16,13 +17,20 @@ static func number(team: int) -> String:
 ## lettered for `locale` (lettered); an empty seat has no name, nor has a player with an empty one.
 static func crew_names(roster: Dictionary, team: int, locale: String) -> PackedStringArray:
 	var names := PackedStringArray()
-	for peer: int in [RosterRules.driver_of(roster, team), RosterRules.navigator_of(roster, team)]:
-		if peer == 0:
-			continue
-		var name := lettered(str((roster[peer] as Dictionary).get("name", "")), locale)
+	for role: int in [RosterRules.Role.DRIVER, RosterRules.Role.NAVIGATOR]:
+		var name := seat_name(roster, team, role, locale)
 		if not name.is_empty():
 			names.append(name)
 	return names
+
+
+## The name the player in a team's `role` seat wears on the suit and the helmet (CrewBody.wear_name), as the glass letters it: empty for an
+## empty seat or a player with an empty name.
+static func seat_name(roster: Dictionary, team: int, role: int, locale: String) -> String:
+	var peer := RosterRules.driver_of(roster, team) if role == RosterRules.Role.DRIVER else RosterRules.navigator_of(roster, team)
+	if peer == 0:
+		return ""
+	return lettered(str((roster[peer] as Dictionary).get("name", "")), locale)
 
 
 ## A name as it goes on the glass: in capitals the way the language writes them (Turkish: i to İ, ı to I), single spaces, at most NAME_MOST

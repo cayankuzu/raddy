@@ -189,6 +189,67 @@ func test_the_suit_is_one_draw_call_and_every_vertex_is_told_what_it_is() -> voi
 	assert_same(suit.mesh, (_model.crew[RosterRules.Role.NAVIGATOR] as CrewBody)._suit.mesh, "every body shares it")
 
 
+func test_the_name_on_the_chest_is_the_seats_players() -> void:
+	_model.seat_crew(RosterRules.Role.DRIVER, true)
+	var body: CrewBody = _model.crew[RosterRules.Role.DRIVER]
+	var material := body._suit.material_override as ShaderMaterial
+	assert_null(body.name_picture, "nobody's name until the roster gives one")
+	var roster := {3: {"name": "ışıl şahin", "team": 1, "role": RosterRules.Role.DRIVER, "ready": true}}
+	body.wear_name(LiveryRules.seat_name(roster, 1, RosterRules.Role.DRIVER, "tr"))
+	assert_eq(body.worn_name, "IŞIL ŞAHİN", "in Turkish capitals")
+	assert_not_null(body.name_picture)
+	assert_eq(body.name_picture.get_size(), Vector2(CarLivery.NAME_PICTURE), "the picture the helmet can carry too")
+	var ink := body.name_picture.get_image().get_used_rect()
+	gut.p("the name's ink: %s of %s" % [ink, CarLivery.NAME_PICTURE])
+	assert_gt(ink.size.x, CarLivery.NAME_PICTURE.x / 2, "lettered across the box")
+	assert_same(material.get_shader_parameter(&"name_map"), body.name_picture)
+	assert_true(material.get_shader_parameter(&"named"))
+	assert_almost_eq(CrewBody.NAME_SIZE.x / CrewBody.NAME_SIZE.y, float(CarLivery.NAME_PICTURE.x) / CarLivery.NAME_PICTURE.y, 0.01,
+		"the box as long as the picture")
+	assert_lt(CrewBody.NAME_AT.x, 0.0, "on the right of the chest")
+	body.wear_name("")
+	assert_null(body.name_picture, "a blank name puts nothing on the suit")
+	assert_false(material.get_shader_parameter(&"named"))
+
+
+func test_the_flag_patch_is_turkeys_on_the_upper_left_sleeve() -> void:
+	_model.seat_crew(RosterRules.Role.NAVIGATOR, true)
+	var body: CrewBody = _model.crew[RosterRules.Role.NAVIGATOR]
+	var material := body._suit.material_override as ShaderMaterial
+	assert_same(material.get_shader_parameter(&"flag"), TurkishFlag.texture(), "TurkishFlag's picture, drawn from its law's geometry")
+	assert_almost_eq(CrewBody.PATCH_SIZE.x / CrewBody.PATCH_SIZE.y, TurkishFlag.LENGTH, 0.001, "3:2")
+	var shoulder := body.skeleton.get_bone_global_rest(body.skeleton.find_bone(CrewPose.ARMS[CrewPose.Side.LEFT][1])).origin
+	var elbow := body.skeleton.get_bone_global_rest(body.skeleton.find_bone(CrewPose.ARMS[CrewPose.Side.LEFT][2])).origin
+	assert_gt(shoulder.x, 0.0, "the left arm lies along +x, where the patch goes")
+	assert_between(CrewBody.PATCH_AT.x - CrewBody.PATCH_SIZE.y * 0.5, shoulder.x + 0.08, elbow.x, "below the shoulder's ball")
+	assert_between(CrewBody.PATCH_AT.x + CrewBody.PATCH_SIZE.y * 0.5, shoulder.x + 0.08, elbow.x, "above the elbow")
+	assert_between(CrewBody.PATCH_AT.y, 0.0, PI * 0.5, "on the outside of the arm, turned a little to the front")
+
+
+func test_the_gloves_backs_keep_the_team_colour() -> void:
+	_model.seat_crew(RosterRules.Role.DRIVER, true)
+	var body: CrewBody = _model.crew[RosterRules.Role.DRIVER]
+	body.set_paint(TeamColors.paint(2))
+	assert_eq((body._suit.material_override as ShaderMaterial).get_shader_parameter(&"suit"), TeamColors.paint(2), "the suit's colour, the gloves' backs' too")
+	var arrays := body._suit.mesh.surface_get_arrays(0)
+	var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var backs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var custom: PackedFloat32Array = arrays[Mesh.ARRAY_CUSTOM0]
+	var finger_backs := 0
+	var fingers := 0
+	var changed := 0
+	for v in colours.size():
+		if int(custom[v * 4 + 3]) == CrewSuit.Part.FINGER:
+			fingers += 1
+			finger_backs += 1 if backs[v].y > 0.5 else 0
+		elif absf(backs[v].y - colours[v].a) > 0.0001:
+			changed += 1
+	assert_eq(changed, 0, "the hand's back as A5 had it")
+	gut.p("finger vertices on the back: %d of %d" % [finger_backs, fingers])
+	assert_between(float(finger_backs) / fingers, 0.3, 0.6, "about the upper half of every finger")
+	assert_eq((CarRallyKit.HARNESS[0] as Color).a, 0.0, "the harness's webbing black, whatever the team's colour")
+
+
 func test_the_helmet_is_round_the_head_with_its_visor_ahead() -> void:
 	_model.seat_crew(RosterRules.Role.DRIVER, true)
 	var body: CrewBody = _model.crew[RosterRules.Role.DRIVER]

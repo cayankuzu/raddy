@@ -816,16 +816,18 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	print("NET spawned car team %d driver %d" % [team, driver_peer])
 
 
-## Every peer seats a crew member in each seat of `team`'s car a player holds, nobody in an empty one, and letters the crew's names on the
-## car (CarLivery).
+## Every peer seats a crew member in each seat of `team`'s car a player holds, nobody in an empty one, each in a suit with their name on
+## it, and letters the crew's names on the car (CarLivery).
 func _seat_crew(team: int) -> void:
 	var model := (_team_cars[team] as RallyCar).get_node(^"Model") as CarModel
+	var locale := TranslationServer.get_locale()
 	var seated: Array[String] = []
 	for role: int in [RosterRules.Role.DRIVER, RosterRules.Role.NAVIGATOR]:
 		model.seat_crew(role, seat_taken(team, role))
 		if model.crew.has(role):
 			seated.append(RosterRules.role_name(role))
-	var names := LiveryRules.crew_names(Net.roster, team, TranslationServer.get_locale())
+			(model.crew[role] as CrewBody).wear_name(LiveryRules.seat_name(Net.roster, team, role, locale))
+	var names := LiveryRules.crew_names(Net.roster, team, locale)
 	model.livery.show_crew(LiveryRules.number(team), names)
 	print("NET crew team %d: %s, lettered %s" % [team, ", ".join(seated), " / ".join(names)])
 

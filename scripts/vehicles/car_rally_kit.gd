@@ -69,8 +69,8 @@ const BOTTLE_RED := [Color(0.55, 0.02, 0.015, 0.0), 0.0, 0.3]
 const CHROME := [Color(0.78, 0.78, 0.8, 0.0), 1.0, 0.18]
 const FABRIC := [Color(0.03, 0.03, 0.032, 0.0), 0.0, 0.9]
 const SEAT_SHELL := [Color(0.018, 0.018, 0.02, 0.0), 0.2, 0.35]
-## The webbing in a deeper shade of the team colour: it shows on a suit of the same colour. A HANS device's carbon.
-const HARNESS := [Color(0.0, 0.0, 0.0, 0.72), 0.0, 0.55]
+## The webbing black, as most harnesses are: it stands out on every team's suit. A HANS device's carbon.
+const HARNESS := [Color(0.012, 0.012, 0.014, 0.0), 0.0, 0.62]
 const CARBON := [Color(0.02, 0.02, 0.022, 0.0), 0.3, 0.32]
 ## Further away than this nobody makes out the cage through the windows.
 const DRAW_RANGE := 60.0
