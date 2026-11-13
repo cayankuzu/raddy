@@ -60,6 +60,11 @@ const vec3 SNOW_COLOR = vec3(0.86, 0.88, 0.92);
 varying vec3 car_pos;
 varying vec3 car_normal;
 varying vec3 outward;
+varying float coat_amount;
+
+// In the hot band of a follower's beams at night the car ahead burned to a white blob in a halo, its colour, its number and its crew lost in
+// it: no lamp lights the skin more than the day's sun (lamp_cap), and the clear coat's glint is the engine's own, as bright as the light allows.
+#include "res://shaders/lamp_cap.gdshaderinc"
 
 // How soon the road reaches a point of the body: 1 is where it lands first, 0 where it hardly ever gets.
 float body_reach(vec3 p, vec3 n) {
@@ -178,4 +183,24 @@ void fragment() {
 	ROUGHNESS = rough;
 	CLEARCOAT = coat;
 	CLEARCOAT_ROUGHNESS = clearcoat_roughness;
+	coat_amount = coat;
+}
+
+void light() {
+	lamp_capped_light(LIGHT, VIEW, NORMAL, LIGHT_COLOR, ATTENUATION, LIGHT_IS_DIRECTIONAL, ALBEDO, METALLIC, ROUGHNESS, SPECULAR_AMOUNT, vec3(0.0),
+		DIFFUSE_LIGHT, SPECULAR_LIGHT);
+	if (coat_amount > 0.0) {
+		vec3 light = LIGHT_COLOR * ATTENUATION;
+		if (!LIGHT_IS_DIRECTIONAL) {
+			light *= min(1.0, LAMP_MOST * PI / max(max(light.r, light.g), max(light.b, 0.0001)));
+		}
+		vec3 half_way = normalize(VIEW + LIGHT);
+		float n_l = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
+		float n_h = clamp(dot(NORMAL, half_way), 0.0, 1.0);
+		float l_h = max(dot(LIGHT, half_way), 0.0001);
+		float alpha = mix(0.001, 0.1, clearcoat_roughness);
+		float k = alpha / (1.0 - n_h * n_h + n_h * n_h * alpha * alpha);
+		float fresnel = mix(0.04, 1.0, lamp_cap_schlick(l_h));
+		SPECULAR_LIGHT += light * coat_amount * n_l * k * k / PI * 0.25 / (l_h * l_h) * fresnel * SPECULAR_AMOUNT;
+	}
 }

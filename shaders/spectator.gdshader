@@ -8,7 +8,8 @@ shader_type spatial;
 // trousers, shoes, hair; CUSTOM1.y how far past a short sleeve's end it is along the arm, .z the flag's cloth, .w its stick), how much
 // further a long sleeve stands off it (UV2.x, along its normal: put on here for those who wear one; the shirt, the trousers and the hair
 // stand off the body already, Spectators dressed it), how far inside the open edges of the shirt's body it was at rest (UV2.y: its hem
-// and its collar; those and a short sleeve's end are drawn where the distances are nought, straight lines across the triangles) and
+// and its top; those and a short sleeve's end are drawn where the distances are nought, straight lines across the triangles; the collar's
+// round is worked out here to the pixel, from where the body stands, or it wandered across the triangles round the neck) and
 // where on the face it is (UV: metres to the person's left and up from the middle of the face, plus FACE_UV; anything smaller is not the
 // face). The face's shape is the mesh's (a nose, brows, lips, a chin); painted on it what makes a face read from the road: the eyes in the
 // hollows under the brows, the brows themselves, the shadow under the nose, the lips, and a beard on some.
@@ -19,6 +20,8 @@ uniform vec3 elbow_l;
 uniform vec3 shoulder_r;
 uniform vec3 elbow_r;
 uniform vec3 neck;
+// The collar: round the neck's middle (x, z) this far (Spectators.NECK.x).
+uniform vec3 collar;
 uniform sampler2D flag_cloth : source_color, filter_linear_mipmap_anisotropic;
 // The clothes SpectatorRules picks by index (linear).
 uniform vec3 shirts[12];
@@ -56,6 +59,7 @@ varying float past_sleeve;
 varying float cloth;
 varying float stick;
 varying float shirt_edge;
+varying vec2 standing_xz;
 // Trousers, hair (or hat), a hat or not, shirt; long sleeves or not; the person's seed.
 varying flat ivec4 dress;
 varying flat int long_sleeves;
@@ -128,6 +132,7 @@ void vertex() {
 	cloth = CUSTOM1.z;
 	stick = CUSTOM1.w;
 	shirt_edge = UV2.y;
+	standing_xz = VERTEX.xz;
 
 	// How far this person has caught the place's cheer: some are quicker than others.
 	float excited = smoothstep(0.0, 1.0, clamp(cheer * 1.5 - seed * 0.5, 0.0, 1.0));
@@ -181,7 +186,8 @@ void vertex() {
 void fragment() {
 	// A short sleeve ends straight across the arm, the shirt's body at its hem over the trousers and its collar round the neck.
 	float bare = long_sleeves == 1 ? 0.0 : smoothstep(-fwidth(past_sleeve), fwidth(past_sleeve), past_sleeve);
-	float shirt = smoothstep(-fwidth(shirt_edge), fwidth(shirt_edge), shirt_edge);
+	float edge = min(shirt_edge, length(standing_xz - collar.xy) - collar.z);
+	float shirt = smoothstep(-fwidth(edge), fwidth(edge), edge);
 	bare = max(region.r > 0.01 && region.r < 0.99 && past_sleeve < -0.5 ? 1.0 - shirt : region.r, bare);
 	float legs = region.g > 0.01 && region.g < 0.99 ? 1.0 - shirt : region.g;
 	vec3 albedo = shirts[dress.w];

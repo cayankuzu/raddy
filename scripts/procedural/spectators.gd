@@ -26,13 +26,22 @@ const HEM := 0.99
 const CHEST := 1.4
 const SHORT_SLEEVE := 0.45
 const EDGE_ROLL := 0.015
-## Trousers hang from the knee (m down the leg from the hip), a sleeve from under the shoulder's ball (m down the arm). The neck (from its
-## joint at rest): skin within this far of its middle, up to this high (the head's above); round it the shirt's collar.
-const KNEE := 0.38
+## Trousers hang from the top of the thigh (m down the leg from the hip), a sleeve from under the shoulder's ball (m down the arm). The neck (from its
+## joint at rest): skin within this far of its middle, up to this high (the head's above); round it the shirt's collar. What turns with the
+## head more than this is the neck, never the collar (the throat's front stands out past the collar's round: a patch of the shirt's colour
+## showed under the chin).
+const THIGH := 0.1
 const SHOULDER_BALL := 0.09
 const NECK := Vector2(0.068, 0.07)
-## How much slimmer than the mannequin's an upper arm and a forearm are round their bones.
+const NECK_TURNS := 0.6
+## How much slimmer than the mannequin's an upper arm and a forearm are round their bones, and the ball the mannequin's arm turns in at the
+## shoulder (dressed, it stood out like a puffed sleeve over shoulders as broad as a bodybuilder's), out to this far down the arm (m).
 const SLIM := Vector2(0.82, 0.92)
+const BALL_SLIM := 0.62
+const BALL_REACH := 0.12
+## What of the ball rises over the shoulder's joint, standing (the arm down), is pressed down to this share: a shoulder slopes down from
+## the neck, no dome stands on it.
+const BALL_TOP := 0.45
 ## Where the hair begins (m up at the middle of the forehead; this much lower at the temples); behind the ears it comes down to the nape.
 const HAIRLINE := Vector2(1.725, 0.03)
 ## The face: the front of the head (the mannequin standing: further forward than this, between these heights). Its vertices tell the
@@ -132,7 +141,7 @@ static func material() -> ShaderMaterial:
 		var mesh := body_mesh()
 		_material = ShaderMaterial.new()
 		_material.shader = SHADER
-		for joint: StringName in [&"shoulder_l", &"elbow_l", &"shoulder_r", &"elbow_r", &"neck"]:
+		for joint: StringName in [&"shoulder_l", &"elbow_l", &"shoulder_r", &"elbow_r", &"neck", &"collar"]:
 			_material.set_shader_parameter(joint, mesh.get_meta(joint))
 		for palette: Array in [[&"shirts", SpectatorRules.SHIRTS], [&"trousers", SpectatorRules.TROUSERS], [&"hair", SpectatorRules.HAIR],
 				[&"hats", SpectatorRules.HATS]]:
@@ -148,7 +157,8 @@ static func material() -> ShaderMaterial:
 ## flag on a stick in its right hand. Each vertex says what moves it (CUSTOM0: the weight of the left upper arm, the left forearm and hand,
 ## the right's; CUSTOM1: the head's, how far past a short sleeve's end it is (m along the arm at rest; -1 off the arms), the flag's cloth,
 ## its stick), what it is (COLOR: skin, trousers, shoes, hair), how much further a long sleeve stands off it (UV2.x, m along its normal: some
-## wear one), how far inside the open edges of a shirt's body it is at rest (UV2.y: its hem and its collar, _shirt_edge) and, on the face,
+## wear one), how far inside the open edges of a shirt's body it is at rest (UV2.y: its hem and its top, _shirt_cut; the collar's round is
+## the shader's, `collar`, drawn to the pixel: taken from the vertices it wandered across the triangles round the neck) and, on the face,
 ## where (UV, face_uv). The shader cuts a shirt's edges and a short sleeve's end where those are nought, straight across the triangles. The
 ## arms are an ordinary man's, not the mannequin's (SLIM). The joints of the standing pose are the mesh's meta.
 static func body_mesh() -> ArrayMesh:
@@ -173,7 +183,8 @@ static func body_mesh() -> ArrayMesh:
 	var per := bones.size() / vertices.size()
 	var neck := skeleton.get_bone_global_rest(skeleton.find_bone(CrewPose.NECK)).origin
 	var arm: Array = CrewPose.ARMS[CrewPose.Side.LEFT]
-	var sleeve_end := lerpf(_rest_x(skeleton, arm[1]), _rest_x(skeleton, arm[2]), SHORT_SLEEVE)
+	var shoulder_x := _rest_x(skeleton, arm[1])
+	var sleeve_end := lerpf(shoulder_x, _rest_x(skeleton, arm[2]), SHORT_SLEEVE)
 	var wrist := _rest_x(skeleton, arm[3])
 	var axes := {}
 	for group: int in [Group.UPPER_LEFT, Group.FORE_LEFT, Group.UPPER_RIGHT, Group.FORE_RIGHT]:
@@ -205,16 +216,22 @@ static func body_mesh() -> ArrayMesh:
 		var face := face_uv(rest) if head > 0.5 else Vector2.ZERO
 		var group := _most(shares)
 		# Round the neck's base the shirt's collar: the shoulders under the neck's weight are its.
-		if group == Group.HEAD and rest.y < neck.y + NECK.y and _off_neck(rest, neck) > 0.0:
+		if (group == Group.HEAD or group == Group.NECK) and head < NECK_TURNS and rest.y < neck.y + NECK.y and _off_neck(rest, neck) > 0.0:
 			group = Group.BODY
 		if face != Vector2.ZERO:
 			at += Vector3.BACK * face_relief(face - Vector2.ONE * FACE_UV)
 		elif group <= Group.FORE_RIGHT and regions[v].r < 0.5:
 			# Slimmer down to the wrist.
 			var axis: Array[Vector3] = axes[group]
-			var slim := SLIM.x if group == Group.UPPER_LEFT or group == Group.UPPER_RIGHT else lerpf(SLIM.y, 1.0, smoothstep(wrist - 0.06, wrist, absf(rest.x)))
+			var slim := lerpf(SLIM.y, 1.0, smoothstep(wrist - 0.06, wrist, absf(rest.x)))
+			if group == Group.UPPER_LEFT or group == Group.UPPER_RIGHT:
+				slim = lerpf(BALL_SLIM, SLIM.x, smoothstep(0.0, BALL_REACH, absf(rest.x) - shoulder_x))
 			var on := Geometry3D.get_closest_point_to_segment_uncapped(at, axis[0], axis[1])
 			at = on + (at - on) * slim
+			var down := (axis[1] - axis[0]).normalized()
+			var over := minf((at - axis[0]).dot(down), 0.0)
+			if group == Group.UPPER_LEFT or group == Group.UPPER_RIGHT:
+				at -= down * over * (1.0 - BALL_TOP)
 		standing.append(at)
 		standing_normals.append(normal.normalized())
 		arms.append_array(shares.slice(Group.UPPER_LEFT, Group.FORE_RIGHT + 1))
@@ -224,7 +241,7 @@ static func body_mesh() -> ArrayMesh:
 			1.0 if garment == SpectatorClothes.Garment.TROUSERS else 0.0, 1.0 if garment == SpectatorClothes.Garment.SHOES else 0.0,
 			1.0 if garment == SpectatorClothes.Garment.HAIR else 0.0))
 		uvs.append(face)
-		cuts.append(Vector2(0.0, _shirt_edge(rest, neck)))
+		cuts.append(Vector2(0.0, _shirt_cut(rest, neck)))
 		inside.append(_inside(group, garment, rest, neck, sleeve_end, wrist))
 		var piece := _piece(group, garment)
 		if piece.y >= 0:
@@ -285,6 +302,7 @@ static func body_mesh() -> ArrayMesh:
 		_body.set_meta(StringName("shoulder_" + letter), pose.global_of(CrewPose.ARMS[side][1]).origin)
 		_body.set_meta(StringName("elbow_" + letter), pose.global_of(CrewPose.ARMS[side][2]).origin)
 	_body.set_meta(&"neck", pose.global_of(CrewPose.HEAD).origin)
+	_body.set_meta(&"collar", Vector3(neck.x, neck.z, NECK.x))
 	mannequin.free()
 	return _body
 
@@ -356,7 +374,7 @@ static func _most(shares: PackedFloat32Array) -> int:
 ## x), then a long sleeve or skin; a hand skin.
 static func _garment(group: int, region: Color, rest: Vector3, sleeve_end: float) -> int:
 	match group:
-		Group.HEAD:
+		Group.HEAD, Group.NECK:
 			var hair := rest.y > HAIRLINE.x - HAIRLINE.y * smoothstep(0.035, 0.06, absf(rest.x)) or (rest.z < -0.01 and rest.y > 1.6)
 			return SpectatorClothes.Garment.HAIR if hair else SpectatorClothes.Garment.SKIN
 		Group.BODY:
@@ -393,7 +411,12 @@ static func _off_neck(rest: Vector3, neck: Vector3) -> float:
 ## How far inside the open edges of a shirt's body a point of the mannequin at rest is (m; less than nought: outside): above its hem, out
 ## from the neck past its collar, below the head.
 static func _shirt_edge(rest: Vector3, neck: Vector3) -> float:
-	return minf(minf(rest.y - HEM, _off_neck(rest, neck)), neck.y + NECK.y - rest.y)
+	return minf(_shirt_cut(rest, neck), _off_neck(rest, neck))
+
+
+## The straight edges of _shirt_edge: above its hem, below the head.
+static func _shirt_cut(rest: Vector3, neck: Vector3) -> float:
+	return minf(rest.y - HEM, neck.y + NECK.y - rest.y)
 
 
 ## Which piece of clothing a vertex of `group` wearing `garment` belongs to: (the part it hangs round, the garment it hangs as), y below
@@ -422,13 +445,13 @@ static func _axis(pose: CrewPose, group: int) -> Array[Vector3]:
 
 
 ## How far down its axis a piece starts to hang (SpectatorClothes.hang), `top` the axis's top: a shirt from the chest, trousers from the
-## hips over the groin and from the knee down the legs, a sleeve from just under the shoulder's ball.
+## hips over the groin and from the top of the thigh down the legs, a sleeve from just under the shoulder's ball.
 static func _hangs_from(piece: Vector2i, top: Vector3) -> float:
 	match piece.x:
 		Group.BODY:
 			return top.y - (CHEST if piece.y == SpectatorClothes.Garment.SHIRT else HEM)
 		Group.LEG_LEFT, Group.LEG_RIGHT:
-			return KNEE
+			return THIGH
 		Group.UPPER_LEFT, Group.UPPER_RIGHT:
 			return SHOULDER_BALL
 	return 0.0

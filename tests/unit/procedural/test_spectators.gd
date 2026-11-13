@@ -175,6 +175,9 @@ func test_the_crowd_wears_clothes_with_a_shape_of_their_own() -> void:
 	var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
 	var cuts: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
 	var parts: PackedFloat32Array = arrays[Mesh.ARRAY_CUSTOM1]
+	# How far inside a shirt's edges a point is: its hem and top (UV2.y) and the collar's round, which the shader draws.
+	var collar: Vector3 = Spectators.body_mesh().get_meta(&"collar")
+	var inside := func(v: int) -> float: return minf(cuts[v].y, Vector2(rest[v].x - collar.x, rest[v].z - collar.y).length() - collar.z)
 	# How far off the body each kind of cloth stands, along the body's normals: [sum, count, least] by name.
 	var off := {}
 	var measure := func(kind: String, v: int) -> void:
@@ -185,7 +188,7 @@ func test_the_crowd_wears_clothes_with_a_shape_of_their_own() -> void:
 	for v in body.size():
 		var nothing := colours[v] == Color(0, 0, 0, 0)
 		var on_arm := parts[v * 4 + 1] > -0.5
-		if nothing and not on_arm and cuts[v].y > 0.02:
+		if nothing and not on_arm and inside.call(v) > 0.02:
 			measure.call("shirt", v)
 			if rest[v].y > 1.25 and rest[v].y < 1.38 and normals[v].z > 0.7:
 				measure.call("chest", v)
@@ -193,7 +196,7 @@ func test_the_crowd_wears_clothes_with_a_shape_of_their_own() -> void:
 				measure.call("chest's sides", v)
 			if rest[v].y > Spectators.HEM + 0.03 and rest[v].y < Spectators.HEM + 0.1 and absf(normals[v].x) > 0.7:
 				measure.call("waist's sides", v)
-		if nothing and not on_arm and cuts[v].y > 0.015 and cuts[v].y < 0.03 and rest[v].y < Spectators.HEM + 0.04:
+		if nothing and not on_arm and inside.call(v) > 0.015 and inside.call(v) < 0.03 and rest[v].y < Spectators.HEM + 0.04:
 			measure.call("hem", v)
 		if colours[v].g > 0.5 and rest[v].y > Spectators.HEM - 0.05 and rest[v].y < Spectators.HEM - 0.02:
 			measure.call("under the hem", v)
@@ -204,6 +207,8 @@ func test_the_crowd_wears_clothes_with_a_shape_of_their_own() -> void:
 		elif not on_arm:
 			assert_eq(cuts[v].x, 0.0, "no long sleeve off the arms")
 		shirt_tops += 1 if nothing and on_arm and parts[v * 4 + 1] < 0.0 else 0
+		if nothing and not on_arm:
+			assert_lt(parts[v * 4], Spectators.NECK_TURNS, "nothing that turns with the head wears the shirt (it showed a patch of its colour under the chin)")
 	var report := PackedStringArray()
 	for kind: String in off:
 		report.append("%s %.1f cm (at least %.1f)" % [kind, 100.0 * float(off[kind][0]) / int(off[kind][1]), 100.0 * float(off[kind][2])])
@@ -213,7 +218,7 @@ func test_the_crowd_wears_clothes_with_a_shape_of_their_own() -> void:
 	assert_gt(mean.call("waist's sides"), mean.call("chest's sides") + 0.008, "and hangs from it instead of following the mannequin's waist in")
 	assert_gt(float(off["shirt"][2]), SpectatorClothes.RELAX_LEAST - 0.001, "it never sinks into the body")
 	assert_gt(mean.call("hem"), mean.call("under the hem") + 0.008, "its hem stands proud of the trousers")
-	assert_gt(mean.call("trousers' bottom"), 0.015, "trousers hang straight from the calf, loose round the ankle")
+	assert_gt(mean.call("trousers' bottom"), 0.015, "trousers hang straight from the thigh, loose round the ankle")
 	assert_gt(shirt_tops, 100, "a short sleeve on the upper arms")
 
 

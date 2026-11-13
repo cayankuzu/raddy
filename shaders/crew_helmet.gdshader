@@ -230,9 +230,10 @@ void fragment() {
 }
 
 void light() {
-	lamp_capped_light(LIGHT, VIEW, NORMAL, LIGHT_COLOR, ATTENUATION, LIGHT_IS_DIRECTIONAL, ALBEDO, METALLIC, base_roughness, 1.0, vec3(0.0),
+	lamp_capped_light(LIGHT, VIEW, NORMAL, LIGHT_COLOR, ATTENUATION, LIGHT_IS_DIRECTIONAL, ALBEDO, METALLIC, base_roughness, SPECULAR_AMOUNT, vec3(0.0),
 		DIFFUSE_LIGHT, SPECULAR_LIGHT);
-	// The clear coat's own glint, as the engine's GGX gives it.
+	// The clear coat's own glint, as the engine's GGX gives it, as much as the light itself shines (the dials' glow lights the crew's hands
+	// and barely shines: at full strength it was a speck of orange on the helmet's side).
 	if (coat > 0.0) {
 		vec3 light = LIGHT_COLOR * ATTENUATION;
 		if (!LIGHT_IS_DIRECTIONAL) {
@@ -247,6 +248,6 @@ void light() {
 		float k = alpha / (1.0 - n_h * n_h + n_h * n_h * alpha * alpha);
 		float visible = 0.5 / mix(2.0 * n_l * n_v, n_l + n_v, alpha);
 		float fresnel = 0.04 + 0.96 * lamp_cap_schlick(l_h);
-		SPECULAR_LIGHT += light * n_l * k * k / PI * visible * fresnel * coat;
+		SPECULAR_LIGHT += light * n_l * k * k / PI * visible * fresnel * coat * SPECULAR_AMOUNT;
 	}
 }

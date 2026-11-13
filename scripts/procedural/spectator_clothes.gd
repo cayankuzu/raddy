@@ -2,7 +2,7 @@ class_name SpectatorClothes
 extends RefCounted
 ## What a spectator wears over the crew's mannequin (Spectators bakes it once, standing; pure): clothes with a shape of their own instead of
 ## colours on the skin. Each piece stands off the body by its cloth (OFFSETS, along the body's normals, so two pieces that meet keep
-## together) and hangs round a limb's axis: below where it starts to hang (a shirt from the chest, trousers from the knee, a sleeve from
+## together) and hangs round a limb's axis: below where it starts to hang (a shirt from the chest, trousers from the thigh, a sleeve from
 ## the shoulder or the elbow) it falls from the widest the limb is above it, less a little for each centimetre further down (TAPER),
 ## instead of following the mannequin's waist and calves in, and it bridges the grooves between its blocks. Where one piece ends over
 ## another (a shirt over the trousers, a sleeve over the arm, trousers over the shoes) its hem stands proud of it. Hair stands off the scalp.
@@ -13,7 +13,7 @@ enum Garment { SKIN, SHIRT, SLEEVE, TROUSERS, SHOES, HAIR }
 
 ## How far each piece stands off the body (m), and how much it narrows for each metre it hangs down below where it was widest.
 const OFFSETS := {Garment.SHIRT: 0.012, Garment.SLEEVE: 0.01, Garment.TROUSERS: 0.008, Garment.HAIR: 0.008}
-const TAPER := {Garment.SHIRT: 0.06, Garment.SLEEVE: 0.12, Garment.TROUSERS: 0.05}
+const TAPER := {Garment.SHIRT: 0.06, Garment.SLEEVE: 0.2, Garment.TROUSERS: 0.05}
 ## How finely a piece is measured round its axis: slabs this long down it, this many sectors round it.
 const SLAB := 0.02
 const SECTORS := 36

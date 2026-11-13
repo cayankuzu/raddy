@@ -494,6 +494,14 @@ func test_a_lit_headlight_is_a_lamp_not_a_plate() -> void:
 	assert_eq(CarLamps.glow_of(lamps._head), 0.0, "dark when off")
 
 
+func test_a_car_in_a_followers_beams_keeps_its_colour() -> void:
+	# In the hot band of the beams a car ahead burned to a white blob in a halo: its skins take no lamp brighter than the sun.
+	var lit_no_brighter_than_the_sun := preload("res://tests/unit/procedural/test_rally_arch.gd").lit_no_brighter_than_the_sun
+	assert_false(_model.dirt.paints.is_empty())
+	for paint in _model.dirt.paints:
+		assert_true(lit_no_brighter_than_the_sun.call(paint), "the paint and its livery")
+
+
 func test_by_day_only_the_lamps_glass_shows_the_headlights_are_on() -> void:
 	var lamps := _model.lamps
 	RaceLook.create(RaceSettings.Biome.FOREST, RaceSettings.Weather.RAIN).free()
