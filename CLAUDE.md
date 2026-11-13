@@ -176,13 +176,23 @@ No Blender; model in Godot only as a last resort.
   (`tests/unit/vehicles/test_crew_mannequin.gd`; the suit, the crowd and the own-head folding read its vertices as before). Posed in code: `CrewPose` (pure, tested) puts
   the eyes on the seat's camera (`seat_position`), the pelvis and back reclined, the head upright, the legs and arms as two-bone chains to
   `CrewBody.SEATS` (driver: clutch and throttle, the wheel at a quarter to three; navigator: the floor, hands on the thighs). The suit
-  (`shaders/crew_suit.gdshader`, one surface for both of the mannequin's, the baked normals): vertex COLOR r glove, g boot, b head; UV2 how far
-  a vertex is from a stripe's line (metres) and whether one runs there (`CrewBody.suit_region`, `stripe_coordinate`, by bone groups: straight
-  bands of one width along the arms, the legs and the flanks; none over a shoulder or a hip, where the mannequin's limbs end in balls that
-  turn out of the body as it sits and a player looks at their own shoulder from a hand's width). The helmet (`CrewHelmet.mesh()`, the one place a
-  real model would replace, on a `BoneAttachment3D` at the head) and the harness (`CrewBody.harness_mesh`, buckled over the pose; its webbing
-  bends over the body as a curve through its points, `STRAP_STEPS`, shaded smooth along it: folded flat it read as the body's facets) take the
-  team colour. Own head: `CarModel.bind_seat` takes `CrewBody.OWN_HEAD_LAYER` (1 << 13) out of the seat camera's mask; that body's helmet
+  (`CrewBody.race_suit`, one surface for both of the mannequin's, shared by every body) is cut as cloth over it when it is baked (`CrewSuit`,
+  pure, tested: round each limb's and the body's axis a taut line over the elbows', knees' and belly's grooves, the body rising to meet a limb's
+  ball; where a ball still meets the body `meeting` says how far, and the shader sews a seam along that crease). Per vertex: COLOR r glove, g boot,
+  b head, a a glove's back; UV2 how far a vertex is from a stripe's line (metres) and whether one runs there (`CrewBody.suit_region`,
+  `stripe_coordinate`, by bone groups: straight bands of one width along the arms, the legs and the flanks; none over a shoulder or a hip); UV.x
+  the meeting, UV.y a glove's back (a finger's the upper half of each of its pieces, `CrewSuit.finger_backs`); CUSTOM0 where it is on the suit
+  standing in its T-pose (left arm along +x, front +z) and its piece (`CrewSuit.Part`). `shaders/crew_suit.gdshader` places everything there:
+  matte fabric (wrap lighting, rim sheen), a weave and the knit's ribs that fade before they shimmer, folds gathering at the joints, darker panels
+  down the sides and under the arms, ribbed stretch panels over the shoulders and the knees, a collar, a covered zip, tape stripes, every seam a
+  groove with stitches (`sew`); the flag patch on the upper left sleeve (`CrewBody.PATCH_AT`/`PATCH_SIZE`, `TurkishFlag.texture()`, the hoist
+  to the front, a wound border); the seat's player's name on the right of the chest (`wear_name` from `RaceSession._seat_crew` and
+  `LiveryRules.seat_name`, the livery's capitals; `CarLivery.name_picture` draws it, white on nothing, `CrewBody.name_picture` keeps it for the
+  helmet; no name, nothing; thread white on a dark suit, black on a light one); gloves with a suede palm and a stitched elastic cuff; thin-soled
+  boots (toe cap, laces, suede ankle, the team colour on the heel tab). `route_test --names=A+B` letters car and suits. The helmet
+  (`CrewHelmet.mesh()`, the one place a real model would replace, on a `BoneAttachment3D` at the head) takes the team colour; the harness
+  (`CrewBody.harness_mesh`, buckled over the pose; its webbing bends over the body as a curve through its points, `STRAP_STEPS`, shaded smooth
+  along it: folded flat it read as the body's facets) is black (`CarRallyKit.HARNESS`). Own head: `CarModel.bind_seat` takes `CrewBody.OWN_HEAD_LAYER` (1 << 13) out of the seat camera's mask; that body's helmet
   sits on that layer and its suit folds the head away for a camera without it (`CAMERA_VISIBLE_LAYERS`); the mirrors keep it.
   Only the cabin the local player sits in casts shadows of its crew, cage and seats (`bind_seat` → `CrewBody.cast_shadows`,
   `CarRallyKit.cast_shadows`): in a rival's nobody sees them, and each was a draw call in every shadow map; a harness and the mud flaps never do.

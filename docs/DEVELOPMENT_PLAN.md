@@ -734,3 +734,32 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     broad; the crotch's V shows faintly on light trousers; close up the collar's edge wanders by a few millimetres.
   Verified: 542 GUT tests (26994 asserts), `tools\flowtest.ps1 -Clients 1` (2:11.1 / 2:17.5, 16.9 / 16.1 m/s), no script or shader
   error in their logs (the Jolt notice that its job queue was full, once, as in A5).
+
+- 2026-11-13: A5b items 2 (a race suit) and 3 (gloves and boots): DONE.
+  - The cut (`CrewSuit`, pure, tested; `CrewBody.race_suit`, 0.1 s once a session): round each limb's axis and the body's the cloth lies on a
+    taut line between what stands out (a sleeve over the elbow's groove, a leg over the knee's, the body over its blocks), evened out, 4 mm off
+    the body; the body's cloth rises to meet a limb's ball. What crease is left round a shoulder and a hip gets a seam sewn along it
+    (`CrewSuit.meeting`: how far each vertex lies outside the other piece's surface). The stripes move with the cloth (their coordinate shifted
+    by how far each vertex moved front to back: before, they widened at the knee).
+  - The shader (`shaders/crew_suit.gdshader`, one surface and one draw call a body as before) places everything where each vertex lies on the
+    standing suit (CUSTOM0): fabric matte (wrap lighting, rim sheen 0.3), a plain weave and the knit's ribs, each fading out before they
+    shimmer (as the seats' mesh fabric), folds that gather at the elbows, the knees and the waist, panels a darker shade (0.36 of the team
+    colour) down the sides, the legs' outsides and under the arms, ribbed stretch panels (0.5) over the shoulders (round the joint, which
+    keeps the shoulder's crease inside the panel) and the knees, a collar, the zip's cover, every seam a groove with a line of stitches either
+    side. Flag patch on the upper left sleeve, 69 x 46 mm, `TurkishFlag.texture()`, the hoist to the front, a wound border; the stripe passes
+    under it. The name: `LiveryRules.seat_name` (the seat's player's, as the livery letters it) -> `CrewBody.wear_name` -> `CarLivery.name_picture`
+    (576 x 96, the HUD's font), 72 x 12 mm on the right of the chest beside the shoulder strap, raised satin thread, white on red and blue, black
+    on yellow. Gloves: the backs in the suit's colour with the stripe (a finger's back by where a vertex lies on its piece: by the normal the
+    round end of each piece was palm-coloured and the fingers read as a doll's), a charcoal suede palm, a black ribbed cuff stitched on.
+    Boots: black leather, a rubber sole wrapping the heel, the welt stitched, a toe cap, laces, a suede ankle, the team colour on the heel tab.
+    The harness's webbing black (`CarRallyKit.HARNESS`), loose ones on empty seats too.
+  - Looked at (`reports/screenshots/a5b_suit/`: `s7_tpose`, `s6_car`, `game_day`, `game_more`; High): the T-pose close up (patch, name,
+    shoulders, elbows, knees, gloves, boots, collar), both seats in the real car by day, at dusk, at night under the dome lamp, red, blue and
+    yellow, from outside, the interior mirror, from a car 14 m behind.
+  - Cost (Medium, Black Pine, three crews, `tools\perf.ps1 -Seconds 40 -ExtraArgs "--follower=14+28,--flip-crew=0.5"`, twice): 0.74 / 1.16 ms
+    (median 1.04 / 1.14, before the draw 0.33 / 0.35), against 0.70 / 0.57 after item 1.
+  - Known and left: the mannequin's shoulder still shows as a rounded lump from the partner's seat (inside the stretch panel, its crease a
+    seam); the name is small (12 mm letters) and seen at a slant from the other seat. For the helmet (item 4): `CrewBody.name_picture` (an
+    ImageTexture, null with no name) or `CarLivery.name_picture(lettered)` gives the same name; the helmet is untouched.
+  Verified: 548 GUT tests (27035 asserts), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1` (2:11.2 / 2:17.5,
+  16.9 / 16.1 m/s), no script or shader error in their logs; the T-pose close-ups shot again on the commit (`r6_tpose`).

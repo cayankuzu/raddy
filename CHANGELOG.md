@@ -30,6 +30,10 @@
   dressed for the weather (t-shirts and caps in the desert, jackets and beanies in the mountains), some with a small flag of Turkey.
   They watch a car come, cheer, clap, wave and jump as it goes by, and settle when it has gone; a car standing still gets their eyes and
   no more.
+- **Race suits:** the crews wear real fireproof suits in the team colour: matte fabric with darker side panels, ribbed stretch panels
+  over the shoulders and knees, a collar, a covered zip, stitched seams and tape stripes. The flag of Turkey is sewn on the upper left
+  sleeve and each player's name is embroidered on the chest (nothing for a seat without a name). Race gloves have a suede palm and an
+  elastic cuff, the boots thin soles, laces and a suede ankle, and the harness is black so it stands out on every suit.
 - **Rounder crews, a dressed crowd:** the crews' bodies are smooth instead of faceted and their harness webbing bends over the shoulders.
   The spectators wear shirts, jackets and trousers that hang like clothes, with hems over the trousers and the shoes and short or long
   sleeves, stand with their arms by their sides, and have faces you can read from the start grid: eyes under brows, a nose, lips, some

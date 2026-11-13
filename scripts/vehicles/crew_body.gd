@@ -2,10 +2,11 @@ class_name CrewBody
 extends Node3D
 ## A crew member in a seat, on every peer, for every seat a player has taken (RaceSession seats them from the roster; an empty seat has
 ## nobody): Quaternius's mannequin (Universal Animation Library, CC0) posed in the seat by CrewPose with its eyes where the seat's camera
-## rests, in a race suit of the team's colour (shaders/crew_suit.gdshader: dark boots, gloves with dark palms and their backs in the
-## suit's colour, white stripes down the sleeves and on over the backs of the gloves, down the legs and the sides, by the bones a vertex
-## hangs on), a full-face helmet on its head (CrewHelmet) and the seat's six-point harness
-## buckled over it in the team colour (CarRallyKit.strap). It sits inside the cabin (its layer), lit by the cabin's fill and the dome
+## rests, in a race suit of the team's colour cut over it (race_suit, CrewSuit; shaders/crew_suit.gdshader: panels, stretch panels, stitched
+## seams, white stripes down the sleeves and on over the backs of the gloves, down the legs and the sides, Turkey's flag on the left sleeve,
+## the player's name on the chest (wear_name), race gloves with suede palms and their backs in the suit's colour, race boots), a full-face
+## helmet on its head (CrewHelmet) and the seat's six-point harness
+## buckled over it in black webbing (CarRallyKit.strap). It sits inside the cabin (its layer), lit by the cabin's fill and the dome
 ## lamp, seen through the windows and in the mirrors. Round the neck, under the shoulder straps, the carbon collar of a HANS device.
 ## The player in the seat sees their own arms and knees but not their own head: the seat's camera leaves OWN_HEAD_LAYER out, the suit
 ## folds the head away from such a camera and the helmet sits on that layer; the mirrors see both. What the body does from moment to
