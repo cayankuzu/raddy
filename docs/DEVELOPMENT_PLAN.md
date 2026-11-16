@@ -853,3 +853,7 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   - Cost (Medium, Black Pine, three crews, `tools\perf.ps1 -ExtraArgs "--follower=14+28,--flip-crew=0.5"`, twice): 0.89 / 0.64 ms (median
     0.91 / 0.66, before the draw 0.31 / 0.30), against the phase's 1.07 / 1.20 (0.85 / 0.84, 0.37 / 0.36) and A5's 0.66 / 0.61: within
     what the measure wanders by, the crews cost about what A5's did plus 0.1-0.3 ms.
+  Verified: 557 GUT tests (29837 asserts, 297 s on a loaded PC), `tools\nettest.ps1` (3 clients; on the loaded PC the first spawn 260-269 ms
+  and the second 123-128 on every peer alike, the clients' go 79-94 ms after the host's), `tools\flowtest.ps1 -Clients 1 -Stage 2` (2:05.0 /
+  2:15.2, 18.5 / 17.1 m/s over 2316 m; the client's go 77 ms after the host's); a body built after the bake 5.0-5.1 ms, a car's first entry
+  61 ms, as before the LODs, inside one process; no script or shader error in their logs.
