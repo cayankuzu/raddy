@@ -44,6 +44,22 @@ func test_multimeshes_cover_every_instance() -> void:
 	dressing.free()
 
 
+func test_every_chunk_says_what_scenery_it_is() -> void:
+	var classes := {}
+	for entry in RoadsideCatalog.entries():
+		classes[entry.id] = RoadsideDresser.scenery_class(entry)
+	assert_eq(classes["fern"], "low")
+	assert_eq(classes["far_fir"], "backdrop")
+	assert_eq(classes["edge_fir"], "trees")
+	assert_eq(classes["bush_a"], "trees")
+	assert_eq(classes["boulder"], "rocks")
+	var dressing := RoadsideDresser.dress(_graph, _terrain, RaceSettings.Biome.FOREST, _catalog())
+	for child in dressing.get_children():
+		if child is MultiMeshInstance3D:
+			assert_true(child.get_meta(&"scenery", "") in ["low", "backdrop", "trees", "rocks"], "%s has a class" % child.name)
+	dressing.free()
+
+
 func test_same_seed_same_world() -> void:
 	var a := RoadsideDresser.dress(_graph, _terrain, RaceSettings.Biome.FOREST, _catalog())
 	var b := RoadsideDresser.dress(_graph, _terrain, RaceSettings.Biome.FOREST, _catalog())

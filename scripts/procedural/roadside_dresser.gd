@@ -489,6 +489,16 @@ static func is_fine(entry: Dictionary) -> bool:
 	return entry.get("fine", false) or entry.get("low", false) or entry.get("backdrop", false) or not (entry.has("collision") or entry.get("tall", false))
 
 
+## What a batch is in tools\perf_probe.gd's flips (meta "scenery" on each chunk): ground cover, the far forest, trees and bushes, or
+## rocks, stumps and dead wood. A batch takes the class of the entry that started it.
+static func scenery_class(entry: Dictionary) -> String:
+	if entry.get("low", false):
+		return "low"
+	if entry.get("backdrop", false):
+		return "backdrop"
+	return "trees" if entry.get("foliage", false) else "rocks"
+
+
 ## Files each part of one placed instance under its batch and chunk: the chunk it stands in, or the
 ## one of the entry's "anchor" (what belongs together shares a chunk: fewer draw calls).
 static func _add_to_batches(batches: Dictionary, entry: Dictionary, parts: Array, transform: Transform3D) -> void:
@@ -501,7 +511,7 @@ static func _add_to_batches(batches: Dictionary, entry: Dictionary, parts: Array
 			shadows, roundi(range_end), fine]
 		if not batches.has(key):
 			batches[key] = {"name": "%s_%d" % [entry.id, batches.size()], "mesh": part.mesh, "material": material, "fine": fine,
-				"shadows": shadows, "range": range_end, "chunk": LOW_CHUNK if entry.get("low", false) else clampf(range_end * 0.4, CHUNK_MIN, CHUNK_MAX), "cells": {}}
+				"class": scenery_class(entry), "shadows": shadows, "range": range_end, "chunk": LOW_CHUNK if entry.get("low", false) else clampf(range_end * 0.4, CHUNK_MIN, CHUNK_MAX), "cells": {}}
 		var batch: Dictionary = batches[key]
 		var placed: Transform3D = transform * part.transform
 		var chunk: float = batch.chunk
@@ -531,6 +541,7 @@ static func _build_batches(root: Node3D, batches: Dictionary) -> void:
 			instance.name = "%s_%d_%d" % [batch.name, cell.x, cell.y]
 			instance.multimesh = multimesh
 			instance.position = origin
+			instance.set_meta(&"scenery", batch["class"])
 			if batch.material != null:
 				instance.material_override = batch.material
 			instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if batch.shadows else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
