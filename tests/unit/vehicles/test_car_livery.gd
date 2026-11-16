@@ -55,6 +55,16 @@ func test_the_picture_carries_the_number_the_event_and_the_names() -> void:
 	assert_gt(_share(image, rear, Color.BLACK), 0.02, "with a black rim")
 
 
+func test_a_names_marks_are_whole_and_every_name_the_same_size() -> void:
+	var marked := CarLivery.name_picture("ÖZGÜR ÇAĞLAR İŞLİ")
+	var ink := marked.get_used_rect()
+	gut.p("the name's ink: rows %d to %d of %d" % [ink.position.y, ink.end.y, marked.get_height()])
+	assert_gt(ink.position.y, 0, "nothing in the top row: the marks over Ö, Ü, Ğ, İ are whole")
+	assert_lt(ink.end.y, marked.get_height(), "nor in the bottom row: Ç's and Ş's")
+	assert_eq(CarLivery.name_picture("ALİ").get_used_rect().end.y, CarLivery.name_picture("ALI").get_used_rect().end.y,
+		"a dot over a capital changes nothing of the letters' size")
+
+
 func test_nothing_strays_out_of_its_part() -> void:
 	var image := CarLivery.draw_picture("3", PackedStringArray(["ABCDEFGHİJKLMNOPQRST", "WWWWWWWWWWWWWWWWWWWW"]), RED)
 	image.clear_mipmaps()

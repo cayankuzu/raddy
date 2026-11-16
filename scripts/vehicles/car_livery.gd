@@ -13,6 +13,8 @@ const STICKER_SHADER := preload("res://shaders/car_sticker.gdshader")
 const PICTURE := Vector2i(1024, 512)
 const PER_METRE := 880.0
 const NAME_PICTURE := Vector2i(576, 96)
+## The capitals with marks over or under them (_with_marks).
+const MARKED := "ÇĞİÖŞÜ"
 ## Each part: where its middle lies on the car (car space: a door panel along and up either flank (z, y); the plate across and along the
 ## bonnet (x, z); the names along and up either rear side window (z, y); the number across and up the rear window (x, y)), how big it is
 ## there (metres) and where it starts in the picture (pixels).
@@ -210,21 +212,21 @@ static func _rounded(image: Image, rect: Rect2i, radius: int, color: Color, top_
 
 
 ## `text` lettered into `image` as large as fits in `box` (pixels), centred up and down and placed across by `align` (0 left, 1 right): white,
-## or black (`dark`), with a black rim `rim` pixels wide round white letters. Sized by the font's line (every name the same size whatever
-## its letters) or, `tight`, by the ink itself (a number as big as its box).
+## or black (`dark`), with a black rim `rim` pixels wide round white letters. Sized by the font's line with room for the capitals' marks
+## (`_with_marks`: every name the same size whatever its letters, none cut) or, `tight`, by the ink itself (a number as big as its box).
 static func _print(image: Image, text: String, font: Font, box: Rect2i, dark := false, rim := 0, align := 0.5, tight := false) -> void:
 	var room := box.size - Vector2i.ONE * rim * 2
 	if text.is_empty() or room.x <= 0 or room.y <= 0:
 		return
 	var probe := _letters(text, font, 100)
 	var ink := Rect2((probe[0] as Image).get_used_rect())
-	var line: Rect2 = ink if tight else probe[1]
+	var line: Rect2 = ink if tight else _with_marks(probe[1], font, 100)
 	var size := floori(minf(room.y * 100.0 / maxf(line.size.y, 1.0), room.x * 100.0 / maxf(maxf(line.size.x, ink.size.x), 1.0)))
 	if size < 4:
 		return
 	var lettered := _letters(text, font, size)
 	var layer: Image = lettered[0]
-	var placed: Rect2 = Rect2(layer.get_used_rect()) if tight else lettered[1]
+	var placed: Rect2 = Rect2(layer.get_used_rect()) if tight else _with_marks(lettered[1], font, size)
 	var at := box.position + Vector2i(roundi(rim + (room.x - placed.size.x) * align - placed.position.x),
 		roundi(rim + (room.y - placed.size.y) * 0.5 - placed.position.y))
 	var whole := Rect2i(Vector2i.ZERO, layer.get_size())
@@ -236,6 +238,14 @@ static func _print(image: Image, text: String, font: Font, box: Rect2i, dark := 
 			for reach: float in [rim, rim * 0.5]:
 				image.blend_rect(black, whole, at + Vector2i((way * reach).round()))
 	image.blend_rect(black if dark else layer, whole, at)
+
+
+## A line's box (_letters' at `size`) stretched up and down over the marks of the capitals that carry them (MARKED): the font's ascent
+## leaves the dots and the breve over Ğ, İ, Ö, Ü out.
+static func _with_marks(line: Rect2, font: Font, size: int) -> Rect2:
+	var marks := Rect2((_letters(MARKED, font, size)[0] as Image).get_used_rect())
+	var top := minf(line.position.y, marks.position.y)
+	return Rect2(line.position.x, top, line.size.x, maxf(line.end.y, marks.end.y) - top)
 
 
 ## `text` in white at `size`, and where the line's box lies in the picture (from the pen's start, its ascent and descent): [Image, Rect2].
