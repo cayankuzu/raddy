@@ -825,3 +825,31 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     crowd stay the mannequin until the owner approves a free character model.
   Verified: 555 GUT tests (29455 asserts, 165 s), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1` (2:11.1 / 2:17.5,
   16.9 / 16.1 m/s over 2218 m), no script or shader error in their logs.
+- 2026-11-16: A5b's review (player, bugs, spec) and its fixes: DONE.
+  - Fairness: the first crew body of a session made the suit (about 0.2 s) and the helmet (about 0.3 s) inside the spawn RPC, so a client
+    handled the countdown half a second after the host. `RaceSession._ready` bakes them (`CrewBody.bake`, `CarRallyKit.kit_mesh`) before
+    `Net.report_race_loaded()`; a seat then costs about 5 ms (test_crew_body pins that the seat wears the baked meshes). nettest's logs (the
+    spawn's time, the countdown and the go on the PC's clock): the first car's spawn 102-113 ms on every peer (the car's own first-time
+    work, as before A5b), the second 45 ms; the clients' countdown 35-37 ms and their go 66-71 ms after the host's. What is left (the first
+    car's 0.1 s and the poll) belongs to A8's start (a start time from the host's clock instead of a countdown on each peer).
+  - The gloves read as the mannequin's jointed fingers with a red cap on each piece (the upper half of every finger was the glove's back):
+    the fingers and the palm are dark suede all round with less sheen, the back of the hand in the suit's colour to the knuckles with the
+    sleeve's stripe, its edge a stitched seam (`CrewSuit.finger_backs` gone). From the own seat on the wheel, a gesture from the driver's seat
+    and the driver from the partner's seat, before and after in one sheet: black race gloves, the segments hidden, a gesture still reads by
+    the coloured back.
+  - The name picture cut the marks over the capitals' dots and breve by 5-7 px of 96: a line's box takes in the marks of `CarLivery.MARKED`
+    (`_with_marks`), every name the same size (tested: no ink in the top or bottom row, a dotted and an undotted I the same height).
+  - The "hole" at the own neck looking down was the harness's chrome buckle mirroring the sky between the shoulder straps: the buckle is black
+    anodised (`CarRallyKit.ANODISED`); no sky-blue pixel left from either seat.
+  - The model's number plates (white, glossy) burned to a flare with a halo in a follower's beams at night: `shaders/number_plate.gdshader`
+    under the lamp cap (`CarModel.plate_material`, tested).
+  - The shoulder's dark knit cap read as a pad from the partner's seat: the stretch panel lies behind the joint only (over the shoulder
+    blade); the shoulder's rounded shape stays (the mannequin's ball, TEST_PLAN).
+  - The helmet decision recorded (GAME_DESIGN section 7, the brief's item 4 corrected): open face, boom microphone, no visor, no chin bar.
+  - The lamp-cap tests still read the shader's source for its `lamp_capped_light(` call: a test of what it does needs a light rendered,
+    and headless GUT renders nothing.
+  - The suit and the helmet carry levels of detail (`CrewBody.thinned`, as the crowd's body): the suit 32.8k triangles, 16.4k within 3.6 mm,
+    4.1k within 10.6 mm; the helmet 29.1k, 7.3k within 3.1 mm, 1.8k within 77 mm. The bake now takes about 0.55 s, behind the loading.
+  - Cost (Medium, Black Pine, three crews, `tools\perf.ps1 -ExtraArgs "--follower=14+28,--flip-crew=0.5"`, twice): 0.89 / 0.64 ms (median
+    0.91 / 0.66, before the draw 0.31 / 0.30), against the phase's 1.07 / 1.20 (0.85 / 0.84, 0.37 / 0.36) and A5's 0.66 / 0.61: within
+    what the measure wanders by, the crews cost about what A5's did plus 0.1-0.3 ms.

@@ -19,9 +19,11 @@ BODY_SOURCE: `mannequin` (the owner did not approve the Universal Base Character
    the livery's names; nothing if a seat has no name). No real brand. Still one draw call per body.
 3. **Gloves and boots.** Race gloves with a contrasting palm and a stitched cuff; thin-soled race boots.
 4. **A real rally helmet** (`CrewHelmet.mesh()`, still the one place a downloaded model would replace): a proper shell profile (taller crown, longer nape,
-   a face opening), a clear visor with a light tint over a fireproof balaclava (the eyes' area dark but not a void: a faint glint where the eyes are), a
-   chin bar, an intercom boom microphone in front of the mouth, the HANS tethers from the helmet's sides to the collar, the team colour with a stripe,
-   the name and a small Turkish flag on the side, a gloss clearcoat. Smooth enough at the closest distance a partner sees it. One draw call.
+   a face opening) over a fireproof balaclava (the eyes' area dark but not a void: a faint glint where the eyes are), an intercom boom microphone in
+   front of the mouth, the HANS tethers from the helmet's sides to the collar, the team colour with a stripe, the name and a small Turkish flag on the
+   side, a gloss clearcoat. Smooth enough at the closest distance a partner sees it. One draw call. Built as an open-face rally helmet, no visor and
+   no chin bar (the brief asked for both; the project's lead decided against them, GAME_DESIGN section 7: what most rally crews wear, the face and
+   the microphone part of the picture, and a visor a second, transparent draw call over every face).
 5. **The crowd too.** The spectators are the same mannequin baked standing (`Spectators.body_mesh`, `CrewPose.stand`): A5's reviewers found them, from the
    grid at 8-10 m during the countdown, a faceless bodybuilder with clothes painted on the skin, arms held out from the body. They take the smooth body;
    clothes with a silhouette of their own (a shirt or jacket standing 1-2 cm off the body, looser trousers, the hem and cuffs), arms resting nearer the body,

@@ -45,7 +45,7 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | The dome lamp: the map readable by it at night and hard to read without, and how much it blinds the driver | to do |
 | The new seat and view (lower, closer, a vertical 62 degrees): the road readable and the speed felt at the wheel, the mirrors a glance away (the driver's interior mirror is 60 % in the frame at rest, 77 % at 60 km/h, 88 % at 100 km/h); whether the settings need a seat and FOV option before A7 | to do |
 | Looking round (100 degrees either way, no further than between the bucket seat's wings): enough to see out of the side window; the seat's mesh fabric credible up close | to do |
-| The crew from the other seat and through the windows: a real rally crew, not a mannequin in costume: race suits (the mannequin rounded by one Loop step since A5b; its shoulder still a rounded lump inside the stretch panel), the harness and the open-face helmet (the eyes in the balaclava's slot, the boom microphone), by day, at night under the dome lamp | to do |
+| The crew from the other seat and through the windows: a real rally crew, not a mannequin in costume: race suits (the mannequin rounded by one Loop step since A5b; its shoulder still a rounded lump, seen from the partner's seat), race gloves (dark fingers, the coloured back: no jointed doll's fingers), the harness and the open-face helmet (the eyes in the balaclava's slot, the boom microphone), by day, at night under the dome lamp | to do |
 | The partner's name on the chest (12 mm letters, seen at a slant) and on the helmet, the flag patch on the sleeve: legible from the other seat, or too small to matter | to do |
 | Heads that stop at the seat (since A5b: up 12 degrees looking ahead, not at all from 60 degrees aside, the swing 9 degrees to a side): natural, never stiff | to do |
 | The roll cage from both seats and in the interior mirror (drawn only since A5's review: it hides 0.1 % of the windshield's view from the driver's seat, 0.9 % from the navigator's): a rally car's, never more in the way than a real one | to do |
@@ -57,7 +57,7 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | The crowd: people worth having by the road from the grid and at speed (the crew's mannequin dressed: shirts and trousers that hang, hems, short or long sleeves, shaped and painted faces; close up a short sleeve stands like a cap over the shoulder), their cheer as a car goes by, at dusk, at night and in snow | to do |
 | Flags, guard rails, straw bales, concrete blocks and boards in the beams at night: a flag red with its crescent and star, a rail a grey rail, a bale straw, a block concrete, never a white flare that hides the road behind it; a rival's car in your beams in its colour | to do |
 | A car's own lamps from outside at night (the chrome reflector, the flutes, the headlight's hot core, dimmer from the side): real lamps, never flat white plates | to do |
-| What three crews cost on a mid-range PC (dev laptop, Medium: 0.85-1.2 ms a frame since A5b's suits and helmets, `tools\perf.ps1 -ExtraArgs "--follower=14+28,--flip-crew=0.5"`) | to do |
+| What three crews cost on a mid-range PC (dev laptop, Medium: 0.6-1.2 ms a frame since A5b's suits and helmets, `tools\perf.ps1 -ExtraArgs "--follower=14+28,--flip-crew=0.5"`) | to do |
 | Windows SmartScreen first run on a clean PC | to do |
 
 ## Known issues and gaps
@@ -65,7 +65,8 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 - The crew's short motions (winding a window, the wipers' stalk, a throw, the kick) are placed by eye: the model has no door winders or stalks to
   aim at.
 - The crew and the crowd are Quaternius's mannequin, rounded (one Loop step), the crew in race suits cut over it and the crowd dressed:
-  the shoulder's ball joint still shows (a rounded lump inside the crew's stretch panel, a spectator's short sleeve standing like a cap),
+  the shoulder's ball joint still shows (a rounded shoulder on the crew's suit, its stretch panel only behind it since the review; a
+  spectator's short sleeve standing like a cap),
   and a face is shaped and painted (the crew's under a balaclava), not modelled. Character models wait for a free source the owner
   approves; the helmet is built in code (`CrewHelmet.mesh()` is the one place a model would replace).
 - The trip meter is a black box against the black A pillar until A7 lights its display with numbers.

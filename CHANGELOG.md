@@ -32,8 +32,8 @@
   no more.
 - **Race suits:** the crews wear real fireproof suits in the team colour: matte fabric with darker side panels, ribbed stretch panels
   over the shoulders and knees, a collar, a covered zip, stitched seams and tape stripes. The flag of Turkey is sewn on the upper left
-  sleeve and each player's name is embroidered on the chest (nothing for a seat without a name). Race gloves have a suede palm and an
-  elastic cuff, the boots thin soles, laces and a suede ankle, and the harness is black so it stands out on every suit.
+  sleeve and each player's name is embroidered on the chest (nothing for a seat without a name). Race gloves have dark suede fingers and
+  palm, the back of the hand in the suit's colour with a stitched edge and an elastic cuff, the boots thin soles, laces and a suede ankle, and the harness is black so it stands out on every suit.
 - **Real rally helmets:** the crews wear open-face rally helmets in the team colour under a glossy clear coat that mirrors the sky
   through the windows, with a white stripe over the top, the flag of Turkey and the player's name on both sides, a rubber trim, vents,
   the intercom's boom microphone in front of the mouth and its cable, and the HANS device's tethers down to the carbon collar on the

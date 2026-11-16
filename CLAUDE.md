@@ -81,9 +81,9 @@ No Blender; model in Godot only as a last resort.
   when a feature is verified. `docs/GAME_DESIGN.md` is the design bible: pillars, the rules every phase builds against,
   the 9.8 quality bar; it records the decisions taken since the spec. `docs/ART_DIRECTION.md` and
   `docs/REFERENCE_RESEARCH.md` hold the research. `CHANGELOG.md` is for players, `TEST_PLAN.md` holds what only people can check.
-- `docs/phases/*.md` are the briefs of the phases still to build, in this order: A5b (`a5b_crew_look.md`), A9a (`a9a_perf.md`),
-  A7 (`a7_ui.md`), A8 (`a8_net.md`), A6 (`a6_chaos.md`), A9b and A10 (`a9_a10.md`). A phase's brief is its spec; what was done goes into
-  DEVELOPMENT_PLAN.
+- `docs/phases/*.md` are the briefs of the phases still to build, in this order: A9a (`a9a_perf.md`), A7 (`a7_ui.md`), A8 (`a8_net.md`),
+  A6 (`a6_chaos.md`), A9b and A10 (`a9_a10.md`). A phase's brief is its spec; what was done goes into DEVELOPMENT_PLAN. A built phase's
+  brief stays as its record (`a5b_crew_look.md`).
 
 ## Vehicle code (scripts/vehicles)
 - `RallyCar` (RigidBody3D) simulates in `_integrate_forces`: ray wheels cast by the car, spring/damper/bump stop,
@@ -194,7 +194,7 @@ No Blender; model in Godot only as a last resort.
   `LiveryRules.seat_name`, the livery's capitals; `CarLivery.name_picture` draws it, white on nothing, `CrewBody.name_picture` keeps it for the
   helmet; no name, nothing; thread white on a dark suit, black on a light one); gloves with a suede palm and a stitched elastic cuff; thin-soled
   boots (toe cap, laces, suede ankle, the team colour on the heel tab). `route_test --names=A+B` letters car and suits. The helmet
-  (`CrewHelmet.mesh()`, the one place a real model would replace; one surface, about 29k triangles, built once a session in 0.3 s) is an
+  (`CrewHelmet.mesh()`, the one place a real model would replace; one surface, about 29k triangles with levels of detail like the suit's, `CrewBody.thinned`; built once a session with the suit by `CrewBody.bake` in `RaceSession._ready` before the race reports loaded, about 0.55 s: made at a car's spawn it held a client's start back) is an
   open-face rally helmet in the head bone's space: a shell (`shell_point`: an egg taller than wide, narrowing to the brow, the nape tucked in,
   the lower edge flared, ear cup bulges) cut out of a grid where its edges cross (`presence`: the lower edge `RIM`, the face `OPENING`
   closing in on the jaw, the cheeks' corners rounded; each grid triangle clipped, the crossing found on the shell), a rubber trim round the

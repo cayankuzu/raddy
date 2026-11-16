@@ -101,7 +101,7 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   apart, pure time). Room modifiers: blind driver, silent navigator (gestures only), chaos level.
 
 ## 7. Characters
-- Two crew members per car in a race suit and a full-face helmet in the team colour; first-person
+- Two crew members per car in a race suit and an open-face rally helmet in the team colour; first-person
   body for yourself, full body for your partner and the rivals. The hands work, on every peer: on the
   turning wheel (past what the arms reach the rim slides through them, push-pull), the gear lever, the
   handbrake, the horn, the wipers' stalk, the window's winder, the shock gun (in the hand), the map held
@@ -110,6 +110,10 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   shock shake. The harness holds the body to the seat and the neck gives to the car: heads lean out of a corner, nod
   under braking, jolt on a hit, on every peer from the car's velocity as that peer sees it. A crew moves only where
   someone can see it.
+- The helmet is an open-face rally helmet with a boom microphone, no visor and no chin bar (decided in A5b by the project's lead, against
+  the brief's visor and chin bar): it is what most rally crews wear, since the intercom's microphone sits before the lips and the cage is
+  overhead; the face in its balaclava and the microphone are part of what a partner reads; and a visor would be a second, transparent
+  draw call over every face, sorted against the glass and the dust.
 - A body sits in every seat a player holds, on every peer; an empty seat has none (its harness lies loose on it). The crew sits as
   a rally crew does: low, upright, close to the wheel; the eyes are the seats' cameras, so from the seat the road is the star (the
   windshield about half the frame height at a vertical field of view of 62 degrees). Your own arms, knees and harness are in view,
