@@ -72,6 +72,9 @@ const SEAT_SHELL := [Color(0.018, 0.018, 0.02, 0.0), 0.2, 0.35]
 ## The webbing black, as most harnesses are: it stands out on every team's suit. A HANS device's carbon.
 const HARNESS := [Color(0.012, 0.012, 0.014, 0.0), 0.0, 0.62]
 const CARBON := [Color(0.02, 0.02, 0.022, 0.0), 0.3, 0.32]
+## The harness's buckle, black anodised: in chrome, where it shows between the shoulder straps from the own seat, it mirrored the sky
+## and read as a hole through the body.
+const ANODISED := [Color(0.05, 0.05, 0.055, 0.0), 1.0, 0.45]
 ## Further away than this nobody makes out the cage through the windows.
 const DRAW_RANGE := 60.0
 
@@ -315,18 +318,18 @@ static func band(tool: SurfaceTool, points: Array[Vector3], faces: Array[Vector3
 			_triangle(tool, [points[end], rings[end][k][0], rings[end][(k + 1) % SIDES][0]], facing, part)
 
 
-## The harness's round buckle at `at`, its face towards `facing`: a chrome disc.
+## The harness's round buckle at `at`, its face towards `facing`: an anodised disc.
 static func buckle(tool: SurfaceTool, at: Vector3, facing: Vector3) -> void:
 	var up := facing.normalized()
 	var side := up.cross(Vector3.FORWARD if absf(up.z) < 0.9 else Vector3.RIGHT).normalized()
 	var frame := Transform3D(Basis(side, up, side.cross(up)), at)
-	_cylinder(tool, frame, 0.03, 0.01, CHROME)
+	_cylinder(tool, frame, 0.03, 0.01, ANODISED)
 	for k in SIDES * 2:
 		var a := TAU * k / (SIDES * 2)
 		var b := TAU * (k + 1) / (SIDES * 2)
 		for cap: float in [-1.0, 1.0]:
 			_triangle(tool, [frame * Vector3(0.0, cap * 0.005, 0.0), frame * Vector3(cos(a) * 0.03, cap * 0.005, sin(a) * 0.03),
-				frame * Vector3(cos(b) * 0.03, cap * 0.005, sin(b) * 0.03)], up * cap, CHROME)
+				frame * Vector3(cos(b) * 0.03, cap * 0.005, sin(b) * 0.03)], up * cap, ANODISED)
 
 
 ## Where the trip meter's display is and which way it faces (car space): A7 prints its numbers there.
