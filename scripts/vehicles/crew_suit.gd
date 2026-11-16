@@ -33,8 +33,6 @@ const SMOOTH_ROUNDS := 3
 const SMOOTH := 0.5
 ## How near the body a limb's piece is looked for where the two meet (m): nearer than this a seam is sewn (`meeting`).
 const MEET_REACH := 0.015
-## A finger's piece is the glove's back from this share of its height to all of it (`finger_backs`).
-const FINGER_BACK := Vector2(0.4, 0.6)
 
 
 ## The suit cut over the mannequin at rest (`points`, `normals`, `indices`: its vertices and triangles; `parts`: the piece each vertex is
@@ -119,23 +117,6 @@ static func islands(points: PackedVector3Array, indices: PackedInt32Array) -> Pa
 	var out := PackedInt32Array()
 	for v in points.size():
 		out.append(_find(root, v))
-	return out
-
-
-## How much each vertex of a finger is of the glove's back (the rest keep `backs`): the upper half of each of the finger's pieces, the
-## mannequin standing palms down (`island`: each vertex's, CrewSuit.islands), as a glove is cut, not which way it faces there, which left
-## the round end of every piece in the palm's colour and the fingers a jointed doll's.
-static func finger_backs(points: PackedVector3Array, parts: PackedInt32Array, island: PackedInt32Array, backs: PackedFloat32Array) -> PackedFloat32Array:
-	var spans := {}  # island -> its lowest and highest point
-	for v in points.size():
-		if parts[v] == Part.FINGER:
-			var span: Vector2 = spans.get(island[v], Vector2(INF, -INF))
-			spans[island[v]] = Vector2(minf(span.x, points[v].y), maxf(span.y, points[v].y))
-	var out := backs.duplicate()
-	for v in points.size():
-		if parts[v] == Part.FINGER:
-			var span: Vector2 = spans[island[v]]
-			out[v] = smoothstep(FINGER_BACK.x, FINGER_BACK.y, inverse_lerp(span.x, span.y, points[v].y))
 	return out
 
 

@@ -185,7 +185,7 @@ No Blender; model in Godot only as a last resort.
   ball; where a ball still meets the body `meeting` says how far, and the shader sews a seam along that crease). Per vertex: COLOR r glove, g boot,
   b head, a a glove's back; UV2 how far a vertex is from a stripe's line (metres) and whether one runs there (`CrewBody.suit_region`,
   `stripe_coordinate`, by bone groups: straight bands of one width along the arms, the legs and the flanks; none over a shoulder or a hip); UV.x
-  the meeting, UV.y a glove's back (a finger's the upper half of each of its pieces, `CrewSuit.finger_backs`); CUSTOM0 where it is on the suit
+  the meeting, UV.y a glove's back (none of a finger: suede all round); CUSTOM0 where it is on the suit
   standing in its T-pose (left arm along +x, front +z) and its piece (`CrewSuit.Part`). `shaders/crew_suit.gdshader` places everything there:
   matte fabric (wrap lighting, rim sheen), a weave and the knit's ribs that fade before they shimmer, folds gathering at the joints, darker panels
   down the sides and under the arms, ribbed stretch panels over the shoulders and the knees, a collar, a covered zip, tape stripes, every seam a

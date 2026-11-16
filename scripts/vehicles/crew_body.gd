@@ -46,7 +46,7 @@ const HEAD_BONES: Array[String] = ["head", "neck"]
 const BOOT_TOP := Vector2(0.15, 0.19)
 ## A glove's back (the mannequin standing in its T-pose, palms down): how far up its surface faces from where the back begins to where it
 ## is all back; its cuff stays dark this far out along the arm (from, to); the sleeve's stripe runs on over the back as far as the knuckles.
-const GLOVE_BACK := Vector2(0.2, 0.55)
+const GLOVE_BACK := Vector2(-0.1, 0.25)
 const GLOVE_CUFF := Vector2(0.757, 0.772)
 const KNUCKLES := 0.862
 ## Where the stripes run (the mannequin standing in its T-pose): along the top of each arm (its axis: y, z) from past the shoulder's
@@ -349,7 +349,8 @@ static var _race_suits: Dictionary = {}  # source mesh -> the crew's suit
 ## leg the knee's, the body its blocks), each vertex also saying where on the suit it is for the shader's panels, seams and patches
 ## (CUSTOM0: its place on the cut suit as the mannequin stands, m, and in w the piece it is of, CrewSuit.Part; UV.x how far it is from
 ## where its piece meets another, CrewSuit.meeting, the seam round a shoulder and a hip; UV.y how much it is of a glove's back, COLOR.a
-## but a finger's by CrewSuit.finger_backs). Every body shares it.
+## but none of a finger: suede all round, as the palm, since the mannequin's finger pieces in the suit's colour read as a jointed doll's).
+## Every body shares it.
 static func race_suit(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 	if _race_suits.has(source):
 		return _race_suits[source]
@@ -387,16 +388,12 @@ static func race_suit(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 	var cut := CrewSuit.cut(vertices, normals, indices, parts, cloth, limbs, balls)
 	var cut_normals := CrewSuit.normals(cut, indices, cloth, normals)
 	var meeting := CrewSuit.meeting(cut, cut_normals, parts)
-	var backs := PackedFloat32Array()
-	for v in vertices.size():
-		backs.append(regions[v].a)
-	backs = CrewSuit.finger_backs(vertices, parts, CrewSuit.islands(vertices, indices), backs)
 	var places := PackedFloat32Array()
 	var seams := PackedVector2Array()
 	var stripes: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
 	for v in cut.size():
 		places.append_array(PackedFloat32Array([cut[v].x, cut[v].y, cut[v].z, parts[v]]))
-		seams.append(Vector2(meeting[v], backs[v]))
+		seams.append(Vector2(meeting[v], 0.0 if parts[v] == CrewSuit.Part.FINGER else regions[v].a))
 		# A stripe is measured front to back (stripe_coordinate): it moves with the cloth.
 		stripes[v] += Vector2(cut[v].z - vertices[v].z, 0.0)
 	arrays[Mesh.ARRAY_VERTEX] = cut

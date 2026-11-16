@@ -265,8 +265,8 @@ func test_the_gloves_backs_keep_the_team_colour() -> void:
 		elif absf(backs[v].y - colours[v].a) > 0.0001:
 			changed += 1
 	assert_eq(changed, 0, "the hand's back as A5 had it")
-	gut.p("finger vertices on the back: %d of %d" % [finger_backs, fingers])
-	assert_between(float(finger_backs) / fingers, 0.3, 0.6, "about the upper half of every finger")
+	assert_gt(fingers, 0)
+	assert_eq(finger_backs, 0, "the fingers suede all round, as the palm: no piece of them in the team's colour")
 	assert_eq((CarRallyKit.HARNESS[0] as Color).a, 0.0, "the harness's webbing black, whatever the team's colour")
 
 
