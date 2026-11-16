@@ -445,11 +445,12 @@ static func _axis(pose: CrewPose, group: int) -> Array[Vector3]:
 
 
 ## How far down its axis a piece starts to hang (SpectatorClothes.hang), `top` the axis's top: a shirt from the chest, trousers from the
-## hips over the groin and from the top of the thigh down the legs, a sleeve from just under the shoulder's ball.
+## top of the thigh down the legs, a sleeve from just under the shoulder's ball. The trousers' seat follows the pelvis (from the ground up:
+## it never hangs): hung from the belly it stood out over the groin, a pair of briefs over the tops of the legs (1.7 cm off it, now 0.5).
 static func _hangs_from(piece: Vector2i, top: Vector3) -> float:
 	match piece.x:
 		Group.BODY:
-			return top.y - (CHEST if piece.y == SpectatorClothes.Garment.SHIRT else HEM)
+			return top.y - CHEST if piece.y == SpectatorClothes.Garment.SHIRT else top.y
 		Group.LEG_LEFT, Group.LEG_RIGHT:
 			return THIGH
 		Group.UPPER_LEFT, Group.UPPER_RIGHT:

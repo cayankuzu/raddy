@@ -112,7 +112,8 @@ No Blender; model in Godot only as a last resort.
   `CarModel.GLASS_PRIORITY`: `bind_seat` raises the seat's car's). `PUFFS` 1280: three crews' dust at once. `RoadFxRules.cloud_share`: Low and the effects setting thin the puffs but each gets thicker and
   bigger, so nobody sees further for choosing less; stones go with the effects setting. Wind and dust colour: `RaceLook.wind`, `dust_tint`. A headless peer only counts (`puffs_thrown`, `bits_thrown`).
 - Dirt on the car: `CarDirt` (child of the `CarModel`, every peer, never sent) gives the paint, the trim (`UCB_BOTTOM`) and the tyres a skin of the
-  car's own (`shaders/car_body.gdshader`: the model's StandardMaterial3D while clean, so no draw call of its own, its occlusion map kept; one skin per material and mesh space, the dirt measured where each mesh lies, a
+  car's own (`shaders/car_body.gdshader`: the model's StandardMaterial3D while clean, so no draw call of its own, its occlusion map kept, its light
+  and its clear coat's glint capped by `lamp_cap` like the rails', or a car ahead in a follower's beams was a white blob; one skin per material and mesh space, the dirt measured where each mesh lies, a
   tyre in its own space about its axle; `CarDirt.paints` take the team colour)
   and climbs three layers, dust, mud and snow (`CarDirtRules`, pure: per metre by surface and speed, about 0.8 after a short stage, 0.93 after 3 km of gravel). The mask is in car
   space: sills first, fans behind the wheels, the rear face, what faces up last; `assets/fx/car_dirt.png` (`tools/make_car_dirt.gd`: patches, drops,
@@ -139,7 +140,9 @@ No Blender; model in Godot only as a last resort.
   (pure) says what every needle, lamp and lever shows; `CarCockpit` puts it on the car near the camera: the instrument
   panel (`shaders/gauge_panel.gdshader` over a face baked by `tools/make_gauge_face.gd`, keep both layouts in step),
   pedals, H-gate lever, fitted handbrake. `CarLamps`: tail lights only with the headlights (their glow a faint red on the
-  road behind, the brake lights' a bright one: from dusk on, by `RaceLook.lamp_light` like the beams), brake, reversing, hazards on a stuck or critical car, the dome lamp
+  road behind, the brake lights' a bright one: from dusk on, by `RaceLook.lamp_light` like the beams), brake, reversing, hazards on a stuck or critical car (each lamp's glass glows
+  through the model's own picture of it, `shaders/car_lamp.gdshader`: the chrome reflector and the flutes glow, the housing stays dark, the
+  headlight's projector lens a hot core, `HEAD_LENS`; seen from the side it glows less: a flat plate of light before), the dome lamp
   (`Cabin.dome_on`, L, the map holder's; shows in the glass through `shaders/glass_ghost.gdshaderinc`). Headlights: one beam from
   between the two lamps with the light of both (every beam is a shadow pass a frame), a
   projector pattern (`CarLamps.beam_pattern`, tested: brightest in a band round the horizon, so the road reaches 80 m and
@@ -339,9 +342,11 @@ No Blender; model in Godot only as a last resort.
   `RoadBuilder.build(graph, terrain, palette)` → `Track` (rectangular HeightMapShape3D terrain, Roads/Road<n>
   ribbons + shoulders + a `Ditch` body with `surface` metadata, Spurs, Checkpoints spanning the corridor without reaching another
   stretch, `TrackFeatures`: water pools + `WaterSplash` areas, `GuardRail` on cliffs (corrugated W-beam, one mesh
-  per rail + one batch of posts, ends turned down, one gap with torn ends, `shaders/guard_rail.gdshader`; like a flag's cloth it takes its
-  light through `shaders/lamp_cap.gdshaderinc`: the engine's own shading, the same pixels by day, but no lamp gives it more than the sun, or
-  the hot band of the beams at night burned it to a white flare that hid the road behind it),
+  per rail + one batch of posts, ends turned down, one gap with torn ends, `shaders/guard_rail.gdshader`; like a flag's cloth, a straw bale
+  (`shaders/straw.gdshader`), a board, a concrete block or barrier (`weathered` scans), the cars' skins and the helmets it takes its light
+  through `shaders/lamp_cap.gdshaderinc` (its parameters `surface_*`, apart from an including shader's uniforms): the engine's own shading, the
+  same pixels by day, but no lamp gives it more than the sun, or the hot band of the beams at night burned it to a white flare that hid the
+  road behind it),
   `RallyArch` over the start and finish lines (box truss on plates behind concrete blocks, a banner printed in code
   with the word from the strings, a flag on each tower), invisible walls 36 m out and end caps). The grid's first row
   stands `StageBuilder.GRID_BEFORE_LINE` before the line, in sight of the banner. Face winding for anything hit from
@@ -384,7 +389,7 @@ No Blender; model in Godot only as a last resort.
   `spectator_spots`, where `Spectators` stands its people), `clearings()` is where `RoadsideDresser` plants nothing tall (a place's ribs, the road's end,
   the view onto each board; `bare` capsules: the footprints of what stands there, not even grass). `RallyProps` is how it
   looks: generated signs, straw and tape
-  (`shaders/board.gdshader`, `cloth.gdshader`), Poly Haven seats and covered car, the Milano '95 as an ordinary car.
+  (`shaders/board.gdshader`, `straw.gdshader`, `cloth.gdshader`), Poly Haven seats and covered car, the Milano '95 as an ordinary car.
   Places: recipe key `"spectators": "left"|"right"` (`StageDesignRules`: at least 2, inside of a corner, never over a
   cliff, beside a wrong way or under an event; `Sightline.screens` opens the side, 10 m past the segment) and `crowd`
   features `StageBuilder` adds on both sides of the start and finish lines. The forest also closes the view past the
@@ -394,13 +399,14 @@ No Blender; model in Godot only as a last resort.
   palms to the thighs) with what its bones weigh on each vertex (CUSTOM0/1), one MultiMesh and one draw call a place (a MultiMesh cannot share
   a skeleton). Dressed when it is baked (`SpectatorClothes`, pure, tested): each piece stands off the body by its cloth along the normals and
   hangs round its limb's axis from where the limb is widest, less a taper (`hang`: a shirt from the chest, 1.5 cm off it and looser down to its
-  hem; trousers from the hips over the groin and from the calf, loose to the shoes; sleeves from under the shoulder), then is smoothed where it
+  hem; trousers from the hips over the groin and from the top of the thigh, loose to the shoes; sleeves from under the shoulder), then is smoothed where it
   folded over the mannequin's grooves (`relax`, the edges stay); its hem over the trousers and theirs over the shoes stand proud, a collar and
-  a short sleeve's end roll down to the skin (`EDGE_ROLL`). The arms are an ordinary man's (`SLIM`), the hair stands off the scalp, the face is
+  a short sleeve's end roll down to the skin (`EDGE_ROLL`). The arms are an ordinary man's (`SLIM`; the ball the arm turns in at the
+  shoulder slimmer and pressed down, `BALL_SLIM`, `BALL_TOP`: dressed it stood like a puffed sleeve), the hair stands off the scalp, the face is
   shaped (`face_relief`: a nose, brows over sunken eyes, lips, a chin). `shaders/spectator.gdshader` turns the arms and the head about the
   standing pose's joints: four ways of standing (arms down, crossed, hands on the hips, a small flag of Turkey held up), the head to the nearest
-  car, clothes for the biome by index (`outfit`; a long sleeve put on along the normals from UV2.x; the shirt's hem and collar cut straight at
-  UV2.y = `_shirt_edge`, a short sleeve's end at CUSTOM1.y), the face painted to read at 10 m (UV says where, `face_uv`: the eyes in dark
+  car, clothes for the biome by index (`outfit`; a long sleeve put on along the normals from UV2.x; the shirt's hem and top cut straight at
+  UV2.y = `_shirt_cut`, the collar's round drawn to the pixel (`collar`), a short sleeve's end at CUSTOM1.y), the face painted to read at 10 m (UV says where, `face_uv`: the eyes in dark
   hollows, brows, the nose's shadow, lips, a short beard on some), the whole head skin under the hair (or the shirt's colour showed where the
   two meet), the fingers relaxed. A place cheers a car going by
   (`thrill(distance, speed)`: within 70 m and faster than 2 m/s; `cheer` comes within half a second and goes in three), a car standing on the grid

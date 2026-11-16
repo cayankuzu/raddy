@@ -202,6 +202,8 @@ func test_the_crowd_wears_clothes_with_a_shape_of_their_own() -> void:
 			measure.call("under the hem", v)
 		if colours[v].g > 0.5 and rest[v].y > 0.2 and rest[v].y < 0.26:
 			measure.call("trousers' bottom", v)
+		if colours[v].g > 0.5 and absf(rest[v].x) < 0.03 and rest[v].y > 0.84 and rest[v].y < Spectators.HEM - 0.03 and normals[v].z > 0.5:
+			measure.call("groin", v)
 		if on_arm and parts[v * 4 + 1] > 0.0 and colours[v].r < 0.5:
 			assert_between(cuts[v].x, 0.0, 0.05, "a long sleeve stands off a bare arm, worn or not by each person")
 		elif not on_arm:
@@ -219,6 +221,7 @@ func test_the_crowd_wears_clothes_with_a_shape_of_their_own() -> void:
 	assert_gt(float(off["shirt"][2]), SpectatorClothes.RELAX_LEAST - 0.001, "it never sinks into the body")
 	assert_gt(mean.call("hem"), mean.call("under the hem") + 0.008, "its hem stands proud of the trousers")
 	assert_gt(mean.call("trousers' bottom"), 0.015, "trousers hang straight from the thigh, loose round the ankle")
+	assert_lt(mean.call("groin"), 0.013, "their seat follows the groin (hung from the belly it stood out over the legs like a pair of briefs)")
 	assert_gt(shirt_tops, 100, "a short sleeve on the upper arms")
 
 
