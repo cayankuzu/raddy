@@ -40,8 +40,8 @@
   shoulders. Under it a black fireproof balaclava with a slot for the eyes, which catch the light. Heads stop where the helmet meets the
   bucket seat's wings and head restraint instead of passing through them.
 - **Rounder crews, a dressed crowd:** the crews' bodies are smooth instead of faceted and their harness webbing bends over the shoulders.
-  The spectators wear shirts, jackets and trousers that hang like clothes, with hems over the trousers and the shoes and short or long
-  sleeves, stand with their arms by their sides, and have faces you can read from the start grid: eyes under brows, a nose, lips, some
+  The spectators wear shirts, jackets and trousers that hang like clothes, with hems over the trousers and the shoes, short or long
+  sleeves and a round collar, sloping shoulders, stand with their arms by their sides, and have faces you can read from the start grid: eyes under brows, a nose, lips, some
   with a beard.
 - **Times of day:** the room picks day, golden hour, dusk, night or Random, like the weather. The golden hour is a low warm
   sun you drive into. Dusk is the blue hour: the sun has set, the sky still burns orange and violet
@@ -52,8 +52,10 @@
   another car in its dust at night you see nothing but the glowing cloud. A car close behind you lights the trees round you,
   never your road or your windshield through your car: your own shadow lies ahead of you. The dials light up, after dark tail lights leave a faint red
   on the road behind and brake lights a bright one, a follower's beams light up your mirrors. On High your own headlights cast shadows.
-  A flag in your beams stays red with its crescent and star, a guard rail a grey rail, where they burned to a white glare that hid the
-  road behind them.
+  A flag in your beams stays red with its crescent and star, a guard rail a grey rail, a straw bale straw and a concrete block concrete,
+  where they burned to a white glare that hid the road behind them; a rival's car ahead in your beams keeps its colour and its livery.
+  Seen from outside, a car's lamps glow like real lamps: the chrome reflector and the fluted glass, a hot core in each headlight's lens,
+  dimmer from the side.
 - **A light pod for the night:** at dusk and at night every car carries a pod of four lamps on its bonnet, its cover plate in the team
   colour. The two spot lamps throw their light far down the road, the two wide ones light the sides of a corner. Night stays hard, a corner
   still shows late behind its trees, but you can drive it. A loose bonnet points the pod at the sky; a bonnet torn off takes it away, dark.

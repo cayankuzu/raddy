@@ -1,15 +1,15 @@
 # Test plan
 
-Status as of 2026-11-11 (build 0.2.0). Automated checks run on the dev PC (i7-13650HX, RTX 5070
+Status as of 2026-11-16 (build 0.2.0). Automated checks run on the dev PC (i7-13650HX, RTX 5070
 Laptop, Windows 11); manual checks need people and are listed with their state.
 
 ## Automated
 
 | Check | How | Covers | Last result |
 |---|---|---|---|
-| Unit and physics tests (GUT, 532 tests) | `tools\test.ps1` | driving (grip, brakes, handbrake, rollover, recovery offer, damage effects), gearbox, water drag, stage recipes (valid, deterministic, features shaped into the road), terrain (flat under the road, cliffs drop, banks rise), track furniture (pools, rails with one gap, walls never across another stretch, gates), a bot driving a whole stage through every gate, pace notes, paper map, roadside dressing, race progress/results/settings, recovery anchors (never past the next gate or ahead of where the car got), stage events (tree across half the road, boulders reach it, a bot drives around the tree), visible damage parts, records/medals, cabin, voice codec/capture, room codes, roster rules, snapshot buffer, settings, project settings, times of day (settings, light, moon and stars, the headlights' pattern and strength), the plants in the weather, the forest floor's shade | pass |
+| Unit and physics tests (GUT, 555 tests) | `tools\test.ps1` | driving (grip, brakes, handbrake, rollover, recovery offer, damage effects), gearbox, water drag, stage recipes (valid, deterministic, features shaped into the road), terrain (flat under the road, cliffs drop, banks rise), track furniture (pools, rails with one gap, walls never across another stretch, gates), a bot driving a whole stage through every gate, pace notes, paper map, roadside dressing, race progress/results/settings, recovery anchors (never past the next gate or ahead of where the car got), stage events (tree across half the road, boulders reach it, a bot drives around the tree), visible damage parts, records/medals, cabin, voice codec/capture, room codes, roster rules, snapshot buffer, settings, project settings, times of day (settings, light, moon and stars, the headlights' pattern and strength), the plants in the weather, the forest floor's shade | pass |
 | Multiplayer | `tools\nettest.ps1` (host + 3 clients, headless) | race start barrier, car sync, windows and cans on every peer, voice relay near/far, a client leaving mid-race, team recovery confirmation, host-judged damage, windscreen kick-out, a navigator's gesture and look on every other peer | pass |
-| End to end | `tools\flowtest.ps1` | main menu → create room → join by code → seats/ready → start → bots drive the whole stage (both falling trees come down in front of them) → results → back to the room → quit | pass (2 crews: 2:09.0 / 2:17.5 on Kartal Yuvası, 2026-11-11) |
+| End to end | `tools\flowtest.ps1` | main menu → create room → join by code → seats/ready → start → bots drive the whole stage (both falling trees come down in front of them) → results → back to the room → quit | pass (2 crews: 2:11.1 / 2:17.5 on Kara Çam Geçidi, 2026-11-16) |
 | Stage events by bot | `route_test.tscn --stage=N --start=M --autodrive --quit-after-seconds=22` (headless) | every falling tree and rockfall on every stage; prints the bot's progress, recoveries and hardest impact | pass (0 recoveries; boulders graze the car at most 5 m/s) |
 | Export | `tools\export_windows.ps1`, run the exe | release build packs and starts | pass |
 | Screenshots | `tools\screenshot.ps1`, `tools\stage_shots.ps1 -OwnWeathers -AllTimes -Sheet` | every stage, cockpit, HUD, glass states, weather; every stage at every time of day in its own weathers (18 contact sheets) | reviewed by eye |
@@ -45,7 +45,8 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | The dome lamp: the map readable by it at night and hard to read without, and how much it blinds the driver | to do |
 | The new seat and view (lower, closer, a vertical 62 degrees): the road readable and the speed felt at the wheel, the mirrors a glance away (the driver's interior mirror is 60 % in the frame at rest, 77 % at 60 km/h, 88 % at 100 km/h); whether the settings need a seat and FOV option before A7 | to do |
 | Looking round (100 degrees either way, no further than between the bucket seat's wings): enough to see out of the side window; the seat's mesh fabric credible up close | to do |
-| The crew from the other seat and through the windows: credible people in race suits (the mannequin rounded by one Loop step since A5b), the harness and the open-face helmet (the eyes in the balaclava's slot, the boom microphone, the name and the flag), by day, at night under the dome lamp | to do |
+| The crew from the other seat and through the windows: a real rally crew, not a mannequin in costume: race suits (the mannequin rounded by one Loop step since A5b; its shoulder still a rounded lump inside the stretch panel), the harness and the open-face helmet (the eyes in the balaclava's slot, the boom microphone), by day, at night under the dome lamp | to do |
+| The partner's name on the chest (12 mm letters, seen at a slant) and on the helmet, the flag patch on the sleeve: legible from the other seat, or too small to matter | to do |
 | Heads that stop at the seat (since A5b: up 12 degrees looking ahead, not at all from 60 degrees aside, the swing 9 degrees to a side): natural, never stiff | to do |
 | The roll cage from both seats and in the interior mirror (drawn only since A5's review: it hides 0.1 % of the windshield's view from the driver's seat, 0.9 % from the navigator's): a rally car's, never more in the way than a real one | to do |
 | Hand signals in a real race: each sign (the finger across, the thumb for the side away, a chop for straight on, a pat for slow down) read from the other seat at a glance and in motion (the thumb rests 58 degrees up and jerks to 32: a way, or a thumbs-up?), by day and at night without the dome lamp (the dials light the hands: the driver reads the navigator's well, the navigator sees the driver's as dim shapes against the beams), and whether a silent crew can run a stage on them | to do |
@@ -53,20 +54,21 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | One-handed steering while signalling, winding the window, flicking the wipers or pressing the horn: a fair price, never annoying | to do |
 | The partner's head swinging with the car (out of a corner, nodding under braking, a jolt on a hit): alive, never restless or sickening beside you, on every screen (the navigator's own sees the car played back from the driver's snapshots), in the rivals' cars too | to do |
 | The livery: the number and the names read from the car behind, at the start and in the results' team colours, clean and filthy, in every team colour | to do |
-| The crowd: people worth having by the road from the grid and at speed (the crew's mannequin dressed: shirts and trousers that hang, hems, short or long sleeves, shaped and painted faces), their cheer as a car goes by, at dusk, at night and in snow | to do |
-| Flags and guard rails in the beams at night: a flag red with its crescent and star, a rail a grey rail, never a white flare that hides the road behind it | to do |
-| What three crews cost on a mid-range PC (dev laptop, Medium: about 1 ms a frame, `tools\perf.ps1 -ExtraArgs "--follower=14+28,--flip-crew=0.5"`) | to do |
+| The crowd: people worth having by the road from the grid and at speed (the crew's mannequin dressed: shirts and trousers that hang, hems, short or long sleeves, shaped and painted faces; close up a short sleeve stands like a cap over the shoulder), their cheer as a car goes by, at dusk, at night and in snow | to do |
+| Flags, guard rails, straw bales, concrete blocks and boards in the beams at night: a flag red with its crescent and star, a rail a grey rail, a bale straw, a block concrete, never a white flare that hides the road behind it; a rival's car in your beams in its colour | to do |
+| A car's own lamps from outside at night (the chrome reflector, the flutes, the headlight's hot core, dimmer from the side): real lamps, never flat white plates | to do |
+| What three crews cost on a mid-range PC (dev laptop, Medium: 0.85-1.2 ms a frame since A5b's suits and helmets, `tools\perf.ps1 -ExtraArgs "--follower=14+28,--flip-crew=0.5"`) | to do |
 | Windows SmartScreen first run on a clean PC | to do |
 
 ## Known issues and gaps
 - No relay for players behind carrier-grade NAT (Radmin VPN workaround); no reconnect; host loss ends the room.
 - The crew's short motions (winding a window, the wipers' stalk, a throw, the kick) are placed by eye: the model has no door winders or stalks to
   aim at.
-- The crew and the crowd are Quaternius's mannequin, rounded (one Loop step) and the crowd dressed over it: its segments' seams still show
-  at the crew's shoulders and elbows, and a spectator's face is shaped and painted, not modelled. A real helmet and character models wait
-  for a free source the owner approves.
+- The crew and the crowd are Quaternius's mannequin, rounded (one Loop step), the crew in race suits cut over it and the crowd dressed:
+  the shoulder's ball joint still shows (a rounded lump inside the crew's stretch panel, a spectator's short sleeve standing like a cap),
+  and a face is shaped and painted (the crew's under a balaclava), not modelled. Character models wait for a free source the owner
+  approves; the helmet is built in code (`CrewHelmet.mesh()` is the one place a model would replace).
 - The trip meter is a black box against the black A pillar until A7 lights its display with numbers.
-- From outside at night a car's own headlights are flat white glass beside the glowing lamps of its light pod.
 - The dev laptop has a ~8 ms per-frame floor even for an empty scene (hybrid graphics); frame
   rates measured there understate other PCs.
 - Vulkan is not usable on the dev laptop (17 fps on an empty scene); the project pins D3D12.

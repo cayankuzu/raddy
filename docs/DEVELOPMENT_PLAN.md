@@ -792,3 +792,36 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   - Known and left: the balaclava's face is a fitted height field, not a sculpted head; from 7 m behind a rival's helmets hide behind the
     seats.
   Verified: 551 GUT tests, `tools\nettest.ps1` (3 clients), no script or shader error in their logs.
+
+- 2026-11-16: A5b items 7 (the night glare) and 6 (the final look), the cost and the record: DONE. Phase A5b is complete.
+  - In the hot band of the beams straw bales, concrete blocks and barriers and the boards burned to white flares with halos. They take the
+    lamp cap the flags and rails have (`shaders/lamp_cap.gdshaderinc`, its parameters now `surface_*`): the bale has a straw shader of its own
+    (`shaders/straw.gdshader`, rain and snow on it like the plants), the blocks and barriers are `weathered` scans like the rocks, the boards
+    keep their reflective glow under the cap (3cab375). Night, before and after (`reports/screenshots/a5b_night/before`, `after1`; Black Pine's
+    start, Eagle's Nest 438 m, Red Canyon 584 m): the whole frame differs by a mean of 0.0041 / 0.0039 / 0.0013, all of it where the halos stood
+    (2.3 / 1.5 / 0.7 % of the pixels by more than 8/255): a grey block, straw, a chevron's board, the road beyond them as before. By day and at
+    golden hour the same pictures (a mean of 0.00004-0.00006, 0.02-0.04 % of the pixels by more than 8/255; Eagle's Nest none).
+  - Every lamp of the car glows through the model's own picture of it (`shaders/car_lamp.gdshader`, A4's flat `HEAD_GLOW` plates gone): the
+    chrome reflector and the flutes glow, the housing stays dark, the headlight's projector lens is a hot core (`HEAD_LENS`), and the glass
+    glows less seen from the side.
+  - A car ahead in a follower's beams was a white blob with a halo: its skins (`car_body.gdshader`: paint, livery, trim, tyres) take the lamp
+    cap and the clear coat's glint is the engine's own under it; the helmet's coat glints only as much as each light allows (the dials' glow
+    left an orange speck on its flank) (e5a06a3).
+  - The crowd from the final look (e5a06a3, c857ba0): the ball the arm turns in at the shoulder slimmer and pressed down (`BALL_SLIM`,
+    `BALL_TOP`), long sleeves narrowing faster below the shoulder, trouser legs hung from the top of the thigh and their seat following the
+    pelvis (hung from the belly it stood 1.7 cm out over the groin like a pair of briefs, now 0.5, tested), the collar's round drawn to the
+    pixel (it wandered across the triangles round the neck), the throat never the collar (a patch of the shirt's colour under the chin).
+  - Looked at (`reports/screenshots/a5b_look/`, High): both seats close up by day, at dusk and at night with the dome lamp off and on (`crew`,
+    `crew2`, `r4_crew`), red, blue and yellow, from outside through the side window, the interior mirror, a rival crew from a following car by
+    day, at dusk and at night (`outside`, `outside2`), the crowd from the grid and as a car passes, by day, at dusk, at night in the beams and
+    in snow (`crowd`, `crowd2`, `final_crowd`, `final_night`, `people`), the real race from the main menu (`final/race_1300`: `--flow-test`).
+  - Cost (Medium, Black Pine, three crews, `tools\perf.ps1 -ExtraArgs "--follower=14+28,--flip-..."`, inside one run, twice): the crews 1.07 /
+    1.20 ms (median 0.85 / 0.84, before the draw 0.37 / 0.36) against A5's 0.66 / 0.61 (0.27 / 0.28): the part that holds still run to run
+    grew by 0.1 ms, the whole by 0.4-0.6 (it wanders by 0.3 and more); the crowd at the start -0.10 / 0.29 (median 0.42 / 0.42), held in view
+    (`--view=22+1+1.7`) -0.01 / 0.30 (median 0.02 / 0.09), before the draw 0.01-0.03, against A5's 0.21 / 0.22.
+  - Known and left: a spectator's short sleeves stand out like caps over the shoulders and a long sleeve's upper arm is broad close up (the
+    mannequin's ball joint; slimming the ball further changed nothing that shows); a faint V at the crotch on light trousers and the
+    neckline's edge ragged by a few millimetres closer than 4 m; from the grid at 8-11 m they read as shirts and trousers. The crew and the
+    crowd stay the mannequin until the owner approves a free character model.
+  Verified: 555 GUT tests (29455 asserts, 165 s), `tools\nettest.ps1` (3 clients), `tools\flowtest.ps1 -Clients 1` (2:11.1 / 2:17.5,
+  16.9 / 16.1 m/s over 2218 m), no script or shader error in their logs.

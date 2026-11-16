@@ -241,8 +241,8 @@ No Blender; model in Godot only as a last resort.
   its physics ticks from `RallyCar.seen_velocity`, never sent: the body's own where it is simulated, the driver's from the snapshots elsewhere,
   since a car played back moves a frame's ticks at once and its place says nothing of how it turns). Only a crew someone can see moves: the
   local player's car's always, another's on the screen within `CrewBody.DRAW_RANGE` or within `MIRROR_RANGE` 10 m; otherwise the modifiers
-  are off and the skeleton does nothing. Three crews cost about 0.7-0.8 ms a frame on Medium by day (`perf.ps1 --flip-crew`): 0.3 of it the
-  rigs' scripts and skeletons (0.07 ms a moving body), the rest some thirty draw calls. `route_test --crew-look=R+Y+P --gesture=R+G --aim=R --job=R+J+T --faint=R+T --shock=R+T --steer=S --handbrake
+  are off and the skeleton does nothing. Three crews cost about 0.85-1.2 ms a frame on Medium by day (`perf.ps1 --flip-crew`, since A5b's
+  suits and helmets): 0.37 of it the rigs' scripts and skeletons (0.07 ms a moving body), the rest some thirty draw calls. `route_test --crew-look=R+Y+P --gesture=R+G --aim=R --job=R+J+T --faint=R+T --shock=R+T --steer=S --handbrake
   --windows-open` pose them for screenshots.
 - `CarRallyKit` (one mesh, one draw call, `shaders/cabin_kit.gdshader`, parts by vertex like the pod): roll cage (black foam on the A pillars and
   round the heads, the main hoop at z 0.43 behind the seats), bucket seats swept along `SEAT_PROFILE` round the bodies (`seat_surface` is the
@@ -399,7 +399,7 @@ No Blender; model in Godot only as a last resort.
   palms to the thighs) with what its bones weigh on each vertex (CUSTOM0/1), one MultiMesh and one draw call a place (a MultiMesh cannot share
   a skeleton). Dressed when it is baked (`SpectatorClothes`, pure, tested): each piece stands off the body by its cloth along the normals and
   hangs round its limb's axis from where the limb is widest, less a taper (`hang`: a shirt from the chest, 1.5 cm off it and looser down to its
-  hem; trousers from the hips over the groin and from the top of the thigh, loose to the shoes; sleeves from under the shoulder), then is smoothed where it
+  hem; trousers from the top of the thigh, loose to the shoes, their seat following the pelvis; sleeves from under the shoulder), then is smoothed where it
   folded over the mannequin's grooves (`relax`, the edges stay); its hem over the trousers and theirs over the shoes stand proud, a collar and
   a short sleeve's end roll down to the skin (`EDGE_ROLL`). The arms are an ordinary man's (`SLIM`; the ball the arm turns in at the
   shoulder slimmer and pressed down, `BALL_SLIM`, `BALL_TOP`: dressed it stood like a puffed sleeve), the hair stands off the scalp, the face is
