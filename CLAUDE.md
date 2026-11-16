@@ -343,7 +343,7 @@ No Blender; model in Godot only as a last resort.
   ribbons + shoulders + a `Ditch` body with `surface` metadata, Spurs, Checkpoints spanning the corridor without reaching another
   stretch, `TrackFeatures`: water pools + `WaterSplash` areas, `GuardRail` on cliffs (corrugated W-beam, one mesh
   per rail + one batch of posts, ends turned down, one gap with torn ends, `shaders/guard_rail.gdshader`; like a flag's cloth, a straw bale
-  (`shaders/straw.gdshader`), a board, a concrete block or barrier (`weathered` scans), the cars' skins and the helmets it takes its light
+  (`shaders/straw.gdshader`), a board, a concrete block or barrier (`weathered` scans), the cars' skins, their number plates (`shaders/number_plate.gdshader`) and the helmets it takes its light
   through `shaders/lamp_cap.gdshaderinc` (its parameters `surface_*`, apart from an including shader's uniforms): the engine's own shading, the
   same pixels by day, but no lamp gives it more than the sun, or the hot band of the beams at night burned it to a white flare that hid the
   road behind it),

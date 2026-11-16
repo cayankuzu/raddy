@@ -11,6 +11,9 @@ extends Node3D
 ## Must sit before the Cabin node in the scene: it swaps the glass in before Cabin._ready runs.
 
 const MODEL := preload("res://assets/vehicles/milano95/milano95.glb")
+## The model's number plates' material, and how they take the light instead (one material for every car's).
+const PLATES := "Numberplates_Misk_U"
+const PLATE_SHADER := preload("res://shaders/number_plate.gdshader")
 const GLASS_SHADER := preload("res://shaders/car_glass.gdshader")
 ## The model is built along +X with its ground at y = 0; the car drives along -Z with its body
 ## origin above the ground. Turning +90 deg about Y maps the model's front (+X) onto -Z; the
@@ -147,6 +150,7 @@ func _add_cabin_light() -> void:
 
 
 ## The body, its trim and the wheels get skins of this car's own: each team has its colour, and the road leaves what it leaves (CarDirt).
+## The number plates take no lamp brighter than the sun, as the paint (plate_material).
 func _setup_paint(model: Node3D) -> void:
 	dirt = CarDirt.new()
 	dirt.name = "Dirt"
@@ -154,9 +158,25 @@ func _setup_paint(model: Node3D) -> void:
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		var mesh_instance := mi as MeshInstance3D
 		for s in mesh_instance.mesh.get_surface_count():
-			var skin := dirt.skin_of(mesh_instance.mesh.surface_get_material(s) as StandardMaterial3D, _car_space(mesh_instance))
+			var material := mesh_instance.mesh.surface_get_material(s) as StandardMaterial3D
+			var skin: Material = dirt.skin_of(material, _car_space(mesh_instance))
+			if skin == null and material != null and material.resource_name == PLATES:
+				skin = plate_material(material)
 			if skin != null:
 				mesh_instance.set_surface_override_material(s, skin)
+
+
+static var _plate: ShaderMaterial
+
+
+## The number plates' picture (the model's `material`) under the lamp cap.
+static func plate_material(material: StandardMaterial3D) -> ShaderMaterial:
+	if _plate == null:
+		_plate = ShaderMaterial.new()
+		_plate.shader = PLATE_SHADER
+		_plate.set_shader_parameter(&"albedo_map", material.albedo_texture)
+		_plate.set_shader_parameter(&"roughness", material.roughness)
+	return _plate
 
 
 func set_paint(color: Color) -> void:

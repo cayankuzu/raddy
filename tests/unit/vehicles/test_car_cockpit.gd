@@ -500,6 +500,14 @@ func test_a_car_in_a_followers_beams_keeps_its_colour() -> void:
 	assert_false(_model.dirt.paints.is_empty())
 	for paint in _model.dirt.paints:
 		assert_true(lit_no_brighter_than_the_sun.call(paint), "the paint and its livery")
+	var plates := 0
+	for mesh_instance: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
+		if mesh_instance.mesh != null and mesh_instance.mesh.get_surface_count() > 0:
+			var material := mesh_instance.mesh.surface_get_material(0)
+			if material != null and material.resource_name == CarModel.PLATES:
+				plates += 1
+				assert_true(lit_no_brighter_than_the_sun.call(mesh_instance.get_surface_override_material(0)), "the %s" % mesh_instance.name)
+	assert_eq(plates, 2, "the number plates front and rear")
 
 
 func test_by_day_only_the_lamps_glass_shows_the_headlights_are_on() -> void:
