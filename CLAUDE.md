@@ -83,7 +83,8 @@ No Blender; model in Godot only as a last resort.
   `docs/REFERENCE_RESEARCH.md` hold the research. `CHANGELOG.md` is for players, `TEST_PLAN.md` holds what only people can check.
 - `docs/phases/*.md` are the briefs of the phases still to build, in this order: A9a (`a9a_perf.md`), A7 (`a7_ui.md`), A8 (`a8_net.md`),
   A6 (`a6_chaos.md`), A9b and A10 (`a9_a10.md`). A phase's brief is its spec; what was done goes into DEVELOPMENT_PLAN. A built phase's
-  brief stays as its record (`a5b_crew_look.md`).
+  brief stays as its record (`a5b_crew_look.md`). `docs/phases/downloads.md` lists the approved raw downloads no phase has used yet (Freesound
+  sounds, Sketchfab models; under the git-ignored `raw_assets/`, on the dev PC only) and what each is for.
 
 ## Vehicle code (scripts/vehicles)
 - `RallyCar` (RigidBody3D) simulates in `_integrate_forces`: ray wheels cast by the car, spring/damper/bump stop,
