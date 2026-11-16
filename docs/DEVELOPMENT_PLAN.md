@@ -848,6 +848,12 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   - The helmet decision recorded (GAME_DESIGN section 7, the brief's item 4 corrected): open face, boom microphone, no visor, no chin bar.
   - The lamp-cap tests still read the shader's source for its `lamp_capped_light(` call: a test of what it does needs a light rendered,
     and headless GUT renders nothing.
+- 2026-11-16: A5b's final check: DONE. GUT 557/557 (29837 asserts, 152 s), nettest passed (3 clients; the first spawn 101-102 ms, the second
+  42-43 ms on every peer; the clients' countdown 24-31 ms and their go 74-82 ms after the host's), flowtest -Stage 2 passed (2:05.0 / 2:15.2,
+  the client's go 78 ms after the host's), no script or shader error in any log. Seen in three sheets (both seats by day and under the dome
+  lamp at night, the own hands on the wheel by day and night, a rival from a follower at night, the crowd from the grid): no white blob, the
+  rival's plate reads under the beams. Left as it is: from the own seat the coloured back of the glove ends in a ragged edge short of the
+  knuckles (TEST_PLAN's gloves row judges it).
   - The suit and the helmet carry levels of detail (`CrewBody.thinned`, as the crowd's body): the suit 32.8k triangles, 16.4k within 3.6 mm,
     4.1k within 10.6 mm; the helmet 29.1k, 7.3k within 3.1 mm, 1.8k within 77 mm. The bake now takes about 0.55 s, behind the loading.
   - Cost (Medium, Black Pine, three crews, `tools\perf.ps1 -ExtraArgs "--follower=14+28,--flip-crew=0.5"`, twice): 0.89 / 0.64 ms (median
