@@ -49,6 +49,8 @@ var save_path := PATH
 func _ready() -> void:
 	load_from_disk()
 	apply()
+	if DisplayServer.get_name() != "headless":
+		print(GraphicsQuality.adapter_summary())
 
 
 func get_value(key: String) -> Variant:

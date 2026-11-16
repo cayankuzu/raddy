@@ -42,6 +42,10 @@ const MSAA := {Level.LOW: Viewport.MSAA_DISABLED, Level.MEDIUM: Viewport.MSAA_DI
 const ANISOTROPY := {Level.LOW: Viewport.ANISOTROPY_4X, Level.MEDIUM: Viewport.ANISOTROPY_8X, Level.HIGH: Viewport.ANISOTROPY_16X}
 
 
+## RenderingDevice.DeviceType by name.
+const ADAPTER_TYPES := ["other", "integrated", "discrete", "virtual", "cpu"]
+
+
 ## Dev scenes (--quality) force a level here, whatever the player's setting says.
 static var forced := AUTO
 
@@ -66,6 +70,15 @@ static func detect() -> int:
 	if RenderingServer.get_video_adapter_type() == RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU:
 		return Level.LOW
 	return Level.HIGH
+
+
+## The adapter that renders and the level in force, for the game's log (Settings prints it at start): on a laptop with two GPUs the
+## discrete one must be the one that renders.
+static func adapter_summary() -> String:
+	var type := RenderingServer.get_video_adapter_type()
+	return "GPU %s (%s, %s %s), graphics level %s" % [RenderingServer.get_video_adapter_name(),
+		ADAPTER_TYPES[type] if type < ADAPTER_TYPES.size() else str(type), RenderingServer.get_current_rendering_driver_name(),
+		RenderingServer.get_video_adapter_api_version(), Level.find_key(current())]
 
 
 static func scenery_density(level: int) -> float:
