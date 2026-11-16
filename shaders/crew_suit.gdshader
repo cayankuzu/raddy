@@ -49,10 +49,12 @@ const float SIDE_HALF = 0.04;
 const float LEG_SIDE_HALF = 0.032;
 const float UNDER_ARM_HALF = 0.035;
 const float SIDE_TOP = 1.33;
-// The stretch panels: round the shoulder's joint (m) above the arm's axis less this; over the knee (half its width round the leg and
+// The stretch panels: round the shoulder's joint (m) above the arm's axis less this, behind the joint from this far before it (over the
+// shoulder blade: over the top too, a dark cap read as a pad from the partner's seat); over the knee (half its width round the leg and
 // its height, m, and its corners).
 const float SHOULDER_PANEL = 0.11;
 const float SHOULDER_PANEL_LOW = 0.03;
+const float SHOULDER_PANEL_FRONT = 0.01;
 const vec3 KNEE_PANEL = vec3(0.05, 0.07, 0.025);
 // The collar: from this high round the neck (m from its axis), the zip's cover this far to the wearer's left of the front's middle.
 const float COLLAR_FROM = 1.47;
@@ -175,9 +177,10 @@ void fragment() {
 	if (UV.x < 0.012) {
 		sew(UV.x, p.y > 1.2 ? arm_turn * 0.08 : leg_turn * 0.1, seam);
 	}
-	// The shoulders' stretch panels, over the joint (the body's piece and the arm's alike).
+	// The shoulders' stretch panels, over the back of the joint (the body's piece and the arm's alike).
 	if (part != LEG) {
-		float d = max(distance(vec3(side, p.yz), SHOULDER) - SHOULDER_PANEL, SHOULDER.y - SHOULDER_PANEL_LOW - p.y);
+		float d = max(max(distance(vec3(side, p.yz), SHOULDER) - SHOULDER_PANEL, SHOULDER.y - SHOULDER_PANEL_LOW - p.y),
+			p.z - SHOULDER.z - SHOULDER_PANEL_FRONT);
 		knit = max(knit, inside(d, footprint));
 		sew(d, arm_turn * 0.09 + p.x, seam);
 		rib_at = arm_turn * 0.06;
