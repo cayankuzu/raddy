@@ -863,3 +863,11 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   and the second 123-128 on every peer alike, the clients' go 79-94 ms after the host's), `tools\flowtest.ps1 -Clients 1 -Stage 2` (2:05.0 /
   2:15.2, 18.5 / 17.1 m/s over 2316 m; the client's go 77 ms after the host's); a body built after the bake 5.0-5.1 ms, a car's first entry
   61 ms, as before the LODs, inside one process; no script or shader error in their logs.
+- 2026-11-16: A5b's leftover, gestures that read at night (done during A9a): DONE. At night without the dome lamp a raised sign's suede fingers
+  were black on black. The back of every finger and of the thumb is one panel in the suit's colour from the knuckle to the tip
+  (`CrewSuit.finger_back`: which way a vertex lies from its bone's line or faces, the more; the thumb's root on the palm's piece too), the palm's
+  side suede, the seam's stitches along each finger's side; the glove's cloth spans the pinches of the mannequin's beaded fingers
+  (`CrewSuit.fill_fingers`: the line drawn taut over them, 0.6 mm under it a crease at each joint), or the coloured fingers read as a string of
+  beads. The dials' glow needed nothing more. Seen in two sheets (the four signs of each seat from the other at night, before and after; the
+  own hands on the wheel by day and at night): every sign reads, no cap per piece, no dark ring at a joint; from the own seat
+  the coloured back runs on over the fingers on the rim (the final check's ragged edge short of the knuckles is gone). GUT 560/560.

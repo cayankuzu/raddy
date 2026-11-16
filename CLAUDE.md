@@ -186,7 +186,8 @@ No Blender; model in Godot only as a last resort.
   ball; where a ball still meets the body `meeting` says how far, and the shader sews a seam along that crease). Per vertex: COLOR r glove, g boot,
   b head, a a glove's back; UV2 how far a vertex is from a stripe's line (metres) and whether one runs there (`CrewBody.suit_region`,
   `stripe_coordinate`, by bone groups: straight bands of one width along the arms, the legs and the flanks; none over a shoulder or a hip); UV.x
-  the meeting, UV.y a glove's back (none of a finger: suede all round); CUSTOM0 where it is on the suit
+  the meeting, UV.y a glove's back (a finger's one panel from the knuckle to the tip, `CrewSuit.finger_back`: by its bone's line, not by its
+  piece; the glove's cloth spans the pinches of the mannequin's beaded fingers, `fill_fingers`, a crease left at each joint); CUSTOM0 where it is on the suit
   standing in its T-pose (left arm along +x, front +z) and its piece (`CrewSuit.Part`). `shaders/crew_suit.gdshader` places everything there:
   matte fabric (wrap lighting, rim sheen), a weave and the knit's ribs that fade before they shimmer, folds gathering at the joints, darker panels
   down the sides and under the arms, ribbed stretch panels over the shoulders and the knees, a collar, a covered zip, tape stripes, every seam a
@@ -231,8 +232,9 @@ No Blender; model in Godot only as a last resort.
   (`lever_knob`, from each peer's gearbox); the navigator's rest on the lap, hold the open map by its edges (`PaperMap.hold`), the gun, throw, wind.
   Gestures with the hand nearer the partner, against the windshield where the partner sees them without turning, placed from the partner's
   eye (tested), each a sign of its own (`CrewRules.sign_of`): the finger across to the partner's side, the thumb for the side away (a hand held
-  out that way leaves their sight), a chop for straight on, a pat for slow down; the gloves' backs are in the suit's colour with the sleeve's
-  stripe (`CrewBody.suit_region` alpha), so a hand shows on a black wheel and a dark dash. A job's outcome waits for the body's move: the
+  out that way leaves their sight), a chop for straight on, a pat for slow down; the gloves' backs, the fingers' to their tips, are in the suit's colour
+  with the sleeve's stripe (`CrewBody.suit_region` alpha, `CrewSuit.finger_back`), so a hand shows on a black wheel and a dark dash and a sign
+  reads at night in the dials' glow alone. A job's outcome waits for the body's move: the
   windshield goes when the kick's soles meet it (`CrewRules.KICK_LANDS`), a can flies when the hand lets go (`THROW_LEAVES`), a kick another
   player began plays to its end; the navigator does not reach across the driver for the far winder (`CrewRules.job_hand`), and the gun stops
   at a closed window's glass. Out cold it slumps,
