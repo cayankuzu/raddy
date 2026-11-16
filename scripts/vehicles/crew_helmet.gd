@@ -114,7 +114,7 @@ static func mesh() -> ArrayMesh:
 			_tether(tool, side)
 		_cable(tool)
 		tool.index()
-		_mesh = tool.commit()
+		_mesh = CrewBody.thinned(tool.commit_to_arrays())
 	return _mesh
 
 

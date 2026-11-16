@@ -59,6 +59,21 @@ func test_a_seat_finds_the_suit_and_the_helmet_baked() -> void:
 	assert_lt(seated, baked * 0.25, "a seat costs a fraction of the bake")
 
 
+func test_a_crew_further_off_draws_fewer_triangles() -> void:
+	_model.seat_crew(RosterRules.Role.DRIVER, true)
+	var body: CrewBody = _model.crew[RosterRules.Role.DRIVER]
+	for mesh: ArrayMesh in [body._suit.mesh, body.helmet.mesh]:
+		var triangles := (mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+		# [the error it stands for (m), its indices (two bytes each)] a level.
+		var lods: Array = ((mesh.get(&"_surfaces") as Array)[0] as Dictionary).lods
+		var levels := PackedStringArray()
+		for i in range(0, lods.size(), 2):
+			levels.append("%.1f mm %d" % [float(lods[i]) * 1000.0, (lods[i + 1] as PackedByteArray).size() / 6])
+		gut.p("%d triangles, thinned for the distance: %s" % [triangles, ", ".join(levels)])
+		assert_gte(lods.size() / 2, 3, "coarser cuts for a crew further off")
+		assert_lt(float(lods[0]), 0.005, "the first one a few millimetres off")
+
+
 func test_the_eyes_are_where_the_seats_camera_rests() -> void:
 	for role: int in [RosterRules.Role.DRIVER, RosterRules.Role.NAVIGATOR]:
 		_model.seat_crew(role, true)

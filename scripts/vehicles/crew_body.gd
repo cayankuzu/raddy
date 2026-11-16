@@ -403,10 +403,18 @@ static func race_suit(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 	arrays[Mesh.ARRAY_TEX_UV] = seams
 	arrays[Mesh.ARRAY_TEX_UV2] = stripes
 	arrays[Mesh.ARRAY_CUSTOM0] = places
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	var mesh := thinned(arrays)
 	_race_suits[source] = mesh
 	return mesh
+
+
+## A crew's mesh (`arrays`, CUSTOM0 four floats a vertex) with levels of detail: the same vertices under fewer triangles for a crew seen
+## from further off, which the engine picks by how big it is on the screen (a rival's crew, a partner's helmet from the own seat).
+static func thinned(arrays: Array) -> ArrayMesh:
+	var levels := ImporterMesh.new()
+	levels.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, null, "", Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+	levels.generate_lods(Spectators.LOD_MERGE, 0.0, [])
+	return levels.get_mesh()
 
 
 ## Where a bone's joint is on the mannequin as it stands at rest.
