@@ -141,6 +141,15 @@ func build(seat_role: int, eye: Vector3, paint: Color) -> void:
 		rig.build(self, car_model, eye)
 
 
+## Makes once a session what every body shares (the suit, the helmet, the flag, the name's letters) by building one, so a seat costs
+## only its pose: a race calls this while it loads.
+static func bake() -> void:
+	var body := CrewBody.new()
+	body.build(RosterRules.Role.DRIVER, Vector3.ZERO, Color.WHITE)
+	body.wear_name("ÇĞİÖŞÜ")
+	body.free()
+
+
 ## The suit and the helmet in the team's colour.
 func set_paint(paint: Color) -> void:
 	_material.set_shader_parameter(&"suit", paint)

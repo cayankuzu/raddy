@@ -39,6 +39,26 @@ func test_a_body_sits_in_each_taken_seat_and_none_in_an_empty_one() -> void:
 	assert_true(_loose_harness(RosterRules.Role.DRIVER).visible)
 
 
+## A race bakes what the bodies share while it loads (RaceSession._ready): a seat taken at a car's spawn makes nothing of it again, or the
+## first spawn held a client's car half a second past the host's start.
+func test_a_seat_finds_the_suit_and_the_helmet_baked() -> void:
+	CrewBody._race_suits.clear()
+	CrewHelmet._mesh = null
+	var started := Time.get_ticks_usec()
+	CrewBody.bake()
+	var baked := (Time.get_ticks_usec() - started) / 1000.0
+	var helmet := CrewHelmet.mesh()
+	assert_eq(CrewBody._race_suits.size(), 1, "the suit is baked")
+	started = Time.get_ticks_usec()
+	_model.seat_crew(RosterRules.Role.DRIVER, true)
+	var seated := (Time.get_ticks_usec() - started) / 1000.0
+	var body: CrewBody = _model.crew[RosterRules.Role.DRIVER]
+	assert_eq(body._suit.mesh, CrewBody._race_suits.values()[0], "the seat wears the baked suit")
+	assert_eq(body.helmet.mesh, helmet, "and the baked helmet")
+	gut.p("bake %.1f ms, then a seat %.1f ms" % [baked, seated])
+	assert_lt(seated, baked * 0.25, "a seat costs a fraction of the bake")
+
+
 func test_the_eyes_are_where_the_seats_camera_rests() -> void:
 	for role: int in [RosterRules.Role.DRIVER, RosterRules.Role.NAVIGATOR]:
 		_model.seat_crew(role, true)

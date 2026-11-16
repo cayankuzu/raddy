@@ -108,6 +108,10 @@ func _ready() -> void:
 			if is_inside_tree() and not _begun:
 				print("NET starting without slow loaders")
 				_begin())
+	# What every crew shares is made here, behind the loading: made at the first car's spawn it held a client's car half a second past
+	# the host's start.
+	CrewBody.bake()
+	CarRallyKit.kit_mesh()
 	Net.report_race_loaded()
 	if Net.is_host():
 		_try_begin()
@@ -595,7 +599,8 @@ func _rpc_countdown(seconds: float) -> void:
 	countdown_left = seconds
 	for car in _team_cars.values():
 		car.input_locked = true
-	print("NET countdown %.0f s" % seconds)
+	# The PC's clock: peers on one PC compare their starts.
+	print("NET countdown %.0f s at %.3f" % [seconds, Time.get_unix_time_from_system()])
 	countdown_started.emit(seconds)
 
 
@@ -748,7 +753,7 @@ func _go() -> void:
 	for team in _team_cars:
 		if not finished_teams.has(team):
 			_team_cars[team].input_locked = false
-	print("NET go")
+	print("NET go at %.3f" % Time.get_unix_time_from_system())
 	race_go.emit()
 
 
@@ -781,6 +786,7 @@ func _rpc_results(rows: Array) -> void:
 func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	if _team_cars.has(team):
 		return
+	var started := Time.get_ticks_usec()
 	var car: RallyCar = CAR_SCENE.instantiate()
 	car.name = "Car%d" % team
 	car.transform = grid
@@ -813,7 +819,7 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	var me := Net.local_entry()
 	if me.get("team", 0) == team:
 		_bind_local_seat(car, me.role)
-	print("NET spawned car team %d driver %d" % [team, driver_peer])
+	print("NET spawned car team %d driver %d in %.1f ms" % [team, driver_peer, (Time.get_ticks_usec() - started) / 1000.0])
 
 
 ## Every peer seats a crew member in each seat of `team`'s car a player holds, nobody in an empty one, each in a suit with their name on
