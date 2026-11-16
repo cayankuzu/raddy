@@ -270,19 +270,86 @@ func test_the_gloves_backs_keep_the_team_colour() -> void:
 	var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
 	var backs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
 	var custom: PackedFloat32Array = arrays[Mesh.ARRAY_CUSTOM0]
-	var finger_backs := 0
-	var fingers := 0
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	var per := bones.size() / colours.size()
 	var changed := 0
+	var roots := 0
 	for v in colours.size():
-		if int(custom[v * 4 + 3]) == CrewSuit.Part.FINGER:
-			fingers += 1
-			finger_backs += 1 if backs[v].y > 0.5 else 0
-		elif absf(backs[v].y - colours[v].a) > 0.0001:
+		if int(custom[v * 4 + 3]) == CrewSuit.Part.FINGER or absf(backs[v].y - colours[v].a) < 0.0001:
+			continue
+		var heaviest := 0
+		for k in range(1, per):
+			if weights[v * per + k] > weights[v * per + heaviest]:
+				heaviest = k
+		var bone_name := body.skeleton.get_bone_name(bones[v * per + heaviest])
+		if backs[v].y > colours[v].a and (bone_name.contains("f_") or bone_name.contains("thumb")):
+			roots += 1
+		else:
 			changed += 1
-	assert_eq(changed, 0, "the hand's back as A5 had it")
-	assert_gt(fingers, 0)
-	assert_eq(finger_backs, 0, "the fingers suede all round, as the palm: no piece of them in the team's colour")
+	gut.p("the palm's piece's vertices a finger's back takes in, the thumb's root and the knuckles: %d" % roots)
+	assert_eq(changed, 0, "the hand's back as A5 had it, but where a finger's bone carries the palm's piece")
 	assert_eq((CarRallyKit.HARNESS[0] as Color).a, 0.0, "the harness's webbing black, whatever the team's colour")
+
+
+func test_every_fingers_back_is_one_panel_to_its_tip_and_its_palm_side_suede() -> void:
+	_model.seat_crew(RosterRules.Role.DRIVER, true)
+	var body: CrewBody = _model.crew[RosterRules.Role.DRIVER]
+	var rig := body.skeleton
+	var arrays := body._suit.mesh.surface_get_arrays(0)
+	var points: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	var backs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var colours: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var custom: PackedFloat32Array = arrays[Mesh.ARRAY_CUSTOM0]
+	var per := bones.size() / points.size()
+	var along := {}  # finger -> how far along it each of its vertices facing the finger's back is, from its first joint
+	var facing := 0
+	var facing_palm := 0
+	var palm_side := 0
+	var palm_side_back := 0
+	for v in points.size():
+		var heaviest := 0
+		for k in range(1, per):
+			if weights[v * per + k] > weights[v * per + heaviest]:
+				heaviest = k
+		var bone_name := rig.get_bone_name(bones[v * per + heaviest])
+		if not (bone_name.contains("f_") or bone_name.contains("thumb")):
+			continue
+		# A finger's bones as the mannequin stands: its first's joint and the way along it, the way the back faces (the bone's -z).
+		var finger := bone_name.left(bone_name.rfind("_0")) + bone_name.right(2)
+		var first := rig.get_bone_global_rest(rig.find_bone(finger.left(-2) + "_01" + finger.right(2)))
+		var faces := normals[v].dot(-rig.get_bone_global_rest(bones[v * per + heaviest]).basis.z.normalized())
+		if faces > 0.5:
+			facing += 1
+			if backs[v].y < 0.99:
+				facing_palm += 1
+			else:
+				if not along.has(finger):
+					along[finger] = []
+				(along[finger] as Array).append((points[v] - first.origin).dot(first.basis.y.normalized()))
+		elif faces < -0.5:
+			palm_side += 1
+			# (On the palm's piece the hand's own back, as A5 had it, may come round the thumb's root to the side by the index finger.)
+			palm_side_back += 1 if backs[v].y > (0.0 if int(custom[v * 4 + 3]) == CrewSuit.Part.FINGER else colours[v].a) else 0
+	gut.p("finger vertices facing the back: %d, of them suede: %d" % [facing, facing_palm])
+	assert_eq(facing_palm, 0, "everything on a finger that faces its back is the suit's colour")
+	assert_eq(along.size(), 10, "four fingers and a thumb on each hand")
+	for finger: String in along:
+		var reach: Array = along[finger]
+		reach.sort()
+		var gap := 0.0
+		for i in range(1, reach.size()):
+			gap = maxf(gap, reach[i] - reach[i - 1])
+		gut.p("%s: the back from %.1f to %.1f mm, the widest gap between its vertices %.1f mm" % [finger, reach[0] * 1000.0, reach[-1] * 1000.0, gap * 1000.0])
+		assert_lt(reach[0], 0.0, "%s's back from behind its knuckle" % finger)
+		assert_gt(reach[-1], 0.07 if finger.contains("f_") else 0.06, "%s's back on to the tip" % finger)
+		assert_lt(gap, 0.012, "%s's back unbroken: no joint without it" % finger)
+	gut.p("palm side vertices: %d, of them on the back: %d" % [palm_side, palm_side_back])
+	assert_gt(palm_side, 1000)
+	assert_eq(palm_side_back, 0, "the palm's side of every finger suede")
 
 
 func test_the_harness_is_buckled_over_the_body() -> void:

@@ -349,7 +349,8 @@ static var _race_suits: Dictionary = {}  # source mesh -> the crew's suit
 ## leg the knee's, the body its blocks), each vertex also saying where on the suit it is for the shader's panels, seams and patches
 ## (CUSTOM0: its place on the cut suit as the mannequin stands, m, and in w the piece it is of, CrewSuit.Part; UV.x how far it is from
 ## where its piece meets another, CrewSuit.meeting, the seam round a shoulder and a hip; UV.y how much it is of a glove's back, COLOR.a
-## but none of a finger: suede all round, as the palm, since the mannequin's finger pieces in the suit's colour read as a jointed doll's).
+## but a finger's by CrewSuit.finger_back, and the palm's piece's too where a finger's bone carries it most, the thumb's root: the back of
+## every finger one panel on to the tip, so a sign reads in the dials' glow).
 ## Every body shares it.
 static func race_suit(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 	if _race_suits.has(source):
@@ -366,13 +367,15 @@ static func race_suit(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 	for bone in rig.get_bone_count():
 		of_bone.append(bone_group(rig.get_bone_name(bone)))
 	var groups: Array[StringName] = []
+	var carriers := PackedInt32Array()  # the bone that carries each vertex most
 	var cloth := PackedByteArray()
 	for v in vertices.size():
 		var heaviest := 0
 		for k in range(1, per):
 			if weights[v * per + k] > weights[v * per + heaviest]:
 				heaviest = k
-		groups.append(of_bone[bones[v * per + heaviest]])
+		carriers.append(bones[v * per + heaviest])
+		groups.append(of_bone[carriers[v]])
 		cloth.append(1 if maxf(regions[v].r, maxf(regions[v].g, regions[v].b)) < 0.5 else 0)
 	var parts := CrewSuit.parts(vertices, indices, groups)
 	var limbs := [[CrewSuit.Part.BODY, Vector3(0.0, TRUNK.x, BODY_LINE), Vector3(0.0, TRUNK.y, BODY_LINE), Vector2(0.06, 0.08)]]
@@ -385,15 +388,40 @@ static func race_suit(source: Mesh, rig: Skeleton3D) -> ArrayMesh:
 		limbs.append([CrewSuit.Part.LEG, hip, hip.lerp(ankle, (hip.y - BOOT_TOP.y) / (hip.y - ankle.y)), Vector2(0.08, 0.04)])
 		balls.append([shoulder, CrewSuit.SHOULDER_BALL])
 		balls.append([hip, CrewSuit.HIP_BALL])
-	var cut := CrewSuit.cut(vertices, normals, indices, parts, cloth, limbs, balls)
-	var cut_normals := CrewSuit.normals(cut, indices, cloth, normals)
+	var fingers := _finger_bones(rig)
+	var lines := {}  # a finger's first bone -> [its vertices, where it starts, where its last bone ends]
+	for bone: int in fingers:
+		var first: int = fingers[bone][3]
+		var start: Vector3 = fingers[first][0]
+		if not lines.has(first):
+			lines[first] = [[], start, fingers[bone][1]]
+		if start.distance_to(fingers[bone][1]) > start.distance_to(lines[first][2]):
+			lines[first][2] = fingers[bone][1]
+	for v in vertices.size():
+		if parts[v] == CrewSuit.Part.FINGER and fingers.has(carriers[v]):
+			(lines[fingers[carriers[v]][3]][0] as Array).append(v)
+	var cut := CrewSuit.fill_fingers(CrewSuit.cut(vertices, normals, indices, parts, cloth, limbs, balls), normals, lines.values())
+	# The cloth's normals and those of the gloves' fingers where they were filled.
+	var drawn := cloth.duplicate()
+	for v in vertices.size():
+		if cut[v] != vertices[v]:
+			drawn[v] = 1
+	var cut_normals := CrewSuit.normals(cut, indices, drawn, normals)
 	var meeting := CrewSuit.meeting(cut, cut_normals, parts)
 	var places := PackedFloat32Array()
 	var seams := PackedVector2Array()
 	var stripes: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV2]
 	for v in cut.size():
 		places.append_array(PackedFloat32Array([cut[v].x, cut[v].y, cut[v].z, parts[v]]))
-		seams.append(Vector2(meeting[v], 0.0 if parts[v] == CrewSuit.Part.FINGER else regions[v].a))
+		var back := regions[v].a
+		if parts[v] == CrewSuit.Part.FINGER or fingers.has(carriers[v]):
+			var carried := []
+			for k in per:
+				if weights[v * per + k] > 0.0 and fingers.has(bones[v * per + k]):
+					carried.append([weights[v * per + k]] + fingers[bones[v * per + k]].slice(0, 3))
+			var finger := CrewSuit.finger_back(vertices[v], normals[v], carried, GLOVE_BACK)
+			back = finger if parts[v] == CrewSuit.Part.FINGER else maxf(back, finger)
+		seams.append(Vector2(meeting[v], back))
 		# A stripe is measured front to back (stripe_coordinate): it moves with the cloth.
 		stripes[v] += Vector2(cut[v].z - vertices[v].z, 0.0)
 	arrays[Mesh.ARRAY_VERTEX] = cut
@@ -415,6 +443,31 @@ static func thinned(arrays: Array) -> ArrayMesh:
 	levels.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, null, "", Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
 	levels.generate_lods(Spectators.LOD_MERGE, 0.0, [])
 	return levels.get_mesh()
+
+
+## The bones of the fingers and the thumbs as the mannequin stands at rest: bone -> [where it starts, where it ends (the next one's start;
+## the last as long as the one before), the way the finger's back faces (the bone's -z: the palm's side is its +z), its finger's first].
+static func _finger_bones(rig: Skeleton3D) -> Dictionary:
+	var out := {}
+	for bone in rig.get_bone_count():
+		var bone_name := rig.get_bone_name(bone)
+		if not (bone_name.contains("f_") or bone_name.contains("thumb")):
+			continue
+		var rest := rig.get_bone_global_rest(bone)
+		var length := 0.0
+		var first := bone
+		for n in range(1, 4):
+			var piece := "_0%d_" % n
+			if bone_name.contains(piece):
+				first = rig.find_bone(bone_name.replace(piece, "_01_"))
+				var next := rig.find_bone(bone_name.replace(piece, "_0%d_" % (n + 1)))
+				var before := rig.find_bone(bone_name.replace(piece, "_0%d_" % (n - 1)))
+				if next >= 0:
+					length = rest.origin.distance_to(_rest(rig, rig.get_bone_name(next)))
+				elif before >= 0:
+					length = rest.origin.distance_to(_rest(rig, rig.get_bone_name(before)))
+		out[bone] = [rest.origin, rest.origin + rest.basis.y.normalized() * length, -rest.basis.z.normalized(), first]
+	return out
 
 
 ## Where a bone's joint is on the mannequin as it stands at rest.

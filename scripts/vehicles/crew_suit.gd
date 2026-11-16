@@ -33,6 +33,11 @@ const SMOOTH_ROUNDS := 3
 const SMOOTH := 0.5
 ## How near the body a limb's piece is looked for where the two meet (m): nearer than this a seam is sewn (`meeting`).
 const MEET_REACH := 0.015
+## A glove over the mannequin's fingers (`fill_fingers`): their profile measured in slices this long (m) and this many sectors round each
+## finger; the glove comes this far (m) short of the line drawn taut over them, a crease left at every joint.
+const FINGER_SLICE := 0.002
+const FINGER_SECTORS := 12
+const FINGER_CREASE := 0.0006
 
 
 ## The suit cut over the mannequin at rest (`points`, `normals`, `indices`: its vertices and triangles; `parts`: the piece each vertex is
@@ -118,6 +123,93 @@ static func islands(points: PackedVector3Array, indices: PackedInt32Array) -> Pa
 	for v in points.size():
 		out.append(_find(root, v))
 	return out
+
+
+## How much of a finger's vertex (`at`, its surface facing `normal`) is the glove's back, as a race glove is cut: the back of every finger
+## and of the thumb one panel in the suit's colour from the knuckles to the tip, whichever of the mannequin's pieces or joints' balls the
+## vertex is on, the side towards the palm suede. `bones`: [share, start, end, the way the back faces] for each bone of a finger that
+## carries the vertex. Against that bone's back: which way the vertex lies from the bone's line between its joints (a piece's round end
+## at a joint faces along the finger: by its surface alone each piece had a cap of its own and every joint a dark ring) or which way its
+## surface faces, the more (the tip falls away under the last bone's line); weighed by the bones' shares, from `faces.x` the back, all of
+## it by `faces.y` (CrewBody.GLOVE_BACK, the hand's).
+static func finger_back(at: Vector3, normal: Vector3, bones: Array, faces: Vector2) -> float:
+	var lies := 0.0
+	var shares := 0.0
+	for bone: Array in bones:
+		var axis := Geometry3D.get_closest_point_to_segment(at, bone[1], bone[2])
+		lies += float(bone[0]) * maxf((at - axis).normalized().dot(bone[3]), normal.dot(bone[3]))
+		shares += float(bone[0])
+	return smoothstep(faces.x, faces.y, lies / shares) if shares > 0.0 else 0.0
+
+
+## Where every vertex is with a glove drawn over the mannequin's fingers: each of their pieces a bead, fat in the middle and pinched at
+## its joint's ball, so bare they read as a jointed doll's. Round each finger's line (`fingers`: [its vertices, its first joint, its tip],
+## the mannequin standing) the cloth lies along the line drawn taut over the beads (per sector round it, from slice to slice) and no more
+## than FINGER_CREASE under it: what faces out of the finger (`normals`) is raised to it; the beads' tops and the pieces' ends inside the
+## joints stay where they are.
+static func fill_fingers(points: PackedVector3Array, normals: PackedVector3Array, fingers: Array) -> PackedVector3Array:
+	var same := weld(points)
+	var placed := points.duplicate()
+	for finger: Array in fingers:
+		var start: Vector3 = finger[1]
+		var axis: Vector3 = (finger[2] - start).normalized()
+		var u := (Vector3.UP - axis * Vector3.UP.dot(axis)).normalized()
+		var w := axis.cross(u)
+		var held := {}  # sector -> slice -> how far out the finger is there
+		var cells := {}  # vertex -> [how far along, its sector (fractional), how far out, the way out]
+		for v: int in finger[0]:
+			if same[v] != v:
+				continue
+			var along := (points[v] - start).dot(axis)
+			var out := points[v] - start - axis * along
+			var turn := (atan2(out.dot(w), out.dot(u)) + PI) / TAU * FINGER_SECTORS
+			cells[v] = [along, turn, out.length(), out.normalized()]
+			if normals[v].dot(out.normalized()) < 0.5:
+				continue
+			var sector := posmod(roundi(turn), FINGER_SECTORS)
+			var slice := roundi(along / FINGER_SLICE)
+			if not held.has(sector):
+				held[sector] = {}
+			held[sector][slice] = maxf(float((held[sector] as Dictionary).get(slice, 0.0)), out.length())
+		var taut := {}  # sector -> the line drawn taut over it: [slice, how far out] from the first joint to the tip
+		for sector: int in held:
+			taut[sector] = _over(held[sector])
+		for v: int in cells:
+			var cell: Array = cells[v]
+			if normals[v].dot(cell[3]) < 0.3:
+				continue
+			var low := floori(cell[1])
+			var share: float = cell[1] - low
+			var line := lerpf(_along(taut.get(posmod(low, FINGER_SECTORS), []), cell[0]),
+				_along(taut.get(posmod(low + 1, FINGER_SECTORS), []), cell[0]), share)
+			if line - FINGER_CREASE > cell[2]:
+				placed[v] = points[v] + (cell[3] as Vector3) * (line - FINGER_CREASE - cell[2])
+	for v in points.size():
+		placed[v] = placed[same[v]]
+	return placed
+
+
+## The line drawn taut over a profile (slice -> how far out): its upper hull, as [slice's middle (m), how far out] from the first slice on.
+static func _over(profile: Dictionary) -> Array:
+	var slices := profile.keys()
+	slices.sort()
+	var hull: Array[Vector2] = []
+	for slice: int in slices:
+		var at := Vector2(slice * FINGER_SLICE, profile[slice])
+		while hull.size() >= 2 and (hull[-1] - hull[-2]).cross(at - hull[-2]) >= 0.0:
+			hull.pop_back()
+		hull.append(at)
+	return hull
+
+
+## How far out the taut line (`hull`, _over) is `along` the finger: 0 off its ends.
+static func _along(hull: Array, along: float) -> float:
+	for i in range(1, hull.size()):
+		var a: Vector2 = hull[i - 1]
+		var b: Vector2 = hull[i]
+		if along >= a.x and along <= b.x:
+			return lerpf(a.y, b.y, (along - a.x) / maxf(b.x - a.x, 0.000001))
+	return 0.0
 
 
 static func _find(root: PackedInt32Array, at: int) -> int:

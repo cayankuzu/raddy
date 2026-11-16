@@ -3,11 +3,12 @@ shader_type spatial;
 // grazing angles and a fine weave, panels in a darker shade down the sides and the arms' insides, ribbed stretch panels over the
 // shoulders and the knees, a collar, a covered zip down the front, white tape stripes down the sleeves, the legs and the sides, every
 // seam stitched; the flag of Turkey on the upper left sleeve (TurkishFlag's picture, a stitched border round it), the wearer's name
-// embroidered on the right of the chest; race gloves (the back of the hand in the suit's colour with the sleeve's stripe running on
-// over it, stitched round, the palm and the fingers suede, an elastic cuff), thin-soled race boots, a black balaclava under the helmet.
+// embroidered on the right of the chest; race gloves (the back of the hand and of every finger in the suit's colour, the sleeve's stripe
+// running on over it to the knuckles, stitched round, the palm and the fingers' insides suede, an elastic cuff), thin-soled race boots, a
+// black balaclava under the helmet.
 // What each vertex is comes with it (CrewBody's suit): COLOR.r how much it is glove, .g boot, .b head, .a the back of a glove; UV2.x how
 // far from the stripe's line on its limb (or the body) it is (m), UV2.y 1 where a stripe can run; UV.x how far outside the piece it meets
-// (CrewSuit.meeting: the seam round a shoulder and a hip), UV.y how much of a glove's back it is (none of a finger); CUSTOM0 where it is on the suit as the mannequin stands in its T-pose (m: x to
+// (CrewSuit.meeting: the seam round a shoulder and a hip), UV.y how much of a glove's back it is (a finger's by CrewSuit.finger_back); CUSTOM0 where it is on the suit as the mannequin stands in its T-pose (m: x to
 // the wearer's left, y up, z to the front) and in w its piece (CrewSuit.Part). Everything on the cloth is placed there, so it stays put
 // on the body however it sits.
 // The player's own body folds its head away from the seat's camera: that camera leaves the own-head layer out of what it sees, the
@@ -268,18 +269,20 @@ void fragment() {
 	height += (0.0016 * gather * folds + 0.00006 * mix(weave, rib, knit)) * cloth_share;
 	colour *= 1.0 + (0.07 * mix(weave, rib * 1.6, knit) + 0.05 * (noise(cloth / 0.004) - 0.5)) * cloth_share;
 
-	// The gloves: the back of the hand in the suit's colour (with the stripe), the palm and the fingers suede, a seam where they meet
-	// stitched on the back's side; an elastic cuff stitched on.
+	// The gloves: the back of the hand and of the fingers in the suit's colour (with the stripe), the palm and the fingers' insides suede,
+	// a seam where they meet stitched on the back's side; an elastic cuff stitched on.
 	float back = smoothstep(0.3, 0.7, UV.y);
 	float cuff = inside(side - CUFF_END, footprint);
 	vec3 palm = PALM * (0.92 + 0.16 * noise(cloth / 0.002));
 	vec3 glove_colour = mix(mix(palm, colour, back), ELASTIC * (1.0 + 0.4 * rib), cuff);
-	// (The back meets the palm along the hand's sides and the knuckles: m from that edge, the back's side above 0.)
+	// (The back meets the palm along the hand's and each finger's sides and round the tips: m from that edge, the back's side above 0;
+	// the stitches follow it out along the arm and the fingers.)
 	float off_back = (UV.y - 0.5) * footprint / max(fwidth(UV.y), 0.0001);
 	float glove_seam = (1.0 - smoothstep(0.0, GROOVE + footprint, abs(off_back))) * step(0.02, UV.y) * step(UV.y, 0.98)
 		+ (1.0 - smoothstep(0.0, GROOVE + footprint, abs(side - CUFF_END)));
 	float glove_stitches = (1.0 - smoothstep(THREAD, THREAD + footprint, abs(off_back - STITCH_OFF))) * min(1.0, THREAD * 3.0 / footprint)
-		* (smoothstep(0.15, 0.25, fract(cloth.y / STITCH)) * (1.0 - smoothstep(0.7, 0.8, fract(cloth.y / STITCH)))) * step(0.02, UV.y) * (1.0 - cuff);
+		* (smoothstep(0.15, 0.25, fract((side + cloth.y) / STITCH)) * (1.0 - smoothstep(0.7, 0.8, fract((side + cloth.y) / STITCH)))) * step(0.02, UV.y)
+		* (1.0 - cuff);
 	glove_colour *= 1.0 - 0.45 * clamp(glove_seam, 0.0, 1.0);
 	glove_colour = mix(glove_colour, glove_colour * 1.5 + 0.025, glove_stitches);
 	colour = mix(colour, glove_colour, glove);
