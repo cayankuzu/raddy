@@ -13,9 +13,11 @@ const MAX_EXTRAPOLATION_MS := 250.0
 ## How fast the offset follows a slowly drifting remote clock.
 const DRIFT_RATE := 0.01
 ## How fast the playback clock is pulled toward where it should be (1/s), and by how much at most it then runs faster or slower than
-## the ticks: an error of a few milliseconds is gone within a second or two, never with a step.
-const CLOCK_PULL := 2.0
-const CLOCK_SKEW := 0.1
+## the ticks: an error of a few milliseconds is gone within a second, never with a step. A frame slower than the engine's eight ticks
+## loses the rest of its time to the physics; a quarter more a tick keeps up with frames as slow as 12 a second (a tenth fell behind at 15
+## and caught up in a step every few seconds).
+const CLOCK_PULL := 4.0
+const CLOCK_SKEW := 0.25
 
 var _snapshots: Array[Dictionary] = []
 ## local_ms - sender_ms of the least delayed packet seen so far.
@@ -30,8 +32,8 @@ func size() -> int:
 	return _snapshots.size()
 
 
-func push(sent_ms: int, received_ms: int, snapshot: Dictionary) -> void:
-	var offset := float(received_ms - sent_ms)
+func push(sent_ms: float, received_ms: int, snapshot: Dictionary) -> void:
+	var offset := received_ms - sent_ms
 	if not _has_offset or offset < _offset_ms:
 		_offset_ms = offset
 		_has_offset = true
@@ -40,7 +42,7 @@ func push(sent_ms: int, received_ms: int, snapshot: Dictionary) -> void:
 	if not _snapshots.is_empty() and sent_ms <= _snapshots[-1].t:
 		return  # late or duplicate packet: the newer one already arrived
 	var stored := snapshot.duplicate()
-	stored.t = float(sent_ms)
+	stored.t = sent_ms
 	_snapshots.append(stored)
 	if _snapshots.size() > MAX_SNAPSHOTS:
 		_snapshots.pop_front()

@@ -71,9 +71,10 @@ func test_empty_buffer_samples_nothing() -> void:
 
 
 ## A sender at 30 Hz moving at 10 m/s (so x / 10 is the sender's second shown), its packets 20-60 ms on the way; a 60 Hz receiver whose
-## frames jitter by 4 ms either way and run physics ticks the engine's way (0-3 a frame, mostly two at one wall-clock millisecond).
-## Returns {wall: [ms], shown: [sender ms]} a tick.
-func _play(seconds: float, by_clock: bool) -> Dictionary:
+## frames jitter by 4 ms either way and run physics ticks the engine's way (0-3 a frame, mostly two at one wall-clock millisecond; at most
+## eight, the rest of a slower frame's time lost to the physics). `frame` (s) slows the receiver down. Returns {wall: [ms], shown: [sender
+## ms]} a tick.
+func _play(seconds: float, by_clock: bool, frame_s := 1.0 / 60.0) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var buffer := SnapshotBuffer.new()
@@ -87,9 +88,9 @@ func _play(seconds: float, by_clock: bool) -> Dictionary:
 	var walls: Array[float] = []
 	var shown: Array[float] = []
 	while now < 5.0 + seconds:
-		var frame := 1.0 / 60.0 + rng.randf_range(-0.004, 0.004)
+		var frame := frame_s + rng.randf_range(-0.004, 0.004)
 		now += frame
-		accumulated += frame
+		accumulated = minf(accumulated + frame, tick * 8.0)
 		var wall := int(now * 1000.0)
 		while not packets.is_empty() and packets[0].y <= wall:
 			var packet: Vector2i = packets.pop_front()
@@ -120,8 +121,8 @@ func test_playback_moves_on_every_tick_under_two_tick_frames_and_jitter() -> voi
 		largest = maxf(largest, step)
 	gut.p("playback clock: %d ticks, a tick shows %.2f-%.2f ms on (a tick is %.2f)" % [shown.size(), smallest, largest, tick_ms])
 	assert_eq(repeats, 0, "no tick shows the same moment as the one before it")
-	assert_gt(smallest, tick_ms * (1.0 - SnapshotBuffer.CLOCK_SKEW) - 0.01, "never slower than the skew allows")
-	assert_lt(largest, tick_ms * (1.0 + SnapshotBuffer.CLOCK_SKEW) + 0.01, "never stepped")
+	assert_gt(smallest, tick_ms * 0.9, "a tick's moment on, within a tenth")
+	assert_lt(largest, tick_ms * 1.1, "never stepped")
 	# The delay stays the 100 ms it was: the fastest packet took 20 ms, so what is shown is about 120 ms behind the wall clock.
 	var behind := 0.0
 	var walls: Array[float] = run.wall
@@ -186,3 +187,18 @@ func test_a_turn_that_quickens_is_played_back_smoothly() -> void:
 	var heading := halfway.get_euler().y
 	gut.p("halfway through a quickening turn: %.4f deg off" % rad_to_deg(heading - 0.0225))
 	assert_almost_eq(heading, 0.0225, 0.0002, "on the turn's own path")
+
+
+func test_playback_keeps_up_with_a_receiver_at_13_fps_without_a_step() -> void:
+	# Frames of 71-79 ms: the engine runs eight ticks (67 ms) and the rest of each frame is lost to the physics.
+	var run := _play(20.0, true, 0.075)
+	var shown: Array[float] = run.shown
+	var walls: Array[float] = run.wall
+	var largest := 0.0
+	var behind := 0.0
+	for i in range(121, shown.size()):
+		largest = maxf(largest, shown[i] - shown[i - 1])
+		behind = maxf(behind, walls[i] - 4000.0 - shown[i])
+	gut.p("at 13 fps: a tick shows up to %.2f ms on, at most %.0f ms behind the sender" % [largest, behind])
+	assert_lt(largest, 1000.0 / 120.0 * (1.0 + SnapshotBuffer.CLOCK_SKEW) + 0.01, "never stepped")
+	assert_lt(behind, DELAY + 20.0 + 100.0, "keeps up")

@@ -7,9 +7,6 @@ extends Node
 ## A body may implement set_simulated(bool), get_net_extra() -> PackedFloat32Array and
 ## apply_net_extra(extra, velocity) to carry extra state (RallyCar: steering and wheels).
 
-## Raw snapshot velocity as it arrives (before interpolation): the host judges impacts from it.
-signal snapshot_received(sent_ms: int, lin: Vector3, rotation: Quaternion)
-
 const SEND_RATE := 30.0
 const INTERPOLATION_DELAY_MS := 100.0
 
@@ -18,10 +15,6 @@ var packets_received := 0
 
 var _buffer := SnapshotBuffer.new()
 var _send_accumulator := 0.0
-## The clock a snapshot carries (ms): the sender's physics time, a tick's delta a tick from the wall clock's reading when it starts. A frame
-## that runs several ticks at once (a slow frame) sends snapshots as far apart as the moments they show; on the wall clock they carried one
-## millisecond, the later one was dropped as a duplicate and the copy jumped.
-var _send_clock := -1.0
 
 
 func _ready() -> void:
@@ -42,13 +35,12 @@ func _physics_process(delta: float) -> void:
 	if is_multiplayer_authority():
 		if Net.is_active() and not Net.race_running:
 			return  # the race is over: the others are leaving the scene
-		_send_clock = float(Time.get_ticks_msec()) if _send_clock < 0.0 else _send_clock + delta * 1000.0
 		_send_accumulator += delta
 		if _send_accumulator < 1.0 / SEND_RATE:
 			return
 		_send_accumulator -= 1.0 / SEND_RATE
 		var extra: PackedFloat32Array = body.get_net_extra() if body.has_method(&"get_net_extra") else PackedFloat32Array()
-		_rpc_snapshot.rpc(roundi(_send_clock), body.global_position, body.global_basis.get_rotation_quaternion(),
+		_rpc_snapshot.rpc(Engine.get_physics_frames(), body.global_position, body.global_basis.get_rotation_quaternion(),
 			body.linear_velocity, body.angular_velocity, extra)
 		return
 	var state := _buffer.playback(delta, Time.get_ticks_msec(), INTERPOLATION_DELAY_MS)
@@ -59,8 +51,11 @@ func _physics_process(delta: float) -> void:
 		body.apply_net_extra(state.extra, state.lin)
 
 
+## A snapshot carries the sender's physics tick, its clock: a frame that runs several ticks at once (a slow frame) sends snapshots as far
+## apart as the moments they show, to the microsecond (on the wall clock they carried one millisecond, the later one was dropped as a
+## duplicate and the copy jumped; whole milliseconds made the 33.3 ms between two a wobble of 33 and 34).
 @rpc("authority", "call_remote", "unreliable_ordered", 1)
-func _rpc_snapshot(sent_ms: int, origin: Vector3, rotation: Quaternion, lin: Vector3, ang: Vector3, extra: PackedFloat32Array) -> void:
+func _rpc_snapshot(sent_tick: int, origin: Vector3, rotation: Quaternion, lin: Vector3, ang: Vector3, extra: PackedFloat32Array) -> void:
 	packets_received += 1
-	_buffer.push(sent_ms, Time.get_ticks_msec(), {"origin": origin, "rotation": rotation, "lin": lin, "ang": ang, "extra": extra})
-	snapshot_received.emit(sent_ms, lin, rotation)
+	_buffer.push(sent_tick * 1000.0 / Engine.physics_ticks_per_second, Time.get_ticks_msec(),
+		{"origin": origin, "rotation": rotation, "lin": lin, "ang": ang, "extra": extra})
