@@ -1,5 +1,8 @@
 # Phase A7: AAA HUD, UI and UX
 
+**Since Direction 2 (2026-11-17).** This phase also does phase M's audit of every screen (`m_map.md`, "The audit": every screen and state in Turkish and English at 1920x1080 and 1280x720, plain errors fixed with tests, the rest designed here) and builds its own work on what came before it: the map's page and road book (M, L2), mouse hands (H: the hint line names what the view ray meets), the feed and awards (X), joining's screens (J), solo, the share card, photo mode and the credits (D). Item 11 (photo mode) and the credits screen are built in D: here they get the design system's look.
+
+
 Read first: `docs/GAME_DESIGN.md` §8, `scripts/ui/*`, `scripts/core/flow.gd`, `data/locale/strings.csv`, `reports/screenshots/ui_lobby_shock.png` (how plain it is today). Owner: "hud ekranı da profesyonel olmalı, şu an çok basit", "UI UX min 9.8", "AAA PREMIUM". Downloaded and approved: `assets/fonts/saira/Saira-Variable.ttf` (HUD, numerals), `assets/fonts/inter/Inter-Variable.ttf` (menus), `assets/fonts/jetbrains_mono/` (dev), each with OFL.txt (ship them, list in `ASSET_LICENSES.md`); `assets/icons/tabler/*.svg` (MIT, keep LICENSE); `raw_assets/downloads/kenney/kenney_input-prompts_1.5.zip` (CC0: extract only the needed keyboard + Xbox + PlayStation glyphs into `assets/icons/prompts/`).
 Motorsport premium, restrained: dark translucent panels, one strong accent, crisp type, tabular figures, animated transitions (150-250 ms), no neon sci-fi, no default Godot look anywhere. Everything built in code with one design system (`UiTheme`): colours, type scale, spacing, components (button, panel, tabs, slider, dropdown, toggle, list row, key prompt, toast, modal).
 

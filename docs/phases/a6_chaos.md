@@ -1,5 +1,8 @@
 # Phase A6: the rest of the chaos and the party
 
+**Since Direction 2 (2026-11-17).** Parts of this brief moved: item 9 (solo practice) is built in phase D; item 8 (awards) starts in phase X and is extended here; item 5's trees and rocks are in L2 and its people and marshals in W (law 1: nobody is ever hit); item 1's sounds for what X and L2 add are made there. What stays here: the rest of item 1, doors that pop open (2), the hands' rule finished (3), the intercom (4), the energy drink (6), the room modes (7: Classic start and the modifiers; no score mode, Direction 2 law 4).
+
+
 Read first: `docs/GAME_DESIGN.md` §2, §3, §6 and CLAUDE.md (the crew, the Cabin, the shock gun, CarParts, CrewRules are described there). The shock gun is DONE
 (`scripts/gameplay/shock_rules.gd`, `shock_input.gd`, `shock_fx.gd`, `race_session.gd`). Since A5 every seat has a body with hands (`CrewRig`, `CrewRules.hands`,
 `Cabin.hands_of`), a roll cage, bucket seats, and people stand at the spectator places. Sounds approved and downloaded: `raw_assets/audio/sonniss/*`,
