@@ -3,8 +3,9 @@ extends GutTest
 ## (RouteGraph.along_of), the validator holds them to their own rule (a way through on purpose, never past a gate), and
 ## Black Pine carries one of each kind.
 
-## toolslowtest.ps1 runs its bots with --bot-roll=12: the host's crew keeps to the stage, the client's takes both bypasses.
-const FLOW_ROLL := 12
+## tools\flowtest.ps1 runs its bots with --bot-roll=19: the host's crew (team 1) keeps to the stage, the first client's
+## (team 2) takes both bypasses.
+const FLOW_ROLL := 19
 
 
 func _black_pine() -> RouteGraph:
@@ -274,5 +275,5 @@ func test_a_bot_takes_bypasses_by_a_seeded_coin() -> void:
 	gut.p("bypasses taken per bot: %s" % [counts])
 	assert_true(counts.has(0) and counts.has(graph.bypasses.size()), "some bots take none, some all")
 	# tools\flowtest.ps1's --bot-roll: the host's team 0 keeps to the stage, the client's team 1 takes the shortcut.
-	assert_eq(RouteFollower.choose_bypasses(graph, FLOW_ROLL, 0), [] as Array[int])
-	assert_true(1 in RouteFollower.choose_bypasses(graph, FLOW_ROLL, 1))
+	assert_eq(RouteFollower.choose_bypasses(graph, FLOW_ROLL, 1), [] as Array[int], "the flow test's host keeps to the stage")
+	assert_eq(RouteFollower.choose_bypasses(graph, FLOW_ROLL, 2), [0, 1] as Array[int], "its client takes both bypasses")

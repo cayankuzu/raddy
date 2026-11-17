@@ -1000,7 +1000,7 @@ func _bind_local_seat(car: RallyCar, role: int) -> void:
 			# Teams leave the grid in turn and spread out along the road instead of queueing.
 			bot.top_speed = 22.0 - 2.0 * (_team_cars.size() - 1)
 			bot.start_delay = 1.5 * (_team_cars.size() - 1)
-			# A bypass or not by a coin per run (--bot-roll=N fixes it: toolslowtest.ps1).
+			# A bypass or not by a coin per run (--bot-roll=N fixes it: tools\flowtest.ps1).
 			var team := int(Net.local_entry().get("team", 0))
 			var taken := RouteFollower.choose_bypasses(graph, int(Flow.args.get("bot-roll", Time.get_ticks_usec())), team)
 			print("BOT team %d takes bypasses %s of %d" % [team, taken, graph.bypasses.size()])
