@@ -84,8 +84,8 @@ func test_turn_in_response_and_cornering_grip() -> void:
 
 
 ## Keyboard steering (through SteeringInput, as a player drives): full lock is a key press away,
-## quick when slow, gentle at speed so a stab does not spin the car. Since phase F the key's ramp is its only filter (the rack is fast):
-## the same 0.21 s at 20 km/h and 0.33 s at 100 km/h as A2's two filters in a row.
+## quick when slow, gentle at speed so a stab does not spin the car. Since phase F the key's ramp is its only filter (the rack is fast),
+## with A2's rates at the road wheels in it: the same 0.21 s at 20 km/h and 0.33 s at 100 km/h as A2's two filters in a row.
 func test_keyboard_lock_comes_in_smoothly() -> void:
 	var times: Array[float] = []
 	for kmh in [20.0, 50.0, 100.0]:

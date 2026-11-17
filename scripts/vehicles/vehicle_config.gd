@@ -4,8 +4,7 @@ extends Resource
 ## Phase F's feel changes are values here: FEEL_A2 puts back A2's ("driving feel 2.0"), one command-line arg away (--feel-preset=a2).
 
 ## The A2 feel's values of what phase F changed, for the owner's side-by-side drive.
-const FEEL_A2 := {"steer_travel_lock": 0.0, "steer_rate": 2.2, "steer_return_rate": 3.5, "key_steer_rate_low": 7.0,
-	"key_steer_rate_high": 2.6, "pad_steer_follow": 22.0, "wheel_full_range": false, "assist_fade_in": 0.0, "assist_cap": 0.0,
+const FEEL_A2 := {"steer_travel_lock": 0.0, "steer_rate": 2.2, "steer_return_rate": 3.5, "pad_steer_follow": 22.0, "wheel_full_range": false, "assist_fade_in": 0.0, "assist_cap": 0.0,
 	"assist_level_1": 1.0, "pad_counter_steer_level": 2}
 
 @export_group("Body")
@@ -80,9 +79,8 @@ const FEEL_A2 := {"steer_travel_lock": 0.0, "steer_rate": 2.2, "steer_return_rat
 ## per device, by SteeringInput (A2 filtered it twice: 2.2 and 3.5 here).
 @export var steer_rate := 8.0
 @export var steer_return_rate := 8.0
-## SteeringInput's filters (it takes them through tune()): a key's ramp per second at a standstill and at speed, a pad's follow (1/s).
-@export var key_steer_rate_low := SteeringInput.KEY_RATE_LOW
-@export var key_steer_rate_high := SteeringInput.KEY_RATE_HIGH
+## A pad's filter in SteeringInput (it takes it through tune()): how fast the command follows the stick (1/s). A key's ramp is A2's,
+## moved from the car into SteeringInput.
 @export var pad_steer_follow := SteeringInput.PAD_FOLLOW
 ## A steering wheel's own range is full lock at any speed (VehicleControls.full_lock): its driver turns it less at speed.
 @export var wheel_full_range := true

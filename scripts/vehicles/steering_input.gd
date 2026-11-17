@@ -11,13 +11,16 @@ extends RefCounted
 
 enum Device { KEYBOARD, GAMEPAD, WHEEL }
 
-## Keyboard: full-scale input per second at a standstill and at KEY_RATE_SPEED (m/s) and above (key_rate_low, key_rate_high), the only
-## filter a key has: full lock in 0.21 s at 20 km/h, 0.33 s at 100 km/h (GAME_DESIGN §5).
-const KEY_RATE_LOW := 4.37
-const KEY_RATE_HIGH := 2.75
+## Keyboard: full-scale input per second at a standstill and at KEY_RATE_SPEED (m/s) and above, and never faster at the road wheels than
+## KEY_WHEEL_RATE (rad/s): a key's only filter (the car's rack is fast), full lock in 0.21 s at 20 km/h and 0.33 s at 100 km/h
+## (GAME_DESIGN §5; A2 had the wheel rates on the car, for every device).
+const KEY_RATE_LOW := 7.0
+const KEY_RATE_HIGH := 2.6
 const KEY_RATE_SPEED := 30.0
-## Keyboard: back to the centre (or across it) this fast.
+const KEY_WHEEL_RATE := 2.2
+## Keyboard: back to the centre (or across it) this fast, and at the road wheels.
 const KEY_RETURN_RATE := 8.0
+const KEY_WHEEL_RETURN := 3.5
 ## Gamepad: how fast the command follows the stick (1/s, pad_follow), to filter jitter only: most of a step within the tick.
 const PAD_FOLLOW := 120.0
 ## Counter-steer assist: share of the slip angle steered into the slide, the slip it leaves
@@ -31,8 +34,6 @@ var device := Device.KEYBOARD
 var linearity := 1.6
 ## Keyboard counter-steer (assist level 1+), gamepad counter-steer (assist level 2).
 var counter_steer := true
-var key_rate_low := KEY_RATE_LOW
-var key_rate_high := KEY_RATE_HIGH
 var pad_follow := PAD_FOLLOW
 var value := 0.0
 
@@ -42,10 +43,8 @@ func counter_steers_at(level: int, config: VehicleConfig) -> bool:
 	return level >= (1 if device == Device.KEYBOARD else config.pad_counter_steer_level)
 
 
-## The car's own values for the filters (VehicleConfig: a feel preset may change them).
+## The car's own value for the pad's filter (VehicleConfig: a feel preset may change it).
 func tune(config: VehicleConfig) -> void:
-	key_rate_low = config.key_steer_rate_low
-	key_rate_high = config.key_steer_rate_high
 	pad_follow = config.pad_steer_follow
 
 
@@ -66,7 +65,8 @@ func update(raw: float, dt: float, speed: float, slip := 0.0, max_lock := 0.5) -
 			if counter_steer and target == 0.0:
 				target = _with_counter_steer(0.0, speed, slip, max_lock)
 			var returning := absf(target) < absf(value) or target * value < 0.0
-			var rate := KEY_RETURN_RATE if returning else lerpf(key_rate_low, key_rate_high, clampf(absf(speed) / KEY_RATE_SPEED, 0.0, 1.0))
+			var rate := KEY_RETURN_RATE if returning else lerpf(KEY_RATE_LOW, KEY_RATE_HIGH, clampf(absf(speed) / KEY_RATE_SPEED, 0.0, 1.0))
+			rate = minf(rate, (KEY_WHEEL_RETURN if returning else KEY_WHEEL_RATE) / maxf(max_lock, 0.01))
 			value = move_toward(value, target, rate * dt)
 	return value
 

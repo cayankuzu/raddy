@@ -18,7 +18,7 @@ func test_keyboard_ramps_in_by_speed_and_returns_faster() -> void:
 	var slow := _ramp_time(SteeringInput.new(), 2.0)
 	var fast := _ramp_time(SteeringInput.new(), 35.0)
 	gut.p("keyboard 0 -> full: %.2f s parked, %.2f s at 126 km/h" % [slow, fast])
-	assert_lt(slow, 0.25, "the key's ramp is its only filter (phase F): about A2's 0.25 s to full lock parked, which its rack gave")
+	assert_lt(slow, 0.25, "phase F: the key's ramp holds the road wheels to A2's rack rate, 0.23 s for 0.5 rad of lock")
 	assert_gt(fast, 0.3)
 	var steering := SteeringInput.new()
 	_ramp_time(steering, 35.0)
