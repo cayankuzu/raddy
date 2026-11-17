@@ -134,6 +134,10 @@ static func _check_bypasses(graph: RouteGraph, problems: Array[String]) -> void:
 					problems.append("%s meets the road on a %s" % [name, feature.kind])
 				if feature.kind in [&"falling_tree", &"rockfall"] and to > end - EVENT_BEFORE and from < end + EVENT_AFTER:
 					problems.append("%s meets the road at a %s" % [name, feature.kind])
+				# A cliff's rail stands across the mouth on the drop's side, and the drop takes the bypass's last metres.
+				var side := bypass.road_side if end == bypass.at else bypass.rejoin_side
+				if feature.kind == &"cliff" and int(feature.side) == side and to > end - CLIFF_REACH and from < end + CLIFF_REACH:
+					problems.append("%s meets the road on the cliff's side" % name)
 		var alongside := false
 		var near_stretch := -1.0
 		var near_gate := false

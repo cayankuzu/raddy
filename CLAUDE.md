@@ -358,7 +358,7 @@ No Blender; model in Godot only as a last resort.
   inside the stretch, a branch turning 60 degrees or more at each end, the stage's way at both ends, 30 m from other stretches, nothing
   crossed. `RouteTracker` follows the road the car is on (`road`, `road_distance`) and changes road near a junction where the other is
   nearer, the difference fading over `SWITCH_BLEND` 40 m; `RecoveryAnchor.find` lands on any followed road (`road`, `own`); stones fly only
-  between cars on the same road; bots take each bypass by a coin (`RouteFollower.choose_bypasses`, `--bot-roll=N`; flowtest 19: host on the
+  between cars on the same road; bots take each bypass by a coin (`RouteFollower.choose_bypasses`, `--bot-roll=N`; flowtest 153: host on the
   stage, client on both) and slow for a price (`price_places`). Prices: a ford is a pool on the bypass's own dip (`Ford<id>`), a gate is a
   `FarmGate` (`GateRules`: burst at 5.5 m/s and more, the car keeps 60 % of its speed and takes a hit the host judges; a standing crew holds
   `cabin_gate` (G) 3 s; `StageEvents.gate_wanted` -> the host's `_rpc_open_gate`), narrow is a 3.2 m lane between earth banks

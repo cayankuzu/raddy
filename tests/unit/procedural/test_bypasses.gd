@@ -3,9 +3,9 @@ extends GutTest
 ## (RouteGraph.along_of), the validator holds them to their own rule (a way through on purpose, never past a gate), and
 ## Black Pine carries one of each kind.
 
-## tools\flowtest.ps1 runs its bots with --bot-roll=19: the host's crew (team 1) keeps to the stage, the first client's
-## (team 2) takes both bypasses.
-const FLOW_ROLL := 19
+## tools\flowtest.ps1 runs its bots with --bot-roll=153: on every stage with bypasses the host's crew (team 1) keeps to the
+## stage, the first client's (team 2) takes them all.
+const FLOW_ROLL := 153
 
 
 func _black_pine() -> RouteGraph:
@@ -95,6 +95,15 @@ func test_a_bypass_beside_the_road_is_no_junction() -> void:
 	var problems := _problems(segments)
 	assert_true(_has(problems, "not a junction"), "%s" % [problems])
 	assert_true(_has(problems, "is a long way of"), "and no longer than the road")
+
+
+func test_a_bypass_never_meets_the_road_on_a_cliff_s_side() -> void:
+	# Red Canyon's slot canyon once rejoined where the road ran on along a drop on its side: the rail stood across its end.
+	var segments := _field({"kind": "shortcut", "side": "left", "rejoin": 318, "angle": 8, "join": 8, "price": "narrow"})
+	segments[8] = {"len": 600, "cliff": "left"}
+	assert_true(_has(_problems(segments), "on the cliff's side"), "%s" % [_problems(segments)])
+	segments[8] = {"len": 600, "cliff": "right"}
+	assert_false(_has(_problems(segments), "cliff"), "a drop on the other side is no matter")
 
 
 func test_a_bypass_runs_the_stage_s_way() -> void:
@@ -274,6 +283,11 @@ func test_a_bot_takes_bypasses_by_a_seeded_coin() -> void:
 			counts[taken.size()] = int(counts.get(taken.size(), 0)) + 1
 	gut.p("bypasses taken per bot: %s" % [counts])
 	assert_true(counts.has(0) and counts.has(graph.bypasses.size()), "some bots take none, some all")
-	# tools\flowtest.ps1's --bot-roll: the host's team 0 keeps to the stage, the client's team 1 takes the shortcut.
-	assert_eq(RouteFollower.choose_bypasses(graph, FLOW_ROLL, 1), [] as Array[int], "the flow test's host keeps to the stage")
-	assert_eq(RouteFollower.choose_bypasses(graph, FLOW_ROLL, 2), [0, 1] as Array[int], "its client takes both bypasses")
+	# tools\flowtest.ps1's --bot-roll: on every stage with bypasses the host's crew keeps to the stage, the client's takes them all.
+	for i in StageCatalog.count():
+		var stage := StageBuilder.build(StageCatalog.get_stage(i))
+		var every: Array[int] = []
+		for bypass in stage.bypasses:
+			every.append(bypass.id)
+		assert_eq(RouteFollower.choose_bypasses(stage, FLOW_ROLL, 1), [] as Array[int], "%s: the flow test's host keeps to the stage" % stage.stage_id)
+		assert_eq(RouteFollower.choose_bypasses(stage, FLOW_ROLL, 2), every, "%s: its client takes every bypass" % stage.stage_id)

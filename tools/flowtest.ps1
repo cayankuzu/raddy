@@ -16,7 +16,7 @@ $launch = Join-Path $PSScriptRoot "launch.ps1"
 $players = $Clients + 1
 $teams = [Math]::Min($players, 3)  # RosterRules.MAX_TEAMS: extra players sit as navigators
 & $launch -Server -Clients $Clients -Headless -Scene "res://scenes/ui/main_menu.tscn" `
-    -ExtraArgs "--flow-test,--players=$players,--stage=$Stage,--weather=0,--time=$Time,--autodrive,--bot-roll=19,--quit-after-seconds=$Seconds"
+    -ExtraArgs "--flow-test,--players=$players,--stage=$Stage,--weather=0,--time=$Time,--autodrive,--bot-roll=153,--quit-after-seconds=$Seconds"
 
 $logs = 0..$Clients | ForEach-Object { Join-Path $ProjectDir "logs\instance_$_.log" }
 $deadline = (Get-Date).AddSeconds($Seconds + 15)
@@ -60,7 +60,7 @@ foreach ($i in 0..$Clients) {
     Expect $i "FLOW results" "results screen shown"
     Expect $i "FLOW done" "back in the room after the race"
 }
-# --bot-roll=19 (tests/unit/procedural/test_bypasses.gd): on a stage with bypasses (Black Pine) the host's crew keeps to
+# --bot-roll=153 (tests/unit/procedural/test_bypasses.gd): on a stage with bypasses the host's crew keeps to
 # the stage and the first client's takes every bypass, so the race follows two roads at once.
 $taken = Select-String -Path (Join-Path $ProjectDir "logs\instance_1.log") -Pattern "BOT team 2 takes bypasses \[(.*)\] of (\d+)" | Select-Object -First 1
 if ($taken -and [int]$taken.Matches[0].Groups[2].Value -gt 0) {

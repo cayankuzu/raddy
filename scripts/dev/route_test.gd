@@ -38,6 +38,8 @@ extends Node3D
 
 const CAR_SCENE := preload("res://scenes/vehicles/rally_car.tscn")
 const FALL_LIMIT := -40.0
+## A hit at least this hard (m/s) is printed with where on the stage it happened.
+const HARD_IMPACT := 8.0
 
 var graph: RouteGraph
 var follower: RallyCar
@@ -214,7 +216,10 @@ func _ready() -> void:
 	if _args.has("view"):
 		_add_view_camera(_args["view"].split("+"))
 	var hardest: Array[float] = [0.0]
-	_car.impact.connect(func(strength: float, _direction: Vector3) -> void: hardest[0] = maxf(hardest[0], strength))
+	_car.impact.connect(func(strength: float, _direction: Vector3) -> void:
+		hardest[0] = maxf(hardest[0], strength)
+		if strength >= HARD_IMPACT and _follower != null:
+			print("ROUTE impact %.1f m/s at %.0f m" % [strength, _follower.progress]))
 	if _args.has("quit-after-seconds"):
 		get_tree().create_timer(float(_args["quit-after-seconds"])).timeout.connect(func() -> void:
 			if _follower != null:

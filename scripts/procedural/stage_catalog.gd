@@ -122,7 +122,7 @@ static func stages() -> Array[Dictionary]:
 				{"len": 36, "turn": 140, "caution": true, "spectators": "right"}, {"len": 60, "rise": -6, "gag": {"slot": "overhead", "at": 0.2}},
 				{"len": 47, "turn": -90, "bypass": {"kind": "shortcut", "side": "right", "rejoin": 318, "angle": 8, "join": 8, "price": "narrow"}},
 				{"len": 40, "dip": 0.6}, {"len": 47, "turn": 90}, {"len": 50, "crest": 1.2}, {"len": 47, "turn": 90}, {"len": 40}, {"len": 47, "turn": -90},
-				{"len": 50, "turn": -70, "cliff": "right", "caution": true}, {"len": 70, "cliff": "right", "rise": -6},
+				{"len": 50, "turn": -70, "bank": "left", "wall": 10.0, "caution": true}, {"len": 70, "bank": "left", "wall": 8.0, "rise": -6},
 				{"len": 40, "turn": 40, "gag": {"slot": "beside", "side": "right", "at": 0.9}}, {"len": 50, "dip": 0.6}, {"len": 70, "crest": 1.4}, {"len": 100},
 			]},
 		# Rolling sand hills: chains of crests, three jumps and a hairpin at the top.
