@@ -10,7 +10,7 @@ extends Node
 ##   FEEL flick px=.. frames=.. turn_deg=.. per_px=..
 ## Args: --feel-tag=T (default "now"), --feel-device=key|pad|wheel (the steering through SteeringInput, as that device's player; default
 ## the raw axis straight into the car's controls), --feel-assist=0..2 (the assist level, default 1), --feel-fps=N (frames a second, default
-## 60: two physics ticks a frame, as on most screens; the jerk's unit).
+## 60: two physics ticks a frame, as on most screens; the jerk's unit), --feel-shake=S (the camera's shake, 0..1: 0 measures the ride alone).
 ## Loaded by path (tools/ is not exported): route_test.gd `load("res://tools/feel_probe.gd")`.
 
 const FeelScripts := preload("res://tools/feel_scripts.gd")
@@ -48,6 +48,8 @@ func _ready() -> void:
 			_queue.append(script_name)
 	_folder = ProjectSettings.globalize_path("res://reports/feel/%s" % args.get("feel-tag", "now"))
 	Engine.max_fps = int(args.get("feel-fps", "60"))
+	if args.has("feel-shake"):
+		camera.shake_scale = float(args["feel-shake"])
 	pad_origin = Vector3(stage_center.x + PAD_AWAY, 0.0, stage_center.y)
 	FeelRun.build_pad(get_parent() as Node3D, pad_origin)
 	_next()

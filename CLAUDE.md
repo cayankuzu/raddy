@@ -58,10 +58,12 @@ No Blender; model in Godot only as a last resort.
   feel probe (`tools/feel_probe.gd`, route_test `--feel=<script>[+..]`, its header says every arg and FEEL line) drives the car through
   `tools/feel_scripts.gd`'s scripts (step, slalom, liftoff, trail, power, hairpin, catch, crash15/45/90, land, flick) on a gravel pad of its
   own (`tools/feel_run.gd`) and writes `reports\feel\<Tag>\<script>.csv` (a row a physics tick) and `<script>.frames.csv` (a row a camera
-  frame, `tools/feel_camera_log.gd`: the camera's jerk, median and p99 in degrees per frame squared at 60 fps); `tools/plot_feel.gd` (Image
+  frame, `tools/feel_camera_log.gd`: the camera's jerk, median and p99 in degrees per frame squared at 60 fps, and its move jerk in cm, the
+  head's lean and the roughness; `--feel-shake=0` measures the ride without the shake); `tools/plot_feel.gd` (Image
   drawing only) draws a sheet per script into `<Tag>\plots\`, with -Compare that tag's runs under these into `<Tag>\vs_<Compare>\`. Leave
   the window alone during the flick (it captures the mouse). `test_feel_scripts.gd` runs the scripts headless; nettest's `--feel-log`
-  prints `FEEL jerk` for the driver's peer and a client navigator.
+  prints `FEEL jerk` for the driver's peer and a client navigator (turn and move; `--feel-tag=T` writes their frames to
+  `reports\feel\<T>\<role>\seat.frames.csv`, which plot_feel draws with `--run=<navigator folder> --compare=<driver folder> --scripts=seat`).
 - `tools\fx_probe.ps1 -At "22+30" [-Stage 0] [-Quality 1] [-Weather 0] [-Tag now] [-ExtraArgs "--follower=9,--follower-delay=2,--ride-follower"]`: at those
   seconds of game time the same frame with and without the cloud into `reports\screenshots\fx\<Tag>\`, and `FXPROBE` lines with how much of the road ahead it hides.
   `-ExtraArgs "--glass-dirt=0.35+0.7+1"` measures the windshield's dirt instead (clean glass against each level, `GLASSPROBE` lines; A3's balance and

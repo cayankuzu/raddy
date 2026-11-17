@@ -15,7 +15,8 @@ extends Node3D
 ##                 driver at 28 s (host-validated, 6 s faint on every peer)
 ##   --feel-log=A+B the local seat's camera jerk (tools/feel_camera_log.gd) from A s after GO until B s after the race started (before the
 ##                 test script's roll at 13 s), printed as "FEEL jerk <role> simulated=..": the driver's peer against a client navigator's;
-##                 60 frames a second (two physics ticks a frame), the jerk's unit
+##                 60 frames a second (two physics ticks a frame), the jerk's unit; --feel-shake=S sets that camera's shake (0..1, the
+##                 setting's), --feel-tag=T writes its frames to reports/feel/<T>/<driver|navigator>/seat.frames.csv (tools/plot_feel.gd)
 ##   --quit-after-seconds=N
 
 const SESSION_SCENE := preload("res://scenes/game/race_session.tscn")
@@ -135,8 +136,14 @@ func _log_feel() -> void:
 		return
 	var window: PackedStringArray = String(_args["feel-log"]).split("+")
 	var driver := _session.local_role == RosterRules.Role.DRIVER
+	var camera := _session.local_car.get_node(^"DriverCamera" if driver else ^"NavigatorCamera") as CockpitCamera
+	if _args.has("feel-shake"):
+		camera.shake_scale = float(_args["feel-shake"])
 	var logger: Node = load("res://tools/feel_camera_log.gd").new()
-	logger.set(&"camera", _session.local_car.get_node(^"DriverCamera" if driver else ^"NavigatorCamera"))
+	logger.set(&"camera", camera)
+	if _args.has("feel-tag"):
+		logger.set(&"csv_path", ProjectSettings.globalize_path("res://reports/feel/%s/%s/seat.frames.csv" % [
+			_args["feel-tag"], "driver" if driver else "navigator"]))
 	logger.set(&"from", float(window[0]))
 	logger.set(&"until", float(window[1]) - (Time.get_ticks_msec() - _race_started_msec) / 1000.0)
 	logger.set(&"label", "%s simulated=%s" % ["driver" if driver else "navigator", _session.local_car.simulated])

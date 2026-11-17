@@ -104,18 +104,22 @@ foreach ($i in 0..$Clients) { if ($i -ne 3) { Expect $i "NET driver fainted team
 
 # Camera jerk (phase F): both seats of team 1 log their camera from GO to before the roll.
 $jerk = @{}
+$move = @{}
 foreach ($i in 1, 2) {
     $log = Join-Path $ProjectDir "logs\instance_$i.log"
-    $line = if (Test-Path $log) { Select-String -Path $log -Pattern "^FEEL jerk .*p99=([\d.]+)" | Select-Object -Last 1 }
+    $line = if (Test-Path $log) { Select-String -Path $log -Pattern "^FEEL jerk .* p99=([\d.]+) .*move_p99=([\d.]+)" | Select-Object -Last 1 }
     if ($line) {
         Write-Host "  instance ${i}: $($line.Line)"
         $jerk[$i] = [double]::Parse($line.Matches[0].Groups[1].Value, [Globalization.CultureInfo]::InvariantCulture)
+        $move[$i] = [double]::Parse($line.Matches[0].Groups[2].Value, [Globalization.CultureInfo]::InvariantCulture)
     } else {
         $failures.Add("instance ${i}: no FEEL jerk line")
     }
 }
-if ($jerk.Count -eq 2 -and $jerk[1] -gt 0) {
-    Write-Host ("  camera jerk p99: client navigator {0}x the driver's" -f ($jerk[2] / $jerk[1]).ToString("0.00", [Globalization.CultureInfo]::InvariantCulture))
+if ($jerk.Count -eq 2 -and $jerk[1] -gt 0 -and $move[1] -gt 0) {
+    $c = [Globalization.CultureInfo]::InvariantCulture
+    Write-Host ("  camera jerk p99: client navigator {0}x the driver's (turn), {1}x (move)" -f ($jerk[2] / $jerk[1]).ToString("0.00", $c),
+        ($move[2] / $move[1]).ToString("0.00", $c))
 }
 
 if ($failures.Count -eq 0) {

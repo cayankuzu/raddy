@@ -1,7 +1,8 @@
 extends SceneTree
 ## Draws the feel probe's CSVs (tools/feel_probe.gd) into one PNG sheet per script, with Image drawing only (numpy is blocked on this PC):
 ## a panel per column, time across, labelled axes, the script's phases as faint lines, and a second run overlaid when one is given (before
-## in blue, after in orange). The tick columns come from <script>.csv, the camera's from <script>.frames.csv beside it.
+## in blue, after in orange). The tick columns come from <script>.csv, the camera's from <script>.frames.csv beside it; a run with only
+## the frames (net_test --feel-log's seat.frames.csv) draws the camera's panels alone.
 ##   godot --headless -s res://tools/plot_feel.gd -- --run=<folder> [--compare=<folder>] [--out=<folder>] [--scripts=a+b]
 ## --run: the tag's folder (reports/feel/<tag>); --compare: an earlier tag's, drawn as "before"; --out: where the sheets go (default
 ## <run>/plots, or <run>/vs_<compare tag>); --scripts: which (default every script in --run). Prints "PLOT <png>" for each sheet.
@@ -22,6 +23,8 @@ const PANELS := [
 	["assist_nm", "stability assist torque (N m)", false], ["impact", "impact signal (m/s)", false],
 	["speed_dpf", "camera turn (deg per 1/60 s)", true], ["jerk", "camera jerk (deg per frame^2)", true],
 	["fov", "camera FOV (deg)", true], ["look_x", "head look (deg, + left)", true],
+	["move_jerk", "camera move jerk (cm per frame^2)", true], ["lean_g", "head lean (lateral g)", true],
+	["rough", "road roughness (0..1)", true], ["tyre_yaw_nm", "tyres' yaw moment (N m)", false],
 ]
 const PAPER := Color(0.97, 0.97, 0.96)
 const INK := Color(0.12, 0.13, 0.15)
@@ -50,16 +53,20 @@ func _initialize() -> void:
 	var scripts: Array = Array(String(args.get("scripts", "")).split("+", false))
 	if scripts.is_empty():
 		for file in DirAccess.get_files_at(run):
-			if file.ends_with(".csv") and not file.ends_with(".frames.csv"):
-				scripts.append(file.get_basename())
+			var script_name := file.trim_suffix(".frames.csv").trim_suffix(".csv")
+			if file.ends_with(".csv") and not scripts.has(script_name):
+				scripts.append(script_name)
 	for script_name: String in scripts:
 		var runs: Array[Dictionary] = []
 		var labels := PackedStringArray()
 		for folder in ([before, run] if not before.is_empty() else [run]):
 			var table := _read(folder.path_join(script_name + ".csv"))
-			if table.is_empty():
+			var frames := _read(folder.path_join(script_name + ".frames.csv"))
+			if table.is_empty() and frames.is_empty():
 				continue
-			table["frames"] = _read(folder.path_join(script_name + ".frames.csv"))
+			if table.is_empty():
+				table = {"columns": {}}
+			table["frames"] = frames
 			runs.append(table)
 			labels.append(folder.get_file())
 		if runs.is_empty():

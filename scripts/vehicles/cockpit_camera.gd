@@ -147,6 +147,11 @@ func road_roughness() -> float:
 	return _roughness
 
 
+## The head's lean now: x and z its offset (metres), y the lateral g it rolls with (the feel probe logs it).
+func lean() -> Vector3:
+	return _lean
+
+
 ## The head's rest point in the car's space.
 func seat_position() -> Vector3:
 	return _rest.origin

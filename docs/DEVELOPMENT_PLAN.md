@@ -1139,3 +1139,48 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   driver p99 0.515, client navigator 0.350 deg/frame^2 (median 0.126 / 0.111): the road buzz's noise is in both, so the baseline (part 3)
   also reads them with `camera_shake` 0.
   Checks: GUT 623/623 (`test_feel_scripts.gd`: every script headless but the flick, the jerk's maths), nettest passed.
+- 2026-11-17: Phase F part 3, the **F baseline** (`docs/phases/f_feel_hud.md` Part 1 item 2), HEAD 3ad79fc with nothing changed in the
+  game. The kit now also logs the camera's move jerk (its place's second difference, cm per frame^2 at 60 fps: a car played back in steps
+  shows there first, in the straights too), the head's lean (`CockpitCamera.lean()`) and the road roughness a frame, `--feel-shake=S`
+  (probe and net_test) sets the seat camera's shake (0: the ride alone), net_test `--feel-tag=T` writes each seat's frames to
+  `reports/feel/<T>/<role>/seat.frames.csv`, and `plot_feel.gd` draws a frames-only run and four more panels. Runs: `feel.ps1 -Tag baseline`
+  (all twelve scripts, raw axis, assist 1, windowed Medium), `-Tag baseline_pad -Device pad` and `baseline_key -Device key` (step, slalom),
+  `baseline_a0 -Assist 0` (catch, hairpin), `nettest` (headless, shake on), and a windowed driver + client navigator on Black Pine (headless
+  host, the bot circling, GO+1 s to 26 s; `baseline_net` shake on, `baseline_net_still` shake 0; the other project's two headless Godot
+  runs beside it). Sheets: `reports/feel/baseline/plots/<script>.png`, the two seats in `plots/baseline_net*/seat.png` (driver blue,
+  navigator orange; the two logs start at each peer's own GO, so the traces are not aligned in time).
+
+    | Suspect (Part 1's traps) | Measure | Baseline | Sheet |
+    |---|---|---|---|
+    | Client navigator plays the car back in steps | camera jerk p99 turn / move, driver vs client navigator | headless nettest 0.419 / 0.635 vs 0.353 / 3.118 (0.84x / 4.9x); windowed shake on 0.401 / 0.587 vs 0.491 / 10.09 (1.23x / 17x); windowed shake 0 0.147 / 0.390 vs 0.987 / 15.88 (6.7x / 41x); the navigator's window drew 31-48 fps, frame p99 68 ms | baseline_net*/seat |
+    | G lean on a copy reads `linear_velocity` | head lean, lateral g, median / max | driver 0.23-0.26 / 0.79-1.10 g, client navigator 0.04 / 0.24-0.26 g (a sixth) | baseline_net*/seat |
+    | Roughness on a copy | `road_roughness()` mean / p99 | driver 0.42 / 0.97, navigator 0.23-0.30 / 0.53-0.56: no spike every fourth tick (the extras are interpolated), but the 30 Hz snapshots lose the wheels' faster travel: half the buzz at its peaks | baseline_net*/seat |
+    | Mouse clip at 120 px an event | head turn for 3 frames of N px | 0.118 deg/px to 100 px, 47.34 deg for every flick of 200-600 px (0.026 deg/px at 600) | flick |
+    | Counter-steer capped at speed | catch: slip 20 deg at 100 km/h, full counter-steer | assist 1: caught but overshoots to -15.4 deg 1 s later (wheels 13.6 deg at most); assist 0: lost, slip grows to 38.7 deg, 30.6 deg and 48 km/h at the end (wheels 19.1 deg at most) | catch (baseline, baseline_a0) |
+    | Two steering filters | input to 90 % of the command / of the road wheels, half lock at 44 / 72 / 100 km/h | raw axis 0 ms / 83, 67, 42 ms (the car's own rate limit); pad 100 ms / 83, 100, 183 ms; keyboard (full lock) 167, 217, 300 ms to the command | step (baseline, _pad, _key) |
+    | Assist an invisible hand | peak torque, ticks acting, its share of the tyres' yaw moment (median / max), largest change in a tick | slalom 3764 N m, 41 %, 0.43 / 4.3; liftoff 3149, 12 %, 2.9 / 3.5; hairpin 4970, 26 %, 2.9 / 4.3; catch 5547, 36 %, 0.57 / 4.7; every script goes from 0 to its peak in one tick | step ... catch |
+    | Tyres numb | yaw per metre in the 0.5 s after the change against the 0.5 s before | lift-off -15 %, trail braking 1.54 deg/m braking vs 1.52 after (-2 %), full power mid-corner -8 %: every one turns the car less, never more | liftoff, trail, power |
+    | Gearbox only heard | the drive force (code) | `engine_force * (1 - t^2)`, the same at every rpm; a shift cuts nothing (`Gearbox` is audio and dash) | step (speed) |
+    | Head looks where the wheels point | catch: travel direction minus the corner look | assist 0: the head turns toward the travel but trails it by 24 deg (mean, 28.5 max); assist 1: -9 deg mean, -23 max. Not away from it, as the brief guessed: behind it | catch |
+    | Cabin FOV breathes | FOV range | 62.0 to 69.9 deg at 100 km/h (8 deg of the 11) | step |
+    | Keys all or nothing | (code) | throttle and brake 0 or 1; holding the brake under 1 m/s reverses at once | |
+    | Hits | crash at 60 km/h into a flat wall: impact, bounce back, speed 0.5 s after, yaw | 15 deg: 3.9 m/s, no bounce, 46 km/h on, 57 deg/s; 45 deg: 16.0 m/s, stops dead (0.6 km/h), spins at 145 deg/s; 90 deg: 17.4 m/s, 1 % bounce, 0.1 km/h: it sticks to the wall | crash15/45/90 |
+    | Landing (A2's drop) | airborne, the driver's camera jerk p99 turn / move | 0.27 s in the air, 0.45 / 0.79 | land |
+
+  A2's benchmarks, rerun today unchanged (`test_handling_benchmarks.gd`): 0-100 km/h 5.36 s, 100-0 km/h 48.0 m (0.82 g), half lock at
+  70 km/h answers in 0.10 s and settles at 25.7 deg/s and 0.92 g, keyboard to full lock 0.21 s at 20 km/h, 0.20 s at 50, 0.33 s at 100
+  (lock 27.6, 21.1, 10.3 deg), handbrake hairpin 150 deg in 2.97 s, full lock from a standstill 170 deg in 5.3-6.1 s, the 0.8 m drop
+  lands at 2.70 s with 5.4 deg of pitch.
+  What the numbers say is worst for a player, worst first:
+  1. A client navigator's view stutters: its camera's place jerks 5x (headless) to 17-41x (windowed) the driver's, its turn 6.7x with the
+     shake off. Half the players see it all race (part 4).
+  2. A client navigator's head neither leans nor feels the road: a sixth of the driver's lean, half the buzz at its peaks (part 5).
+  3. With the assist off a fast slide cannot be caught, whatever the hands do (part 6); with it on the catch overshoots into the other
+     slide.
+  4. The assist steers the car: up to three times the tyres' own yaw moment, full strength in one tick (part 7).
+  5. Lift-off, trail braking and power never rotate the car; each turns it less (parts 8-9).
+  6. A pad reaches the road wheels in 83-183 ms, 10-22 ticks against GAME_DESIGN §9's one (part 6).
+  7. A quick mouse look turns 47 deg however far the hand flicks (part 5).
+  8. A car that hits a wall stops dead against it or spins at 145 deg/s (part 10).
+  9. The cabin breathes 8 deg of FOV with speed; the head trails a slide's travel by 24 deg (part 10).
+  10. Shifts and pedals: no shift is felt in the car, keys are on or off, the brake reverses at once (parts 9-10).

@@ -2,14 +2,16 @@ extends Node
 ## How smoothly a seat's camera moves (docs/phases/f_feel_hud.md, Part 1 item 1): a CSV row a drawn frame and the camera's jerk, the
 ## frame-to-frame change of its angular speed (the orientation's second difference), in degrees per frame squared at 60 frames a second:
 ## each frame's turn is scaled to a 60th of a second, so a long or a short frame alone is no jerk. Frames in which the head's free look moved
-## (the mouse, a recentring) count no jerk, nor the frame after one: the ride is measured, not the player's own hand.
+## (the mouse, a recentring) count no jerk, nor the frame after one: the ride is measured, not the player's own hand. The move jerk is the
+## same for the camera's place (centimetres per frame squared): a car played back in steps shows there first, in the straights too.
 ## tools/feel_probe.gd keeps one per script in route_test (the driver's peer); net_test --feel-log one for the local seat (a client
 ## navigator's camera rides a car played back from the snapshots). It runs after the cameras have moved (process_priority).
 ## Columns (FRAME_HEADER): t (s since `from`), frame_ms, x, y, z (the camera's place), turn_deg (its turn since the last frame),
 ## speed_dpf (the turn a 60th of a second), jerk (the change of that turn, as a vector), fov, look_x, look_y (CockpitCamera.look),
-## mouse_px (motion injected this frame: the flick script).
+## mouse_px (motion injected this frame: the flick script), move_jerk (cm per frame squared), lean_g (the lateral g the head leans with,
+## CockpitCamera.lean()), rough (CockpitCamera.road_roughness()).
 
-const FRAME_HEADER := "t,frame_ms,x,y,z,turn_deg,speed_dpf,jerk,fov,look_x,look_y,mouse_px"
+const FRAME_HEADER := "t,frame_ms,x,y,z,turn_deg,speed_dpf,jerk,fov,look_x,look_y,mouse_px,move_jerk,lean_g,rough"
 const FRAME := 1.0 / 60.0
 
 ## The camera to follow; null: the viewport's current one.
@@ -18,17 +20,21 @@ var camera: Camera3D
 var from := 0.0
 var until := -1.0
 var label := "seat"
-## Printed once when `until` passes.
+## Printed once when `until` passes, and the rows written to `csv_path` then when one is given.
 var print_at_end := true
+var csv_path := ""
 ## Mouse motion the probe injects this frame (px), for the row.
 var mouse_px := 0.0
 var rows := PackedStringArray([FRAME_HEADER])
 var jerks := PackedFloat32Array()
+var moves := PackedFloat32Array()
 
 var _time := 0.0
 var _seen: Camera3D
 var _previous := Basis.IDENTITY
 var _previous_speed := Vector3.ZERO
+var _previous_at := Vector3.ZERO
+var _previous_move := Vector3.ZERO
 var _previous_look := Vector2.ZERO
 ## Frames of history in hand: two are needed for a jerk.
 var _history := 0
@@ -46,6 +52,11 @@ func _process(delta: float) -> void:
 		if print_at_end and not _reported:
 			_reported = true
 			print(report())
+			if not csv_path.is_empty():
+				DirAccess.make_dir_recursive_absolute(csv_path.get_base_dir())
+				FileAccess.open(csv_path, FileAccess.WRITE).store_string("
+".join(rows) + "
+")
 		return
 	var seat := camera if camera != null else get_viewport().get_camera_3d()
 	if seat == null or _time < from or delta <= 0.0:
@@ -56,29 +67,39 @@ func _process(delta: float) -> void:
 		_seen = seat
 		_history = 0
 	var speed := turn(_previous, basis) * (FRAME / delta) if _history > 0 else Vector3.ZERO
+	var at := seat.global_position
+	var move := (at - _previous_at) * (100.0 * FRAME / delta) if _history > 0 else Vector3.ZERO
 	var jerk := -1.0
+	var move_jerk := -1.0
 	_quiet = 2 if look != _previous_look else maxi(_quiet - 1, 0)
 	if _history > 1 and _quiet == 0:
 		jerk = (speed - _previous_speed).length()
 		jerks.append(jerk)
-	var at := seat.global_position
-	rows.append("%.4f,%.2f,%.3f,%.3f,%.3f,%.4f,%.4f,%.4f,%.2f,%.2f,%.2f,%.0f" % [_time - from, delta * 1000.0, at.x, at.y, at.z,
-		turn(_previous, basis).length() if _history > 0 else 0.0, speed.length(), maxf(jerk, 0.0), seat.fov, look.x, look.y, mouse_px])
+		move_jerk = (move - _previous_move).length()
+		moves.append(move_jerk)
+	var cockpit := seat as CockpitCamera
+	rows.append("%.4f,%.2f,%.3f,%.3f,%.3f,%.4f,%.4f,%.4f,%.2f,%.2f,%.2f,%.0f,%.3f,%.3f,%.3f" % [_time - from, delta * 1000.0, at.x, at.y, at.z,
+		turn(_previous, basis).length() if _history > 0 else 0.0, speed.length(), maxf(jerk, 0.0), seat.fov, look.x, look.y, mouse_px,
+		maxf(move_jerk, 0.0), cockpit.lean().y if cockpit != null else 0.0, cockpit.road_roughness() if cockpit != null else 0.0])
 	mouse_px = 0.0
 	_previous = basis
 	_previous_speed = speed
+	_previous_at = at
+	_previous_move = move
 	_previous_look = look
 	_history += 1
 
 
-## {frames, median, p99} of the jerk so far (degrees per frame squared).
+## {frames, median, p99} of the jerk so far (degrees per frame squared), and move_median, move_p99 of the move jerk (cm per frame squared).
 func summary() -> Dictionary:
-	return {"frames": jerks.size(), "median": percentile(jerks, 0.5), "p99": percentile(jerks, 0.99)}
+	return {"frames": jerks.size(), "median": percentile(jerks, 0.5), "p99": percentile(jerks, 0.99),
+		"move_median": percentile(moves, 0.5), "move_p99": percentile(moves, 0.99)}
 
 
 func report() -> String:
 	var numbers := summary()
-	return "FEEL jerk %s frames=%d median=%.4f p99=%.4f" % [label, numbers.frames, numbers.median, numbers.p99]
+	return "FEEL jerk %s frames=%d median=%.4f p99=%.4f move_median=%.3f move_p99=%.3f" % [label, numbers.frames, numbers.median,
+		numbers.p99, numbers.move_median, numbers.move_p99]
 
 
 ## The turn from `before` to `after` as a rotation vector in degrees (world axes).
