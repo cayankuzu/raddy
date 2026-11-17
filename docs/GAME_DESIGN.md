@@ -163,3 +163,61 @@ Scores come from the objective gates plus independent adversarial review agents;
 - Pure rules in RefCounted classes with unit tests; scenes only wire them.
 - A new mechanic must reuse an existing state when it can (the shock gun uses the Cabin faint).
 - No feature without a test and a line in this file or the plan.
+
+## Direction 2 (decided 2026-11-17): a rally through a countryside that is a playground
+
+The owner asked for a bigger, funnier game people clip and share: every road on the map, a much richer world (houses, people, every model we
+may use), level design that is more complex and flawless, features made to spread, keyboard and mouse used together, the freedom and cheek of
+the big sandbox comedies. The lead wrote a direction, three critics (the player and the clip, the code, shipping) took it apart, and this is
+what stands. It adds to GAME_DESIGN's pillars; where it contradicts an older line, this is the newer decision.
+
+### The game in one sentence
+Two friends in a rally car, one driving blind and one with the map, race through a living countryside where whatever stands by the road can be
+hit, sent flying and honked at; the clock decides the rally, the mayhem makes the stories.
+
+### Laws (every phase builds against these)
+1. **Mischief, not cruelty.** Things break, fly and are counted. Nothing alive is ever hit: people dive aside at the last moment, shout and
+   shake a flag; animals scatter from the car and the horn. No blood, no bodies, no contact between a car and a living thing, on any peer.
+   (It is the most recognisable rally clip there is, it keeps the rating low, and a crowd under the flag of Turkey is never a target.) Public
+   text never names another game as what this is; the credits thank "Left! Left! LEFT!" for the inspiration and say RADDY is independent.
+2. **One road coordinate.** However many roads a stage has, every follower of the stage (tracker, gates, recovery, gaps, standings, results,
+   notes, bots, the map's marker) reads one distance along the stage. A road that leaves the stage and rejoins it (a bypass) maps onto the
+   stretch it replaces through `graph.along_of`; no gate lies inside a bypassed stretch.
+3. **The navigator chooses.** A bypass has a price that is named in the notes and printed on the map (a ford, a gate, rough ground, a flock):
+   shorter and riskier, or longer and safe. The map shows every road as a road.
+4. **Mayhem is something that happens to someone.** What a crew breaks stays broken for the crews behind it; it earns named awards on the
+   results and a short line in the feed, never a score that flies across the blind driver's screen and never a separate mode (a mode can come
+   later if players ask).
+5. **The same setup, a different end.** Each stage has slots where a gag can stand, checked by the stage's judges like any feature; the
+   room's seed draws three or four of the catalogue's gags into them, the same on every peer. Each stage also keeps one signature set piece
+   that is always there.
+6. **Keyboard is the body, mouse is the eyes and hands.** The driver's jobs at speed stay on keys (horn, wipers, handbrake, gears); the
+   navigator is mouse-first: what the view ray meets is used with a click and worked with a hold or a drag (the map by its edges, the window's
+   winder, a can, the gun), and mouse look pauses while a hand holds something. Every job keeps a bindable key, and a gamepad keeps working.
+7. **Budgets are measured.** Every kit, set piece and gag has a written budget (draw calls, triangles, awake bodies) checked inside one
+   process with a flip of its own; Medium stays over 60 fps on the dev laptop with three crews.
+8. **Whatever a peer's graphics level, the world is the same**: what can be hit, broken or driven round is placed from the stage's seed alone.
+
+### The order of work
+1. **M, the map** (the sheet shows every road and landmark, a road book with tulips, the trip meter, an audit of every screen).
+2. **H, mouse hands** (law 6 on the existing cabin jobs).
+3. **L, level design 2**, first on two stages (one forest, one other biome): bypasses with a price, the gag slots, the stage rules' second
+   edition, then the other four stages.
+4. **X, mayhem**: about ten breakable things, the gags that reach into the cabin (fruit and straw on the glass, a sheet over it, bees through
+   an open window), the crowd that dives, a tractor and a flock the horn moves, the gag director, awards and the feed.
+5. **W, the living world**: a village kit (houses built in code from scanned plaster, stone, brick and tiles, with the few good downloaded
+   models), a farm kit, fields with walls, fences, sheep and cows, more kinds of people, landmarks; one signature set piece a stage (the barn
+   you drive through, the village street); everything the navigator would call is on the map.
+6. **J, joining**: getting through home routers behind the room code (hole punching with a relay fallback; the free paths first), a
+   protocol fingerprint test, rejoining one's seat. It comes before anything is public: a friend who cannot join ends the evening.
+7. **The demo**: solo with a bot co-driver who calls the notes, the share card, photo mode, credits generated from `ASSET_LICENSES.md`, a
+   script that captures trailer shots; a free demo build for itch.io (the owner publishes).
+8. **A7** the interface and HUD, **A8** the rest of network and security, **A9b** the test matrix (a bot per stage, route and difficulty),
+   **A10** the launch.
+9. **After the demo, by what players clip**: on foot (get out and in while the car stands, walk, push, open the gate; needs `Cabin.occupant`
+   first, since today a role is a seat is a simulating peer), a championship evening with bot rivals, the replay as data, seat swaps.
+   Never: taking another crew's car, riding on the roof.
+
+The frame rate phase (A9a) measured and stopped: the targets hold (Low 132-140, Medium 77-80, High 60 fps on Black Pine with three crews; the
+old 30-37 were the old probe's fault). Its ranked cuts (trees 6-9 ms, shadows, backdrop, mirror) are banked in DEVELOPMENT_PLAN and are taken
+up when a phase pushes Medium under 60.
