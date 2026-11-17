@@ -4,6 +4,9 @@ extends Node3D
 ##   --stage=N|id    the stage (index or id, default 0)
 ##   --start=M       put the car M metres along the stage (default: the start grid)
 ##   --autodrive     a RouteFollower bot drives the stage
+##   --bypasses=all|none|0+1  which bypasses the bot takes (default none: the stage's own road)
+##   --price=P       the stage's shortcuts cost P (ford, gate, rough, narrow) instead of their own price (evidence of each)
+##   --on-bypass=B   --start counts metres along bypass B instead of the stage
 ##   --overview      look down on the whole stage from above (layout checks)
 ##   --view=M+E+H    a fixed camera beside road metre M, E metres right of the centre (negative: left),
 ##                   H metres up, looking along the road (screenshots); --view-at=M+E+H looks at that point
@@ -61,6 +64,11 @@ func _ready() -> void:
 	var stage := StageCatalog.get_stage(maxi(index, 0))
 	var settings := {"stage": maxi(index, 0), "biome": int(stage.biome), "weather": int(_args.get("weather", "0")),
 		"difficulty": int(_args.get("difficulty", "1")), "time": int(_args.get("time", "0"))}
+	if _args.has("price"):
+		stage = stage.duplicate(true)
+		for segment: Dictionary in stage.segments:
+			if segment.has("bypass") and segment.bypass.get("kind", "") == "shortcut":
+				segment.bypass.price = _args["price"]
 	graph = StageBuilder.build(stage)
 	BiomeRules.apply_to_graph(graph, settings)
 	RoadFxPool.off = _args.has("no-road-fx")
@@ -100,6 +108,10 @@ func _ready() -> void:
 	_car = CAR_SCENE.instantiate()
 	_car.name = "RallyCar"
 	_start_pose = graph.start_pose(float(_args.get("start", str(graph.checkpoints[0].distance - StageBuilder.GRID_BEFORE_LINE)))).translated(Vector3.UP * 0.8)
+	if _args.has("on-bypass"):
+		var pose := graph.bypasses[int(_args["on-bypass"])].pose_at(float(_args.get("start", "0")))
+		var dir: Vector2 = pose.direction
+		_start_pose = Transform3D(Basis.looking_at(Vector3(dir.x, 0.0, dir.y), Vector3.UP), pose.position + Vector3.UP * 0.8)
 	_car.transform = _start_pose
 	add_child(_car)
 	_car.set_paint(TeamColors.paint(int(_args.get("team", "1"))))
@@ -178,7 +190,8 @@ func _ready() -> void:
 		_follower = RouteFollower.new()
 		_follower.name = "RouteFollower"
 		_follower.car = _car
-		_follower.set_path(graph.main_route_points())
+		_follower.set_path(graph.path_through(_taken()))
+		_follower.set_slow_places(RouteFollower.price_places(graph, _taken()))
 		_follower.obstacles = _events.obstacles
 		_follower.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER
 		add_child(_follower)
@@ -231,6 +244,16 @@ func _add_follower(behind: float) -> void:
 		bot.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER
 		bot.start_delay = float(_args.get("follower-delay", "0"))
 		add_child(bot)
+
+
+## The bypasses the bots take (--bypasses).
+func _taken() -> Array[int]:
+	var out: Array[int] = []
+	var wanted: String = _args.get("bypasses", "none")
+	for bypass in graph.bypasses:
+		if wanted == "all" or str(bypass.id) in wanted.split("+"):
+			out.append(bypass.id)
+	return out
 
 
 ## What the crew does for a screenshot (--crew-look, --gesture, --aim, --job, --faint).

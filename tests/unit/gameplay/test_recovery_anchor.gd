@@ -70,7 +70,7 @@ func test_tracker_follows_the_car_and_ignores_the_other_leg() -> void:
 		along += 5.0
 	assert_almost_eq(tracker.distance, 695.0, 6.0, "followed along")
 	assert_almost_eq(tracker.furthest, tracker.distance, 0.01)
-	tracker.reset_to(250.0)
+	tracker.reset_to(RouteGraph.STAGE, 250.0)
 	assert_almost_eq(tracker.distance, 250.0, StageBuilder.POINT_SPACING + 0.01)
 	# A car 300 m along that falls onto the later leg of the first hairpin is not captured by it.
 	var fresh := RouteTracker.new(_graph)

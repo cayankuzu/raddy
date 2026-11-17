@@ -257,16 +257,18 @@ func _physics_process(delta: float) -> void:
 					car.needs_recovery = true
 
 
-## Host: how far behind the next car each car is on the road, for the stones it throws at them (StoneChipRules).
+## Host: how far behind the next car each car is on the road, for the stones it throws at them (StoneChipRules). Only a
+## car on the same road throws them (a car on a bypass is beside the stage, not on it), measured along that road.
 func _measure_gaps() -> void:
 	for team in _trackers:
+		var own: RouteTracker = _trackers[team]
 		var ahead: Array[float] = []
 		for other in _trackers:
 			var tracker: RouteTracker = _trackers[other]
 			var car: RallyCar = _team_cars[other]
-			if other != team and tracker.off_road <= RouteTracker.ON_ROAD and absf(car.forward_speed) >= StoneChipRules.THROWING_SPEED:
-				ahead.append(tracker.distance)
-		(_team_cars[team].get_node(^"Cabin") as Cabin).gap_ahead = StoneChipRules.gap_ahead((_trackers[team] as RouteTracker).distance, ahead)
+			if other != team and tracker.road == own.road and tracker.off_road <= RouteTracker.ON_ROAD 					and absf(car.forward_speed) >= StoneChipRules.THROWING_SPEED:
+				ahead.append(tracker.road_distance)
+		(_team_cars[team].get_node(^"Cabin") as Cabin).gap_ahead = StoneChipRules.gap_ahead(own.road_distance, ahead)
 
 
 # --- recovery (spec §16): the host judges "stuck", counts confirmations and places the car ---
@@ -434,7 +436,7 @@ func _perform_recovery(team: int, rules: RecoveryRules) -> void:
 			tracker.furthest if tracker != null else INF, stage_events.obstacles() if stage_events != null else [])
 		target = spot.transform.translated(Vector3.UP * 0.6)
 		if tracker != null:
-			tracker.reset_to(spot.along)
+			tracker.reset_to(spot.road, spot.own)
 	else:
 		var heading := -car.global_basis.z
 		heading.y = 0.0
@@ -979,7 +981,12 @@ func _bind_local_seat(car: RallyCar, role: int) -> void:
 			# Teams leave the grid in turn and spread out along the road instead of queueing.
 			bot.top_speed = 22.0 - 2.0 * (_team_cars.size() - 1)
 			bot.start_delay = 1.5 * (_team_cars.size() - 1)
-			bot.set_path(graph.main_route_points())
+			# A bypass or not by a coin per run (--bot-roll=N fixes it: toolslowtest.ps1).
+			var team := int(Net.local_entry().get("team", 0))
+			var taken := RouteFollower.choose_bypasses(graph, int(Flow.args.get("bot-roll", Time.get_ticks_usec())), team)
+			print("BOT team %d takes bypasses %s of %d" % [team, taken, graph.bypasses.size()])
+			bot.set_path(graph.path_through(taken))
+			bot.set_slow_places(RouteFollower.price_places(graph, taken))
 			if stage_events != null:
 				bot.obstacles = stage_events.obstacles
 			bot.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER

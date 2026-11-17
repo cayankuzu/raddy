@@ -3,6 +3,9 @@ extends GutTest
 ## (RouteGraph.along_of), the validator holds them to their own rule (a way through on purpose, never past a gate), and
 ## Black Pine carries one of each kind.
 
+## toolslowtest.ps1 runs its bots with --bot-roll=12: the host's crew keeps to the stage, the client's takes both bypasses.
+const FLOW_ROLL := 12
+
 
 func _black_pine() -> RouteGraph:
 	return StageBuilder.build(StageCatalog.get_stage(StageCatalog.index_of(&"black_pine")))
@@ -158,3 +161,118 @@ func test_map_draws_each_bypass_as_a_road() -> void:
 		var bypass: RouteGraph.Bypass = road.bypass
 		assert_eq(road.points, bypass.edges[0].points, "on its world line")
 		assert_eq(road.end, &"through", "a road through")
+
+
+## Positions every `step` metres along the path through `taken`, `lateral` metres right of it.
+func _drive(graph: RouteGraph, taken: Array[int], step: float, lateral := 0.0) -> Array[Vector3]:
+	var path := graph.path_through(taken)
+	var out: Array[Vector3] = []
+	var carried := 0.0
+	for i in range(1, path.size()):
+		var a := path[i - 1]
+		var b := path[i]
+		var piece := Vector2(b.x - a.x, b.z - a.z)
+		var length := piece.length()
+		var right := Vector3(-piece.y, 0.0, piece.x).normalized() * lateral
+		while carried <= length:
+			out.append(a.lerp(b, carried / maxf(length, 0.001)) + right)
+			carried += step
+		carried -= length
+	return out
+
+
+func test_the_tracker_runs_on_over_every_mouth_and_rejoin() -> void:
+	var graph := _black_pine()
+	for taken: Array[int] in [[] as Array[int], [0] as Array[int], [1] as Array[int], [0, 1] as Array[int]]:
+		var tracker := RouteTracker.new(graph)
+		var last := 0.0
+		var widest := 0.0
+		var backward := 0.0
+		var seen := {}
+		var widest_at := 0.0
+		for p in _drive(graph, taken, 3.0, 1.2):
+			tracker.update(p)
+			if tracker.distance - last > widest:
+				widest_at = tracker.distance
+			widest = maxf(widest, tracker.distance - last)
+			backward = maxf(backward, last - tracker.distance)
+			last = tracker.distance
+			seen[tracker.road] = true
+		gut.p("through %s: widest step %.1f m (at %.0f m), back %.1f m, roads %s" % [taken, widest, widest_at, backward, seen.keys()])
+		# A shortcut's metres are worth more of the stage than the stage's own (318 m for 171): 3 m of it, read at the
+		# road's points 2 m apart, moves the car up to ~9 m.
+		assert_lt(widest, (3.0 + StageBuilder.POINT_SPACING) * 318.0 / 171.0 + 1.0, "no jump at a mouth or a rejoin through %s" % [taken])
+		assert_lt(backward, 0.01, "never backward through %s" % [taken])
+		assert_almost_eq(tracker.distance, graph.route_distances()[-1], 3.0, "to the end through %s" % [taken])
+		for id in taken:
+			assert_true(seen.has(id), "it knew the car was on bypass %d" % id)
+		assert_eq(seen.size(), taken.size() + 1, "and on no other road")
+
+
+func test_recovery_lands_on_the_road_the_car_is_on_facing_forward() -> void:
+	var graph := _black_pine()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 77
+	var places := 0
+	for bypass in graph.bypasses:
+		var bypass_points := bypass.points_3d()
+		# Seeded places on the bypass, at both its ends and on the stage beside its mouths.
+		var spots: Array[Dictionary] = []
+		for k in 6:
+			var own := rng.randf_range(10.0, bypass.length - 10.0)
+			spots.append({"at": bypass.pose_at(own), "road": bypass.id, "own": own})
+		for own in [3.0, bypass.length - 3.0]:
+			spots.append({"at": bypass.pose_at(own), "road": bypass.id, "own": own})
+		for along in [bypass.at - 6.0, bypass.rejoin + 6.0]:
+			spots.append({"at": graph.sample(along), "road": RouteGraph.STAGE, "own": along})
+		for spot in spots:
+			var pose: Dictionary = spot.at
+			var dir: Vector2 = pose.direction
+			var position: Vector3 = pose.position + Vector3(-dir.y, 0.0, dir.x) * rng.randf_range(-3.0, 3.0)
+			var found := RecoveryAnchor.find(graph, position, 3)
+			places += 1
+			assert_lt(float(found.distance), 4.0, "back on a road beside it")
+			var ends_near: bool = absf(float(spot.own) - float(found.own)) < 12.0 or found.road != spot.road
+			assert_true(ends_near, "at its place: %s" % [spot])
+			if found.road == spot.road and absf(float(spot.own)) > 10.0:
+				var facing := -(found.transform as Transform3D).basis.z
+				assert_gt(Vector2(facing.x, facing.z).dot(dir), 0.9, "facing the way its road runs")
+			if int(found.road) != RouteGraph.STAGE:
+				var on := false
+				for q in bypass_points:
+					on = on or q.distance_to((found.transform as Transform3D).origin) < 0.01
+				assert_true(on, "a point of the bypass itself")
+	gut.p("%d recoveries on and round %d bypasses" % [places, graph.bypasses.size()])
+	assert_eq(places, 20, "twenty seeded places")
+
+
+func test_a_car_on_another_road_throws_no_stones() -> void:
+	var graph := _black_pine()
+	var bypass := graph.bypasses[1]
+	var stage := RouteTracker.new(graph)
+	var cut := RouteTracker.new(graph)
+	for p in _drive(graph, [] as Array[int], 3.0):
+		stage.update(p)
+		if stage.distance > bypass.at + 60.0:
+			break
+	for p in _drive(graph, [1] as Array[int], 3.0):
+		cut.update(p)
+		if cut.distance > bypass.at + 60.0:
+			break
+	assert_ne(stage.road, cut.road, "one on the stage, one on the shortcut")
+	gut.p("stage %.0f m, shortcut %.0f m along the stage" % [stage.distance, cut.distance])
+
+
+func test_a_bot_takes_bypasses_by_a_seeded_coin() -> void:
+	var graph := _black_pine()
+	var counts := {}
+	for roll in 40:
+		for team in 3:
+			var taken := RouteFollower.choose_bypasses(graph, roll, team)
+			assert_eq(taken, RouteFollower.choose_bypasses(graph, roll, team), "the same coin for the same run")
+			counts[taken.size()] = int(counts.get(taken.size(), 0)) + 1
+	gut.p("bypasses taken per bot: %s" % [counts])
+	assert_true(counts.has(0) and counts.has(graph.bypasses.size()), "some bots take none, some all")
+	# tools\flowtest.ps1's --bot-roll: the host's team 0 keeps to the stage, the client's team 1 takes the shortcut.
+	assert_eq(RouteFollower.choose_bypasses(graph, FLOW_ROLL, 0), [] as Array[int])
+	assert_true(1 in RouteFollower.choose_bypasses(graph, FLOW_ROLL, 1))

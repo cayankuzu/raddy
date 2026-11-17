@@ -54,6 +54,10 @@ var obstacles: Callable
 var lane_half_width := 5.0
 ## Car half length: an obstacle counts until the car's tail is past it.
 const CAR_HALF_LENGTH := 1.9
+## A bypass's price taken at a bot's pace: through a ford, at a farm gate (rammed), on a rutted or narrow track; how far
+## round each the pace holds.
+const PRICE_SPEEDS := {&"ford": 8.0, &"gate": 9.0, &"rough": 12.0, &"narrow": 13.0}
+const PRICE_REACH := {&"ford": 24.0, &"gate": 6.0, &"rough": 40.0, &"narrow": 40.0}
 ## Obstacles this far along beyond the first one ahead are dodged together with it.
 const AVOID_CLUSTER := 10.0
 
@@ -77,6 +81,8 @@ var _located := false
 ## Path index of the current aim point, and where the obstacle search window starts (m, <= 0).
 var _aim_index := 0
 var _window_start := 0.0
+## The most the bot may go at each path point (INF: no cap), from set_slow_places.
+var _cap := PackedFloat32Array()
 
 
 ## `points` is the path; `closed` joins the last point to the first (a lap). The car starts near
@@ -99,6 +105,35 @@ func set_path(points: PackedVector3Array, closed := false) -> void:
 	laps = 0
 	reached_end = false
 	_located = false
+	_cap.resize(points.size())
+	_cap.fill(INF)
+
+
+## Places on the path to take slowly: [{"at": Vector3, "reach": m round it, "speed": m/s}] (price_places). Call after set_path.
+func set_slow_places(places: Array[Dictionary]) -> void:
+	for place in places:
+		var at: Vector3 = place.at
+		for i in _path.size():
+			if _flat_distance(_path[i], at) <= float(place.reach):
+				_cap[i] = minf(_cap[i], float(place.speed))
+
+
+## Which bypasses a bot takes this run: each by a coin seeded from the stage, the run's `roll` and its team.
+static func choose_bypasses(graph: RouteGraph, roll: int, team: int) -> Array[int]:
+	var out: Array[int] = []
+	for bypass in graph.bypasses:
+		if hash([graph.seed, roll, team, bypass.id]) % 2 == 0:
+			out.append(bypass.id)
+	return out
+
+
+## The slow places of the bypasses in `taken`: their prices (PRICE_SPEEDS).
+static func price_places(graph: RouteGraph, taken: Array[int]) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for bypass in graph.bypasses:
+		if bypass.id in taken and PRICE_SPEEDS.has(bypass.price):
+			out.append({"at": bypass.pose_at(bypass.price_at).position, "reach": PRICE_REACH[bypass.price], "speed": PRICE_SPEEDS[bypass.price]})
+	return out
 
 
 func _physics_process(delta: float) -> void:
@@ -399,8 +434,8 @@ func _corner_speed_limit(speed: float) -> float:
 	var i := _index
 	while travelled < PLAN_DISTANCE:
 		var k := _curvature[i]
-		if k > 0.0001:
-			var corner_speed := maxf(sqrt(CORNER_ACCEL / k), MIN_SPEED)
+		var corner_speed := minf(maxf(sqrt(CORNER_ACCEL / k), MIN_SPEED) if k > 0.0001 else INF, _cap[i])
+		if corner_speed < INF:
 			# v^2 = v_corner^2 + 2 a d: how fast we may still go here and brake down in time.
 			var reachable := sqrt(corner_speed * corner_speed + 2.0 * BRAKE_ACCEL * travelled)
 			limit = minf(limit, reachable)
