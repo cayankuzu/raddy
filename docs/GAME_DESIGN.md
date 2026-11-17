@@ -56,7 +56,8 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
 - **Bypasses** (law 2 and 3): a road that leaves the stage and joins it again ahead, the navigator's choice. A *shortcut* is at most 70 %
   of the stretch it replaces and has a price (a ford, a farm gate to ram or open, a rutted track, a narrow lane between banks); a *long
   way* is at least 115 % of it and goes round a hard piece of the stage (a jump, a ford, a cliff). Each end is a real junction (a fork, a
-  T, a turn off: one branch turns 60 degrees or more), no gate lies on the stretch a bypass replaces, the notes call the mouth with the
+  T, a turn off: one branch turns 60 degrees or more), it never meets the road on a cliff's side (the rail would stand across it), no
+  gate lies on the stretch a bypass replaces, the notes call the mouth with the
   other way and its price and the rejoin as a junction, the map prints it as a road with its price's pictogram.
 - Corner rhythm: a hairpin or a "danger" every 300-500 m (`worst_danger_gap`, on the Redline notes), places for spectators at the
   stage's best moments (a jump, a water splash, a cliff with a rail gap).

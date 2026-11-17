@@ -1023,3 +1023,66 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   the set piece's ground is grass, not bare (until phase W builds on it, it reads as a meadow); a gag slot's room widens the flat band too.
   Not done: the six stages' redesign (part 3, the next agents), so no stage has a slot or a set piece yet and the second edition's numbers
   are untried at the wheel.
+- 2026-11-17: L, part 3, Black Pine and Red Canyon redesigned (deliverable 6 for two stages, to the second edition): DONE; the other four
+  stay at the first edition for a later run. Both claim `rules` 2, both judges are empty, `StageCatalog.LAYOUT` 4 (old times went).
+  - Black Pine (forest, 2762 m): a left-right out of the start over a crest, the long way left round the first jump, then a long right that
+    tightens into a left kink over a dip, the caution left at the barrier, a right that opens into the water splash and its crowd, a blind
+    crest where a fir may fall, esses (left, right, left, right), the farm (a muddy yard, a right 1 round it, straight through the barn's
+    ground, 50 m with 60 m in sight before it) and a climb of 19 m up the hill out of it, the second jump with its crowd, a fast descent
+    of 20 m to the field, the ford shortcut straight across it, and the run to the finish. Four gag slots: beside on the outside of the
+    tightening right (where a car that runs wide goes), across the road at the end of the esses (a flock or a tractor), beside on the
+    descent after the jump, beside after the field.
+  - Red Canyon (desert, 2826 m): the canyon's walls left then right on a left that tightens, a climb onto the rim with the drop on the
+    left (a right 2 with the cliff outside), the biggest jump in the game, a left 2 that opens down off the rim, sand, the street of a
+    hamlet (the set piece is a `village`: houses stand on flat ground beside a road, which is what this phase can reserve; a bridge would
+    need a gorge under it, which flat ground is not), a long way right and inland round a left 3 along a drop and the second jump over the
+    cliff's lip, the rockfall between walls on both sides, a left hairpin, a climb to a crest in a right, the flat-out (298 m over three
+    yumps into a right hairpin, where the crowd stands), a slot canyon (the `narrow` shortcut, 171 m for 318 m) that cuts off the last loop,
+    and a left hairpin under a wall. Five gag slots, one overhead after the hairpin. The desert pair's shortcut and long way are both
+    here, so `check_catalogue` holds whatever Scorpion Hills gets.
+  - Read call by call against the road (`PaceNotes.build`, Turkish): every corner, crest and junction lands where the road is; a rejoin
+    once read "Kavşak: Sağ 4, sağa değil!" (a right 4 just past a bypass joining from the right, which nobody can call): the stage now runs
+    100 m straight after the jump so the corner gets its own call ("Kavşak: Düz, sağa değil!", then "Sağ 4").
+  - Found by the bot: Red Canyon's slot canyon first rejoined where the road ran on along a drop on its side; the rail stood across the
+    bypass's end and the bot crashed into it three times. `RouteValidator._check_bypasses` now says "meets the road on the cliff's side"
+    (a cliff on the side a bypass leaves or joins, within 60 m: `test_a_bypass_never_meets_the_road_on_a_cliff_s_side`); the road there
+    now runs under a wall on the inside of its hairpin.
+
+  | Stage | Length | Turning deg/km (plainest km) | Longest straight | Severities | Hairpins + square | Sequences | Tighten/open | Crests in corners | Climb / descent | Flat gap | Bypasses | Gag slots | Set piece | Spectators | Rhythm gap | Danger gap |
+  |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+  | Black Pine before | 2476 m | 570 (460) | 156 m | 1-6 | 4 | 6 | 1 | 4 | 14 / 8 m | 282 m | 2 (1 short, 1 long) | 0 | 0 | 3 | 488 m | 306 m |
+  | Black Pine after | 2762 m | 701 (615) | 124 m | 1-6 | 4 | 7 | 3 | 4 | 19 / 20 m | 355 m | 2 (1 short, 1 long) | 4 | barn | 3 | 431 m | 308 m |
+  | Red Canyon before | 2316 m | 368 (335) | 148 m | 2-6 | 0 | 0 | 0 | 0 | 8 / 9 m | 385 m | 0 | 0 | 0 | 2 | 445 m | 308 m |
+  | Red Canyon after | 2826 m | 572 (449) | 298 m (the flat-out, over a crest) | 1-6 | 4 | 5 | 3 | 3 | 17 / 19 m | 344 m | 2 (1 short, 1 long) | 5 | village | 2 | 522 m | 442 m |
+
+  Measured, headless bot (`route_test --autodrive --bypasses=..`, from the grid, day; Explore, Rally and Redline the same to a tenth: the
+  width offsets do not change the bot's line), 0 recoveries and every gate in order in every run:
+
+  | Stage, way | Explore | Rally | Redline | Rain / dust storm (Rally) | Fog (Rally) |
+  |---|---|---|---|---|---|
+  | Black Pine, its own road | 171.6 s | 171.5 s | 171.5 s | rain 178.9 s | 171.5 s |
+  | Black Pine, the long way round the jump | 186.0 s (+14.4) | 186.2 s | 186.1 s | | |
+  | Black Pine, the ford shortcut | 161.1 s (-10.5) | 161.0 s | 161.0 s | | |
+  | Black Pine, both bypasses | | | | rain 196.2 s | 175.8 s |
+  | Red Canyon, its own road | 160.1 s | 160.2 s | 160.2 s | dust 160.2 s | 160.2 s |
+  | Red Canyon, the long way round the cliff and jump | 174.3 s (+14.2) | 174.4 s | 174.4 s | | |
+  | Red Canyon, the slot canyon (narrow) | 147.4 s (-12.7) | 147.4 s | 147.5 s | | |
+  | Red Canyon, both bypasses | | | | dust 161.6 s | 161.6 s |
+
+  The bot's average over the stage's length (what `StageRecords.MEDAL_SPEEDS` is judged on, the stage's own road): Black Pine 16.1 m/s,
+  Red Canyon 17.6 m/s; the flow test's bots 15.9 and 15.0 m/s on Black Pine, 16.9 and 15.9 m/s on Red Canyon. Inside the 15-18.5 m/s the
+  medal speeds were set from, so they stay (14 / 17.5 / 20.5): bronze for a clean bot on both, silver for it on Red Canyon only; gold
+  needs a crew faster than the bot everywhere. Black Pine's turning costs it 1.5 m/s against Red Canyon.
+  Flow tests: Black Pine (host on the stage 2:53.9, the client through both bypasses 3:03.9) and Red Canyon (2:46.8 / 2:57.7), both with
+  `--bot-roll=153`, picked so on every stage with bypasses the host keeps to the stage and the client takes them all (19 sent Red Canyon's
+  host onto a bypass; `test_bypasses.gd` checks the roll on every stage). Nettest passed. GUT 613/613 (`test_stage_builder.gd`'s
+  `WAITING` lost both stages; `test_map_canvas.gd` takes whichever stage runs north-south, Black Pine no longer does).
+  Seen (reports/screenshots/l_stages, git-ignored): the map sheets before and after (`sheet_maps.png`), every mouth and rejoin from the seat
+  by day and at night (`sheet_junctions_day.png`, `sheet_junctions_night.png`), the slot canyon from its seat, the barn's and the hamlet's
+  ground from above (`sheet_signature.png`: a meadow the forest stands back from, open desert with the rocks kept off).
+  Decided: Red Canyon's long way keeps Black Pine's T shape (283 m for 156 m: every shorter shape tried ran beside the road or turned
+  tighter than 11 m), so a long way costs a bot 14 s on both stages, the price of not jumping beside a drop; the medal speeds stay one set
+  for every stage; the set piece's call in the notes waits for phase W (no barn stands there yet).
+  Not done: the other four stages (a later run); the bypasses' own corners are still uncalled and their sightlines unmeasured; the bot
+  drives into the end of the road after the finish at 17-26 m/s in `route_test` (Misty Creek, untouched, does the same: the dev scene's
+  bot, not the race).

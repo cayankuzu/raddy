@@ -335,7 +335,9 @@ No Blender; model in Godot only as a last resort.
   mix of corners, the land, choices, places, rhythm; `measures()`, `summary()`, `check_catalogue()`) only on a stage whose `rules` is 2.
   `tools/stage_measures.gd` (`Godot --headless --path . -s res://tools/stage_measures.gd`; the Net compile errors it prints are harmless)
   prints each stage's `MEASURES` and what the second edition still `WANTS`; `test_stage_builder.gd` `WAITING` lists the stages not yet
-  redesigned. When a stage fails, fix the recipe, never the threshold. Width: the stage's own (3.6-5.0 m) + `RaceSettings.WIDTH_OFFSET` (Explore +0.8, Redline -0.2), set by
+  redesigned (Black Pine and Red Canyon are built to the second edition: Black Pine's set piece is the barn, Red Canyon's a hamlet's
+  street, `village`). A bypass never meets the road on a cliff's side. `route_test` prints `ROUTE impact` for every hit of 8 m/s or more
+  with where it happened. When a stage fails, fix the recipe, never the threshold. Width: the stage's own (3.6-5.0 m) + `RaceSettings.WIDTH_OFFSET` (Explore +0.8, Redline -0.2), set by
   `BiomeRules.apply_to_graph`; one width per stage, a segment's `width` would fail the validator.
 - `Sightline`: how far ahead the road is readable from the eye (`ahead`, `survey`), ended by a crest or a side `screens(graph)`
   calls screened: forest and mountain sides are, desert sides only by a bank or a corner's screen; cliffs and places for the
