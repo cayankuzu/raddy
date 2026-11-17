@@ -16,6 +16,8 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   Compatibility-renderer build of one stage with the solo mode passes the look gate in section 9.
 - Steam is the biggest reach lever but costs a one-time 100 USD (outside the zero-cost rule): the
   owner decides; the build stays Steam-ready (no itch-only APIs in gameplay code).
+- **Direction 3 (the last section) changes this section:** a browser teaser after the owner's play-test (phase WD, under its
+  go/no-go check); the free downloadable demo is Çamlık Vadisi with Black Pine and its errands plus Red Canyon standalone (A10).
 
 ## 2. Pillars
 1. **The driver is blind, the navigator is the eyes.** The road is never readable far ahead; the
@@ -183,6 +185,8 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   awards and a shareable result card. Everything navigable with a gamepad.
 - Accessibility: colour-blind safe team colours, HUD scale, camera shake and motion options, FOV,
   subtitles for system messages, rebinding for every action.
+- **Direction 3 (the last section) changes this section:** the race HUD is phase F's, built first on the one design system the menus
+  share; never a minimap or a distance to a place on any screen (law 9); A7 keeps the menus and every other screen.
 
 ## 9. Quality bar (every area must reach 9.8 / 10 before a phase is called done)
 | Area | Objective gate (automated or measured) | Review |
@@ -268,3 +272,164 @@ hit, sent flying and honked at; the clock decides the rally, the mayhem makes th
 The frame rate phase (A9a) measured and stopped: the targets hold (Low 132-140, Medium 77-80, High 60 fps on Black Pine with three crews; the
 old 30-37 were the old probe's fault). Its ranked cuts (trees 6-9 ms, shadows, backdrop, mirror) are banked in DEVELOPMENT_PLAN and are taken
 up when a phase pushes Medium under 60.
+
+## Direction 3 (decided 2026-11-17): a rally weekend in a countryside you can live in
+
+The owner asked, in one long message (translated from Turkish): a professional HUD that belongs to the game; a game that looks made by a
+senior AAA team, not a beginner; things that make a player addicted and keep them from reaching the bottom at once, "Postal-style missions
+if needed"; dark humour that goes viral; a game you can enter to calm down, a chaos game where you can touch everything, with destruction
+that feels real; a short opening animation with subtitles; more things, more people, more interaction; getting into cars; "the blended
+quality and feel of GTA and Postal", an unlimited open world with a big, detailed map and everything in it, every building's inside
+detailed and every place enterable; no limit on gigabytes, a demo in the browser and the full game from itch.io; better character control
+and the feel bugs fixed. Seven planners drafted phase briefs for it; the lead read every one against the code and the earlier decisions and
+wrote this. It adds to GAME_DESIGN's pillars and to Direction 2; where it contradicts an older line, this is the newer decision.
+
+### The game in two sentences
+Two friends share one rally car, one driving blind and one reading a paper map, through a Turkish countryside where everything that is a
+thing breaks the way it is made and everyone who is alive dives clear and says something dry about it. Between the stages they roam the
+valley, get out and walk into the houses, run absurd errands for the locals, pay the insurer for what they broke, and come back for the next
+weekend of a career that never quite goes to plan.
+
+### What it is not, and what it will be instead
+GTA V and Postal are the work of hundreds of people over years, with a city, recorded actors, motion capture and budgets measured in hundreds
+of millions. RADDY is one owner and AI agents, at zero cost, with free models and code. Saying "GTA size" would be a lie the owner would
+discover at the first drive, so the game never says it, and every brief says what it really reaches. What it will be instead:
+- **By area, a large countryside; by content per square kilometre, a careful indie game.** A village every couple of kilometres, not a city.
+  Forest, fields, a lake, a river later, villages of plastered and timber houses, a rally's service park, farms with their animals.
+- **"Postal-style missions" are kept in their best sense and without their violence.** Postal 2's week of ordinary chores that go wrong is
+  the shape of RADDY's rally weekend: a Friday of errands (a five-tier wedding cake on the navigator's lap, the headman's goat at the end of a
+  dead-end track, chickens past the organisers' speed control), Saturday and Sunday on the stages. Nobody is ever hurt; the joke is the chore.
+- **"Get into cars" means the player's own body.** Get out while the car stands, walk with a tight first-person controller, open a gate, push
+  the car out of a ditch with your partner, carry a crate, walk into a house, drive a parked estate car, a van or a box truck. Never another
+  crew's rally car, never a car with someone in it.
+- **"Every building's inside, every place enterable"** is true of every building the game makes in code (the houses, the shop, the tea
+  house, the kiosk, the barn): their ground floors, and upstairs where the stairs fit. The few downloaded house models have no inside that can
+  be made cleanly: their doors are locked, with a dry line. The game says exactly this and nothing more.
+- **"Millions of assets"**: about 150 free models (Poly Haven, Sketchfab CC BY, Quaternius) and kits built in code, placed from seeds in tens of
+  thousands of copies. Gigabytes buy nothing by themselves: work does. The download will be about 1-2 GB, which the owner allows.
+- **Destruction that feels real**, measured: things break by their material (wood splinters along the grain, glass shatters from the hit,
+  plastic bounces whole, a pot cracks into shards), the pieces carry the car's momentum and stay on the ground for the crews behind, a porch or
+  a market roof comes down when its posts go, the car dents where it was hit, and a hit is felt (a 0-60 ms hold of the view, a punch of the
+  field of view, the engine's sound ducking under a low thump, the pad's rumble). No soft-body cars, no breakable house walls, no terrain
+  destruction: each of those would make one peer's world differ from another's.
+- **The browser** gets a teaser: one or two standalone stages, solo with the bot co-driver, by day, at about Low's look, in Chrome or Edge on a
+  computer, and only if a check of the Compatibility renderer says it reads as a rally road. The full game, online co-op and the open world
+  are the download. No phone, no browser multiplayer.
+- **The look of a senior team** comes from a measured feel (every steering and camera number a test), a broadcast HUD of a good indie rally
+  game drawn in code in shipped fonts, one design system for every screen, and no dev text anywhere a player looks. It will not be a
+  studio's motion graphics, faces that talk or recorded voices: subtitles over a babble, written well, are the voice.
+
+### The laws: what stands
+Pillars 1-5 (§2) stand. Direction 2's eight laws stand, with these readings:
+- **Law 1, mischief, not cruelty**, now covers walkers, people with schedules, animals and traffic: no contact between a car and anything
+  alive, on any peer (people and animals are not bodies, and a safety shell pushes them out of every car's box on every frame, which a soak
+  proves it never needs to do); a walking player is never touched by a car either and dives aside; nobody is pulled out of a car.
+- **Law 4, mayhem is something that happens to someone**: still no mayhem score on any screen and no score mode. Money and errands exist
+  now, but money is shown only outside a timed stage (the results, the service park, roam), and an errand's line on the HUD carries only a
+  title, a timer and the cargo's state. Roam and the career are ways of playing the rally, not modes that score breaking things.
+- **Law 6, keyboard is the body, mouse is the eyes and hands**, extends to foot: what the view ray meets is used with LMB or E, by the same
+  pick rule as the cabin's hotspots.
+- **Direction 2's "never"** stands: never another crew's car, never riding on a roof; add never jumping from a moving car.
+
+### What changes
+- **§1, the product.** A browser teaser is allowed after the owner's play-test (phase WD), under its go/no-go check; GAME_DESIGN §1's
+  reasons against a full browser build all still hold. The free downloadable demo is Çamlık Vadisi with Black Pine and its errands plus Red
+  Canyon standalone, packaged by A10 (D no longer builds the demo export).
+- **Direction 2's order, item 9.** On foot is built before the play-test, not after the demo; "a championship evening with bot rivals"
+  becomes phase Q's career. Seat swaps happen through the doors (P2).
+- **§7, the crowd** is no longer "scenery nothing can touch": people live on a schedule, notice crews, dive, come back shaking a fist, talk.
+  They still cannot be touched.
+- **§8, the HUD** is phase F's, built first; A7 keeps the menus and every other screen.
+- **§6, chaos**: the car's dents, the debris and the material breaks are phase X's; how a hit is felt is F's.
+
+### New laws
+9. **Pillar 1 everywhere.** There is never a minimap, an arrow to a place, a distance to a goal or the road's shape on any HUD, in a car or on
+   foot. The region's map is paper: in the navigator's hands, in a walker's hands (M), and full-screen only in the pause menu. A real ball
+   compass sits on the dash. Getting lost is a navigator's problem to solve, which is the game.
+10. **Nothing holy, no state as a character.** No place of worship, no religious sound or symbol anywhere in the world; no gendarme, police or
+    soldier: the officials in the world are the rally's own (marshals, the scrutineer, the organisers' speed control on village streets, as
+    on a real rally's road sections), and they are the dignified straight men of the writing. No politics (no "urban renewal" jokes), no
+    economy or inflation jokes, no real brand or person.
+11. **The countryside remembers.** What breaks stays broken for the race and, in the region, until it has been out of every crew's sight for
+    ten minutes, when the villagers repair it and send the bill. One save, `Profile` (three slots, versioned, atomic), holds discoveries,
+    the wallet, the garage, the career, the errands and the collectibles; it is never written during a stage.
+12. **One owner per system.** Every system below has one phase that builds it and one class that owns its state; a later phase extends it,
+    never builds a second one. (The table is in `docs/phases/order.md`; the main lines: F owns the car's feel, the seat camera, `ImpactFeel`
+    and the HUD's components; M2 the road book and trip meter; H the pick rule; P1 seats, layers, a car's authority and the protocol
+    fingerprint; X everything that breaks beside the road and on the car, and `DiveRules`; W the villages and the people's looks; P2 the
+    walker, `VehicleKind` and `Talkable`; OW the region, roam, the start control, the world map and `Profile`; I glass, collapses, insides
+    and walking in; N people's lives, animals, traffic, the speed control and the lines' guide; Q money, errands, the career, builds,
+    cosmetics, collectibles, the game's voice and the opening.)
+13. **No dark patterns.** Nothing is ever sold inside the game; no loot box, no random reward for money, no streak without a free missed day a
+    week, no notification outside the game. The hook is wanting one more star, one more gnome, one more upgrade and the next line of the radio.
+14. **The rally is the spine.** Every errand happens on the rally's roads around its weekend and almost every one needs both seats; every
+    session's long loop leads back to a start control. A crew may roam all evening, but the game is always one start away from a stage.
+15. **Two languages, everything.** The owner asked (2026-11-17) for complete Turkish and English support, so every phase's content is in
+    both: every word a player reads or hears comes from `data/locale/strings.csv` (keys, tr, en), Turkish written first and English
+    rewritten as its own line; the game opens in the OS's language (Turkish on a Turkish Windows, English on any other) and a TR/EN switch
+    sits on the main menu; a test fails the suite on a key without both languages or a text a player sees that bypasses the table (phase F
+    builds them, every later phase keeps them green).
+
+### The open world in numbers (what a free, AI-built project can reach)
+| | The play-test build (phase OW) | After the play-test (phase OW2) |
+|---|---|---|
+| Regions | 1: Çamlık Vadisi, forest, 3 x 2 km (6 km²) | 3: forest 4 x 3, desert 4 x 4, mountain 4 x 4 (about 44 km²) |
+| Stages | 6: Black Pine and Misty Creek inside the region, four standalone (roamable one at a time) | 6, each inside its biome's region |
+| Roads between stages | about 12 km (lanes, gravel, a village street, a tarmac road past the lake) | about 60 km |
+| Places | a village of 10-14 buildings round the service park, a hamlet, a farm with fields, a lake, two start controls | a small town hub of 40-60 buildings, a river with fords and bridges, a quarry, the hamlets of the desert and the mountain |
+| Enterable buildings | 20-30 (every code-built one; 3-8 insides drawn at a time) | about 80 |
+| People | 20-40 a village, 60 at the start area, about ten kinds, on schedules; 300-400 lines | the same per place, more places |
+| Animals | sheep and cows; dogs, goats and chickens from the approved downloads where a free model holds up (else heard only) | the same |
+| Traffic | 4-12 vehicles near the players by graphics level, never on a live stage | the same |
+| Drivable cars | the rally car and three ordinary cars (an estate, a van, a box truck) | the same |
+| Breakables | about 15 kinds by material, 4 kinds of collapsing structure, every reachable pane of glass | the same, placed wider |
+| Time and weather | chosen per room, fixed for the session | a moving clock and weather that changes |
+| Errands and career | about 30 errands, 3 seasons of 3 weekends and an endless one, 60 gnomes, 18 beads, 12 old plates, about 40 achievements, a daily rally | more errands on the new regions |
+
+Streaming keeps this inside the laptop's budget: 256 m tiles in three rings, baked offline into shipped data, Medium above 60 fps with three
+crews and p99 under 20 ms, no frame over 33 ms while driving across tiles, a region loaded in under 15 s. Phase OW0, a two-part spike right
+after phase F, proves or corrects these numbers before anything is designed around them; if it cannot, this table shrinks and says so.
+
+### The loops
+- **The core loop (3 minutes): a stage.** The navigator reads the map and the road book, calls, points; the driver drives into what he cannot
+  see; the cabin fills with jobs (windows, wipers, cans, the gun, the map in the wind); things by the road break and people dive; a fork, a
+  wreck ahead, a closed road, a puncture, a fog bank change the run from the last one. At the finish: the time, the medal, the awards, the
+  bill.
+- **The session loop (30-90 minutes): a weekend's day.** Roam the valley between stages; take an errand from someone at the tea garden; get
+  out, walk into the shop, carry the sacks to the car; drive to a start control and run the stage; service park, repairs by the zone in
+  thirty service minutes, a letter from the insurer; the radio talks about what you did yesterday.
+- **The long loop (hours): the career.** Three seasons that end at the old champion of 1987, whose story twelve old rally plates tell; car
+  builds and compounds; cosmetics (liveries of fictional local sponsors, helmets, horns, a nazar bead and a dashboard cat) that never hide the
+  team colour; achievements; a daily Surprise Rally from the date with a share line friends can compare; the discovery of the region.
+- **What makes a player stay**: a run is never the same (gags drawn from the seed, road events, the other crews' dust and stones); every run
+  leaves a story (the awards, the share card, the bill); something is always one step away (a star, a gnome, a part, a plate, the next
+  weekend); and the cast recurs (the headman, his goat, the vet, the rival mechanic, the old champion) so the world remembers you.
+- **The calm mode** (the owner: "a game you enter to calm down"): free roam, alone or with friends, no clock, nothing to fail, the radio on,
+  the countryside to drive, walk and break, everything repaired after you and billed.
+
+### The tone
+Dry and deadpan. The countryside takes the rally completely seriously while everything around it goes wrong; the joke is on the crews, the
+organisers, the insurer, the paperwork, the machines and the situation, never on the villagers for being villagers. Dark means the death of
+objects (a tractor's funeral after forty-seven years of service, a bonnet's last flight, a cake's lost tiers), bills, bad luck and the
+indifference of goats. Turkish is written first, English is rewritten as its own joke. One writing guide for the whole game (phase Q's
+text, written into `data/life/WRITING.md` by phase N), a lint test for lengths and a banned list, and the owner reads the first fifty lines.
+Examples of the voice: "Lütfen yoldan çekiliniz. Bu bir rica değil, fizik kuralı." / "Please stay off the road. It's not a request, it's
+physics." "Hasar dosyanız 'pazar tezgâhı, karpuz, 40 adet' olarak açılmıştır. Karpuzlar poliçe kapsamında değildir." / "Your claim reads
+'market stall, watermelons, 40'. Watermelons are not covered."
+
+### The opening
+About 60 seconds in the engine, with subtitles in both languages, at first launch and from the menu, skippable: the headman's loudspeaker
+asking villagers to tie up their goats and take in their washing, the crew in the cabin confessing that one cannot read a map and the other
+cannot see through the glass, the start, a montage of what the game breaks, the car frozen in the air under the title, and the goat. It is
+phase Q's last item, built once when everything it shows exists. The owner said "as we agreed": no agreed script was found in the project's
+records, and the owner asked the lead to decide everything, so the lead approved phase Q's proposal (Q13) as written on 2026-11-17; the
+owner may change it later (its timeline is data).
+
+### The road to the owner's first build
+The order is in `docs/phases/order.md`: F (the feel and the HUD) first, then OW0, M2, H, L2, P1, X, W, J, D, P2, OW, I, N, Q, A6, A7, A8 and
+A9b. That is about 247 builder parts of one to three hours each. The owner gets a build to play at the end of A9b, when the game is whole,
+every system is in, every flow test passes and the frame budgets hold: the play-test point. Nothing needs the owner before it: the owner
+asked the lead to decide, and the lead decided what was to be asked (2026-11-17, `order.md`): phase Q's opening is built as proposed, the
+three optional download batches (furniture, breaking sounds, farm animals) are approved, and phase F's blind drive of the old and new car
+feel is on the play-test build's checklist. After the play-test: the owner's findings, OW2 (two more regions, the moving clock and
+weather), the browser teaser (WD) and the launch (A10).

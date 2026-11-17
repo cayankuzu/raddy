@@ -92,13 +92,16 @@ No Blender; model in Godot only as a last resort.
   when a feature is verified. `docs/GAME_DESIGN.md` is the design bible: pillars, the rules every phase builds against,
   the 9.8 quality bar; it records the decisions taken since the spec. `docs/ART_DIRECTION.md` and
   `docs/REFERENCE_RESEARCH.md` hold the research. `CHANGELOG.md` is for players, `TEST_PLAN.md` holds what only people can check.
-- `docs/phases/*.md` are the briefs of the phases still to build, in this order (GAME_DESIGN's "Direction 2"): L (`l_levels.md`, real rally
-  roads with bypasses; it built M's map page, `m_map.md`), L2 (`l2_stages_events.md`, the other four stages and events that change the road,
-  with M's road book, trip meter and following view), X (`x_mayhem.md`), W (`w_world.md`, villages, farms, people), H (`h_hands.md`, mouse
-  hands), J (`j_join.md`, joining through any router), D (`d_demo.md`, the demo), A7 (`a7_ui.md`, with M's audit of the screens), A8 (`a8_net.md`), A6 (`a6_chaos.md`), A9b and A10 (`a9_a10.md`). A9a (`a9a_perf.md`)
-  measured and banked its cuts (DEVELOPMENT_PLAN). A phase's brief is its spec; what was done goes into DEVELOPMENT_PLAN. A built phase's
-  brief stays as its record (`a5b_crew_look.md`). `docs/phases/downloads.md` lists the approved raw downloads no phase has used yet (Freesound
-  sounds, Sketchfab models; under the git-ignored `raw_assets/`, on the dev PC only) and what each is for.
+- `docs/phases/*.md` are the phases' briefs. The order of work is `docs/phases/order.md` (Direction 3 in GAME_DESIGN; it also gives each
+  phase's parts, review lenses and flow stage, and the one owner of every system): F (`f_feel_hud.md`: the car's feel, the race HUD, Turkish
+  and English everywhere), OW0 (`ow_open_world.md` item 0, the streaming spike), M2 (`m_map.md` points 6-8), H (`h_hands.md`), L2
+  (`l2_stages_events.md`), P1 (`p_on_foot_cars.md` steps 1-2), X (`x_mayhem.md`), W (`w_world.md`), J (`j_join.md`), D (`d_demo.md`
+  items 1-4), P2 (`p_on_foot_cars.md` steps 3-9), OW (`ow_open_world.md`: the region, roam, `Profile`), I (`i_interiors_destruction.md`), N
+  (`n_npc_life.md`), Q (`q_missions_career.md`), A6 (`a6_chaos.md`), A7 (`a7_ui.md`), A8 (`a8_net.md`), A9b (`a9_a10.md`), the owner's
+  play-test build, then T, OW2, WD (`web_demo.md`) and A10 (`a9_a10.md`). L (`l_levels.md`), A9a (`a9a_perf.md`) and M's map page are
+  built. A phase's brief is its spec; what was done goes into DEVELOPMENT_PLAN. A built phase's brief stays as its record
+  (`a5b_crew_look.md`). `docs/phases/downloads.md` lists the approved raw downloads no phase has used yet (Freesound sounds, Sketchfab
+  models; under the git-ignored `raw_assets/`, on the dev PC only) and what each is for.
 
 ## Vehicle code (scripts/vehicles)
 - `RallyCar` (RigidBody3D) simulates in `_integrate_forces`: ray wheels cast by the car, spring/damper/bump stop,
