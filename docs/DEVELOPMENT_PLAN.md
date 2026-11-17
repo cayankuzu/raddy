@@ -871,6 +871,18 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   beads. The dials' glow needed nothing more. Seen in two sheets (the four signs of each seat from the other at night, before and after; the
   own hands on the wheel by day and at night): every sign reads, no cap per piece, no dark ring at a joint; from the own seat
   the coloured back runs on over the fingers on the rim (the final check's ragged edge short of the knuckles is gone). GUT 560/560.
+- 2026-11-17: M, the map page (points 1-5, 9, 10 of `docs/phases/m_map.md`): DONE. `MapSheet` (the page as data, once a race),
+  `MapRules` (the three levels: Explore and Rally the highlighter, Redline none; the round numbers), `MapLandmarks` (from
+  `RallyDressing.plan`), `MapPrint` (inks, fonts, symbols), `MapCanvas` rewritten (the page in its own viewport printed only on change,
+  layers, legend, title block with the flag, scale bar, north arrow, stamp), `RouteGraph.roads()` (every road for the map, a bypass
+  is one more entry), shaders `map_land`, `map_stamp`, `paper_map`. Decided: no MSDF fonts (the variable fonts' overlaps broke them:
+  the page is oversampled at the zoom instead); the land's heights before the road was pressed in; the stamp, flag and legend in the
+  margins, the legend left of the corner the thumb holds. Measured: an open map 0.05 ms GPU / 0.03-0.04 ms CPU (VIEWPORT map), the frame
+  0.15-0.25 ms cheaper with it up (`--flip-map`, Low/Medium/High, two runs each, another project's two Godot processes beside it); the
+  sheet made in 0.1-0.3 s at load. Verified: 21 map tests (each level's contents, page round trip, every wrong way on its world line at
+  its width, km ticks/gates/hazards at their places, nothing printed over anything on any stage at Rally and Redline, the scale bar,
+  north on a turned sheet), full GUT 573/573, nettest and flow test pass; shots in `reports/screenshots/m_map/`. Left for the next parts:
+  the road book, trip meter and following view (points 6-8), the audit.
 - 2026-11-17: A9a, item 1, where a frame goes: DONE (measured; nothing cut but the probe's own fault).
   - The first finding was the probe's: it set vsync off on every frame, which rebuilt the swap chain each time (about 10 ms a frame) and left
     the renderer's GPU stamps at 0. Every older number from `tools\perf.ps1` (30-37 fps on Medium, the 8.5-12 ms "floor", Vulkan's 17 fps) was

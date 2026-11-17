@@ -133,7 +133,10 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
 - Driver HUD: rev counter with shift lights, gear, speed, damage silhouette, split delta (green/red),
   stage progress with every crew, recovery prompt, who is talking. Never the road ahead.
 - Navigator: the paper map with the live car arrow, a trip meter (distance since reset, real rally
-  practice), the current note highlighted on the sheet.
+  practice), the current note highlighted on the sheet. The map is a map of the place (phase M): every road a road
+  (wrong ways too, closed as they are), everything a crew can see and tell apart on it to scale (crowds, arches, boards,
+  parked cars, log piles, rails, cliffs, forest, water, contours), nothing that gives a junction's answer away; the difficulty
+  only takes the route's highlighter away (Redline) and thins the calls, never the map's truth.
 - Menus: 3D car in the background, room with the crews and their cosmetics, results with a podium,
   awards and a shareable result card. Everything navigable with a gamepad.
 - Accessibility: colour-blind safe team colours, HUD scale, camera shake and motion options, FOV,

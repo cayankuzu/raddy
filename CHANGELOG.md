@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased (Phases A0, A2, A3, A4, A5, A5b, A6: solid ground, driving feel, stages 2.0, effects, the crew, the shock gun)
+- **A real map:** the navigator's sheet is now a printed rally map of the place: every road on it, the wrong ways too, each ending
+  where it really ends (a turning place and a log pile, or a barrier), the route marked with a highlighter and arrows (not on Redline:
+  there you find the stage yourself), start, splits, finish and every km board, contour lines, forest, water, cliffs, banks and guard
+  rails, the spectator areas, arches, boards, parked cars and chevrons, and the dangers as warning signs, with a legend, a scale, a
+  north arrow, the crew's names and the organiser's stamp. It stays sharp however far you zoom in.
 - **A crew in the car:** every seat a player holds now has somebody in it: a driver and a navigator in race suits of the team
   colour with white stripes, dark gloves and boots, open-face rally helmets and six-point harnesses. You see your own arms on the wheel,
   your knees and your harness, your partner beside you and in the interior mirror, the rival crews through their windows.

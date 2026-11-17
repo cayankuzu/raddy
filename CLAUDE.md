@@ -50,7 +50,8 @@ No Blender; model in Godot only as a last resort.
   print `FLIP <what> nodes shown_ms hidden_ms cost_ms median_cost_ms work_cost_ms tick_cost_ms draw_cost_ms gpu_cost_ms render_cpu_cost_ms`
   (`work_cost_ms` steady to 0.03 ms; `cost_ms` wanders by 0.3 ms and more: run twice, the second time in the reverse order): `road-fx`,
   `marks`, `crew`, `crew-motion` (the rigs only), `kit`, `livery`, `pod`, `crowd`, `hud`, `trees`, `low`, `backdrop`, `rocks` (the scenery
-  by `RoadsideDresser.scenery_class`), `shadows`, `lamps`, `mirrors`, `ssr`, `ssao`, `glow`, `fog`, `aa`. `--work-top=S` takes turns over
+  by `RoadsideDresser.scenery_class`), `shadows`, `lamps`, `mirrors`, `ssr`, `ssao`, `glow`, `fog`, `aa`, `map` (an open map: pass
+  `--navigator,--map-open`). `--work-top=S` takes turns over
   every script that processes (`FLIP work:<file>`: its `_process` a frame, its `_physics_process` a tick). The probe is compiled before the
   autoloads exist: it may name no class of the game that leans on one (`Net`, `Settings`), it finds nodes by `find_children("*", "<class>")`.
 - `tools\fx_probe.ps1 -At "22+30" [-Stage 0] [-Quality 1] [-Weather 0] [-Tag now] [-ExtraArgs "--follower=9,--follower-delay=2,--ride-follower"]`: at those
@@ -444,15 +445,37 @@ No Blender; model in Godot only as a last resort.
   `--view=M+E+H [--view-at=M+E+H]` (a fixed camera E m right of road metre M, H m up) `--quit-after-seconds=N`.
   `RaceSession.settings.stage` builds the same stage on every peer.
 
-## Paper map and pace notes (scripts/map)
+## Paper map and pace notes (scripts/map; phase M, `docs/phases/m_map.md`)
 - `PaceNotes.build(graph, detail)` → numbered rally calls in stage order ("Sol 3", "Saç tokası sağ", "Kör tepe!",
   "Atlama!", "Su geçişi!", "Uçurum solda!", cautions; Explore adds distances, Redline only the dangers).
-  `MapCanvas` (SubViewport, 1792×1152) draws the stage (turned sideways when it runs north-south), hazards, every wrong
-  way as red dashes with a crossed-out disc by its mouth, gates as lines across the road, numbered rings and gate labels
-  on free paper (`_free_spot`: never on each other, the road or a cross) and the notes column;
-  `MapCanvas.contour_for` is computed once per race. `PaperMap` (created by `Cabin._ready`) is the 3D sheet; `Cabin` holds
-  `map_state` (CLOSED/OPEN/GONE), the host-side wind risk, the 6 s replacement and the map RPCs.
-  Dev: `route_test.tscn --navigator --map-open --autodrive`; input actions `map_toggle` (M), `map_reset` (Home).
+- `MapRules` (pure, tested): what each difficulty shows (`contents`: Explore and Rally the route's highlighter, Redline none; the notes'
+  detail; the live car marker always) and the sheet's round numbers (scale bar, grid, contour interval and index lines, 1:N, the
+  biome's datum for printed heights). The map's truth never changes with the difficulty.
+- `MapSheet` (made once a race in `RaceSession._build_route`, `MapSheet.of_track(graph, terrain, track, notes, settings)`, shared by
+  every car; 0.1-0.3 s, the land's heights on the worker pool): the page as data, in page pixels (`PAGE` 1216×1152; `world_to_page` /
+  `page_to_world`, `page_direction`; a stage whose box prints bigger turned a quarter, `north` then points right). Roads come from
+  `RouteGraph.roads()`: one list of {kind, points, width, surface, end (through|dead_end|barrier), end_at, end_turn, landing,
+  landing_radius} (the stage per edge, every wrong way up to where a car can go); a new kind of road (a bypass) is an entry there and
+  is printed like the others, closed ends included (MapLandmarks puts the barrier or the log pile at `end_at`). Landmarks come from
+  `MapLandmarks.collect(graph, plan)` (pure): {kind, position, turn, at, side, text, size, points} out of `RallyDressing.plan` (its meta
+  `plan` on `Features/Rally`), whatever a later phase adds to the plan shows by itself (a kind `MapPrint.SYMBOLS` lacks is a building of
+  its `size`); the crowd's tape is its place's outline, chevrons one set a corner, arches at the start and finish. Also the route's line
+  and arrowheads, gates, a tick at every km board, water, cliffs' hachures (longer where the drop is), banks' ticks, rails as built
+  (`GuardRail.gap_of`), hazard pictograms (jump, crest, dip, water, caution, hairpin, a cliff's start; no surprise events) and the
+  calls' numbered rings, each on free paper (`_free_spot`, `is_free`: never on another, a road or the frame; a leader line back when
+  pushed off), the forest from the dresser's canopy (meta `canopy`, `canopy_rect` on `Dressing`), the legend's entries, title facts.
+- `MapPrint`: inks, the fonts (Saira, Inter, JetBrains Mono; no MSDF: their overlapping outlines break it) and every symbol as vectors,
+  the same drawing on the map and in the legend; colour is never the only sign (surfaces have a pattern). `MapCanvas` (SubViewport
+  1792×1152): the page in a viewport of its own (`Page`: layers Land (`shaders/map_land.gdshader`: relief shading, forest tint and tree
+  dots, contours as hairlines at any zoom), Grid, Relief, Places, Roads, Route (the highlighter multiplied, paler behind the car),
+  Marks, Frame, Title, Legend, Stamp (`map_stamp.gdshader`)) printed again only when the view or its content changes, at the zoom's
+  oversampling (crisp type at 4.5x), then the notes column (the road book's place, a later part) and the car marker, printed only when
+  the marker moves. `PaperMap` (created by `Cabin._ready`) is the 3D sheet (`shaders/paper_map.gdshader`: fibre, wear, the folds catch
+  the light), `RouteTracker` gives the highlighter's progress; `Cabin` holds `map_state` (CLOSED/OPEN/GONE), the host-side wind risk,
+  the 6 s replacement and the map RPCs; `Cabin.setup_map(sheet, notes)`, `canvas.set_crew(number, names)` letters the title block.
+  An open map costs about 0.05 ms GPU and 0.03 ms CPU a frame on every level (`--flip-map`; the frame is cheaper with it up, it hides
+  the world). Dev: `route_test.tscn --navigator --map-open --autodrive --map-png=P [--map-zoom=Z+X+Y]` (the sheet's picture);
+  input actions `map_toggle` (M), `map_reset` (Home).
 
 ## Multiplayer (scripts/network, scripts/gameplay)
 - `Net` autoload: ENet session + roster `{peer: {name, team, role, ready}}` owned by the host (peer 1).
