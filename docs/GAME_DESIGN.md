@@ -78,7 +78,10 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
     it should turn).
   - *The land*: a climb and a descent of 15 m within 500 m each (the engine labours, the brakes fade, the view opens and closes); a crest,
     jump, dip or water at least every 400 m.
-  - *Choices*: one to three bypasses a stage, and in each biome's pair of stages at least one shortcut and one long way.
+  - *Choices*: one to three bypasses a stage, and in each biome's pair of stages at least one shortcut and one long way. A choice is a
+    question, not a sure thing: a long way is 115-140 % of what it replaces (longer is a detour nobody takes), a shortcut at most 70 %
+    with a price, and the bot's times through each stay within a few seconds of the stage's own road (the fix run: -4.7 to +5.3 s).
+    No two bypasses are alike, on one stage or across the catalogue.
   - *Places*: four to eight gag slots at least 250 m apart, one signature place, at least two places for spectators.
   - *Rhythm*: never more than 600 m without something new: a change of pace (technical corners of 3 and tighter to fast road, a 5, a 6
     or 150 m of straight, and back), an air moment (a jump or a crest of 1.4 m), water, a place (spectators, a gag slot, the set piece)

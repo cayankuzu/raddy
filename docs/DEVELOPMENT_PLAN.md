@@ -1086,3 +1086,36 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   Not done: the other four stages (a later run); the bypasses' own corners are still uncalled and their sightlines unmeasured; the bot
   drives into the end of the road after the finish at 17-26 m/s in `route_test` (Misty Creek, untouched, does the same: the dev scene's
   bot, not the race).
+- 2026-11-17: L, the reviewers' findings on parts 1-3 fixed: DONE. `StageCatalog.LAYOUT` 5 (old times went again).
+  - The forks were copies and no choice: both stages had the same T-shaped long way (283 m for 156, +14 s) and the same square field
+    loop mirrored (four 90-degree corners, a straight shortcut at 54 %, -10.5 / -12.8 s). Now each is its own (`test_no_two_bypasses_are_alike`):
+    Black Pine's long way leaves left round a right 2, the first jump and a square left off its landing (221 m for 190, 116 %); its field
+    loop is a right, a dip, a left 1 caution, a crest and two lefts, the ford track running straight on (144 m for 260), its call 40 m
+    clear of the caution left before it ("Sol 3! Dikkat" 2090, "Kısayol düz: dere!" 2130, "Sağ 2" 2168); Red Canyon's long
+    way leaves right 56 m past the crest (its call no longer on the crest) and comes back inland round the jump on the cliff and a right
+    that tightens off it (205 m for 170, 121 %), the stage running 78 m straight after the rejoin so the junction is "Düz, sağa değil";
+    its narrow sunken lane forks right at 40 degrees off a left 2 (193 m for 290); its tail is its own. `RouteValidator.LONG_MOST` 1.4: a
+    longer long way is a detour nobody takes (`test_a_long_way_is_a_choice_not_a_detour`). Found by searching every shape of each
+    bypass's angles, holds, reaches and rejoins against both judges (a scratch harness), then timing the passing ones with the bot.
+  - Bot (`route_test --autodrive`, day unless said, 0 recoveries, every gate, no hit of 8 m/s on the stage in any run):
+
+    | Stage | Its road | Long way | Shortcut | Both: Explore | Both: Redline, rain / dust | Both: fog | Road: Redline rain |
+    |---|---|---|---|---|---|---|---|
+    | Black Pine | 175.5 s | 179.6 s (+4.1) | ford 171.5 s (-4.0) | 175.5 s | rain 178.2 s | 175.5 s | 176.3 s |
+    | Red Canyon | 160.9 s | 166.2 s (+5.3) | narrow 156.2 s (-4.7) | 161.4 s | dust 161.6 s | 161.5 s | |
+
+    Medal speeds stay: the bot averages 15.8 m/s on Black Pine and 17.6 m/s on Red Canyon over their own roads.
+  - A straight shortcut was called by its side ("Kısayol solda" while the stage turned 90 degrees and the track ran on): a bypass within
+    `PaceNotes.BYPASS_STRAIGHT` 20 degrees of the stage's heading 30 m in is "Kısayol düz: dere!" / "Shortcut straight: ford!".
+  - Recovery put a car stuck in the open beside a shortcut onto the shortcut past its price (a shortcut's metre is worth 1.9 of the
+    stage's): `RecoveryAnchor.find` takes `on_road` (the tracker's road) and lands only on the stage or that bypass.
+  - The tracker changed road 6-8 times a run while a car drove the stage 1.5-3 m off centre beside a mouth (and the car behind it lost
+    its stones): it now changes road only once the car is off its own road's surface and shoulders (`test_a_car_beside_a_mouth_stays_on_the_stage`).
+  - The map's forest came from the dresser's canopy thinned by the graphics level (15 % of Black Pine's forest pixels differed between
+    Low and High): the canopy meta is now placed at full density on every peer (what is thinned is never hard, so placing it again sees
+    the same world); the ground's shade keeps the thinned one.
+  - The north arrow stood over the scale bar's unit: the bar now keeps `MapSheet.SCALE_ROOM` (156 px) clear of it (tested per stage).
+  - `Net.JOIN_VERSION` is the protocol and `StageCatalog.LAYOUT`: a build on other roads is refused as a version mismatch.
+  - Red Canyon's narrow lane is a sunken lane between earth banks, as the seat shows: its description says so (no slot canyon).
+  Seen (reports/screenshots/l_fix): both map sheets, each bypass on them up close, the mouths and the ford and the lane from the seat.
+  Not done: the bypasses' own corners are still uncalled.

@@ -34,11 +34,12 @@ const CLIFF_REACH := 60.0
 const SPUR_TOUCH := 2.0 * TrackFeatures.SPUR_CORRIDOR + 4.0
 const CLIFF_OVERHANG := 8.0
 ## Bypasses: the least stretch of the stage one replaces, how much shorter a shortcut is and how much longer a
-## long way, how sharply one of a junction's branches turns (a real fork, a T or a turn off, never a lane beside
+## long way (and at most: a detour longer than that costs more than any risk it saves, and nobody takes it), how sharply one of a junction's branches turns (a real fork, a T or a turn off, never a lane beside
 ## the road), how far along its branches that is measured, how far its price keeps from its ends.
 const BYPASS_MIN_STRETCH := 120.0
 const SHORTCUT_SHARE := 0.7
 const LONG_SHARE := 1.15
+const LONG_MOST := 1.4
 const BRANCH_TURN := deg_to_rad(60.0)
 const BRANCH_LOOK := 35.0
 const PRICE_CLEAR := 40.0
@@ -87,6 +88,8 @@ static func _check_bypasses(graph: RouteGraph, problems: Array[String]) -> void:
 			&"long":
 				if bypass.length < stretch * LONG_SHARE:
 					problems.append("%s is a long way of %.0f m for %.0f m of stage" % [name, bypass.length, stretch])
+				if bypass.length > stretch * LONG_MOST:
+					problems.append("%s is a detour of %.0f m for %.0f m of stage that nobody takes" % [name, bypass.length, stretch])
 			_:
 				problems.append("%s is of no kind" % name)
 		if bypass.price != &"" and (bypass.price_at < PRICE_CLEAR or bypass.price_at > bypass.length - PRICE_CLEAR):

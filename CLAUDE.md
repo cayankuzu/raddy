@@ -307,7 +307,7 @@ No Blender; model in Godot only as a last resort.
   (scene changes are deferred: spawn RPCs sent earlier are lost), then a 3 s countdown with `car.input_locked`.
   Results: host clock + recovery penalty, `RaceResults.rows()`, published when all finished/left or 120 s after
   the first finisher. `StageRecords` (user://records.cfg, per PC, section `best_v<StageCatalog.LAYOUT>`: bump `LAYOUT` when
-  the roads change so much that old times mean nothing) keeps the best time per stage and gives
+  the roads change so much that old times mean nothing; `Net.JOIN_VERSION` carries it, so a build on other roads cannot join) keeps the best time per stage and gives
   bronze/silver/gold from the stage length (`MEDAL_SPEEDS`); results show the medal and a new record,
   the room shows the medal times and the record. Host buttons: same stage / next stage (`Net.start_race(settings, true)`) / back to room.
 - UI is built in code with `UiTheme` (static helpers must use `TranslationServer.translate`, not `tr`).
@@ -356,16 +356,18 @@ No Blender; model in Godot only as a last resort.
   `width`} makes a `RouteGraph.Bypass` in `graph.bypasses` (edge ids from `BYPASS_EDGE_BASE` 2000; `SideRoad` is the base of it and of
   `Spur`; `side_roads()`, `edge_by_id()`). One coordinate (GAME_DESIGN law 2): `graph.along_of(road, metres)` maps a bypass linearly onto
   the stretch it replaces, `followed_roads()` gives the stage (`RouteGraph.STAGE`) and every bypass to what follows a car, `path_through(ids)`
-  is a bot's way. `RouteValidator._check_bypasses`: a shortcut at most 70 % of its stretch with a price, a long way at least 115 %, no gate
+  is a bot's way. `RouteValidator._check_bypasses`: a shortcut at most 70 % of its stretch with a price, a long way 115-140 % (longer is a detour nobody takes), no gate
   inside the stretch, a branch turning 60 degrees or more at each end, the stage's way at both ends, 30 m from other stretches, nothing
-  crossed. `RouteTracker` follows the road the car is on (`road`, `road_distance`) and changes road near a junction where the other is
-  nearer, the difference fading over `SWITCH_BLEND` 40 m; `RecoveryAnchor.find` lands on any followed road (`road`, `own`); stones fly only
+  crossed. `RouteTracker` follows the road the car is on (`road`, `road_distance`) and changes road near a junction once the car is off
+  its own road's surface and shoulders and the other is nearer, the difference fading over `SWITCH_BLEND` 40 m; `RecoveryAnchor.find` lands
+  on the stage or on the bypass the tracker has the car on (`on_road`; a car stuck beside a shortcut never lands past its price); stones fly only
   between cars on the same road; bots take each bypass by a coin (`RouteFollower.choose_bypasses`, `--bot-roll=N`; flowtest 153: host on the
   stage, client on both) and slow for a price (`price_places`). Prices: a ford is a pool on the bypass's own dip (`Ford<id>`), a gate is a
   `FarmGate` (`GateRules`: burst at 5.5 m/s and more, the car keeps 60 % of its speed and takes a hit the host judges; a standing crew holds
   `cabin_gate` (G) 3 s; `StageEvents.gate_wanted` -> the host's `_rpc_open_gate`), narrow is a 3.2 m lane between earth banks
   (`RoadBuilder._build_banks`), rough is ruts on the stage's own surface. World: `Track/Bypasses/Bypass<id>` (road, `Mouth`, `Rejoin`,
-  `Banks`), its own walls. Notes: "Kısayol solda: dere!" / "Long way left!" 40 m before the mouth, the rejoin a junction call. Map: a road
+  `Banks`), its own walls. Notes: "Kısayol solda: dere!" / "Long way left!" 40 m before the mouth ("Kısayol düz" / "straight"
+  when it runs on within 20 degrees where the stage turns, `PaceNotes.BYPASS_STRAIGHT`), the rejoin a junction call. Map: a road
   like every other, the ford's water, each price's pictogram. `route_test --bypasses=all|none|0+1 --price=P --on-bypass=B`.
 - `TerrainField(seed, relief).set_roads(graph)`: IDW surface through the road heights + hills growing away from
   the road + cliff drops / bank walls from the features. It owns the ground grid (`CELL` 4 m, `MARGIN` 140 m, `grid_at`), the

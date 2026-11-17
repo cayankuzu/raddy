@@ -6,10 +6,17 @@
 - **Black Pine and Red Canyon rebuilt as real rally roads:** corners that flow into each other, esses, corners that tighten and open,
   real climbs and descents, and a choice to make. Black Pine runs through a farm (a muddy yard, a hairpin, the barn's ground) between
   its two jumps. Red Canyon climbs onto the rim beside the drop, jumps the biggest jump in the game, runs through a hamlet's street,
-  offers a long way inland round the cliff and its second jump, sends you flat out over three yumps into a hairpin where the crowd
-  waits, and lets a brave crew cut the last loop through a slot canyon. Old times on both are gone: the roads changed.
+  offers a long way inland round the jump on the cliff and the tightening right off its landing, sends you flat out over three yumps
+  into a hairpin where the crowd waits, and lets a brave crew cut the last loop down a narrow sunken lane. Old times on both are gone:
+  the roads changed.
+- Every fork is a real choice now: a long way costs about four or five seconds against a clean run of the hard piece it goes round,
+  a shortcut saves about as much if you pay its price (slow through the ford, careful down the narrow lane). Each stage's forks are its
+  own. A shortcut that runs straight on where the road turns is called "Kısayol düz" / "Shortcut straight".
+- A car stuck in the open ground beside a shortcut is now put back on the road it left, never past the shortcut's price; the map's
+  forest is the same for every player whatever their graphics setting; the scale no longer runs under the north arrow; a game on
+  other stage roads can no longer join a room.
 - Roads that fork: Black Pine now has a long way round its first jump and, near the end, a farm track straight across the field that
-  fords a creek, half the length of the road round it. The navigator hears both ("Uzun yol solda!", "Kısayol solda: dere!") and the
+  fords a creek, half the length of the road round it. The navigator hears both ("Uzun yol solda!", "Kısayol düz: dere!") and the
   map prints them as roads with their price. Shortcuts can also cost a farm gate (ram it at a cost, or stop and hold G for three
   seconds), a rutted track or a narrow lane between banks. Black Pine's old times are gone: the road changed.
 - **A real map:** the navigator's sheet is now a printed rally map of the place: every road on it, the wrong ways too, each ending

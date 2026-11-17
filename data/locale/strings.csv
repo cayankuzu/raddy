@@ -195,11 +195,11 @@ RESULTS_SPLITS,Kapı,Gates
 RESULTS_NEXT_STAGE,Sonraki etap,Next stage
 BOARD_STOP,DUR,STOP
 STAGE_BLACK_PINE,Kara Çam Geçidi,Black Pine Pass
-STAGE_BLACK_PINE_DESC,"Hızlı, akan orman çakılı: kör tepeler, iki atlama, bir su geçişi, ortada çamurlu bir çiftlik ve ahırın içinden geçen yol; atlamayı dolanan uzun yol ve dereden geçen kısayol.","Fast, flowing forest gravel: blind crests, two jumps, a water splash, a muddy farm in the middle with the road through the barn; a long way round a jump and a shortcut through the creek."
+STAGE_BLACK_PINE_DESC,"Hızlı, akan orman çakılı: kör tepeler, iki atlama, bir su geçişi, ortada çamurlu bir çiftlik ve ahırın içinden geçen yol; atlamayı ve ardındaki keskin solu dolanan uzun yol, dereden geçen kısayol.","Fast, flowing forest gravel: blind crests, two jumps, a water splash, a muddy farm in the middle with the road through the barn; a long way round a jump and the square left after it, a shortcut that fords the creek."
 STAGE_MISTY_CREEK,Sisli Dere,Misty Creek
 STAGE_MISTY_CREEK_DESC,"Dar ve kaygan dere yolu: dört su geçişi, sıkı virajlar ve bol çamur. Silecekleri hazır tut.","A narrow, slippery creek road: four water crossings, tight corners and plenty of mud. Keep the wipers ready."
 STAGE_RED_CANYON,Kızıl Kanyon,Red Canyon
-STAGE_RED_CANYON_DESC,"Kızıl bir kanyonda geniş çakıl: uçurum kenarında tırmanış, oyunun en büyük atlaması, bir köy sokağı, tümseklerin üstünden saç tokasına dümdüz koşu; uçurumu dolanan uzun yol ve dar bir boğazdan geçen kısayol.","Wide gravel through a red canyon: a climb along the cliff edge, the biggest jump in the game, a hamlet's street, a flat-out run over yumps into a hairpin; a long way round the cliff and a shortcut through a slot canyon."
+STAGE_RED_CANYON_DESC,"Kızıl bir kanyonda geniş çakıl: uçurum kenarında tırmanış, oyunun en büyük atlaması, bir köy sokağı, tümseklerin üstünden saç tokasına dümdüz koşu; uçurumdaki atlamayı içeriden dolanan uzun yol, toprak setler arasında gömülü dar bir yoldan geçen kısayol.","Wide gravel through a red canyon: a climb along the cliff edge, the biggest jump in the game, a hamlet's street, a flat-out run over yumps into a hairpin; a long way inland round the jump on the cliff, a shortcut down a narrow sunken lane between earth banks."
 STAGE_SCORPION_HILLS,Akrep Tepeleri,Scorpion Hills
 STAGE_SCORPION_HILLS_DESC,"Dalgalı kum tepeleri: art arda tepeler, üç atlama ve zirvede bir saç tokası.","Rolling sand hills: chains of crests, three jumps and a hairpin at the top."
 STAGE_EAGLE_NEST,Kartal Yuvası,Eagle's Nest

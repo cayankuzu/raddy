@@ -37,7 +37,7 @@ func test_black_pine_has_a_shortcut_with_a_price_and_a_long_way() -> void:
 		gut.p("%s %s: %.0f m for %.0f m of stage (%.0f %%)" % [bypass.kind, bypass.price, bypass.length, stretch, bypass.length / stretch * 100.0])
 	assert_true(kinds.has(&"shortcut") and kinds.has(&"long"), "one of each")
 	assert_true((kinds[&"shortcut"] as RouteGraph.Bypass).price in RouteValidator.PRICES, "the shortcut has a price")
-	assert_eq(StageCatalog.LAYOUT, 4, "the new roads made old times mean nothing")
+	assert_eq(StageCatalog.LAYOUT, 5, "the new roads made old times mean nothing")
 	assert_eq(preload("res://scripts/network/net.gd").JOIN_VERSION % 100, StageCatalog.LAYOUT, "a build on other roads cannot join")
 
 
@@ -88,6 +88,30 @@ func test_a_shortcut_needs_a_price_and_to_be_shorter() -> void:
 	assert_true(_has(_problems(_field({"kind": "shortcut", "side": "left", "rejoin": 318})), "without a price"))
 	assert_true(_has(_problems(_field({"kind": "long", "side": "left", "rejoin": 318})), "is a long way of"))
 	assert_true(_has(_problems(_field({"kind": "shortcut", "side": "left", "rejoin": 318, "price": "toll"})), "without a price"))
+
+
+func test_a_long_way_is_a_choice_not_a_detour() -> void:
+	# Out square and back square round a straight 120 m: the old long ways' T, 80 % longer, 14 s for a bot.
+	var segments: Array = [{"len": 1100}, {"len": 300, "bypass": {"kind": "long", "side": "left", "at": 0.2, "rejoin": 160, "angle": 85, "join": 85,
+		"reach": 0.5, "hold": 25}}, {"len": 600}, {"len": 40, "turn": 70}, {"len": 500}]
+	assert_true(_has(_problems(segments), "that nobody takes"), "%s" % [_problems(segments)])
+	for i in StageCatalog.count():
+		var graph := StageBuilder.build(StageCatalog.get_stage(i))
+		for bypass in graph.bypasses:
+			var share := bypass.length / (bypass.rejoin - bypass.at)
+			gut.p("%s %s %s: %.0f m for %.0f m (%.2f), leaving at %.0f m" % [graph.stage_id, bypass.kind, bypass.price, bypass.length,
+				bypass.rejoin - bypass.at, share, bypass.at])
+
+
+func test_no_two_bypasses_are_alike() -> void:
+	# Each stage's choices are its own: no bypass of one is a copy of another's, mirrored or not.
+	var all: Array[RouteGraph.Bypass] = []
+	for i in StageCatalog.count():
+		all.append_array(StageBuilder.build(StageCatalog.get_stage(i)).bypasses)
+	for a in all.size():
+		for b in range(a + 1, all.size()):
+			var alike := absf(all[a].length - all[b].length) < 8.0 and absf((all[a].rejoin - all[a].at) - (all[b].rejoin - all[b].at)) < 8.0
+			assert_false(alike, "bypasses %d and %d are the same road" % [a, b])
 
 
 func test_a_bypass_beside_the_road_is_no_junction() -> void:
