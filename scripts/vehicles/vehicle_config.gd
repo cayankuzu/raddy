@@ -5,7 +5,7 @@ extends Resource
 
 ## The A2 feel's values of what phase F changed, for the owner's side-by-side drive.
 const FEEL_A2 := {"steer_travel_lock": 0.0, "steer_rate": 2.2, "steer_return_rate": 3.5, "key_steer_rate_low": 7.0,
-	"key_steer_rate_high": 2.6, "pad_steer_follow": 22.0, "wheel_full_range": false, "assist_fade_in": 0.0}
+	"key_steer_rate_high": 2.6, "pad_steer_follow": 22.0, "wheel_full_range": false, "assist_fade_in": 0.0, "assist_cap": 0.0}
 
 @export_group("Body")
 @export var mass := 1200.0
@@ -57,6 +57,9 @@ const FEEL_A2 := {"steer_travel_lock": 0.0, "steer_rate": 2.2, "steer_return_rat
 @export_range(0.0, 0.8, 0.01, "radians_as_degrees") var assist_free_slip := deg_to_rad(8.0)
 ## Seconds the assist takes to come back after the handbrake is let go (0: at once, in one tick, A2).
 @export var assist_fade_in := 0.4
+## The assist's torque at most this share of the tyres' grip times half the wheelbase (what the tyres could turn the car with; about
+## what an ESC gets by braking one wheel): a help, never a hand stronger than the car's own (0: no cap, A2's was up to 3x the tyres').
+@export_range(0.0, 1.0) var assist_cap := 0.25
 
 @export_group("Steering")
 @export_range(0.0, 1.0, 0.01, "radians_as_degrees") var max_steer_angle := deg_to_rad(32.0)

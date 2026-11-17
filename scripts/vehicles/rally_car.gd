@@ -51,6 +51,8 @@ var assist_scale := 1.0
 ## put on the body and what the four tyres' forces gave.
 var assist_torque := 0.0
 var tyre_yaw_moment := 0.0
+## This tick's grip of the tyres on the ground, summed (N): what caps the assist.
+var _tyre_grip := 0.0
 ## Seconds of "handbrake turn" intent left (refilled while the handbrake is held).
 var _handbrake_intent := 0.0
 ## How far the stability assist is back since the handbrake was let go (0..1, config.assist_fade_in).
@@ -142,6 +144,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	_update_drivetrain()
 	var space := state.get_space_state()
 	tyre_yaw_moment = 0.0
+	_tyre_grip = 0.0
 	for wheel in _wheels:
 		_simulate_wheel(state, space, wheel, dt)
 	_apply_anti_roll(state)
@@ -457,6 +460,7 @@ func _apply_tire_force(state: PhysicsDirectBodyState3D, wheel: CarWheel, offset:
 	var gravity := state.total_gravity
 
 	var grip := config.tire_grip * Surface.grip(wheel.surface) * grip_scale * load
+	_tyre_grip += grip
 	var lateral_grip := grip
 	var front_share := config.front_drive_share if wheel.is_front else 1.0 - config.front_drive_share
 	var f_long := _drive * front_share * 0.5
@@ -540,6 +544,9 @@ func _apply_stability_assist(state: PhysicsDirectBodyState3D) -> void:
 		correction -= yaw_rate * assist
 	var yaw_inertia := 1.0 / maxf(state.inverse_inertia.y, 0.000001)
 	assist_torque = correction * yaw_inertia * _assist_back
+	if config.assist_cap > 0.0:
+		var most := config.assist_cap * _tyre_grip * wheelbase * 0.5
+		assist_torque = clampf(assist_torque, -most, most)
 	state.apply_torque(up * assist_torque)
 
 

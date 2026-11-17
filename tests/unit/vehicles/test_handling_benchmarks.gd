@@ -241,6 +241,26 @@ func test_catch_a_fast_slide_with_the_assist_off() -> void:
 			assert_lt(absf(figures.end), 3.0, "straight again")
 
 
+## The assist is a help, never a hand stronger than the car's: at its strongest level (2) in the catch its torque stays within a quarter
+## of the tyres' grip times half the wheelbase (VehicleConfig.assist_cap; the weight on flat gravel stands for the grip, with room for
+## the load moving about). A2's peaked at 5547 N m in the catch at level 1, three times the tyres' own yaw moment.
+func test_the_assist_is_capped_by_the_tyres() -> void:
+	var limit := _car.config.assist_cap * _car.mass * GRAVITY * Surface.grip(Surface.GRAVEL) * _car.config.tire_grip * _car.wheelbase * 0.5
+	for level in [1, 2]:
+		var run := FeelRun.new(_car, "catch", Vector3.ZERO, -1, level)
+		var peak := 0.0
+		var caught := -1.0
+		while not run.done:
+			run.tick(1.0 / TICKS)
+			await wait_ticks(1)
+			peak = maxf(peak, absf(_car.assist_torque))
+			if caught < 0.0 and run.time > FeelScripts.RUN_UP + 0.05 and absf(_car.body_slip_angle()) < deg_to_rad(5.0):
+				caught = run.time - FeelScripts.RUN_UP
+		gut.p("catch at assist level %d: the assist's peak %.0f N m (cap about %.0f), under 5 deg at %.2f s" % [level, peak, limit, caught])
+		assert_lt(peak, limit * 1.3, "level %d within the cap" % level)
+		assert_between(caught, 0.0, 1.5, "level %d still catches it" % level)
+
+
 # --- helpers ---
 
 ## The catch script with the assist off on `preset`'s feel: when the slip first falls under 5 degrees (s after the counter-steer, -1
