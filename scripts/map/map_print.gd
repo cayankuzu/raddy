@@ -1,6 +1,7 @@
 class_name MapPrint
 ## How the navigator's map is printed: its inks, its type (the game's own fonts, Saira for headings and numbers, Inter for text,
-## JetBrains Mono for the grid, as signed distance fields so a word stays sharp however far the sheet is zoomed) and its symbols,
+## JetBrains Mono for the grid; sharp however far the sheet is zoomed, since MapCanvas prints its page at the zoom's oversampling: no
+## signed distance fields, which break on these variable fonts' overlapping outlines, a JetBrains Mono 8 most of all) and its symbols,
 ## drawn as vectors on any CanvasItem: the map page draws them where things are and the legend beside their names, the same
 ## drawing both times. A symbol is never told by its colour alone: every kind has its own shape.
 
@@ -46,12 +47,7 @@ static func font(face: StringName, weight := 400) -> Font:
 	var key := "%s%d" % [face, weight]
 	if not _fonts.has(key):
 		if not _faces.has(face):
-			var file := FontFile.new()
-			file.data = (load(FONTS[face]) as FontFile).data
-			file.multichannel_signed_distance_field = true
-			file.msdf_pixel_range = 8
-			file.msdf_size = 48
-			_faces[face] = file
+			_faces[face] = load(FONTS[face]) as FontFile
 		var variation := FontVariation.new()
 		variation.base_font = _faces[face]
 		variation.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}

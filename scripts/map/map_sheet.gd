@@ -46,6 +46,8 @@ const SPOT_REACHES: Array[float] = [14.0, 20.0, 27.0, 35.0, 44.0, 54.0, 66.0]
 const SPOT_SLIDES: Array[float] = [0.0, 10.0, -10.0, 20.0, -20.0]
 ## Something further from its place than this gets a line back to it.
 const LEADER_FROM := 18.0
+## The roads' points are looked up by square cells this big (px).
+const ROAD_CELL := 32.0
 
 var graph: RouteGraph
 var turned := false
@@ -96,9 +98,9 @@ var scale_metres := 100.0
 ## The page angle north points to.
 var north := -PI * 0.5
 
-## What must not be printed over: Vector3(x, y, radius); the roads' points and how wide they are.
+## What must not be printed over: Vector3(x, y, radius); every road point by its ROAD_CELL (Vector2i -> PackedVector2Array).
 var _taken: Array[Vector3] = []
-var _road_points := PackedVector2Array()
+var _road_cells := {}
 
 
 ## The sheet of `graph`. `terrain` gives the land (null: plain paper), `plan` RallyDressing.plan, `canopy` RoadsideDresser's over
@@ -221,7 +223,11 @@ func _add_roads() -> void:
 		if float(road.get("landing_radius", 0.0)) > 0.0:
 			landings.append({"at": world_to_page(road.landing), "radius": float(road.landing_radius) * pixels_per_metre, "surface": road.surface})
 	for road in roads:
-		_road_points.append_array(road.points)
+		for p: Vector2 in road.points:
+			var cell := Vector2i((p / ROAD_CELL).floor())
+			if not _road_cells.has(cell):
+				_road_cells[cell] = PackedVector2Array()
+			_road_cells[cell].append(p)
 
 
 func _paged(points: PackedVector2Array) -> PackedVector2Array:
@@ -431,9 +437,13 @@ func is_free(spot: Vector2, radius: float) -> bool:
 		if spot.distance_to(Vector2(taken.x, taken.y)) < radius + taken.z:
 			return false
 	var clear := radius + 4.0 + 2.6 * pixels_per_metre
-	for p in _road_points:
-		if spot.distance_squared_to(p) < clear * clear:
-			return false
+	var low := Vector2i(((spot - Vector2.ONE * clear) / ROAD_CELL).floor())
+	var high := Vector2i(((spot + Vector2.ONE * clear) / ROAD_CELL).floor())
+	for y in range(low.y, high.y + 1):
+		for x in range(low.x, high.x + 1):
+			for p: Vector2 in _road_cells.get(Vector2i(x, y), PackedVector2Array()):
+				if spot.distance_squared_to(p) < clear * clear:
+					return false
 	return true
 
 
@@ -449,16 +459,24 @@ func _measure_land(terrain: TerrainField) -> void:
 		box = box.expand(c)
 	var cells := Vector2i((box.size / LAND_CELL).ceil()) + Vector2i.ONE
 	land_rect = Rect2(box.position, Vector2(cells - Vector2i.ONE) * LAND_CELL)
+	# A row a task on the worker threads (the land is most of the sheet's making: 0.2-0.7 s alone, half that on the pool).
+	var rows := []
+	rows.resize(cells.y)
+	var task := WorkerThreadPool.add_group_task(func(y: int) -> void:
+		var row := PackedFloat32Array()
+		row.resize(cells.x)
+		for x in cells.x:
+			row[x] = terrain.natural_height(land_rect.position + Vector2(x, y) * LAND_CELL)
+		rows[y] = row, cells.y)
+	WorkerThreadPool.wait_for_group_task_completion(task)
 	var values := PackedFloat32Array()
-	values.resize(cells.x * cells.y)
+	for row: PackedFloat32Array in rows:
+		values.append_array(row)
 	var lowest := INF
 	var highest := -INF
-	for y in cells.y:
-		for x in cells.x:
-			var h := terrain.natural_height(land_rect.position + Vector2(x, y) * LAND_CELL)
-			values[y * cells.x + x] = h
-			lowest = minf(lowest, h)
-			highest = maxf(highest, h)
+	for h in values:
+		lowest = minf(lowest, h)
+		highest = maxf(highest, h)
 	heights = Image.create_from_data(cells.x, cells.y, false, Image.FORMAT_RF, values.to_byte_array())
 	contour_step = MapRules.contour_step(lowest, highest)
 	datum = float(MapRules.altitude(0.0, graph.biome))

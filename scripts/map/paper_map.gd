@@ -121,8 +121,8 @@ func _unfold() -> void:
 	_sheet.position = LAP_POSITION
 	_sheet.rotation_degrees = LAP_ROTATION_DEG
 	_sheet.scale = FOLDED_SCALE
+	# The picture is printed again only when something on it changes (MapCanvas).
 	canvas.reset_view()
-	canvas.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_animate(HELD_POSITION, HELD_ROTATION_DEG, Vector3.ONE)
 
 

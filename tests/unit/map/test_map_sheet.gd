@@ -13,7 +13,10 @@ func _sheet(index: int, difficulty := RaceSettings.Difficulty.RALLY) -> MapSheet
 		var terrain := TerrainField.new(graph.seed)
 		terrain.set_roads(graph)
 		var notes := PaceNotes.build(graph, RaceSettings.note_detail(difficulty))
-		_sheets[key] = MapSheet.make(graph, terrain, RallyDressing.plan(graph, terrain), null, Rect2(), notes, {"stage": index, "difficulty": difficulty})
+		var plan := RallyDressing.plan(graph, terrain)
+		var began := Time.get_ticks_usec()
+		_sheets[key] = MapSheet.make(graph, terrain, plan, null, Rect2(), notes, {"stage": index, "difficulty": difficulty})
+		gut.p("%s: the sheet made in %.0f ms (once a race, on every peer)" % [graph.stage_id, (Time.get_ticks_usec() - began) / 1000.0])
 	return _sheets[key]
 
 

@@ -21,7 +21,8 @@ extends SceneTree
 ## either), crew-motion (the bodies stay, at rest as they sit), kit (the cage and the seats), livery (the stickers, the mud flaps, the
 ## print on the paint), pod (the light pod and its beam), crowd (the spectators), hud (every canvas layer); trees, low, backdrop, rocks
 ## (the roadside scenery by class, RoadsideDresser.scenery_class); shadows (every light's), lamps (the cars' lights), mirrors (no new
-## mirror picture), ssr, ssao, glow, fog (volumetric), aa (SMAA/FXAA and MSAA). The open map's picture is its VIEWPORT line.
+## mirror picture), ssr, ssao, glow, fog (volumetric), aa (SMAA/FXAA and MSAA), map (an open map: its sheet, its pictures and its
+## script, as if it were folded away; pass --navigator,--map-open). The open map's picture is its VIEWPORT line.
 ## --work-top=S takes turns, the same way, over every script that processes (by file): its nodes' _process and _physics_process off
 ## and on; the FLIP lines are named work:<file>, their work_cost_ms what its _process costs a frame, tick_cost_ms its _physics_process a tick.
 ## --window=fullscreen|exclusive puts the window so (the floor's present path); --scene=look_test (a dev scene's name, or res://..) is an empty stage.
@@ -32,7 +33,7 @@ const NODE_FLIPS := {"road-fx": &"road_fx_pool", "marks": &"tyre_marks", "crew":
 	"livery": &"CarLivery", "pod": &"CarLightPod", "crowd": &"Spectators", "hud": &"CanvasLayer"}
 const SCENERY_FLIPS := ["trees", "low", "backdrop", "rocks"]
 const ENV_FLIPS := {"ssr": &"ssr_enabled", "ssao": &"ssao_enabled", "glow": &"glow_enabled", "fog": &"volumetric_fog_enabled"}
-const OTHER_FLIPS := ["shadows", "lamps", "mirrors", "aa"]
+const OTHER_FLIPS := ["shadows", "lamps", "mirrors", "aa", "map"]
 const WARM_UP := 6.0
 ## Frames skipped after a flip, while the GPU still draws the frames before it.
 const SETTLE_FRAMES := 4
@@ -347,6 +348,8 @@ func _find(flip: Dictionary) -> void:
 			"aa":
 				nodes.append(root)
 				flip.saved[root] = [root.screen_space_aa, root.msaa_3d]
+			"map":
+				nodes.append_array(root.find_children("*", "PaperMap", true, false).filter(func(node: Node) -> bool: return node.get_node(^"Sheet").visible))
 
 
 ## Shows or hides one flip's nodes. A crew member or a crowd that is hidden stops working as well (the rig's script and the skeleton,
@@ -366,6 +369,10 @@ func _apply(flip: Dictionary, shown: bool) -> void:
 			(node as Light3D).shadow_enabled = shown
 		elif what == "mirrors":
 			node.set_process(shown)
+		elif what == "map":
+			node.set_process(shown)
+			node.get_node(^"Sheet").visible = shown
+			(node.get_node(^"Canvas") as SubViewport).render_target_update_mode = SubViewport.UPDATE_ONCE if shown else SubViewport.UPDATE_DISABLED
 		elif what == "aa":
 			root.screen_space_aa = flip.saved[root][0] if shown else Viewport.SCREEN_SPACE_AA_DISABLED
 			root.msaa_3d = flip.saved[root][1] if shown else Viewport.MSAA_DISABLED

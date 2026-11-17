@@ -3,8 +3,8 @@ extends SubViewport
 ## The navigator's sheet as a picture (Phase M): the map page on the left prints a MapSheet (paper, the land, every road, the route,
 ## the landmarks and hazards, the title block, legend, scale and north) and is looked at through a magnifier (zoom and pan); the
 ## right page holds the pace notes (the road book's place); the live car marker rides over the page. The page is printed in a
-## viewport of its own (`Page`) that draws again only when the view or what is on it changes, at the size the zoom needs, so its
-## hairlines and letters stay sharp; the sheet around it (the page's picture, the notes, the marker) is cheap to draw every frame.
+## viewport of its own (`Page`) that draws again only when the view or what is on it changes, at the size the zoom needs (its type
+## rasterized at the zoom's oversampling), so its hairlines and letters stay sharp; the sheet around it (the page's picture, the notes, the marker) is cheap to draw every frame.
 ## Inks that lie over others (the highlighter, the stamp) multiply into what is under them, as on paper.
 
 const CANVAS := Vector2i(1792, 1152)
@@ -75,6 +75,7 @@ func build(map: MapSheet, notes: Array[Dictionary]) -> void:
 	_page.size = Vector2i(MapSheet.PAGE)
 	_page.disable_3d = true
 	_page.msaa_2d = Viewport.MSAA_4X
+	_page.oversampling_override = 1.0
 	_page.render_target_update_mode = SubViewport.UPDATE_ONCE
 	add_child(_page)
 	var content := Node2D.new()
@@ -218,6 +219,7 @@ func page_to_canvas(p: Vector2) -> Vector2:
 func _view_changed() -> void:
 	var half := MapSheet.PAGE * 0.5 / _camera.zoom.x
 	_camera.position = _camera.position.clamp(half, MapSheet.PAGE - half)
+	_page.oversampling_override = _camera.zoom.x
 	_page.render_target_update_mode = SubViewport.UPDATE_ONCE
 	render_target_update_mode = SubViewport.UPDATE_ONCE
 
@@ -232,11 +234,14 @@ func set_car(world_xz: Vector2, heading_xz: Vector2, shown: bool) -> void:
 	if _car_marker == null:
 		return
 	var at := page_to_canvas(world_to_map(world_xz))
-	_car_marker.visible = shown and Rect2(Vector2.ZERO, MapSheet.PAGE).grow(-8.0).has_point(at)
-	if not _car_marker.visible:
+	var seen := shown and Rect2(Vector2.ZERO, MapSheet.PAGE).grow(-8.0).has_point(at)
+	var turn := sheet.page_direction(heading_xz).angle() + PI * 0.5
+	# The sheet is printed again only when the marker moves, turns, comes or goes.
+	if seen == _car_marker.visible and (not seen or (at.is_equal_approx(_car_marker.position) and is_equal_approx(turn, _car_marker.rotation))):
 		return
+	_car_marker.visible = seen
 	_car_marker.position = at
-	_car_marker.rotation = sheet.page_direction(heading_xz).angle() + PI * 0.5
+	_car_marker.rotation = turn
 	render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
