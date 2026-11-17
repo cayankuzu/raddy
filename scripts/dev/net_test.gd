@@ -13,6 +13,9 @@ extends Node3D
 ##                 seats confirm the recovery 1 s after the host offers it, instance 2 kicks the
 ##                 windshield out at 24 s (exposure then rises for both seats) and shocks its own
 ##                 driver at 28 s (host-validated, 6 s faint on every peer)
+##   --feel-log=A+B the local seat's camera jerk (tools/feel_camera_log.gd) from A s after GO until B s after the race started (before the
+##                 test script's roll at 13 s), printed as "FEEL jerk <role> simulated=..": the driver's peer against a client navigator's;
+##                 60 frames a second (two physics ticks a frame), the jerk's unit
 ##   --quit-after-seconds=N
 
 const SESSION_SCENE := preload("res://scenes/game/race_session.tscn")
@@ -28,6 +31,7 @@ var _session: RaceSession
 var _spawn_origins: Dictionary = {}  # team -> Vector3
 var _report_timer := 0.0
 var _elapsed := 0.0
+var _race_started_msec := 0
 
 @onready var _world: Node3D = $World
 @onready var _info: Label = $HUD/Info
@@ -38,6 +42,8 @@ func _ready() -> void:
 	_instance = int(_args.get("instance", "0"))
 	print("NET boot wall=%.1f" % (Time.get_ticks_msec() / 1000.0))
 	_port = int(_args.get("port", str(Net.DEFAULT_PORT)))
+	if _args.has("feel-log"):
+		Engine.max_fps = 60
 	Net.local_name = _args.get("name", "P%d" % _instance)
 	Net.session_started.connect(_on_session_started)
 	Net.session_ended.connect(_on_session_ended)
@@ -116,8 +122,25 @@ func _on_race_started(settings: Dictionary) -> void:
 	if settings.has("stage"):
 		_world.get_node(^"Track").free()  # the session builds the stage instead
 	_world.add_child(_session)  # synchronously: the host's spawn RPCs follow on the same channel
+	_race_started_msec = Time.get_ticks_msec()
+	if _args.has("feel-log"):
+		_session.race_go.connect(_log_feel)
 	if _args.has("test-script"):
 		_run_test_script()
+
+
+## The local seat's camera, logged by tools/feel_camera_log.gd (by path: tools/ is not exported) over the window --feel-log gives.
+func _log_feel() -> void:
+	if _session.local_car == null:
+		return
+	var window: PackedStringArray = String(_args["feel-log"]).split("+")
+	var driver := _session.local_role == RosterRules.Role.DRIVER
+	var logger: Node = load("res://tools/feel_camera_log.gd").new()
+	logger.set(&"camera", _session.local_car.get_node(^"DriverCamera" if driver else ^"NavigatorCamera"))
+	logger.set(&"from", float(window[0]))
+	logger.set(&"until", float(window[1]) - (Time.get_ticks_msec() - _race_started_msec) / 1000.0)
+	logger.set(&"label", "%s simulated=%s" % ["driver" if driver else "navigator", _session.local_car.simulated])
+	add_child(logger)
 
 
 func _run_test_script() -> void:

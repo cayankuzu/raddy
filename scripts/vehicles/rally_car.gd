@@ -47,6 +47,10 @@ var grip_scale := 1.0
 var input_locked := false
 ## The driver's assist level (PlayerCarInput from Settings): scales the stability assist, 0 = off.
 var assist_scale := 1.0
+## This tick's yaw torques about the car's up axis (N m, + turns left), for the feel probe (tools/feel_probe.gd): what the stability assist
+## put on the body and what the four tyres' forces gave.
+var assist_torque := 0.0
+var tyre_yaw_moment := 0.0
 ## Seconds of "handbrake turn" intent left (refilled while the handbrake is held).
 var _handbrake_intent := 0.0
 ## Distance between the front and rear axles, from the wheel mounts.
@@ -134,6 +138,7 @@ func _integrate_forces(state: PhysicsDirectBodyState3D) -> void:
 	_update_steering(dt)
 	_update_drivetrain()
 	var space := state.get_space_state()
+	tyre_yaw_moment = 0.0
 	for wheel in _wheels:
 		_simulate_wheel(state, space, wheel, dt)
 	_apply_anti_roll(state)
@@ -462,6 +467,7 @@ func _apply_tire_force(state: PhysicsDirectBodyState3D, wheel: CarWheel, offset:
 	f_long = clampf(f_long, -long_limit, long_limit)
 	var force := forward * f_long + right * f_lat
 	state.apply_force(force, offset + normal * config.tire_force_lift)
+	tyre_yaw_moment += (offset + normal * config.tire_force_lift).cross(force).dot(body_basis.y)
 	return force
 
 
@@ -488,6 +494,7 @@ const HANDBRAKE_INTENT := 1.5
 
 func _apply_stability_assist(state: PhysicsDirectBodyState3D) -> void:
 	_handbrake_intent = HANDBRAKE_INTENT if controls.handbrake else maxf(_handbrake_intent - state.step, 0.0)
+	assist_torque = 0.0
 	# Reversing (or travelling backwards after a spin) is not a slide to correct.
 	var assist := config.stability_assist * assist_scale
 	if assist <= 0.0 or controls.handbrake or forward_speed < SLIP_SPEED_FLOOR or wheels_in_contact() < 3:
@@ -510,7 +517,8 @@ func _apply_stability_assist(state: PhysicsDirectBodyState3D) -> void:
 	if yaw_rate * slip < 0.0:  # rotating away from the travel direction: the slide is widening
 		correction -= yaw_rate * assist
 	var yaw_inertia := 1.0 / maxf(state.inverse_inertia.y, 0.000001)
-	state.apply_torque(up * correction * yaw_inertia)
+	assist_torque = correction * yaw_inertia
+	state.apply_torque(up * assist_torque)
 
 
 func _detect_impact(state: PhysicsDirectBodyState3D, dt: float) -> void:

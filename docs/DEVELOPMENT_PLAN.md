@@ -1123,3 +1123,19 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   Not done: the bypasses' own corners are still uncalled.
   Final check (2026-11-17, HEAD b923599): GUT 618/618 (41336 asserts), nettest passed (3 clients), flow test on Black Pine passed
   (2:57.6 / 3:03.2, the client's bot through bypasses 0 and 1; 15.7 and 15.2 m/s), no SCRIPT ERROR or ERROR in any log.
+- 2026-11-17: Phase F parts 1-2, the measuring kit (`docs/phases/f_feel_hud.md` Part 1 item 1). `tools/feel_probe.gd` (route_test
+  `--feel=<script>[+..]|all`, `--feel-device=key|pad|wheel`, `--feel-assist`, `--feel-tag`) drives the car through `tools/feel_scripts.gd`'s
+  twelve scripts (step, slalom, liftoff, trail, power, hairpin, catch, crash15/45/90, land, flick) on a flat gravel pad 6 km off the stage
+  with a wall and a 0.8 m ledge (`tools/feel_run.gd`), and writes `reports/feel/<tag>/<script>.csv` (a row a tick: input, command, wheel
+  angle, speed, yaw rate, slip, g, `RallyCar.assist_torque`, `tyre_yaw_moment`, wheels, impact) and `<script>.frames.csv` (a row a camera
+  frame, `tools/feel_camera_log.gd`). Two files, not one: a tick and a frame are different clocks. Camera jerk: each frame's turn as a
+  rotation vector scaled to a 60th of a second, its frame-to-frame change; frames where the free look moved count none (the ride is
+  measured, not the hand); the probe and `--feel-log` run at 60 fps (two ticks a frame). `tools/plot_feel.gd` (Image only, the glyphs from
+  the TextServer) and `tools/feel.ps1 [-Compare <tag>]` draw a sheet per script, two runs overlaid. `nettest` passes `--feel-log=0.5+12.5`
+  and prints both seats' jerk.
+  First numbers (kit_a, windowed, Medium, assist 1, raw axis): the flick turns 0.118 deg/px up to 150 px over three frames and stops at
+  47.3 deg from 200 px on (the 120 px clip: 0.026 deg/px at 600 px); catch peaks at 20.7 deg slip, 77 deg/s yaw, 5547 N m of assist;
+  crash45 spins the car to 145 deg/s; land is airborne 0.27 s. nettest (headless, 60 fps, GO+0.5 s to 12.5 s after the start, shake on):
+  driver p99 0.515, client navigator 0.350 deg/frame^2 (median 0.126 / 0.111): the road buzz's noise is in both, so the baseline (part 3)
+  also reads them with `camera_shake` 0.
+  Checks: GUT 623/623 (`test_feel_scripts.gd`: every script headless but the flick, the jerk's maths), nettest passed.

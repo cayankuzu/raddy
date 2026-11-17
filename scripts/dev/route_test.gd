@@ -33,6 +33,8 @@ extends Node3D
 ##   --gesture=R+G   seat R makes gesture G (left, straight, right, slow) and holds it    --aim=R  seat R raises the shock gun
 ##   --job=R+J+T     seat R starts job J (window_left, window_right, wipers, throw, kick) T seconds in    --windows-open
 ##   --faint=R+T     seat R faints T seconds in, --shock=R+T a shock gun's dart hits it then (screenshots of the crew)
+##   --feel=<script>[+<script>]|all  the feel probe (tools/feel_probe.gd, its header: --feel-tag, --feel-device=key|pad|wheel,
+##                   --feel-assist, --feel-fps) drives the car through those scripts on a pad of its own, writes reports/feel/<tag>/ and quits
 ##   --quit-after-seconds=N
 ## Prints "ROUTE ..." lines (gates, finish) that tools and tests can read.
 
@@ -199,6 +201,16 @@ func _ready() -> void:
 		_follower.lane_half_width = graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER
 		add_child(_follower)
 		_player_input.process_mode = Node.PROCESS_MODE_DISABLED
+	if _args.has("feel"):
+		_player_input.process_mode = Node.PROCESS_MODE_DISABLED
+		# By path: tools/ is not exported.
+		var probe: Node = load("res://tools/feel_probe.gd").new()
+		probe.name = "FeelProbe"
+		probe.set(&"car", _car)
+		probe.set(&"camera", _driver_camera)
+		probe.set(&"args", _args)
+		probe.set(&"stage_center", graph.center)
+		add_child(probe)
 	if _args.has("chase"):
 		_chase.make_current()
 	if _args.has("overview"):
