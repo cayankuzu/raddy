@@ -53,7 +53,7 @@ func test_the_north_arrow_is_right_on_a_turned_sheet() -> void:
 func test_every_wrong_way_is_a_road_on_its_world_line_at_its_width() -> void:
 	for i in StageCatalog.count():
 		var sheet := _sheet(i)
-		assert_eq(sheet.roads.size(), sheet.graph.main_route.size() + sheet.graph.spurs.size(), "the stage's roads and every wrong way")
+		assert_eq(sheet.roads.size(), sheet.graph.main_route.size() + sheet.graph.spurs.size() + sheet.graph.bypasses.size(), "the stage's roads, every wrong way and bypass")
 		for k in sheet.graph.spurs.size():
 			var spur := sheet.graph.spurs[k]
 			# RouteGraph.roads: the stage's edges first, then the wrong ways in their order.

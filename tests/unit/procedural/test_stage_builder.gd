@@ -226,8 +226,8 @@ func test_the_rules_for_places_for_spectators() -> void:
 	assert_false(_says(_rule_problems([{"len": 200}, {"len": 40, "turn": 20, "spectators": "left"}, {"len": 200}]), "outside of a corner"))
 	# A gap in the forest beside a wrong way would say which way the road goes.
 	assert_true(_says(_rule_problems([{"len": 200}, {"len": 40, "spectators": "left"},
-		{"len": 40, "decoy": {"side": "left", "at": 0.5, "len": 70}}, {"len": 200}]), "beside the wrong way"))
+		{"len": 40, "decoy": {"side": "left", "at": 0.5, "len": 70}}, {"len": 200}]), "beside the junction"))
 	assert_false(_says(_rule_problems([{"len": 200}, {"len": 40, "spectators": "left"}, {"len": 40},
-		{"len": 40, "decoy": {"side": "left", "at": 0.5, "len": 70}}, {"len": 200}]), "beside the wrong way"))
+		{"len": 40, "decoy": {"side": "left", "at": 0.5, "len": 70}}, {"len": 200}]), "beside the junction"))
 	# Nobody stands where a tree comes down.
 	assert_true(_says(_rule_problems([{"len": 200}, {"len": 40, "spectators": "left", "falling_tree": "left"}, {"len": 200}]), "comes down"))

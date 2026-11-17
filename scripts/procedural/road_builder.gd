@@ -60,6 +60,19 @@ static func build(graph: RouteGraph, terrain: TerrainField, palette := {}) -> No
 	root.add_child(spurs)
 	for spur in graph.spurs:
 		spurs.add_child(_build_spur(graph, spur, terrain))
+	var bypasses := Node3D.new()
+	bypasses.name = "Bypasses"
+	root.add_child(bypasses)
+	for bypass in graph.bypasses:
+		var node := Node3D.new()
+		node.name = "Bypass%d" % bypass.id
+		node.set_meta(&"bypass_id", bypass.id)
+		node.add_child(_build_road(bypass.edges[0], terrain, SPUR_LIFT))
+		for at in [bypass.at, bypass.rejoin]:
+			var mouth := _build_mouth(graph, at, terrain)
+			mouth.name = "Mouth" if at == bypass.at else "Rejoin"
+			node.add_child(mouth)
+		bypasses.add_child(node)
 	var gates := Node3D.new()
 	gates.name = "Checkpoints"
 	root.add_child(gates)
@@ -136,7 +149,7 @@ static func _build_spur(graph: RouteGraph, spur: RouteGraph.Spur, terrain: Terra
 	for edge in spur.edges:
 		node.add_child(_build_road(edge, terrain, SPUR_LIFT))
 	node.add_child(_build_landing(spur))
-	node.add_child(_build_mouth(graph, spur, terrain))
+	node.add_child(_build_mouth(graph, spur.at, terrain))
 	if spur.end == &"barrier":
 		var last := spur.edges[-1]
 		_add_apron(node.get_node("Road%d" % last.id), last, true)
@@ -200,10 +213,10 @@ static func _build_landing(spur: RouteGraph.Spur) -> StaticBody3D:
 	return body
 
 
-## Fills the corners where a wrong way leaves the stage road: a low disc at road level, under both
-## ribbons, its rim falling away into the ditches.
-static func _build_mouth(graph: RouteGraph, spur: RouteGraph.Spur, terrain: TerrainField) -> StaticBody3D:
-	var spot := graph.sample(spur.at)
+## Fills the corners where a side road leaves the stage road `at` metres along it: a low disc at road level, under
+## both ribbons, its rim falling away into the ditches.
+static func _build_mouth(graph: RouteGraph, at: float, terrain: TerrainField) -> StaticBody3D:
+	var spot := graph.sample(at)
 	var edge := graph.edges[spot.edge]
 	var body := StaticBody3D.new()
 	body.name = "Mouth"

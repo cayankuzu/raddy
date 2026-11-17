@@ -7,11 +7,17 @@ extends RefCounted
 ## RoadBuilder turns it into geometry, and the paper map and pace notes read the same data, so the
 ## map always matches the world. Wrong ways (`spurs`: dead-end tracks and closed roads leaving the
 ## stage road) are kept apart from `edges`: everything that follows the stage ignores them, and only
-## what builds the world reads road_edges().
+## what builds the world reads road_edges(). Bypasses (`bypasses`: a shortcut or a long way that leaves
+## the stage and joins it again ahead) are roads a crew may take instead of a stretch of the stage: they
+## live on the stage's one coordinate, along_of() puts any point of one on the stretch it replaces, and
+## followed_roads() gives the stage and every bypass to whatever follows a car (tracker, recovery).
 
-const VERSION := 3
-## Spur edge ids start here: they never index `edges`.
+const VERSION := 4
+## Spur and bypass edge ids start here: they never index `edges`.
 const SPUR_EDGE_BASE := 1000
+const BYPASS_EDGE_BASE := 2000
+## The stage's own road in along_of() and followed_roads(); a bypass is its id.
+const STAGE := -1
 
 enum NodeKind { START, FINISH, WAYPOINT }
 
@@ -49,26 +55,14 @@ class RouteEdge:
 		return Vector3(points[index].x, heights[index], points[index].y)
 
 
-## A wrong way off the stage road: a track that ends in a dead end with room to turn, or a closed
-## road with a barrier across it (it carries on past the barrier, out of sight).
-class Spur:
+## A road that leaves the stage road at a junction: a wrong way (Spur) or a bypass.
+class SideRoad:
 	var id := 0
-	## Metres along the stage road, always a vertex of main_route_points().
+	## Metres along the stage road of its junction, always a vertex of main_route_points().
 	var at := 0.0
-	## Where the wrong way goes from the road: &"straight" | &"left" | &"right".
-	var side := &"straight"
-	var end := &"dead_end"
 	## The side of the stage road it leaves on (-1 left, 1 right).
 	var road_side := 1
 	var edges: Array[RouteEdge] = []
-	## Junction -> dead end or barrier (m along the spur).
-	var length := 0.0
-	var barrier_at := -1.0
-	## The turning area: centre (XZ), height, radius, and its distance along the spur.
-	var landing := Vector2.ZERO
-	var landing_height := 0.0
-	var landing_radius := 0.0
-	var landing_at := 0.0
 
 	## The whole centreline.
 	func points_3d() -> PackedVector3Array:
@@ -88,9 +82,6 @@ class Spur:
 			out.append(out[i - 1] + Vector2(points[i].x, points[i].z).distance_to(Vector2(points[i - 1].x, points[i - 1].z)))
 		return out
 
-	func side_sign() -> int:
-		return 0 if side == &"straight" else (-1 if side == &"left" else 1)
-
 	## {"position": Vector3, "direction": Vector2 (XZ)} at `distance` metres from the junction.
 	func pose_at(distance: float) -> Dictionary:
 		var points := points_3d()
@@ -101,6 +92,50 @@ class Spur:
 		var dir := Vector2(points[i + 1].x - points[i].x, points[i + 1].z - points[i].z).normalized()
 		var t := clampf((distance - along[i]) / maxf(along[i + 1] - along[i], 0.001), 0.0, 1.0)
 		return {"position": points[i].lerp(points[i + 1], t), "direction": dir}
+
+
+## A wrong way off the stage road: a track that ends in a dead end with room to turn, or a closed
+## road with a barrier across it (it carries on past the barrier, out of sight).
+class Spur extends SideRoad:
+	## Where the wrong way goes from the road: &"straight" | &"left" | &"right".
+	var side := &"straight"
+	var end := &"dead_end"
+	## Junction -> dead end or barrier (m along the spur).
+	var length := 0.0
+	var barrier_at := -1.0
+	## The turning area: centre (XZ), height, radius, and its distance along the spur.
+	var landing := Vector2.ZERO
+	var landing_height := 0.0
+	var landing_radius := 0.0
+	var landing_at := 0.0
+
+	func side_sign() -> int:
+		return 0 if side == &"straight" else (-1 if side == &"left" else 1)
+
+
+## A road a crew may take instead of the stretch of the stage from its mouth (`at`) to its rejoin: a
+## shortcut (clearly shorter, with a price) or a long way (longer and safe, round a hard piece of the
+## stage). Points on it map linearly onto that stretch (along_of): the stage's one coordinate.
+class Bypass extends SideRoad:
+	## &"shortcut" | &"long".
+	var kind := &"shortcut"
+	## What the shortcut costs: &"ford" (water to wade), &"gate" (a farm gate across it), &"rough" (a rutted
+	## track), &"narrow" (a lane between banks); &"" for a long way (its price is the distance).
+	var price := &""
+	## Metres along the stage where it joins the stage again (a vertex of main_route_points()).
+	var rejoin := 0.0
+	## The side of the stage road it joins from (-1 left, 1 right).
+	var rejoin_side := 1
+	## Its own length, mouth to rejoin.
+	var length := 0.0
+	## Where its price is, metres along it (the ford's middle, the gate).
+	var price_at := 0.0
+	## Its own features by metres along it, as RouteGraph.features (the ford's water).
+	var features: Array[Dictionary] = []
+
+	## The metres along the stage of the point `distance` metres along the bypass.
+	func along_of(distance: float) -> float:
+		return lerpf(at, rejoin, clampf(distance / maxf(length, 0.001), 0.0, 1.0))
 
 
 class Gate:
@@ -124,6 +159,8 @@ var main_route: Array[int] = []
 var checkpoints: Array[Gate] = []
 ## The wrong ways, in stage order (see Spur).
 var spurs: Array[Spur] = []
+## The bypasses, in stage order (see Bypass).
+var bypasses: Array[Bypass] = []
 ## Features by distance along the road: {"kind": StringName, "from": m, "to": m, "at": m,
 ## "side": -1 left / 1 right / 0, "value": metres (height, depth or drop)}.
 var features: Array[Dictionary] = []
@@ -166,11 +203,11 @@ func add_edge(from_node: int, to_node: int, points: PackedVector2Array, heights:
 	return edge
 
 
-## Every road there is, as a map prints it: {"kind" (&"stage", &"wrong_way"), "points" (its centreline, XZ), "width", "surface",
+## Every road there is, as a map prints it: {"kind" (&"stage", &"wrong_way", &"bypass"), "points" (its centreline, XZ), "width", "surface",
 ## "end" (&"through": it joins another road at both ends; &"dead_end": a log pile across it past its turning place; &"barrier": closed
 ## by a barrier), "end_at" (XZ) and "end_turn" (the way it runs there) for what closes it, "landing" and "landing_radius" where it has a
-## turning place. The stage gives one per edge (a surface each), every wrong way one up to where a car can go. A new kind of road
-## (a bypass) adds its entries here and is printed like every other.
+## turning place. The stage gives one per edge (a surface each), every wrong way one up to where a car can go, every bypass one
+## (with "bypass", the Bypass, for its price).
 func roads() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for edge_id in main_route:
@@ -196,15 +233,77 @@ func roads() -> Array[Dictionary]:
 		else:
 			road.end_at = spur.landing + turn * (spur.landing_radius + 1.5)
 		out.append(road)
+	for bypass in bypasses:
+		for edge in bypass.edges:
+			out.append({"kind": &"bypass", "points": edge.points, "width": edge.width, "surface": edge.surface, "end": &"through", "bypass": bypass})
 	return out
 
 
-## Every road surface: the stage road's edges, then each spur's.
+## Every road surface: the stage road's edges, then each spur's and each bypass's.
 func road_edges() -> Array[RouteEdge]:
 	var out: Array[RouteEdge] = []
 	out.append_array(edges)
-	for spur in spurs:
-		out.append_array(spur.edges)
+	for road in side_roads():
+		out.append_array(road.edges)
+	return out
+
+
+## The wrong ways, then the bypasses.
+func side_roads() -> Array[SideRoad]:
+	var out: Array[SideRoad] = []
+	out.append_array(spurs)
+	out.append_array(bypasses)
+	return out
+
+
+## The edge with `id`, whichever road it is on.
+func edge_by_id(id: int) -> RouteEdge:
+	if id < SPUR_EDGE_BASE:
+		return edges[id]
+	var road: SideRoad = spurs[(id - SPUR_EDGE_BASE) / 10] if id < BYPASS_EDGE_BASE else bypasses[(id - BYPASS_EDGE_BASE) / 10]
+	return road.edges[id % 10]
+
+
+## Metres along the stage of the point `distance` metres along `road` (STAGE or a bypass's id): the one
+## coordinate everything that follows a car thinks in (GAME_DESIGN, Direction 2, law 2).
+func along_of(road: int, distance: float) -> float:
+	return distance if road == STAGE else bypasses[road].along_of(distance)
+
+
+## Every road a car may follow from the start to the finish: {"road": STAGE or a bypass's id, "points" (3D), "own" (metres
+## along that road of each point), "along" (metres along the stage of each point, along_of), "from" and "to" (the stretch of
+## the stage it covers)}. The stage first.
+func followed_roads() -> Array[Dictionary]:
+	var out: Array[Dictionary] = [{"road": STAGE, "points": main_route_points(), "own": route_distances(), "along": route_distances(),
+		"from": 0.0, "to": main_route_length()}]
+	for bypass in bypasses:
+		var own := bypass.distances()
+		var along := PackedFloat32Array()
+		for d in own:
+			along.append(bypass.along_of(d))
+		out.append({"road": bypass.id, "points": bypass.points_3d(), "own": own, "along": along, "from": bypass.at, "to": bypass.rejoin})
+	return out
+
+
+## The whole way from the start to the finish taking the bypasses whose ids are in `taken`: the stage's points up to each
+## one's mouth, the bypass, then the stage again past its rejoin.
+func path_through(taken: Array[int]) -> PackedVector3Array:
+	var points := main_route_points()
+	var along := route_distances()
+	var out := PackedVector3Array()
+	var i := 0
+	for bypass in bypasses:
+		if not bypass.id in taken:
+			continue
+		while i < points.size() and along[i] < bypass.at - 0.01:
+			out.append(points[i])
+			i += 1
+		out.append_array(bypass.points_3d())
+		while i < points.size() and along[i] <= bypass.rejoin + 0.01:
+			i += 1
+	while i < points.size():
+		out.append(points[i])
+		i += 1
 	return out
 
 
@@ -325,9 +424,15 @@ func to_dict() -> Dictionary:
 			spur_edges.append({"id": edge.id, "width": edge.width, "surface": String(edge.surface), "points": edge.points, "heights": edge.heights})
 		spur_list.append({"id": spur.id, "at": spur.at, "side": String(spur.side), "end": String(spur.end), "length": spur.length,
 			"barrier_at": spur.barrier_at, "landing": [spur.landing, spur.landing_height, spur.landing_radius], "edges": spur_edges})
+	var bypass_list := []
+	for bypass in bypasses:
+		var edge := bypass.edges[0]
+		bypass_list.append({"id": bypass.id, "kind": String(bypass.kind), "price": String(bypass.price), "at": bypass.at, "rejoin": bypass.rejoin,
+			"price_at": bypass.price_at, "width": edge.width, "surface": String(edge.surface), "points": edge.points, "heights": edge.heights,
+			"features": bypass.features})
 	return {"version": VERSION, "seed": seed, "stage": String(stage_id), "biome": String(biome), "center": center,
 		"nodes": node_list, "edges": edge_list, "main_route": main_route, "checkpoints": checkpoint_list,
-		"features": features, "spurs": spur_list}
+		"features": features, "spurs": spur_list, "bypasses": bypass_list}
 
 
 func _index_route() -> void:

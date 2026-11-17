@@ -6,10 +6,12 @@ class_name PaceNotes
 ## map prints beside the road. Pure data; every peer builds the same notes from the same graph.
 ##
 ## Each note: {"number": n, "position": Vector2, "distance": m from the start, "fraction": 0..1,
-##   "kind": &"corner" | &"crest" | &"jump" | &"dip" | &"water" | &"cliff" | &"junction", "side":
+##   "kind": &"corner" | &"crest" | &"jump" | &"dip" | &"water" | &"cliff" | &"junction" | &"bypass", "side":
 ##   "left" | "right" | "", "severity": 1..6 (corners; 0 otherwise), "hairpin": bool, "long": bool,
-##   "caution": bool, "junction": "" | "straight" | "left" | "right" (the wrong way there), "gap": m
-##   from the previous note, "tr": "...", "en": "..."}
+##   "caution": bool, "junction": "" | "straight" | "left" | "right" (the wrong way there, or a bypass's
+##   rejoin seen from the stage), "bypass": "" | "shortcut" | "long" and "price" (a bypass's mouth: both
+##   ways are right, the note names the other one and what it costs), "gap": m from the previous note,
+##   "tr": "...", "en": "..."}
 ##
 ## `detail` follows the difficulty (spec 14.4): 2 = Explore (adds the distance to the next
 ## call), 1 = Rally (every call), 0 = Redline (only the dangerous calls: severity 1-2, hairpins,
@@ -33,6 +35,10 @@ const SPAN := 3
 ## otherwise it gets its own note this far before the junction.
 const JUNCTION_BEFORE := 30.0
 const JUNCTION_LEAD := 15.0
+## A bypass's mouth is called this far before it: there is a choice to make.
+const BYPASS_LEAD := 40.0
+const PRICE_WORDS := {"tr": {"ford": "dere", "gate": "kapı", "rough": "bozuk yol", "narrow": "dar yol"},
+	"en": {"ford": "ford", "gate": "gate", "rough": "rough", "narrow": "narrow"}}
 
 
 static func build(graph: RouteGraph, detail := DETAIL_STANDARD) -> Array[Dictionary]:
@@ -56,17 +62,26 @@ static func build(graph: RouteGraph, detail := DETAIL_STANDARD) -> Array[Diction
 				nearest = call
 		if not nearest.is_empty():
 			nearest.caution = true
-	# A wrong way goes on the corner the road takes there (the call to get right), or on its own note.
+	# A wrong way, or a bypass's rejoin met on the stage, goes on the corner the road takes there (the call to get right),
+	# or on its own note.
+	var wrong_ways: Array[Dictionary] = []
 	for spur in graph.spurs:
+		wrong_ways.append({"at": spur.at, "side": String(spur.side)})
+	for bypass in graph.bypasses:
+		wrong_ways.append({"at": bypass.rejoin, "side": "left" if bypass.rejoin_side < 0 else "right"})
+		calls.append({"kind": &"bypass", "distance": bypass.at - BYPASS_LEAD, "side": "left" if bypass.road_side < 0 else "right", "severity": 0,
+			"bypass": String(bypass.kind), "price": String(bypass.price)})
+	for wrong in wrong_ways:
+		var at := float(wrong.at)
 		var corner: Dictionary = {}
 		for call in calls:
-			if call.kind == &"corner" and spur.at >= float(call.distance) - JUNCTION_BEFORE and spur.at <= float(call.distance) + float(call.get("length", 0.0)):
+			if call.kind == &"corner" and at >= float(call.distance) - JUNCTION_BEFORE and at <= float(call.distance) + float(call.get("length", 0.0)):
 				corner = call
 				break
 		if corner.is_empty():
-			calls.append({"kind": &"junction", "distance": spur.at - JUNCTION_LEAD, "side": "", "severity": 0, "junction": String(spur.side)})
+			calls.append({"kind": &"junction", "distance": at - JUNCTION_LEAD, "side": "", "severity": 0, "junction": wrong.side})
 		else:
-			corner.junction = String(spur.side)
+			corner.junction = wrong.side
 	calls.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.distance < b.distance)
 	# Two cliff calls on the same side in a row are one cliff.
 	var merged: Array[Dictionary] = []
@@ -96,6 +111,8 @@ static func build(graph: RouteGraph, detail := DETAIL_STANDARD) -> Array[Diction
 			"blind": call.get("blind", false),
 			"caution": call.get("caution", false),
 			"junction": call.get("junction", ""),
+			"bypass": call.get("bypass", ""),
+			"price": call.get("price", ""),
 			"gap": call.distance - previous,
 		}
 		previous = call.distance
@@ -168,7 +185,7 @@ static func _finish_corner(corner: Dictionary) -> Dictionary:
 
 
 static func _dangerous(call: Dictionary) -> bool:
-	if call.get("caution", false) or call.get("hairpin", false) or call.get("junction", "") != "":
+	if call.get("caution", false) or call.get("hairpin", false) or call.get("junction", "") != "" or call.kind == &"bypass":
 		return true
 	match call.kind:
 		&"corner":
@@ -207,11 +224,19 @@ static func _text(note: Dictionary, lang: String, detail: int, next_gap: float) 
 				text = "Cliff on the %s" % note.side
 		&"junction":
 			text = "Düz" if tr_mode else "Straight"
+		&"bypass":
+			# "Kısayol solda: dere", "Long way right": the other way, where it leaves and what it costs.
+			if tr_mode:
+				text = "%s %s" % ["Kısayol" if note.bypass == "shortcut" else "Uzun yol", "solda" if note.side == "left" else "sağda"]
+			else:
+				text = "%s %s" % ["Shortcut" if note.bypass == "shortcut" else "Long way", note.side]
+			if note.price != "":
+				text += ": " + String(PRICE_WORDS[lang][note.price])
 	if note.junction != "":
 		# "Junction: Left 3, not straight!": the call and the wrong way, so nobody takes it.
 		var wrong: String = {"straight": "düz", "left": "sola", "right": "sağa"}[note.junction] if tr_mode else ("not " + note.junction)
 		text = ("Kavşak: %s, %s değil" % [text, wrong]) if tr_mode else ("Junction: %s, %s" % [text, wrong])
-	if note.caution or note.kind in [&"jump", &"water", &"cliff"] or note.get("blind", false) or note.junction != "":
+	if note.caution or note.kind in [&"jump", &"water", &"cliff", &"bypass"] or note.get("blind", false) or note.junction != "":
 		text += "!"
 	if note.caution:
 		text += " Dikkat" if tr_mode else " Caution"

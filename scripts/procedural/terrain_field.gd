@@ -116,8 +116,8 @@ func set_roads(graph: RouteGraph) -> void:
 	_grid = PackedFloat32Array()
 	_max_half_width = 0.0
 	_build_ditches(graph)
-	for spur in graph.spurs:
-		_build_spur_sides(spur)
+	for road in graph.side_roads():
+		_build_side_road_sides(road)
 	for edge in graph.road_edges():
 		_max_half_width = maxf(_max_half_width, edge.width * 0.5)
 		for i in range(edge.points.size() - 1):
@@ -158,9 +158,12 @@ func _register(segment: Array, lo_point: Vector2, hi_point: Vector2) -> void:
 			_road_cells[key].append(segment)
 
 
-## A wrong way's ditch factors (none at its mouth, around its turning area, nor at its end) and floor.
-func _build_spur_sides(spur: RouteGraph.Spur) -> void:
-	for edge in spur.edges:
+## A side road's ditch factors (none at a junction, around a wrong way's turning area and at its end, nor at a
+## bypass's ford) and floor.
+func _build_side_road_sides(road: RouteGraph.SideRoad) -> void:
+	var spur := road as RouteGraph.Spur
+	var bypass := road as RouteGraph.Bypass
+	for edge in road.edges:
 		var count := edge.points.size()
 		var ditch := PackedFloat32Array()
 		var ground := PackedFloat32Array()
@@ -172,8 +175,15 @@ func _build_spur_sides(spur: RouteGraph.Spur) -> void:
 			if i > 0:
 				s += edge.points[i].distance_to(edge.points[i - 1])
 			var d := clampf((s - MOUTH_CLEAR) / DITCH_FADE, 0.0, 1.0)
-			d = minf(d, clampf((absf(s - spur.landing_at) - spur.landing_radius - 2.0) / DITCH_FADE, 0.0, 1.0))
-			d = minf(d, clampf((edge.length - s - DITCH_CLEAR_ENDS) / DITCH_FADE, 0.0, 1.0))
+			if spur != null:
+				d = minf(d, clampf((absf(s - spur.landing_at) - spur.landing_radius - 2.0) / DITCH_FADE, 0.0, 1.0))
+				d = minf(d, clampf((edge.length - s - DITCH_CLEAR_ENDS) / DITCH_FADE, 0.0, 1.0))
+			else:
+				d = minf(d, clampf((edge.length - s - MOUTH_CLEAR) / DITCH_FADE, 0.0, 1.0))
+				for feature in bypass.features:
+					if feature.kind == &"water":
+						var gap := maxf(maxf(float(feature.from) - DITCH_FADE - s, s - float(feature.to) - DITCH_FADE), 0.0)
+						d = minf(d, clampf(gap / DITCH_FADE, 0.0, 1.0))
 			ditch[i] = d
 			var lowest := edge.heights[i]
 			for k in range(maxi(i - window, 0), mini(i + window, count - 1) + 1):
@@ -202,6 +212,10 @@ func _build_ditches(graph: RouteGraph) -> void:
 		# A straight-on track stays beside the road for a while: the road curves away from it.
 		var after := MOUTH_CLEAR + (StageBuilder.DECOY_MOUTH if spur.side == &"straight" else 0.0)
 		zones.append([spur.at - MOUTH_CLEAR, spur.at + after, spur.road_side])
+	for bypass in graph.bypasses:
+		# A bypass may carry on beside the road for a while at either end.
+		zones.append([bypass.at - MOUTH_CLEAR, bypass.at + MOUTH_CLEAR + StageBuilder.BYPASS_HOLD, bypass.road_side])
+		zones.append([bypass.rejoin - MOUTH_CLEAR - StageBuilder.BYPASS_HOLD, bypass.rejoin + MOUTH_CLEAR, bypass.rejoin_side])
 	var count := points.size()
 	var ditch_left := PackedFloat32Array()
 	var ditch_right := PackedFloat32Array()
@@ -266,9 +280,7 @@ func foot_at(edge_id: int, i: int) -> float:
 
 
 func _edge_heights(edge_id: int) -> PackedFloat32Array:
-	if edge_id < RouteGraph.SPUR_EDGE_BASE:
-		return _graph.edges[edge_id].heights
-	return _graph.spurs[(edge_id - RouteGraph.SPUR_EDGE_BASE) / 10].edges[0].heights
+	return _graph.edge_by_id(edge_id).heights
 
 
 ## The ground grid: {"heights": row by row, "origin": Vector2, "cells": Vector2i}. Width and depth
@@ -432,8 +444,9 @@ func _build_base(graph: RouteGraph) -> void:
 	var samples := PackedVector2Array()
 	var sample_heights := PackedFloat32Array()
 	_add_base_samples(graph.main_route_points(), samples, sample_heights)
+	for road in graph.side_roads():
+		_add_base_samples(road.points_3d(), samples, sample_heights)
 	for spur in graph.spurs:
-		_add_base_samples(spur.points_3d(), samples, sample_heights)
 		samples.append(spur.landing)
 		sample_heights.append(spur.landing_height)
 	if samples.is_empty():
@@ -498,25 +511,40 @@ func _base_at(p: Vector2) -> Vector2:
 func _build_sides(graph: RouteGraph) -> void:
 	_sides.clear()
 	for feature in graph.features:
-		if not feature.kind in [&"cliff", &"bank"]:
-			continue
-		var points := PackedVector2Array()
-		var dirs := PackedVector2Array()
-		var half_widths := PackedFloat32Array()
-		var distance: float = feature.from
-		while distance <= feature.to:
-			var spot := graph.sample(distance)
-			points.append(Vector2(spot.position.x, spot.position.z))
-			dirs.append(spot.direction)
-			half_widths.append(graph.edges[spot.edge].width * 0.5)
-			distance += 3.0
-		if points.is_empty():
-			continue
-		var box := Rect2(points[0], Vector2.ZERO)
-		for q in points:
-			box = box.expand(q)
-		_sides.append({"kind": feature.kind, "side": float(feature.side), "value": float(feature.value),
-			"points": points, "dirs": dirs, "half_widths": half_widths, "box": box.grow(VALLEY_END + 20.0)})
+		if feature.kind in [&"cliff", &"bank"]:
+			_add_side(feature, func(distance: float) -> Dictionary:
+				var spot := graph.sample(distance)
+				return {"position": spot.position, "direction": spot.direction, "half": graph.edges[spot.edge].width * 0.5})
+	# A narrow bypass's banks.
+	for bypass in graph.bypasses:
+		var half := bypass.edges[0].width * 0.5
+		for feature in bypass.features:
+			if feature.kind == &"bank":
+				_add_side(feature, func(distance: float) -> Dictionary:
+					var pose := bypass.pose_at(distance)
+					return {"position": pose.position, "direction": pose.direction, "half": half})
+
+
+## One cliff's or bank's profile along a road: `pose_at` (metres -> {"position", "direction", "half"}).
+func _add_side(feature: Dictionary, pose_at: Callable) -> void:
+	var points := PackedVector2Array()
+	var dirs := PackedVector2Array()
+	var half_widths := PackedFloat32Array()
+	var distance: float = feature.from
+	while distance <= feature.to:
+		var pose: Dictionary = pose_at.call(distance)
+		var at: Vector3 = pose.position
+		points.append(Vector2(at.x, at.z))
+		dirs.append(pose.direction)
+		half_widths.append(float(pose.half))
+		distance += 3.0
+	if points.is_empty():
+		return
+	var box := Rect2(points[0], Vector2.ZERO)
+	for q in points:
+		box = box.expand(q)
+	_sides.append({"kind": feature.kind, "side": float(feature.side), "value": float(feature.value),
+		"points": points, "dirs": dirs, "half_widths": half_widths, "box": box.grow(VALLEY_END + 20.0)})
 
 
 ## Height the cliffs and banks add at `p`: a cliff falls away past the shoulder and its valley

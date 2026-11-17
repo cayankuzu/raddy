@@ -33,6 +33,16 @@ const EVENT_AFTER := 60.0
 const CLIFF_REACH := 60.0
 const SPUR_TOUCH := 2.0 * TrackFeatures.SPUR_CORRIDOR + 4.0
 const CLIFF_OVERHANG := 8.0
+## Bypasses: the least stretch of the stage one replaces, how much shorter a shortcut is and how much longer a
+## long way, how sharply one of a junction's branches turns (a real fork, a T or a turn off, never a lane beside
+## the road), how far along its branches that is measured, how far its price keeps from its ends.
+const BYPASS_MIN_STRETCH := 120.0
+const SHORTCUT_SHARE := 0.7
+const LONG_SHARE := 1.15
+const BRANCH_TURN := deg_to_rad(60.0)
+const BRANCH_LOOK := 35.0
+const PRICE_CLEAR := 40.0
+const PRICES: Array[StringName] = [&"ford", &"gate", &"rough", &"narrow"]
 
 
 static func validate(graph: RouteGraph) -> Array[String]:
@@ -48,7 +58,151 @@ static func validate(graph: RouteGraph) -> Array[String]:
 	_check_checkpoints(graph, problems)
 	_check_widths(graph, problems)
 	_check_spurs(graph, problems)
+	_check_bypasses(graph, problems)
 	return problems
+
+
+## A bypass is a way through to a later part of the road, on purpose: it leaves and joins the stage in the stage's
+## direction, at junctions with a branch turning BRANCH_TURN or more, with no gate on the stretch it replaces (a gate
+## crossed out of order does not count: RaceProgress), a shortcut clearly shorter and with a price, a long way
+## clearly longer; it crosses nothing, keeps SEPARATION from every other stretch but where it meets the road, and is
+## as drivable as the road (radius, grade, width).
+static func _check_bypasses(graph: RouteGraph, problems: Array[String]) -> void:
+	if graph.bypasses.is_empty():
+		return
+	var index := RouteIndex.new(graph)
+	var road := graph.main_route_points()
+	var along := graph.route_distances()
+	for bypass in graph.bypasses:
+		var name := "bypass %d at %.0f m" % [bypass.id, bypass.at]
+		var stretch := bypass.rejoin - bypass.at
+		if stretch < BYPASS_MIN_STRETCH:
+			problems.append("%s rejoins %.0f m on, under %.0f" % [name, stretch, BYPASS_MIN_STRETCH])
+		match bypass.kind:
+			&"shortcut":
+				if bypass.length > stretch * SHORTCUT_SHARE:
+					problems.append("%s is a shortcut of %.0f m for %.0f m of stage" % [name, bypass.length, stretch])
+				if not bypass.price in PRICES:
+					problems.append("%s is a shortcut without a price" % name)
+			&"long":
+				if bypass.length < stretch * LONG_SHARE:
+					problems.append("%s is a long way of %.0f m for %.0f m of stage" % [name, bypass.length, stretch])
+			_:
+				problems.append("%s is of no kind" % name)
+		if bypass.price != &"" and (bypass.price_at < PRICE_CLEAR or bypass.price_at > bypass.length - PRICE_CLEAR):
+			problems.append("%s has its price at a junction" % name)
+		for gate in graph.checkpoints:
+			if gate.distance > bypass.at - JUNCTION_GATE_ALONG and gate.distance < bypass.rejoin + JUNCTION_GATE_ALONG:
+				problems.append("%s passes gate %d by" % [name, gate.index])
+		var edge := bypass.edges[0]
+		if edge.width < SPUR_MIN_WIDTH - 0.001:
+			problems.append("%s is %.1f m wide, under %.1f" % [name, edge.width, SPUR_MIN_WIDTH])
+		if min_turn_radius(edge.points) < MIN_RADIUS:
+			problems.append("%s turns tighter than %.0f m" % [name, MIN_RADIUS])
+		for i in range(1, edge.points.size()):
+			if absf(edge.heights[i] - edge.heights[i - 1]) / maxf(edge.points[i].distance_to(edge.points[i - 1]), 0.01) > MAX_GRADE:
+				problems.append("%s is steeper than %.0f %%" % [name, MAX_GRADE * 100.0])
+				break
+		var points := bypass.points_3d()
+		var own := bypass.distances()
+		var flat := PackedVector2Array()
+		for p in points:
+			flat.append(_flat(p))
+		# Both ends: the stage's way, and a junction one of whose branches turns.
+		var mouth: Vector2 = graph.sample(bypass.at).direction
+		var rejoin: Vector2 = graph.sample(bypass.rejoin).direction
+		var leaving := (_point_at(flat, own, BRANCH_LOOK) - flat[0]).normalized()
+		var joining := (flat[-1] - _point_at(flat, own, bypass.length - BRANCH_LOOK)).normalized()
+		if leaving.dot(mouth) <= 0.0 or joining.dot(rejoin) <= 0.0:
+			problems.append("%s runs against the stage" % name)
+		# How far each branch has turned BRANCH_LOOK metres from the junction (its heading there).
+		var before: Vector2 = graph.sample(bypass.at).direction
+		var after: Vector2 = graph.sample(bypass.rejoin).direction
+		var on: Vector2 = graph.sample(bypass.at + BRANCH_LOOK).direction
+		var came: Vector2 = graph.sample(bypass.rejoin - BRANCH_LOOK).direction
+		var off := (_point_at(flat, own, BRANCH_LOOK + 2.0) - _point_at(flat, own, BRANCH_LOOK - 2.0)).normalized()
+		var into := (_point_at(flat, own, bypass.length - BRANCH_LOOK + 2.0) - _point_at(flat, own, bypass.length - BRANCH_LOOK - 2.0)).normalized()
+		if maxf(absf(before.angle_to(on)), absf(before.angle_to(off))) < BRANCH_TURN:
+			problems.append("%s leaves where neither way turns: a lane beside the road, not a junction" % name)
+		if maxf(absf(came.angle_to(after)), absf(into.angle_to(after))) < BRANCH_TURN:
+			problems.append("%s joins where neither way turns: a lane beside the road, not a junction" % name)
+		for feature in graph.features:
+			var from := float(feature.from)
+			var to := float(feature.to)
+			for end in [bypass.at, bypass.rejoin]:
+				if feature.kind in [&"jump", &"water"] and to > end - JUNCTION_QUIET and from < end + JUNCTION_QUIET:
+					problems.append("%s meets the road on a %s" % [name, feature.kind])
+				if feature.kind in [&"falling_tree", &"rockfall"] and to > end - EVENT_BEFORE and from < end + EVENT_AFTER:
+					problems.append("%s meets the road at a %s" % [name, feature.kind])
+		var alongside := false
+		var near_stretch := -1.0
+		var near_gate := false
+		var touching := false
+		for i in flat.size():
+			var p := flat[i]
+			var s := float(own[i])
+			var from_end := minf(s, bypass.length - s)
+			var near := index.nearest(p, 80.0)
+			if from_end >= DIVERGE_FROM and float(near.distance) < minf(DIVERGE * from_end, SEPARATION):
+				alongside = true
+			for gate in graph.checkpoints:
+				if gate.position.distance_to(p) < SPUR_GATE_CLEAR:
+					near_gate = true
+			# Every stretch of the stage keeps SEPARATION but where the bypass meets it (as far along the stage from
+			# either end as the bypass has come, and twice the gap).
+			if i % 2 == 0:
+				for q in range(0, road.size(), 2):
+					if absf(along[q] - bypass.at) < s + 2.0 * SEPARATION or absf(along[q] - bypass.rejoin) < bypass.length - s + 2.0 * SEPARATION:
+						continue
+					if _flat(road[q]).distance_to(p) < SEPARATION:
+						near_stretch = along[q]
+						break
+			for spur in graph.spurs:
+				if spur.landing.distance_to(p) < SPUR_TOUCH:
+					touching = true
+				for q in spur.points_3d():
+					if _flat(q).distance_to(p) < SPUR_TOUCH:
+						touching = true
+						break
+			for other in graph.bypasses:
+				if other.id != bypass.id:
+					for q in other.points_3d():
+						touching = touching or _flat(q).distance_to(p) < SEPARATION
+		if alongside:
+			problems.append("%s runs alongside the road" % name)
+		if near_stretch >= 0.0:
+			problems.append("%s comes within %.0f m of the road %.0f m along" % [name, SEPARATION, near_stretch])
+		if near_gate:
+			problems.append("%s comes too close to a gate" % name)
+		if touching:
+			problems.append("%s touches a wrong way or another bypass" % name)
+		# It crosses no road: a stretch of the stage (but at its ends) or a wrong way.
+		var crossings: Array[PackedVector2Array] = [PackedVector2Array()]
+		for q in road.size():
+			if absf(along[q] - bypass.at) > 6.0 and absf(along[q] - bypass.rejoin) > 6.0:
+				crossings[-1].append(_flat(road[q]))
+			elif not crossings[-1].is_empty():
+				crossings.append(PackedVector2Array())
+		for spur in graph.spurs:
+			var line := PackedVector2Array()
+			for q in spur.points_3d():
+				line.append(_flat(q))
+			crossings.append(line)
+		var crossed := false
+		for i in range(4, flat.size() - 3):
+			for line in crossings:
+				for q in range(1, line.size()):
+					if line[q].distance_squared_to(flat[i]) < 400.0 and _segments_cross(flat[i - 1], flat[i], line[q - 1], line[q]):
+						crossed = true
+		if crossed:
+			problems.append("%s crosses a road" % name)
+
+
+## The point `distance` metres along a polyline whose points are `own` metres along it.
+static func _point_at(points: PackedVector2Array, own: PackedFloat32Array, distance: float) -> Vector2:
+	var i := clampi(own.bsearch(distance), 1, points.size() - 1)
+	var t := clampf((distance - own[i - 1]) / maxf(own[i] - own[i - 1], 0.001), 0.0, 1.0)
+	return points[i - 1].lerp(points[i], t)
 
 
 ## A wrong way costs time, never the run: it never skips a gate, never leads through the trees to a

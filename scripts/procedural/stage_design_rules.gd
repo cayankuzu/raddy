@@ -79,16 +79,34 @@ static func _check_junctions(graph: RouteGraph, problems: Array[String]) -> void
 	var count := graph.spurs.size()
 	if count < MIN_JUNCTIONS or count > MAX_JUNCTIONS:
 		problems.append("%d wrong ways, not %d-%d" % [count, MIN_JUNCTIONS, MAX_JUNCTIONS])
-	for i in count:
-		var spur := graph.spurs[i]
-		if i > 0 and spur.at - graph.spurs[i - 1].at < JUNCTION_SPACING:
-			problems.append("wrong ways at %.0f and %.0f m are closer than %.0f m" % [graph.spurs[i - 1].at, spur.at, JUNCTION_SPACING])
-		var side := spur.side_sign()
-		if side != 0:
-			var before: Vector2 = graph.sample(spur.at - FORK_BEFORE).direction
-			var after: Vector2 = graph.sample(spur.at + FORK_AHEAD).direction
-			if before.angle_to(after) * side > FORK_TURN:
-				problems.append("the wrong way at %.0f m leaves on the side the road itself turns to" % spur.at)
+	var junctions := junctions_of(graph)
+	for i in junctions.size():
+		var junction: Dictionary = junctions[i]
+		var at := float(junction.at)
+		if i > 0 and at - float(junctions[i - 1].at) < JUNCTION_SPACING:
+			problems.append("junctions at %.0f and %.0f m are closer than %.0f m" % [junctions[i - 1].at, at, JUNCTION_SPACING])
+		var side := int(junction.side)
+		if side == 0:
+			continue
+		# Coming to a bypass's rejoin, its branch is behind the turn the road takes there.
+		var rejoin: bool = junction.kind == &"rejoin"
+		var before: Vector2 = graph.sample(at - (FORK_AHEAD if rejoin else FORK_BEFORE)).direction
+		var after: Vector2 = graph.sample(at + (FORK_BEFORE if rejoin else FORK_AHEAD)).direction
+		if before.angle_to(after) * side > FORK_TURN:
+			problems.append("the %s at %.0f m is on the side the road itself turns to" % [junction.kind, at])
+
+
+## Every junction on the stage in stage order: {"at": m, "kind": &"wrong_way" | &"mouth" | &"rejoin", "side": the side of the road
+## the other branch is on (-1, 1; 0 for a wrong way straight on)}.
+static func junctions_of(graph: RouteGraph) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for spur in graph.spurs:
+		out.append({"at": spur.at, "kind": &"wrong_way", "side": spur.side_sign()})
+	for bypass in graph.bypasses:
+		out.append({"at": bypass.at, "kind": &"mouth", "side": bypass.road_side})
+		out.append({"at": bypass.rejoin, "kind": &"rejoin", "side": bypass.rejoin_side})
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a.at) < float(b.at))
+	return out
 
 
 static func _check_spectators(graph: RouteGraph, problems: Array[String]) -> void:
@@ -109,6 +127,6 @@ static func _check_spectators(graph: RouteGraph, problems: Array[String]) -> voi
 		var turn: float = (graph.sample(float(zone.from)).direction as Vector2).angle_to(graph.sample(float(zone.to)).direction)
 		if absf(turn) >= ZONE_CORNER and signf(turn) != side:
 			problems.append("the spectators at %.0f m stand on the outside of a corner" % at)
-		for spur in graph.spurs:
-			if spur.at + ZONE_JUNCTION_CLEAR > from and spur.at - ZONE_JUNCTION_CLEAR < to:
-				problems.append("the spectators at %.0f m stand beside the wrong way at %.0f m" % [at, spur.at])
+		for junction in junctions_of(graph):
+			if float(junction.at) + ZONE_JUNCTION_CLEAR > from and float(junction.at) - ZONE_JUNCTION_CLEAR < to:
+				problems.append("the spectators at %.0f m stand beside the junction at %.0f m" % [at, junction.at])

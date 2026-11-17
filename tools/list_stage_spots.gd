@@ -35,6 +35,9 @@ func _init() -> void:
 					spots.append([float(feature.from) - 50.0, "spectators"])
 		for spur in graph.spurs:
 			spots.append([spur.at - 30.0, "junction"])
+		for bypass in graph.bypasses:
+			spots.append([bypass.at - 30.0, "mouth"])
+			spots.append([bypass.rejoin - 30.0, "rejoin"])
 		var km := graph.checkpoints[0].distance + RallyDressing.KM_STEP
 		while km < graph.checkpoints[-1].distance:
 			spots.append([km - 40.0, "km"])

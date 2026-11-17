@@ -9,7 +9,7 @@ const DESERT := RaceSettings.Biome.DESERT
 const MOUNTAIN := RaceSettings.Biome.MOUNTAIN
 ## Bumped when the stages' roads change so much that old times mean nothing (StageRecords keeps
 ## its records per layout).
-const LAYOUT := 2
+const LAYOUT := 3
 
 
 static func count() -> int:
@@ -51,20 +51,24 @@ static func stages() -> Array[Dictionary]:
 	var sand := Surface.SAND
 	return [
 		# Fast, flowing forest gravel: crests you cannot see over, two jumps, a water splash and a
-		# muddy section with a hairpin in the middle.
+		# muddy section with a hairpin in the middle; a long way round the first jump, and near the end
+		# the road goes round a field where a farm track fords the creek straight across.
 		{"id": &"black_pine", "biome": FOREST, "seed": 1101, "width": 4.6, "surface": Surface.GRAVEL,
 			"weathers": [RaceSettings.Weather.CLEAR, RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG],
 			"segments": [
-				{"len": 90}, {"len": 60, "turn": 35}, {"len": 50, "crest": 1.6}, {"len": 48, "turn": -80, "decoy": {"side": "straight", "len": 140}},
-				{"len": 70, "rise": 4}, {"len": 40, "turn": 60, "rise": 2}, {"len": 34, "jump": 1.5, "spectators": "right"},
-				{"len": 60, "rise": 2, "decoy": {"side": "left", "at": 0.7, "len": 70, "end": "barrier"}}, {"len": 100, "turn": 75}, {"len": 60, "dip": 0.8}, {"len": 50, "crest": 1.2},
+				{"len": 90}, {"len": 60, "turn": 35}, {"len": 50, "crest": 1.6}, {"len": 48, "turn": -80},
+				{"len": 70, "rise": 4, "bypass": {"kind": "long", "side": "left", "at": 0.5, "rejoin": 157, "angle": 85, "join": 85, "reach": 0.5, "hold": 25}},
+				{"len": 40, "turn": 60, "rise": 2}, {"len": 34, "jump": 1.5, "spectators": "right"},
+				{"len": 60, "rise": 2}, {"len": 100, "turn": 75}, {"len": 60, "dip": 0.8}, {"len": 50, "crest": 1.2},
 				{"len": 36, "turn": -100, "caution": true, "decoy": {"side": "straight", "len": 70, "end": "barrier"}}, {"len": 70, "rise": -6}, {"len": 50, "turn": -55},
 				{"len": 44, "water": true, "spectators": "left"}, {"len": 50, "turn": 45}, {"len": 100, "crest": 2.0, "falling_tree": "right"},
 				{"len": 40, "turn": -70}, {"len": 60, "surface": mud, "decoy": {"side": "left", "at": 0.7, "len": 140}}, {"len": 50, "turn": 30, "surface": mud},
 				{"len": 70, "surface": mud, "dip": 0.6, "falling_tree": "left"}, {"len": 40, "turn": 120, "surface": mud, "caution": true},
 				{"len": 60, "rise": 5, "decoy": {"side": "left", "at": 0.7, "len": 140}}, {"len": 100, "rise": 7, "crest": 1.0}, {"len": 34, "turn": -60},
 				{"len": 32, "jump": 1.3, "spectators": "right"}, {"len": 60, "turn": 50}, {"len": 110, "crest": 1.4},
-				{"len": 50, "turn": -45}, {"len": 60, "rise": -5}, {"len": 50, "turn": -70, "caution": true}, {"len": 60, "crest": 1.2},
+				{"len": 50, "turn": -45}, {"len": 60, "rise": -5}, {"len": 50, "turn": -70, "caution": true},
+				{"len": 47, "turn": 90, "bypass": {"kind": "shortcut", "side": "left", "rejoin": 318, "angle": 8, "join": 8, "price": "ford"}},
+				{"len": 40, "dip": 0.6}, {"len": 47, "turn": -90}, {"len": 50, "crest": 1.2}, {"len": 47, "turn": -90}, {"len": 40}, {"len": 47, "turn": 90},
 				{"len": 70, "turn": 60}, {"len": 50, "dip": 0.6}, {"len": 40, "turn": 35}, {"len": 70, "crest": 1.4}, {"len": 100},
 			]},
 		# Narrow, slippery creek road: four water crossings, tight corners and mud.

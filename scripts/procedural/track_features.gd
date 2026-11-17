@@ -28,7 +28,12 @@ static func build(graph: RouteGraph, terrain: TerrainField, biome: int) -> Node3
 	root.name = "Features"
 	var indexes := corridor_indexes(graph)
 	for feature in graph.features_of(&"water"):
-		root.add_child(_build_water(graph, feature))
+		var spot := graph.sample(feature.at)
+		root.add_child(_build_water("Water%d" % roundi(feature.at), feature, graph.sample, graph.edges[spot.edge].width * 0.5))
+	for bypass in graph.bypasses:
+		for feature in bypass.features:
+			if feature.kind == &"water":
+				root.add_child(_build_water("Ford%d" % bypass.id, feature, bypass.pose_at, bypass.edges[0].width * 0.5))
 	for run in _cliff_runs(graph):
 		root.add_child(GuardRail.build(graph, run))
 	root.add_child(_build_boundary(graph, terrain, indexes))
@@ -47,26 +52,28 @@ static func build(graph: RouteGraph, terrain: TerrainField, biome: int) -> Node3
 
 # --- water ---
 
-static func _build_water(graph: RouteGraph, feature: Dictionary) -> Node3D:
+## A water feature of a road: `pose_at` (metres along it -> {"position": Vector3, "direction": Vector2}: RouteGraph.sample, a
+## bypass's pose_at), `road_half` its half width.
+static func _build_water(name: String, feature: Dictionary, pose_at: Callable, road_half: float) -> Node3D:
 	var node := Node3D.new()
-	node.name = "Water%d" % roundi(feature.at)
+	node.name = name
+	var height := func(distance: float) -> float: return (pose_at.call(distance).position as Vector3).y
 	# The pool covers the part of the dip below the water line.
 	var lowest := INF
 	var distance: float = feature.from
 	while distance <= feature.to:
-		lowest = minf(lowest, graph.sample(distance).position.y)
+		lowest = minf(lowest, height.call(distance))
 		distance += 1.0
 	var level: float = lowest + float(feature.value) * WATER_FILL
 	var from: float = feature.at
 	var to: float = feature.at
-	while from > feature.from and graph.sample(from).position.y < level:
+	while from > feature.from and height.call(from) < level:
 		from -= 1.0
-	while to < feature.to and graph.sample(to).position.y < level:
+	while to < feature.to and height.call(to) < level:
 		to += 1.0
 	from -= 2.0
 	to += 2.0
-	var spot := graph.sample(feature.at)
-	var half: float = graph.edges[spot.edge].width * 0.5 + RoadBuilder.POST_OFFSET + 2.5
+	var half := road_half + RoadBuilder.POST_OFFSET + 2.5
 	# A pool with a ragged, oval outline: five vertices across each row, the outer ones fully
 	# transparent, so the water fades into the mud instead of ending in a straight edge.
 	var surface := SurfaceTool.new()
@@ -76,7 +83,7 @@ static func _build_water(graph: RouteGraph, feature: Dictionary) -> Node3D:
 	var length := to - from
 	distance = from
 	while distance <= to + 0.01:
-		var here := graph.sample(distance)
+		var here: Dictionary = pose_at.call(distance)
 		var dir: Vector2 = here.direction
 		var right := Vector3(-dir.y, 0.0, dir.x)
 		var center := Vector3(here.position.x, level, here.position.z)
@@ -120,7 +127,7 @@ static func _build_water(graph: RouteGraph, feature: Dictionary) -> Node3D:
 	node.add_child(area)
 	distance = from
 	while distance < to:
-		var here := graph.sample(distance + 2.0)
+		var here: Dictionary = pose_at.call(distance + 2.0)
 		var dir: Vector2 = here.direction
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
@@ -154,16 +161,16 @@ static func _cliff_runs(graph: RouteGraph) -> Array[Dictionary]:
 
 # --- the stage boundary ---
 
-## The road's index, then one per wrong way: the stage is the union of their tubes.
+## The road's index, then one per wrong way and per bypass: the stage is the union of their tubes.
 static func corridor_indexes(graph: RouteGraph) -> Array[RouteIndex]:
 	var out: Array[RouteIndex] = [RouteIndex.new(graph)]
-	for spur in graph.spurs:
-		out.append(RouteIndex.of_points(spur.points_3d(), spur.distances()))
+	for road in graph.side_roads():
+		out.append(RouteIndex.of_points(road.points_3d(), road.distances()))
 	return out
 
 
 ## Invisible walls CORRIDOR metres either side of the road and SPUR_CORRIDOR either side of each
-## wrong way, skipped wherever another tube is nearer (inside a hairpin, at a junction), plus a cap
+## wrong way and bypass, skipped wherever another tube is nearer (inside a hairpin, at a junction), plus a cap
 ## across each end. Every run of wall ends exactly where it stops being valid (and a little past
 ## it, so walls of two tubes cross) and side walls meet the end caps: the stage is closed all round.
 static func _build_boundary(graph: RouteGraph, terrain: TerrainField, indexes: Array[RouteIndex]) -> StaticBody3D:
@@ -189,6 +196,12 @@ static func _build_boundary(graph: RouteGraph, terrain: TerrainField, indexes: A
 			total, corners[[0.0, side]], corners[[total, side]])
 	for spur in graph.spurs:
 		_build_spur_walls(body, terrain, indexes, spur)
+	# A bypass's tube is open at both ends, into the road's.
+	for bypass in graph.bypasses:
+		var points := bypass.points_3d()
+		var along := bypass.distances()
+		for side in [-1.0, 1.0]:
+			_wall_run(body, terrain, indexes, func(d: float) -> Vector3: return _wall_post(points, along, d, side, SPUR_CORRIDOR), along[-1])
 	return body
 
 

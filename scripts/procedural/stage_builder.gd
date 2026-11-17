@@ -13,7 +13,14 @@ class_name StageBuilder
 ## "len": m to the dead end or barrier (60-250), "end": "dead_end" | "barrier", "at": 0..1 along the
 ## segment (0 for straight, where the road starts to turn; 0.5 otherwise), "angle": degrees off the
 ## road for left/right, "bend": degrees it turns after its mouth, "rise": m over its length},
-## "spectators" ("left" | "right": a fenced place for the crowd, the forest opened for it: RallyDressing).
+## "spectators" ("left" | "right": a fenced place for the crowd, the forest opened for it: RallyDressing),
+## "bypass": a road a crew may take instead of the stage ahead (RouteGraph.Bypass): {"kind": "shortcut" | "long",
+## "side": "left" | "right", "at": 0..1 along the segment (its mouth), "rejoin": metres along the stage from the
+## mouth to where it joins again, "angle" / "join": degrees off the stage at the mouth and at the rejoin (0 = the
+## road carrying straight on), "hold": m it runs straight at each end, "reach": how far its curve keeps those
+## headings (a share of the gap between its ends),
+## "rise": m of hump over its length, "price": "ford" | "gate" | "rough" | "narrow", "price_at": 0..1 along it,
+## "surface", "width" (m)}.
 
 ## The inside of every corner of at least SCREEN_TURN degrees gets a screen (trees, rocks: you
 ## cannot see round it), from SCREEN_LEAD metres before it to as far after, unless that side is a cliff.
@@ -28,6 +35,18 @@ const DECOY_BLEND := 12.0
 const DECOY_BUMPS := 2.5
 const DECOY_RUN_ON := 30.0
 const LANDING_RADIUS := 9.0
+## Bypasses: how long their heading at each end holds by default (a share of the gap between the ends),
+## the ford's depth and length, the rough track's ruts, the narrow lane's width and its banks.
+const BYPASS_REACH := 0.45
+## ...and how far it runs straight from each junction before it curves (a real junction's mouth).
+const BYPASS_HOLD := 20.0
+const FORD_DEPTH := 0.6
+const FORD_LENGTH := 40.0
+const ROUGH_AMPLITUDE := 0.3
+const ROUGH_FREQUENCY := 1.0 / 9.0
+const NARROW_WIDTH := 3.2
+const NARROW_LENGTH := 70.0
+const NARROW_WALL := 4.0
 ## Integration step and the spacing of the finished polyline (metres).
 const STEP := 1.0
 const POINT_SPACING := 2.0
@@ -77,6 +96,7 @@ static func build(stage: Dictionary) -> RouteGraph:
 	var travelled := 0.0
 	var headings := PackedFloat32Array([heading])
 	var decoys: Array[Dictionary] = []
+	var forks: Array[Dictionary] = []
 	for segment in stage.get("segments", []):
 		var length: float = segment.get("len", 10.0)
 		var steps := maxi(roundi(length / STEP), 1)
@@ -101,6 +121,8 @@ static func build(stage: Dictionary) -> RouteGraph:
 		_add_features(graph, segment, from, travelled)
 		if segment.has("decoy"):
 			decoys.append({"spec": segment.decoy, "from": from, "to": travelled})
+		if segment.has("bypass"):
+			forks.append({"spec": segment.bypass, "from": from, "to": travelled})
 
 	# 2. Heights: smoothed climb + bumps + the features' own shapes.
 	var heights := _smooth(level, roundi(RISE_SMOOTHING / STEP))
@@ -155,10 +177,12 @@ static func build(stage: Dictionary) -> RouteGraph:
 
 	_place_gates(graph)
 	_add_crowds(graph)
-	if not decoys.is_empty():
+	if not decoys.is_empty() or not forks.is_empty():
 		var index := RouteIndex.new(graph)
 		for request in decoys:
 			_add_spur(graph, request, index, dense, along, heights, headings)
+		for request in forks:
+			_add_bypass(graph, request, index, dense, along, heights, headings)
 	_measure(graph)
 	return graph
 
@@ -247,6 +271,131 @@ static func _add_spur(graph: RouteGraph, request: Dictionary, index: RouteIndex,
 	var offset: Vector2 = clear - Vector2(road_spot.position.x, road_spot.position.z)
 	spur.road_side = 1 if offset.dot(Vector2(-road_dir.y, road_dir.x)) >= 0.0 else -1
 	graph.spurs.append(spur)
+
+
+## Builds one bypass from its recipe: a curve from its mouth, leaving the road at `angle`, to its rejoin, coming in at
+## `join`, holding each heading for `reach` of the gap; its heights run from the road's at the mouth to the road's at
+## the rejoin (blended into the road's band at both ends, as a wrong way's), with its hump and its price's shape.
+static func _add_bypass(graph: RouteGraph, request: Dictionary, index: RouteIndex, dense: PackedVector2Array, along: PackedFloat32Array,
+		heights: PackedFloat32Array, headings: PackedFloat32Array) -> void:
+	var spec: Dictionary = request.spec
+	var stride := maxi(roundi(POINT_SPACING / STEP), 1)
+	var j := roundi(lerpf(float(request.from), float(request.to), float(spec.get("at", 0.0))) / STEP)
+	j = clampi(j - j % stride, stride * 2, dense.size() - 1 - stride * 2)
+	var k := j + roundi(float(spec.get("rejoin", 200.0)) / STEP)
+	k = clampi(k - k % stride, j + stride * 2, dense.size() - 1 - stride * 2)
+	var bypass := RouteGraph.Bypass.new()
+	bypass.id = graph.bypasses.size()
+	bypass.kind = StringName(spec.get("kind", "shortcut"))
+	bypass.price = StringName(spec.get("price", ""))
+	bypass.at = along[j]
+	bypass.rejoin = along[k]
+	var road_edge := graph.edges[graph.sample(along[j]).edge]
+	var side := -1.0 if spec.get("side", "left") == "left" else 1.0
+	var angle := deg_to_rad(float(spec.get("angle", 0.0))) * side
+	var join := deg_to_rad(float(spec.get("join", spec.get("angle", 0.0)))) * side
+	var start := dense[j]
+	var end := dense[k]
+	var out := Vector2(sin(headings[j]), -cos(headings[j])).rotated(angle)
+	var back := Vector2(sin(headings[k]), -cos(headings[k])).rotated(-join)
+	var hold := float(spec.get("hold", BYPASS_HOLD))
+	var a := start + out * hold
+	var b := end - back * hold
+	var gap := a.distance_to(b) * float(spec.get("reach", BYPASS_REACH))
+	# Straight out of the mouth, the cubic, straight into the rejoin: finely, then every STEP metres along it.
+	var curve := PackedVector2Array([start])
+	for n in 801:
+		var t := n / 800.0
+		var u := 1.0 - t
+		curve.append(a * u * u * u + (a + out * gap) * 3.0 * u * u * t + (b - back * gap) * 3.0 * u * t * t + b * t * t * t)
+	curve.append(end)
+	var points := PackedVector2Array([start])
+	var walked := 0.0
+	var next := STEP
+	for n in range(1, curve.size()):
+		var piece := curve[n].distance_to(curve[n - 1])
+		while walked + piece >= next and piece > 0.0:
+			points.append(curve[n - 1].lerp(curve[n], (next - walked) / piece))
+			next += STEP
+		walked += piece
+	if points[-1].distance_to(end) < STEP * 0.5:
+		points[-1] = end
+	else:
+		points.append(end)
+	var length := walked
+	var middle := clampf(float(spec.get("price_at", 0.5)), 0.0, 1.0) * length
+	bypass.price_at = middle
+	var width := float(spec.get("width", NARROW_WIDTH if bypass.price == &"narrow" else road_edge.width))
+	match bypass.price:
+		&"ford":
+			bypass.features.append({"kind": &"water", "from": middle - FORD_LENGTH * 0.5, "to": middle + FORD_LENGTH * 0.5, "at": middle,
+				"side": 0, "value": FORD_DEPTH})
+		&"narrow":
+			for wall_side in [-1, 1]:
+				bypass.features.append({"kind": &"bank", "from": middle - NARROW_LENGTH * 0.5, "to": middle + NARROW_LENGTH * 0.5, "at": middle,
+					"side": wall_side, "value": NARROW_WALL})
+	# Its own heights, 1 m at a time, then blended into the road's band at both ends.
+	var rise: float = spec.get("rise", 0.0)
+	var own := PackedFloat32Array()
+	for n in points.size():
+		var s := minf(float(n) * STEP, length)
+		own.append(lerpf(heights[j], heights[k], smoothstep(0.0, length, s)) + rise * pow(sin(PI * s / length), 2.0)
+			+ _feature_height(bypass.features, s))
+	var bumps := FastNoiseLite.new()
+	bumps.seed = graph.seed + 61 + bypass.id
+	bumps.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	bumps.frequency = ROUGH_FREQUENCY if bypass.price == &"rough" else BUMP_FREQUENCY
+	bumps.fractal_octaves = 2
+	var amplitude := ROUGH_AMPLITUDE if bypass.price == &"rough" else BUMP_AMPLITUDE * DECOY_BUMPS
+	var half := road_edge.width * 0.5
+	var edge_points := PackedVector2Array()
+	var edge_heights := PackedFloat32Array()
+	for n in range(0, points.size(), stride):
+		edge_points.append(points[n])
+		edge_heights.append(_bypass_height(graph, index, points[n], float(n) * STEP, length, own[n], bumps, amplitude, half, bypass.features))
+	if edge_points[-1] != end:
+		edge_points.append(end)
+		edge_heights.append(heights[k])
+	var edge := RouteGraph.RouteEdge.new()
+	edge.id = RouteGraph.BYPASS_EDGE_BASE + 10 * bypass.id
+	edge.from_node = -1
+	edge.to_node = -1
+	edge.points = edge_points
+	edge.heights = edge_heights
+	edge.width = width
+	edge.surface = StringName(spec.get("surface", road_edge.surface))
+	edge.length = RouteGraph.polyline_length(edge_points)
+	bypass.length = edge.length
+	bypass.price_at *= edge.length / length
+	for feature in bypass.features:
+		for key in ["from", "to", "at"]:
+			feature[key] = float(feature[key]) * edge.length / length
+	bypass.edges.append(edge)
+	bypass.road_side = _side_of(graph, index, edge_points[mini(int(DECOY_MOUTH / POINT_SPACING), edge_points.size() - 1)])
+	bypass.rejoin_side = _side_of(graph, index, edge_points[maxi(edge_points.size() - 1 - int(DECOY_MOUTH / POINT_SPACING), 0)])
+	graph.bypasses.append(bypass)
+
+
+## A bypass's height `s` metres along it: its own (with ruts away from its ends, none on its features), taking the
+## stage road's within the road's band.
+static func _bypass_height(graph: RouteGraph, index: RouteIndex, p: Vector2, s: float, length: float, own: float, bumps: FastNoiseLite,
+		amplitude: float, half: float, features: Array[Dictionary]) -> float:
+	var quiet := smoothstep(DECOY_MOUTH, DECOY_MOUTH + 20.0, minf(s, length - s))
+	for feature in features:
+		if s > float(feature.from) - 10.0 and s < float(feature.to) + 10.0:
+			quiet = 0.0
+	var near := index.nearest(p)
+	var w := smoothstep(half + RoadBuilder.ROADSIDE, half + RoadBuilder.ROADSIDE + DECOY_BLEND, float(near.distance))
+	var road_height: float = graph.sample(float(near.along)).position.y if float(near.distance) != INF else own
+	return lerpf(road_height, own + bumps.get_noise_1d(s) * amplitude * quiet, w)
+
+
+## Which side of the stage road (-1 left, 1 right) `p` lies on, measured from the road's nearest point.
+static func _side_of(graph: RouteGraph, index: RouteIndex, p: Vector2) -> int:
+	var road_spot := graph.sample(float(index.nearest(p, 120.0).along))
+	var road_dir: Vector2 = road_spot.direction
+	var offset: Vector2 = p - Vector2(road_spot.position.x, road_spot.position.z)
+	return 1 if offset.dot(Vector2(-road_dir.y, road_dir.x)) >= 0.0 else -1
 
 
 ## Records the segment's features by distance along the road.

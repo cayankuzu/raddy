@@ -286,6 +286,9 @@ static func _stands_free(context: Dictionary, at: float, side: float) -> bool:
 	for spur in graph.spurs:
 		if absf(at - spur.at) < MOUTH_QUIET and float(spur.road_side) == side:
 			return false
+	for bypass in graph.bypasses:
+		if (absf(at - bypass.at) < MOUTH_QUIET and float(bypass.road_side) == side) or (absf(at - bypass.rejoin) < MOUTH_QUIET and float(bypass.rejoin_side) == side):
+			return false
 	for gate in graph.checkpoints:
 		if absf(at - gate.distance) < GATE_QUIET:
 			return false

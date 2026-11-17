@@ -27,20 +27,20 @@ func test_numbered_in_stage_order_and_deterministic() -> void:
 
 
 func test_a_known_corner_is_called_with_the_right_side_and_severity() -> void:
-	# Black Pine's 4th segment turns 80 deg left over 48 m: radius 34 m, a "left 3".
-	var graph := _graph(&"black_pine")
-	var stage := StageCatalog.get_stage(StageCatalog.index_of(&"black_pine"))
+	# Scorpion Hills' 6th segment turns 65 deg right over 40 m: radius 35 m, a "right 3", a wrong way straight on.
+	var graph := _graph(&"scorpion_hills")
+	var stage := StageCatalog.get_stage(StageCatalog.index_of(&"scorpion_hills"))
 	var start := 0.0
-	for k in 3:
+	for k in 5:
 		start += float(stage.segments[k].len)
 	var found := false
 	for note in PaceNotes.build(graph):
 		if note.kind == &"corner" and absf(note.distance - start) < 12.0:
 			found = true
-			assert_eq(note.side, "left")
+			assert_eq(note.side, "right")
 			assert_eq(note.severity, 3)
-			assert_eq(note.tr, "Kavşak: Sol 3, düz değil!")
-			assert_eq(note.en, "Junction: Left 3, not straight!")
+			assert_eq(note.tr, "Kavşak: Sağ 3, düz değil!")
+			assert_eq(note.en, "Junction: Right 3, not straight!")
 	assert_true(found, "the corner at %.0f m is called" % start)
 
 
@@ -81,7 +81,7 @@ func test_every_wrong_way_has_its_call_at_every_detail() -> void:
 		for detail in [PaceNotes.DETAIL_SUMMARY, PaceNotes.DETAIL_STANDARD, PaceNotes.DETAIL_FULL]:
 			var notes := PaceNotes.build(graph, detail)
 			var calls := notes.filter(func(n: Dictionary) -> bool: return n.junction != "")
-			assert_eq(calls.size(), graph.spurs.size(), "%s: one call per wrong way at detail %d" % [graph.stage_id, detail])
+			assert_eq(calls.size(), graph.spurs.size() + graph.bypasses.size(), "%s: one call per wrong way and per bypass's rejoin at detail %d" % [graph.stage_id, detail])
 			for call in calls:
 				assert_true(String(call.tr).begins_with("Kavşak: "), "%s: %s" % [graph.stage_id, call.tr])
 				assert_true(String(call.en).begins_with("Junction: "), "%s: %s" % [graph.stage_id, call.en])
