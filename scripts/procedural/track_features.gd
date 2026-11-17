@@ -34,6 +34,8 @@ static func build(graph: RouteGraph, terrain: TerrainField, biome: int) -> Node3
 		for feature in bypass.features:
 			if feature.kind == &"water":
 				root.add_child(_build_water("Ford%d" % bypass.id, feature, bypass.pose_at, bypass.edges[0].width * 0.5))
+		if bypass.price == &"gate":
+			root.add_child(FarmGate.build(bypass))
 	for run in _cliff_runs(graph):
 		root.add_child(GuardRail.build(graph, run))
 	root.add_child(_build_boundary(graph, terrain, indexes))

@@ -134,6 +134,26 @@ static func hazard(ci: CanvasItem, kind: StringName, at: Vector2, size: float, s
 			ci.draw_polyline(turn, INK, w * 1.2)
 			var tip := turn[-1]
 			ci.draw_colored_polygon(PackedVector2Array([tip + Vector2(-u * 0.32, -u * 0.05), tip + Vector2(u * 0.32, -u * 0.05), tip + Vector2(0.0, u * 0.42)]), INK)
+		&"gate":
+			# A farm gate: two posts, three rails and the brace.
+			for x in [-1.15, 1.15]:
+				ci.draw_line(c + Vector2(u * x, -u * 0.85), c + Vector2(u * x, u * 0.8), INK, w * 1.4)
+			for y in [-0.6, 0.0, 0.6]:
+				ci.draw_line(c + Vector2(-u * 1.15, u * y), c + Vector2(u * 1.15, u * y), INK, w)
+			ci.draw_line(c + Vector2(-u * 1.15, u * 0.6), c + Vector2(u * 1.15, -u * 0.6), INK, w)
+		&"rough":
+			# An uneven road: a jagged surface over stones.
+			var ruts := PackedVector2Array()
+			for k in 7:
+				ruts.append(c + Vector2((k / 6.0 - 0.5) * u * 2.6, (0.15 if k % 2 == 0 else -0.35) * u))
+			ci.draw_polyline(ruts, INK, w * 1.3)
+			for x in [-0.8, 0.0, 0.8]:
+				ci.draw_circle(c + Vector2(u * x, u * 0.6), u * 0.16, INK)
+		&"narrow":
+			# The road narrows: its edges close in from both sides.
+			for s in [-1.0, 1.0]:
+				ci.draw_polyline(PackedVector2Array([c + Vector2(s * u * 0.95, u * 0.9), c + Vector2(s * u * 0.95, u * 0.15),
+					c + Vector2(s * u * 0.4, -u * 0.35), c + Vector2(s * u * 0.4, -u * 0.95)]), INK, w * 1.3)
 		&"cliff":
 			var edge := c + Vector2(-side * u * 0.2, 0.0)
 			ci.draw_line(edge + Vector2(0.0, -u * 0.9), edge + Vector2(0.0, u * 0.85), INK, w * 1.3)

@@ -130,7 +130,7 @@ func test_each_price_is_built_into_the_road() -> void:
 				assert_lt(middle, lerpf(mouth, rejoin, 0.5) - StageBuilder.FORD_DEPTH * 0.5, "it dips under the water")
 			&"narrow":
 				assert_eq(edge.width, StageBuilder.NARROW_WIDTH, "a narrow lane")
-				assert_eq(bypass.features.filter(func(f: Dictionary) -> bool: return f.kind == &"bank").size(), 2, "between banks")
+				assert_eq(bypass.features.filter(func(f: Dictionary) -> bool: return f.kind == &"narrow").size(), 1, "between banks (RoadBuilder)")
 			&"rough":
 				var rise := 0.0
 				for i in range(10, edge.heights.size() - 10):

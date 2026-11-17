@@ -36,7 +36,7 @@ const DECOY_BUMPS := 2.5
 const DECOY_RUN_ON := 30.0
 const LANDING_RADIUS := 9.0
 ## Bypasses: how long their heading at each end holds by default (a share of the gap between the ends),
-## the ford's depth and length, the rough track's ruts, the narrow lane's width and its banks.
+## the ford's depth and length, the rough track's ruts, the narrow lane's width, length and the height of its banks.
 const BYPASS_REACH := 0.45
 ## ...and how far it runs straight from each junction before it curves (a real junction's mouth).
 const BYPASS_HOLD := 20.0
@@ -46,7 +46,7 @@ const ROUGH_AMPLITUDE := 0.3
 const ROUGH_FREQUENCY := 1.0 / 9.0
 const NARROW_WIDTH := 3.2
 const NARROW_LENGTH := 70.0
-const NARROW_WALL := 4.0
+const NARROW_BANK := 1.3
 ## Integration step and the spacing of the finished polyline (metres).
 const STEP := 1.0
 const POINT_SPACING := 2.0
@@ -331,9 +331,8 @@ static func _add_bypass(graph: RouteGraph, request: Dictionary, index: RouteInde
 			bypass.features.append({"kind": &"water", "from": middle - FORD_LENGTH * 0.5, "to": middle + FORD_LENGTH * 0.5, "at": middle,
 				"side": 0, "value": FORD_DEPTH})
 		&"narrow":
-			for wall_side in [-1, 1]:
-				bypass.features.append({"kind": &"bank", "from": middle - NARROW_LENGTH * 0.5, "to": middle + NARROW_LENGTH * 0.5, "at": middle,
-					"side": wall_side, "value": NARROW_WALL})
+			bypass.features.append({"kind": &"narrow", "from": middle - NARROW_LENGTH * 0.5, "to": middle + NARROW_LENGTH * 0.5, "at": middle,
+				"side": 0, "value": NARROW_BANK})
 	# Its own heights, 1 m at a time, then blended into the road's band at both ends.
 	var rise: float = spec.get("rise", 0.0)
 	var own := PackedFloat32Array()

@@ -9,6 +9,8 @@ extends Node
 ## `obstacles()` tells bots (RouteFollower) where the fallen trunks and boulders are.
 
 signal triggered(index: int)
+## A gate (FarmGate) wants opening: the host's word opens it everywhere (open_gate).
+signal gate_wanted(index: int, rammed: bool)
 
 ## Boulders per rockfall and how hard they are thrown off the bank toward the road.
 const BOULDERS := 4
@@ -35,6 +37,7 @@ var spawn_boulder: Callable
 var plays := 0
 
 var _events: Array[Node3D] = []
+var _gates: Array[FarmGate] = []
 var _fired: Dictionary = {}
 ## Circles (x, y, z, radius) along each fallen trunk, by event index.
 var _trunks: Dictionary = {}
@@ -60,6 +63,11 @@ func setup(track: Node) -> void:
 		var crown := node.get_node_or_null(^"Tree/Crown") as Area3D
 		if crown != null:
 			crown.body_entered.connect(func(body: Node3D) -> void: _on_crown(node as Node3D, body))
+	for node in track.find_children("Gate*", "Node3D", true, false):
+		if node is FarmGate:
+			var index := _gates.size()
+			_gates.append(node as FarmGate)
+			(node as FarmGate).wanted.connect(func(rammed: bool) -> void: _on_gate_wanted(index, rammed))
 
 
 func _process(delta: float) -> void:
@@ -102,6 +110,19 @@ func _on_trigger(index: int, body: Node3D) -> void:
 		play(index)  # offline: nobody to ask
 	else:
 		triggered.emit(index)
+
+
+func _on_gate_wanted(index: int, rammed: bool) -> void:
+	if gate_wanted.get_connections().is_empty():
+		open_gate(index, rammed)  # offline: nobody to ask
+	else:
+		gate_wanted.emit(index, rammed)
+
+
+## Opens gate `index` here (every peer: the host's broadcast, or offline).
+func open_gate(index: int, rammed: bool) -> void:
+	if index >= 0 and index < _gates.size():
+		_gates[index].swing_open(rammed)
 
 
 ## Plays event `index` here (every peer calls this once, the host's broadcast or offline).

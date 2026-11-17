@@ -199,6 +199,11 @@ func _build_route() -> void:
 	stage_events.setup(track)
 	if Net.is_host():
 		stage_events.triggered.connect(func(index: int) -> void: _rpc_stage_event.rpc(index))
+	stage_events.gate_wanted.connect(func(index: int, rammed: bool) -> void:
+		if Net.is_host():
+			_rpc_open_gate.rpc(index, rammed)
+		else:
+			_rpc_request_gate.rpc_id(1, index, rammed))
 	notes = PaceNotes.build(graph, RaceSettings.note_detail(difficulty()))
 	_map_sheet = MapSheet.of_track(graph, terrain, track, notes, settings)
 	if Net.is_host():
@@ -868,6 +873,20 @@ func _rpc_spawn_can(can_id: int, origin: Vector3, rotation: Quaternion, velocity
 		can.linear_velocity = velocity
 		can.angular_velocity = spin
 	print("NET can %d spawned" % can_id)
+
+
+## Host: a crew rammed or opened a farm gate (FarmGate: its car already went through it on the driver's own peer).
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_request_gate(index: int, rammed: bool) -> void:
+	if Net.is_host() and Net.roster.has(multiplayer.get_remote_sender_id()):
+		_rpc_open_gate.rpc(index, rammed)
+
+
+## Every peer swings the gate open.
+@rpc("authority", "call_local", "reliable")
+func _rpc_open_gate(index: int, rammed: bool) -> void:
+	if stage_events != null:
+		stage_events.open_gate(index, rammed)
 
 
 ## Every peer plays the stage event the host saw a crew trigger.

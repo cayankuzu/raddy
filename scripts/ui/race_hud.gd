@@ -275,6 +275,11 @@ func _prompt_text(car: RallyCar, team: int) -> String:
 		if session.recovery_seats(team) > 1:
 			return tr("HUD_RECOVERY").format({"confirmed": session.recovery_confirmed(team), "seats": session.recovery_seats(team)})
 		return tr("HUD_RECOVERY_HOLD")
+	var gate := FarmGate.nearest_closed(get_tree(), car.global_position, GateRules.OPEN_REACH)
+	if gate != null and GateRules.may_open(gate.global_position.distance_to(car.global_position), car.forward_speed):
+		if gate.held > 0.0:
+			return tr("HUD_GATE_OPENING").format({"seconds": ceili(GateRules.OPEN_SECONDS - gate.held)})
+		return tr("HUD_GATE_HOLD")
 	if cabin.map_state == Cabin.MapState.GONE and cabin.local_may_hold_map():
 		return tr("HUD_MAP_GONE").format({"seconds": ceili(cabin.map_cooldown_left)})
 	if cabin.map_warning_active and cabin.local_may_hold_map():

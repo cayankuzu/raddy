@@ -159,7 +159,7 @@ func _register(segment: Array, lo_point: Vector2, hi_point: Vector2) -> void:
 
 
 ## A side road's ditch factors (none at a junction, around a wrong way's turning area and at its end, nor at a
-## bypass's ford) and floor.
+## bypass's ford or between a narrow lane's banks) and floor.
 func _build_side_road_sides(road: RouteGraph.SideRoad) -> void:
 	var spur := road as RouteGraph.Spur
 	var bypass := road as RouteGraph.Bypass
@@ -181,7 +181,7 @@ func _build_side_road_sides(road: RouteGraph.SideRoad) -> void:
 			else:
 				d = minf(d, clampf((edge.length - s - MOUTH_CLEAR) / DITCH_FADE, 0.0, 1.0))
 				for feature in bypass.features:
-					if feature.kind == &"water":
+					if feature.kind in [&"water", &"narrow"]:
 						var gap := maxf(maxf(float(feature.from) - DITCH_FADE - s, s - float(feature.to) - DITCH_FADE), 0.0)
 						d = minf(d, clampf(gap / DITCH_FADE, 0.0, 1.0))
 			ditch[i] = d
@@ -511,40 +511,25 @@ func _base_at(p: Vector2) -> Vector2:
 func _build_sides(graph: RouteGraph) -> void:
 	_sides.clear()
 	for feature in graph.features:
-		if feature.kind in [&"cliff", &"bank"]:
-			_add_side(feature, func(distance: float) -> Dictionary:
-				var spot := graph.sample(distance)
-				return {"position": spot.position, "direction": spot.direction, "half": graph.edges[spot.edge].width * 0.5})
-	# A narrow bypass's banks.
-	for bypass in graph.bypasses:
-		var half := bypass.edges[0].width * 0.5
-		for feature in bypass.features:
-			if feature.kind == &"bank":
-				_add_side(feature, func(distance: float) -> Dictionary:
-					var pose := bypass.pose_at(distance)
-					return {"position": pose.position, "direction": pose.direction, "half": half})
-
-
-## One cliff's or bank's profile along a road: `pose_at` (metres -> {"position", "direction", "half"}).
-func _add_side(feature: Dictionary, pose_at: Callable) -> void:
-	var points := PackedVector2Array()
-	var dirs := PackedVector2Array()
-	var half_widths := PackedFloat32Array()
-	var distance: float = feature.from
-	while distance <= feature.to:
-		var pose: Dictionary = pose_at.call(distance)
-		var at: Vector3 = pose.position
-		points.append(Vector2(at.x, at.z))
-		dirs.append(pose.direction)
-		half_widths.append(float(pose.half))
-		distance += 3.0
-	if points.is_empty():
-		return
-	var box := Rect2(points[0], Vector2.ZERO)
-	for q in points:
-		box = box.expand(q)
-	_sides.append({"kind": feature.kind, "side": float(feature.side), "value": float(feature.value),
-		"points": points, "dirs": dirs, "half_widths": half_widths, "box": box.grow(VALLEY_END + 20.0)})
+		if not feature.kind in [&"cliff", &"bank"]:
+			continue
+		var points := PackedVector2Array()
+		var dirs := PackedVector2Array()
+		var half_widths := PackedFloat32Array()
+		var distance: float = feature.from
+		while distance <= feature.to:
+			var spot := graph.sample(distance)
+			points.append(Vector2(spot.position.x, spot.position.z))
+			dirs.append(spot.direction)
+			half_widths.append(graph.edges[spot.edge].width * 0.5)
+			distance += 3.0
+		if points.is_empty():
+			continue
+		var box := Rect2(points[0], Vector2.ZERO)
+		for q in points:
+			box = box.expand(q)
+		_sides.append({"kind": feature.kind, "side": float(feature.side), "value": float(feature.value),
+			"points": points, "dirs": dirs, "half_widths": half_widths, "box": box.grow(VALLEY_END + 20.0)})
 
 
 ## Height the cliffs and banks add at `p`: a cliff falls away past the shoulder and its valley

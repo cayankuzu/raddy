@@ -96,6 +96,8 @@ HUD_RECOVERY,R — Aracı Kurtar ({confirmed}/{seats}),R — Recover the car ({c
 HUD_RECOVERY_HOLD,R basılı tut — Aracı Kurtar,Hold R — Recover the car
 HUD_MAP_GONE,Harita uçtu — yenisi {seconds} s sonra,Map blew away — a new one in {seconds} s
 HUD_MAP_WARNING,Harita uçmak üzere!,The map is about to fly!
+HUD_GATE_HOLD,G basılı tut — kapıyı aç,Hold G — open the gate
+HUD_GATE_OPENING,Kapı açılıyor… {seconds},Opening the gate… {seconds}
 HUD_FAINTED,Baygınsın... {seconds} s,Out cold... {seconds} s
 HUD_SPEAKING,{name} konuşuyor,{name} is talking
 HUD_KEYS_DRIVER,W/S gaz-fren   A/D direksiyon   Boşluk el freni   Fare bak   H korna   Q cam   T silecek   1-4 el işareti   V konuş,W/S throttle-brake   A/D steer   Space handbrake   Mouse look   H horn   Q window   T wipers   1-4 hand signals   V talk
@@ -164,6 +166,7 @@ ACTION_cabin_throw,Kutu at,Throw a can
 ACTION_cabin_kick_windshield,Ön camı tekmele,Kick the windshield out
 ACTION_cabin_wipers,Silecekler,Wipers
 ACTION_cabin_dome,Tavan lambası,Dome lamp
+ACTION_cabin_gate,Çiftlik kapısını aç,Open a farm gate
 ACTION_map_toggle,Harita,Map
 ACTION_map_reset,Haritayı sıfırla,Reset the map view
 ACTION_voice_talk,Bas-konuş,Push to talk
@@ -251,6 +254,9 @@ MAP_KEY_HAZARD_WATER,Su,Water
 MAP_KEY_HAZARD_CAUTION,Dikkat,Caution
 MAP_KEY_HAZARD_HAIRPIN,Saç tokası,Hairpin
 MAP_KEY_HAZARD_CLIFF,Uçurum kenarı,Cliff edge
+MAP_KEY_HAZARD_GATE,Çiftlik kapısı,Farm gate
+MAP_KEY_HAZARD_ROUGH,Bozuk yol,Rough track
+MAP_KEY_HAZARD_NARROW,Daralan yol,Road narrows
 MAP_KEY_RING,Not numarası,Call number
 RESULTS_MEDAL,Madalya,Medal
 RESULTS_NEW_RECORD,YENİ ETAP REKORU! {team} · {time},NEW STAGE RECORD! {team} · {time}

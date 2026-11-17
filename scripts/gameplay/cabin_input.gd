@@ -63,10 +63,25 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 ## A key let go while the window had lost the keyboard never says so: the gesture is held only while its key really is.
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _held != &"" and not Input.is_action_pressed(_held):
 		(cabin.seats[role] as CrewRules.Seat).release(CrewRules.GESTURE_ACTIONS[_held])
 		_held = &""
+	_work_gate(delta)
+
+
+## The farm gate's job (GateRules): held while the car stands at a closed gate, then it opens.
+func _work_gate(delta: float) -> void:
+	var car := cabin.get_parent() as RallyCar
+	var gate := FarmGate.nearest_closed(get_tree(), car.global_position, GateRules.OPEN_REACH) if car != null else null
+	if gate == null:
+		return
+	if Input.is_action_pressed(&"cabin_gate") and not cabin.is_fainted(role) 			and GateRules.may_open(gate.global_position.distance_to(car.global_position), car.forward_speed):
+		gate.held += delta
+		if gate.held >= GateRules.OPEN_SECONDS:
+			gate.request_open()
+	else:
+		gate.held = 0.0
 
 
 ## A window wound down or up by hand, if there is still glass to wind.

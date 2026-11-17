@@ -292,19 +292,34 @@ func _label_radius(text: String, size: int) -> float:
 
 func _add_water() -> void:
 	for feature in graph.features_of(&"water"):
-		var left := PackedVector2Array()
-		var right := PackedVector2Array()
-		var s := float(feature.from)
-		while s <= float(feature.to) + 0.01:
+		_add_pool(feature, func(s: float) -> Dictionary:
 			var spot := graph.sample_exact(s)
-			var dir: Vector2 = spot.direction
-			var reach: float = graph.edges[spot.edge].width * 0.5 + 1.2
-			var p := Vector2(spot.position.x, spot.position.z)
-			left.append(world_to_page(p - dir.orthogonal() * -reach))
-			right.append(world_to_page(p + dir.orthogonal() * -reach))
-			s += StageBuilder.POINT_SPACING
-		right.reverse()
-		waters.append(left + right)
+			return {"position": spot.position, "direction": spot.direction, "half": graph.edges[spot.edge].width * 0.5})
+	for bypass in graph.bypasses:
+		var half := bypass.edges[0].width * 0.5
+		for feature in bypass.features:
+			if feature.kind == &"water":
+				_add_pool(feature, func(s: float) -> Dictionary:
+					var pose := bypass.pose_at(s)
+					return {"position": pose.position, "direction": pose.direction, "half": half})
+
+
+## The water over a road from a feature's start to its end: `pose_at` (metres -> {"position", "direction", "half"}).
+func _add_pool(feature: Dictionary, pose_at: Callable) -> void:
+	var left := PackedVector2Array()
+	var right := PackedVector2Array()
+	var s := float(feature.from)
+	while s <= float(feature.to) + 0.01:
+		var pose: Dictionary = pose_at.call(s)
+		var dir: Vector2 = pose.direction
+		var reach := float(pose.half) + 1.2
+		var at: Vector3 = pose.position
+		var p := Vector2(at.x, at.z)
+		left.append(world_to_page(p - dir.orthogonal() * -reach))
+		right.append(world_to_page(p + dir.orthogonal() * -reach))
+		s += StageBuilder.POINT_SPACING
+	right.reverse()
+	waters.append(left + right)
 
 
 ## Hachures on a cliff's side, wider where it drops further; ticks down from a bank's top to the road.
@@ -402,6 +417,18 @@ func _add_hazards() -> void:
 		var spot := _free_spot(road, dir.orthogonal() * -1.0, radius, hazard.side, 2.0)
 		_taken.append(Vector3(spot.x, spot.y, radius))
 		hazards.append({"kind": hazard.kind, "road": road, "spot": spot, "side": float(hazard.get("turn", hazard.side))})
+	# Each bypass's price where it is: a ford's water, the farm gate, the ruts, the lane between banks.
+	for bypass in graph.bypasses:
+		if bypass.price == &"":
+			continue
+		var pose := bypass.pose_at(bypass.price_at)
+		var at: Vector3 = pose.position
+		var road := world_to_page(Vector2(at.x, at.z))
+		var dir := page_direction(pose.direction)
+		var radius := HAZARD_SIZE * 0.55
+		var spot := _free_spot(road, dir.orthogonal() * -1.0, radius, 1.0, 2.0)
+		_taken.append(Vector3(spot.x, spot.y, radius))
+		hazards.append({"kind": &"water" if bypass.price == &"ford" else bypass.price, "road": road, "spot": spot, "side": 1.0})
 
 
 ## A numbered ring beside the road at every call (on the outside of a corner), the road book's row numbers.
@@ -411,7 +438,7 @@ func _add_rings(notes: Array[Dictionary]) -> void:
 		var dir := page_direction(graph.sample_exact(float(note.distance)).direction)
 		var spot := _free_spot(road, dir.orthogonal() * -1.0, RING_RADIUS, -1.0 if note.side == "right" else 1.0, 2.0)
 		_taken.append(Vector3(spot.x, spot.y, RING_RADIUS))
-		var danger: bool = note.caution or note.junction != "" or note.kind in [&"jump", &"water", &"cliff"] or int(note.severity) in [1, 2]
+		var danger: bool = note.caution or note.junction != "" or note.kind in [&"jump", &"water", &"cliff", &"bypass"] or int(note.severity) in [1, 2]
 		rings.append({"number": int(note.number), "road": road, "spot": spot, "danger": danger})
 
 
@@ -553,7 +580,7 @@ func _add_legend() -> void:
 			legend.append(kind)
 	if landmarks.any(func(mark: Dictionary) -> bool: return not mark.kind in MapPrint.SYMBOLS):
 		legend.append(&"building")
-	for kind: StringName in [&"jump", &"crest", &"dip", &"water", &"caution", &"hairpin", &"cliff"]:
+	for kind: StringName in [&"jump", &"crest", &"dip", &"water", &"caution", &"hairpin", &"cliff", &"gate", &"rough", &"narrow"]:
 		if hazards.any(func(hazard: Dictionary) -> bool: return hazard.kind == kind):
 			legend.append(StringName("hazard_" + String(kind)))
 	if not rings.is_empty():

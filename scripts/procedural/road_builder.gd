@@ -32,6 +32,11 @@ const MOUTH_LIFT := 0.004
 const MOUTH_REACH := 3.0
 const MOUTH_SKIRT := 0.7
 const DISC_SEGMENTS := 24
+## A narrow lane's earth banks (a bypass's price `narrow`): their profile across (metres from the road's edge, share of the
+## bank's height; the last column is buried in the ground) and how long they take to rise at each end.
+const BANK_COLUMNS: Array[float] = [SHOULDER, SHOULDER + 0.7, SHOULDER + 1.5, SHOULDER + 2.6, SHOULDER + 4.0]
+const BANK_RISE: Array[float] = [-SHOULDER_DROP, 0.75, 1.0, 0.8, -0.6]
+const BANK_ENDS := 8.0
 
 static var _palette: Dictionary = {}
 static var _biome := 0
@@ -72,6 +77,9 @@ static func build(graph: RouteGraph, terrain: TerrainField, palette := {}) -> No
 			var mouth := _build_mouth(graph, at, terrain)
 			mouth.name = "Mouth" if at == bypass.at else "Rejoin"
 			node.add_child(mouth)
+		for feature in bypass.features:
+			if feature.kind == &"narrow":
+				node.add_child(_build_banks(bypass, feature))
 		bypasses.add_child(node)
 	var gates := Node3D.new()
 	gates.name = "Checkpoints"
@@ -252,6 +260,53 @@ static func _build_mouth(graph: RouteGraph, at: float, terrain: TerrainField) ->
 			surface.add_index(a1 + 1)
 	surface.generate_tangents()
 	_add_surface(body, surface.commit())
+	return body
+
+
+## A narrow lane's two earth banks, right past the shoulders (no ditch there), rising and falling at their ends.
+static func _build_banks(bypass: RouteGraph.Bypass, feature: Dictionary) -> StaticBody3D:
+	var edge := bypass.edges[0]
+	var body := StaticBody3D.new()
+	body.name = "Banks"
+	body.set_meta(&"surface", BiomeRules.surface_for(Surface.DIRT, _weather))
+	var half := edge.width * 0.5
+	var from := float(feature.from) - BANK_ENDS
+	var to := float(feature.to) + BANK_ENDS
+	for side in [-1.0, 1.0]:
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		surface.set_material(SurfaceMaterials.verge(edge.surface, _biome))
+		var rows := 0
+		var s := from
+		while s <= to + 0.01:
+			var pose := bypass.pose_at(s)
+			var dir: Vector2 = pose.direction
+			var right := Vector3(-dir.y, 0.0, dir.x)
+			var height := float(feature.value) * smoothstep(from, from + BANK_ENDS, s) * (1.0 - smoothstep(to - BANK_ENDS, to, s))
+			for c in BANK_COLUMNS.size():
+				var rise := BANK_RISE[c] * (height if BANK_RISE[c] > 0.0 else 1.0)
+				surface.set_uv(Vector2(BANK_COLUMNS[c], s))
+				surface.set_uv2(Vector2(half, side))
+				surface.add_vertex((pose.position as Vector3) + right * side * (half + BANK_COLUMNS[c]) + Vector3.UP * rise)
+			rows += 1
+			s += StageBuilder.POINT_SPACING
+		var stride := BANK_COLUMNS.size()
+		for row in rows - 1:
+			for c in stride - 1:
+				var inner0 := row * stride + c
+				var outer0 := inner0 + 1
+				var inner1 := inner0 + stride
+				var outer1 := inner1 + 1
+				# Origin -> +X -> +Z, seen from above, as the road's own sides.
+				var l0 := inner0 if side > 0.0 else outer0
+				var r0 := outer0 if side > 0.0 else inner0
+				var l1 := inner1 if side > 0.0 else outer1
+				var r1 := outer1 if side > 0.0 else inner1
+				for i in [l0, l1, r0, r0, l1, r1]:
+					surface.add_index(i)
+		surface.generate_normals()
+		surface.generate_tangents()
+		_add_surface(body, surface.commit())
 	return body
 
 

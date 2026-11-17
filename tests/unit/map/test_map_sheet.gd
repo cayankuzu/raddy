@@ -93,7 +93,13 @@ func test_km_ticks_gates_and_hazards_at_their_true_places() -> void:
 		var expected := graph.features.filter(func(f: Dictionary) -> bool: return f.kind in [&"jump", &"crest", &"dip", &"water", &"caution"]).size()
 		expected += TrackFeatures._cliff_runs(graph).size()
 		expected += PaceNotes.build(graph, PaceNotes.DETAIL_FULL).filter(func(n: Dictionary) -> bool: return n.hairpin).size()
+		var priced := graph.bypasses.filter(func(b: RouteGraph.Bypass) -> bool: return b.price != &"")
+		expected += priced.size()
 		assert_eq(sheet.hazards.size(), expected, "%s: every hazard the world has, no surprise" % graph.stage_id)
+		for bypass: RouteGraph.Bypass in priced:
+			var at: Vector3 = bypass.pose_at(bypass.price_at).position
+			var price := sheet.hazards.filter(func(h: Dictionary) -> bool: return (h.road as Vector2).distance_to(sheet.world_to_page(Vector2(at.x, at.z))) < 0.01)
+			assert_eq(price.size(), 1, "%s: the price of bypass %d where it is on its road" % [graph.stage_id, bypass.id])
 		for hazard in sheet.hazards:
 			assert_lte(hazard.road.distance_to(hazard.spot), 110.0, "beside its place")
 
