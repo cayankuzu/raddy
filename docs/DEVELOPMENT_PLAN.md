@@ -1184,3 +1184,33 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   8. A car that hits a wall stops dead against it or spins at 145 deg/s (part 10).
   9. The cabin breathes 8 deg of FOV with speed; the head trails a slide's travel by 24 deg (part 10).
   10. Shifts and pedals: no shift is felt in the car, keys are on or off, the brake reverses at once (parts 9-10).
+- 2026-11-17: Phase F parts 4-5, the invisible bugs fixed (Part 1 item 3), no tuning changed.
+  - The playback clock: `SnapshotBuffer.playback(delta, local_ms, delay)` moves on by each physics tick's delta, pulled toward the wall clock
+    minus the 100 ms delay at 4/s and at most a quarter faster or slower, stepped only after a stall of more than 250 ms; `BodyNetSync`
+    plays every copy on it. A snapshot carries the sender's physics tick (`Engine.get_physics_frames()`), not whole milliseconds of the wall
+    clock: a slow frame's two snapshots shared one (the later dropped as a duplicate) and 33/34 ms wobbled the copy (its median move jerk
+    was twice the driver's). The place and the turn run on Hermite curves through the snapshots' velocities and spins (straight pieces
+    turned every 33 ms). A first cut that pulled at 2/s within a tenth fell behind a navigator window drawing 13-15 fps and caught up in a
+    step every few seconds (85-135 cm move jerks); a test now holds 13 fps.
+  - `CockpitCamera` reads `RallyCar.seen_velocity()`: a copy moved by transform once in three ticks leaned 0.03 g in a 1 g turn, now 1.00
+    (`test_cockpit_camera.gd`, which fails on the old line). The roughness needed no code of its own: on the playback clock each tick's
+    change of the interpolated compressions is the change over its snapshot interval; measured on the copy 0.39-0.44 mean, p99 0.97-0.98,
+    against the driver's 0.41-0.46 and 0.97 (0.23-0.30 and 0.53-0.56 before).
+  - The mouse: the 120 px cap (`CAPTURE_JUMP`) holds only the first motion after the mouse is captured. Flicks of 3 frames now turn the
+    head 0.118 deg/px a frame at every size (200 px 71.0 deg, before 47.3; 600 px 71.0 deg a frame up to the seat's 100 deg), and ten
+    400 px motions each turn it four times a 100 px one (`test_cockpit_camera.gd`).
+
+    | Camera jerk p99, turn / move (deg, cm per frame^2) | Driver before | Client navigator before | Driver after | Client navigator after | Navigator / driver after |
+    |---|---|---|---|---|---|
+    | nettest, headless, 60 fps, shake on | 0.419 / 0.635 | 0.353 / 3.118 | 0.440 / 0.629 | 0.507 / 0.677 | 1.15x / 1.08x |
+    | windowed, shake on | 0.401 / 0.587 | 0.491 / 10.09 | 0.403 / 0.709 | 0.377 / 1.015 | 0.94x / 1.43x |
+    | windowed, shake 0 (the ride alone) | 0.147 / 0.390 | 0.987 / 15.88 | 0.207 / 0.585 | 0.218 / 1.223 | 1.05x / 2.1x |
+
+  The gate holds: a client navigator's p99 camera jerk is within 1.5x the driver's in every run (it was 6.7x with the shake off). The move
+  jerk with the shake off is still 2.1x the driver's (median 0.29 against 0.20 cm): left as it is, for A8's buffer work to look at.
+  Windowed runs: driver and client navigator at High on one GPU (45-60 fps each, frames to 38 ms at p99), a headless host, the bot
+  circling on Black Pine, GO+1 s to 26 s; beside them the other project's two headless test runs and a windowed screenshot run. One
+  more windowed run is not counted: the driver's own game crawled (2 s of race in 5.5 s of wall clock) and its copy with it.
+  Checks: GUT 632/632, nettest passed (3 clients) at every step with the 100 ms delay and its RPCs as they were (the snapshot's first
+  argument is now a tick, still an int), flow test on Black Pine passed (2:57.6 / 3:03.1, the client's bot through both bypasses;
+  15.7 and 15.2 m/s, as before).
