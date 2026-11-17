@@ -95,7 +95,7 @@ No Blender; model in Godot only as a last resort.
 - `docs/phases/*.md` are the briefs of the phases still to build, in this order (GAME_DESIGN's "Direction 2"): L (`l_levels.md`, real rally
   roads with bypasses; it built M's map page, `m_map.md`), L2 (`l2_stages_events.md`, the other four stages and events that change the road,
   with M's road book, trip meter and following view), X (`x_mayhem.md`), W (`w_world.md`, villages, farms, people), H (`h_hands.md`, mouse
-  hands), J (`j_join.md`, joining through any router), the demo, A7 (`a7_ui.md`, with M's audit of the screens), A8 (`a8_net.md`), A6 (`a6_chaos.md`), A9b and A10 (`a9_a10.md`). A9a (`a9a_perf.md`)
+  hands), J (`j_join.md`, joining through any router), D (`d_demo.md`, the demo), A7 (`a7_ui.md`, with M's audit of the screens), A8 (`a8_net.md`), A6 (`a6_chaos.md`), A9b and A10 (`a9_a10.md`). A9a (`a9a_perf.md`)
   measured and banked its cuts (DEVELOPMENT_PLAN). A phase's brief is its spec; what was done goes into DEVELOPMENT_PLAN. A built phase's
   brief stays as its record (`a5b_crew_look.md`). `docs/phases/downloads.md` lists the approved raw downloads no phase has used yet (Freesound
   sounds, Sketchfab models; under the git-ignored `raw_assets/`, on the dev PC only) and what each is for.
