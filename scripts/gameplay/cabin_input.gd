@@ -14,7 +14,7 @@ var _held := &""
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if cabin == null or role == RosterRules.Role.NONE:
+	if not is_instance_valid(cabin) or role == RosterRules.Role.NONE:
 		return
 	var seat: CrewRules.Seat = cabin.seats[role]
 	for action: StringName in CrewRules.GESTURE_ACTIONS:
@@ -64,6 +64,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## A key let go while the window had lost the keyboard never says so: the gesture is held only while its key really is.
 func _process(delta: float) -> void:
+	if not is_instance_valid(cabin):
+		return  # the car went (its driver left the room): nothing in it to work
 	if _held != &"" and not Input.is_action_pressed(_held):
 		(cabin.seats[role] as CrewRules.Seat).release(CrewRules.GESTURE_ACTIONS[_held])
 		_held = &""
