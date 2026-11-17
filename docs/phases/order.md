@@ -11,10 +11,9 @@ section) is the why; this is the when.
 - Done: A0-A5b, A9a (measured, cuts banked), M points 1-5, 9, 10 (the map page), L parts 1-3 (bypasses, the second edition of the stage
   rules, gag slots, the signature place; Black Pine and Red Canyon redesigned).
 - Not done: M points 6-8 (road book, following view, trip meter) and its audit (moved to A7); L's other four stages (L2).
-- The working tree has phase L's uncommitted work in progress: `scripts/procedural/stage_catalog.gd` (Black Pine's and Red Canyon's
-  recipes retuned: bypass mouths, a caution corner, the ford shortcut's shape) with `route_validator.gd`, `test_bypasses.gd`, the strings
-  and their lines in the docs. The first builder of phase F checks with `git status` whether it is still there: if it is, it is not F's to
-  commit or revert; F leaves it alone, stages only its own changes and reports it to the lead.
+- Phase L's last retune of Black Pine and Red Canyon (bypass mouths, a caution corner, the ford shortcut's shape), uncommitted while
+  this plan was drafted, was committed on 2026-11-17 with its final check. The first builder of phase F still starts with `git status`:
+  anything uncommitted that is not F's is left alone (never committed or reverted by F) and reported to the lead.
 
 ## What was to be asked of the owner, decided (2026-11-17)
 The owner told the lead to decide everything and never to wait for them. The lead decided:
