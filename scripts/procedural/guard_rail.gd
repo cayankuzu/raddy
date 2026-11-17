@@ -39,6 +39,11 @@ static var _material: ShaderMaterial
 static var _post_mesh: ArrayMesh
 
 
+## One gap per rail, about a third of the way along its `from`..`to` (road metres): the barrier is old and something went through.
+static func gap_of(graph: RouteGraph, run: Dictionary, from: float, to: float) -> float:
+	return lerpf(from, to, 0.35 + fposmod(float(graph.seed) * 0.137 + float(run.from) * 0.011, 0.3))
+
+
 ## The rail along `run` (a run of cliff, TrackFeatures._cliff_runs), named Rail<metre>. Meta `gap_at`:
 ## the road metre of its gap; `posts`: every post's transform (a MultiMesh cannot be read back headless).
 static func build(graph: RouteGraph, run: Dictionary) -> StaticBody3D:
@@ -49,8 +54,7 @@ static func build(graph: RouteGraph, run: Dictionary) -> StaticBody3D:
 	var side := float(run.side)
 	var from := maxf(float(run.from) - TrackFeatures.RAIL_OVERRUN, 0.0)
 	var to := minf(float(run.to) + TrackFeatures.RAIL_OVERRUN, graph.main_route_length())
-	# One gap per rail, a third of the way along: the barrier is old and something went through.
-	var gap_at := lerpf(from, to, 0.35 + fposmod(float(graph.seed) * 0.137 + float(run.from) * 0.011, 0.3))
+	var gap_at := gap_of(graph, run, from, to)
 	body.set_meta(&"gap_at", gap_at)
 	# The two unbroken stretches, each a list of road metres with a post.
 	var stretches: Array = [[]]

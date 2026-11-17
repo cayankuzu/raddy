@@ -11,6 +11,7 @@ extends Node3D
 ##   --chase         start on the chase camera instead of the driver's seat
 ##   --navigator     sit in the navigator's seat (M map, Q/E windows); pair with --autodrive
 ##   --map-open      open the map right away (screenshots); --dome switches the dome lamp on
+##   --map-png=P     write the open sheet's picture (MapCanvas, full size) to P two seconds in; --map-zoom=Z+X+Y looks at page point X,Y at zoom Z
 ##   --windshield=cracked|removed  --chips=N  --dirt=0.4  --cracked-window=0|1   start with that glass state (screenshots)
 ##   --car-dirt=D+M+S  the body already that dirty with dust, mud and snow (screenshots)
 ##   --weather=0..4 --difficulty=0..2 --time=0..3   race settings (default clear, rally, day)
@@ -130,7 +131,7 @@ func _ready() -> void:
 	cabin.local_role = RosterRules.Role.NAVIGATOR if navigator else RosterRules.Role.DRIVER
 	var notes := PaceNotes.build(graph, RaceSettings.note_detail(settings.difficulty))
 	print("ROUTE notes %d: %s" % [notes.size(), " | ".join(notes.map(func(n: Dictionary) -> String: return n.tr))])
-	cabin.setup_map(graph, notes, MapCanvas.contour_for(graph, terrain))
+	cabin.setup_map(MapSheet.of_track(graph, terrain, track, notes, settings), notes)
 	var cabin_input := CabinInput.new()
 	cabin_input.name = "CabinInput"
 	cabin_input.cabin = cabin
@@ -143,6 +144,8 @@ func _ready() -> void:
 	add_child(effects)
 	if _args.has("map-open"):
 		cabin.request_map(true)
+	if _args.has("map-png"):
+		get_tree().create_timer(2.0).timeout.connect(_save_map.bind(cabin))
 	if _args.has("dome"):
 		cabin.request_dome(true)
 	match _args.get("windshield", ""):
@@ -258,6 +261,19 @@ static func _role(role_name: String) -> int:
 
 
 ## Who sits in a car (--crew), and the car and their suits lettered for them (--names).
+## The open sheet's picture into --map-png, after --map-zoom has moved the magnifier.
+func _save_map(cabin: Cabin) -> void:
+	var canvas := cabin.paper_map.canvas
+	if _args.has("map-zoom"):
+		var zoom: PackedStringArray = _args["map-zoom"].split("+")
+		canvas.zoom_by(float(zoom[0]))
+		canvas.center_on(Vector2(float(zoom[1]), float(zoom[2])))
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	canvas.get_texture().get_image().save_png(_args["map-png"])
+	print("ROUTE map picture %s" % _args["map-png"])
+
+
 func _seat_crew(car: RallyCar, team: int) -> void:
 	var seats: String = _args.get("crew", "driver+navigator")
 	var model := car.get_node(^"Model") as CarModel
@@ -271,6 +287,7 @@ func _seat_crew(car: RallyCar, team: int) -> void:
 			names.append(LiveryRules.lettered(name, TranslationServer.get_locale()))
 			(model.crew[role] as CrewBody).wear_name(names[-1])
 	model.livery.show_crew(LiveryRules.number(team), names)
+	(car.get_node(^"Cabin") as Cabin).paper_map.canvas.set_crew(LiveryRules.number(team), names)
 
 
 func _soil(model: CarModel, layers: PackedStringArray) -> void:

@@ -59,7 +59,7 @@ var shock_rules := ShockRules.new()
 var _shock_darts: Dictionary = {}
 var _next_boulder_id := 1
 var _boulder_index: RouteIndex
-var _contour: Image
+var _map_sheet: MapSheet
 ## Host: who finished, in what time, with how many recoveries (RaceResults).
 var results := RaceResults.new()
 ## Every peer's copy of the final rows once the host publishes them.
@@ -200,7 +200,7 @@ func _build_route() -> void:
 	if Net.is_host():
 		stage_events.triggered.connect(func(index: int) -> void: _rpc_stage_event.rpc(index))
 	notes = PaceNotes.build(graph, RaceSettings.note_detail(difficulty()))
-	_contour = MapCanvas.contour_for(graph, terrain)
+	_map_sheet = MapSheet.of_track(graph, terrain, track, notes, settings)
 	if Net.is_host():
 		progress = RaceProgress.new(graph.checkpoints.size())
 		for gate in track.get_node(^"Checkpoints").get_children():
@@ -809,7 +809,7 @@ func _rpc_spawn_car(team: int, driver_peer: int, grid: Transform3D) -> void:
 	cabin.team = team
 	cabin.weather_dirt_rate = BiomeRules.weather_dirt_rate(weather())
 	if graph != null:
-		cabin.setup_map(graph, notes, _contour)
+		cabin.setup_map(_map_sheet, notes)
 	if Net.is_host():
 		cabin.throw_approved.connect(_on_throw_approved.bind(team))
 	_team_cars[team] = car
@@ -835,6 +835,7 @@ func _seat_crew(team: int) -> void:
 			(model.crew[role] as CrewBody).wear_name(LiveryRules.seat_name(Net.roster, team, role, locale))
 	var names := LiveryRules.crew_names(Net.roster, team, locale)
 	model.livery.show_crew(LiveryRules.number(team), names)
+	((_team_cars[team] as RallyCar).get_node(^"Cabin") as Cabin).paper_map.canvas.set_crew(LiveryRules.number(team), names)
 	print("NET crew team %d: %s, lettered %s" % [team, ", ".join(seated), " / ".join(names)])
 
 

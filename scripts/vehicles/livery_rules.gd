@@ -37,8 +37,12 @@ static func seat_name(roster: Dictionary, team: int, role: int, locale: String) 
 ## letters.
 static func lettered(name: String, locale: String) -> String:
 	var words := name.strip_edges().split(" ", false)
-	var clean := " ".join(words)
-	if locale.begins_with("tr"):
-		clean = clean.replace("i", "İ").replace("ı", "I")
-	clean = clean.to_upper()
+	var clean := capitals(" ".join(words), locale)
 	return clean.left(NAME_MOST).strip_edges() if clean.length() > NAME_MOST else clean
+
+
+## `text` in capitals the way `locale`'s language writes them (Turkish: i to İ, ı to I).
+static func capitals(text: String, locale: String) -> String:
+	if locale.begins_with("tr"):
+		text = text.replace("i", "İ").replace("ı", "I")
+	return text.to_upper()

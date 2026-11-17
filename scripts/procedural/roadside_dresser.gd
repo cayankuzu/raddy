@@ -129,7 +129,11 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 		crowns[entry.id] = _crown(entry)
 	var grid := terrain.grid()
 	var rect := Rect2(grid.origin, Vector2(grid.cells) * TerrainField.CELL)
-	SurfaceMaterials.set_canopy(canopy(placements, crowns, rect), rect)
+	var shade := canopy(placements, crowns, rect)
+	SurfaceMaterials.set_canopy(shade, rect)
+	# The map prints the forest from it (MapSheet).
+	root.set_meta(&"canopy", shade)
+	root.set_meta(&"canopy_rect", rect)
 	return root
 
 

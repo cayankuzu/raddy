@@ -1,9 +1,9 @@
 class_name PaperMap
 extends Node3D
 ## The navigator's big folded paper map as a thing in the cabin (spec §11): a sheet that unfolds
-## from the lap up in front of the navigator's face, shows the MapCanvas drawing, zooms with the
-## wheel and pans by dragging, shakes when the wind is about to take it and flies out of the
-## window when it does. The Cabin owns the state (host authority); this node shows it on every
+## from the lap up in front of the navigator's face, shows the MapCanvas drawing (printed on paper by
+## shaders/paper_map.gdshader: fibre, wear, folds that catch the light), zooms with the wheel and pans
+## by dragging, shakes when the wind is about to take it and flies out of the window when it does. The Cabin owns the state (host authority); this node shows it on every
 ## peer and turns the local navigator's mouse into zoom/pan.
 
 const SHEET_SIZE := Vector2(0.58, 0.373)
@@ -19,6 +19,7 @@ const FLY_TIME := 4.0
 const ZOOM_STEP := 1.18
 ## Sheet pixels moved per screen pixel dragged.
 const DRAG_SPEED := 2.2
+const PAPER_SHADER := preload("res://shaders/paper_map.gdshader")
 ## The navigator holds the open sheet by its lower corners, each hand behind the sheet with its fingers up its back and its thumb round the
 ## side edge onto the front, on the free paper under the notes (MapCanvas.NOTES_CLEAR): the wrist this far in from the side edge (just
 ## outside it: the thumb's root comes round the edge, the fingers lean in behind the paper), this far under the bottom edge and this far
@@ -33,7 +34,9 @@ var canvas: MapCanvas
 var show_car_marker := true
 
 var _sheet: MeshInstance3D
-var _material: StandardMaterial3D
+var _material: ShaderMaterial
+## Where the car has got to along the stage: the highlighter is paler behind it.
+var _tracker: RouteTracker
 var _tween: Tween
 var _shake_time := 0.0
 
@@ -42,10 +45,11 @@ func _ready() -> void:
 	canvas = MapCanvas.new()
 	canvas.name = "Canvas"
 	add_child(canvas)
-	_material = StandardMaterial3D.new()
-	_material.albedo_texture = canvas.get_texture()
-	_material.roughness = 1.0
-	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_material = ShaderMaterial.new()
+	_material.shader = PAPER_SHADER
+	_material.set_shader_parameter(&"print", canvas.get_texture())
+	_material.set_shader_parameter(&"sheet_size", SHEET_SIZE)
+	_material.set_shader_parameter(&"folds_x", Vector2(MapSheet.PAGE.x * 0.5, MapCanvas.BOOK.position.x) / float(MapCanvas.CANVAS.x))
 	var quad := QuadMesh.new()
 	quad.size = SHEET_SIZE
 	quad.material = _material
@@ -63,9 +67,10 @@ func _ready() -> void:
 		cabin.map_lost.connect(_on_map_lost)
 
 
-## Draws the race's network on the sheet. `contour` is the shared terrain shading image.
-func setup(graph: RouteGraph, notes: Array[Dictionary], contour: Image) -> void:
-	canvas.build(graph, notes, contour)
+## Prints the race's sheet (MapSheet, shared by every car) and the calls on it.
+func setup(sheet: MapSheet, notes: Array[Dictionary]) -> void:
+	canvas.build(sheet, notes)
+	_tracker = RouteTracker.new(sheet.graph)
 	if cabin != null:
 		canvas.set_car_color(TeamColors.paint(cabin.team) if cabin.team > 0 else TeamColors.paint(1))
 
@@ -174,6 +179,8 @@ func _process(delta: float) -> void:
 	if car != null and canvas.graph != null:
 		var heading := -car.global_basis.z
 		canvas.set_car(Vector2(car.global_position.x, car.global_position.z), Vector2(heading.x, heading.z), show_car_marker)
+		_tracker.update(car.global_position)
+		canvas.set_progress(_tracker.furthest)
 	# The paper flutters before the wind takes it (spec §11.3: a warning, never a surprise).
 	if cabin.map_warning_active and (_tween == null or not _tween.is_running()):
 		_shake_time += delta

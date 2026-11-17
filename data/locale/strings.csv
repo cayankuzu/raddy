@@ -211,6 +211,47 @@ MAP_NOTES_TITLE,YOL NOTLARI,PACE NOTES
 MAP_START,START,START
 MAP_FINISH,BİTİŞ,FINISH
 MAP_SPLIT,ARA {n},SPLIT {n}
+MAP_LEGEND,Lejant,Legend
+MAP_NORTH,K,N
+MAP_SPECIAL_STAGE,ÖZEL ETAP {n},SPECIAL STAGE {n}
+MAP_SPECIAL_STAGE_SHORT,ÖE {n},SS {n}
+MAP_STAMP_RING,Organizasyon Kurulu,Organising Committee
+MAP_STAMP_APPROVED,Onaylandı,Approved
+MAP_CONTOURS,Eş yükselti aralığı {m} m,Contour interval {m} m
+MAP_KEY_ROAD_TARMAC,Asfalt,Tarmac
+MAP_KEY_ROAD_GRAVEL,Çakıl,Gravel
+MAP_KEY_ROAD_DIRT,Toprak,Dirt
+MAP_KEY_ROAD_MUD,Çamur,Mud
+MAP_KEY_ROAD_WET,Islak,Wet
+MAP_KEY_ROAD_SAND,Kum,Sand
+MAP_KEY_ROAD_SNOW,Kar,Snow
+MAP_KEY_ROUTE,Etap güzergâhı,Stage route
+MAP_KEY_DEAD_END,Çıkmaz yol,Dead end
+MAP_KEY_BARRIER,Kapalı yol,Closed road
+MAP_KEY_GATE,"Start, ara, bitiş","Start, split, finish"
+MAP_KEY_KM,Km tabelası,Km board
+MAP_KEY_CONTOUR,Eş yükselti eğrisi,Contour
+MAP_KEY_FOREST,Orman,Forest
+MAP_KEY_WATER,Su geçişi,Water crossing
+MAP_KEY_CLIFF,Uçurum,Cliff
+MAP_KEY_BANK,Şev,Bank
+MAP_KEY_RAIL,Korkuluk,Guard rail
+MAP_KEY_CROWD,Seyirci alanı,Spectators
+MAP_KEY_ARCH,Kemer,Arch
+MAP_KEY_TIME_CONTROL,Zaman kontrol,Time control
+MAP_KEY_BOARD,Tabela,Board
+MAP_KEY_CHEVRONS,Viraj okları,Chevrons
+MAP_KEY_CAR,Park etmiş araç,Parked car
+MAP_KEY_BALE,Saman balyası,Straw bale
+MAP_KEY_BUILDING,Yapı,Building
+MAP_KEY_HAZARD_JUMP,Atlama,Jump
+MAP_KEY_HAZARD_CREST,Tepe,Crest
+MAP_KEY_HAZARD_DIP,Çukur,Dip
+MAP_KEY_HAZARD_WATER,Su,Water
+MAP_KEY_HAZARD_CAUTION,Dikkat,Caution
+MAP_KEY_HAZARD_HAIRPIN,Saç tokası,Hairpin
+MAP_KEY_HAZARD_CLIFF,Uçurum kenarı,Cliff edge
+MAP_KEY_RING,Not numarası,Call number
 RESULTS_MEDAL,Madalya,Medal
 RESULTS_NEW_RECORD,YENİ ETAP REKORU! {team} · {time},NEW STAGE RECORD! {team} · {time}
 MEDAL_BRONZE,Bronz,Bronze

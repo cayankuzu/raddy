@@ -153,7 +153,8 @@ static func clearings(graph: RouteGraph, terrain: TerrainField) -> Array[Diction
 
 
 ## The "Rally" node: batches of what stands beside the road, "Props" (what collides), the tape and
-## the words on the boards. Its meta `spectator_spots` lists where people will stand ("spot" items).
+## the words on the boards. Its meta `spectator_spots` lists where people will stand ("spot" items), `plan` the whole plan (the map's
+## landmarks, MapLandmarks).
 static func build(graph: RouteGraph, terrain: TerrainField) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Rally"
@@ -164,7 +165,9 @@ static func build(graph: RouteGraph, terrain: TerrainField) -> Node3D:
 	var batches := {}
 	var spots: Array[Dictionary] = []
 	var zones := _zones(graph)
-	for item in plan(graph, terrain):
+	var items := plan(graph, terrain)
+	root.set_meta(&"plan", items)
+	for item in items:
 		var placed := _placed(item)
 		var anchor: Vector3 = placed.origin
 		if item.has("zone"):
@@ -638,20 +641,9 @@ static func junction_furniture(graph: RouteGraph, terrain: TerrainField) -> Arra
 
 
 ## Point and direction of a spur `distance` metres from its junction.
-static func _spur_pose(spur: RouteGraph.Spur, distance: float) -> Dictionary:
-	var points := spur.points_3d()
-	var along := spur.distances()
-	var i := 0
-	while i < along.size() - 2 and along[i + 1] < distance:
-		i += 1
-	var dir := Vector2(points[i + 1].x - points[i].x, points[i + 1].z - points[i].z).normalized()
-	var t := clampf((distance - along[i]) / maxf(along[i + 1] - along[i], 0.001), 0.0, 1.0)
-	return {"position": points[i].lerp(points[i + 1], t), "direction": dir}
-
-
 ## A stack of logs across the end of a dead-end track, just beyond its turning area.
 static func _build_log_pile(node: Node3D, spur: RouteGraph.Spur, terrain: TerrainField) -> void:
-	var pose := _spur_pose(spur, spur.length)
+	var pose := spur.pose_at(spur.length)
 	var dir: Vector2 = pose.direction
 	var at: Vector2 = spur.landing + dir * (spur.landing_radius + 1.5)
 	var body := StaticBody3D.new()
@@ -683,7 +675,7 @@ static func _build_log_pile(node: Node3D, spur: RouteGraph.Spur, terrain: Terrai
 ## Concrete blocks and tape across a closed road, deep enough in the track to be out of sight from
 ## the junction; the road carries on beyond them. The box closes its shoulders and ditches too.
 static func _build_barrier(node: Node3D, spur: RouteGraph.Spur) -> void:
-	var pose := _spur_pose(spur, spur.barrier_at)
+	var pose := spur.pose_at(spur.barrier_at)
 	var dir: Vector2 = pose.direction
 	var half: float = spur.edges[0].width * 0.5
 	var span := half * 2.0 + RoadBuilder.ROADSIDE * 2.0

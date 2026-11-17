@@ -258,8 +258,8 @@ static func _sill_of(pane: MeshInstance3D) -> Plane:
 
 
 ## Gives the map its drawing; RaceSession (or a dev scene) calls it once the route exists.
-func setup_map(graph: RouteGraph, notes: Array[Dictionary], contour: Image) -> void:
-	paper_map.setup(graph, notes, contour)
+func setup_map(sheet: MapSheet, notes: Array[Dictionary]) -> void:
+	paper_map.setup(sheet, notes)
 
 
 ## The map belongs to the navigator; a team without one lets its driver read it.

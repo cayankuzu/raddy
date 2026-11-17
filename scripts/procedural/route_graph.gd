@@ -91,6 +91,17 @@ class Spur:
 	func side_sign() -> int:
 		return 0 if side == &"straight" else (-1 if side == &"left" else 1)
 
+	## {"position": Vector3, "direction": Vector2 (XZ)} at `distance` metres from the junction.
+	func pose_at(distance: float) -> Dictionary:
+		var points := points_3d()
+		var along := distances()
+		var i := 0
+		while i < along.size() - 2 and along[i + 1] < distance:
+			i += 1
+		var dir := Vector2(points[i + 1].x - points[i].x, points[i + 1].z - points[i].z).normalized()
+		var t := clampf((distance - along[i]) / maxf(along[i + 1] - along[i], 0.001), 0.0, 1.0)
+		return {"position": points[i].lerp(points[i + 1], t), "direction": dir}
+
 
 class Gate:
 	var index := 0
@@ -153,6 +164,39 @@ func add_edge(from_node: int, to_node: int, points: PackedVector2Array, heights:
 	nodes[from_node].edge_ids.append(edge.id)
 	nodes[to_node].edge_ids.append(edge.id)
 	return edge
+
+
+## Every road there is, as a map prints it: {"kind" (&"stage", &"wrong_way"), "points" (its centreline, XZ), "width", "surface",
+## "end" (&"through": it joins another road at both ends; &"dead_end": a log pile across it past its turning place; &"barrier": closed
+## by a barrier), "end_at" (XZ) and "end_turn" (the way it runs there) for what closes it, "landing" and "landing_radius" where it has a
+## turning place. The stage gives one per edge (a surface each), every wrong way one up to where a car can go. A new kind of road
+## (a bypass) adds its entries here and is printed like every other.
+func roads() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for edge_id in main_route:
+		var edge := edges[edge_id]
+		out.append({"kind": &"stage", "points": edge.points, "width": edge.width, "surface": edge.surface, "end": &"through"})
+	for spur in spurs:
+		var flat := spur.points_3d()
+		var along := spur.distances()
+		var reach := spur.length if spur.end == &"dead_end" else float(along[-1])
+		var points := PackedVector2Array()
+		for i in flat.size():
+			if along[i] <= reach + 0.01:
+				points.append(Vector2(flat[i].x, flat[i].z))
+		var road := {"kind": &"wrong_way", "points": points, "width": spur.edges[0].width, "surface": spur.edges[0].surface, "end": spur.end}
+		var closed := spur.pose_at(spur.barrier_at if spur.end == &"barrier" else spur.length)
+		var turn: Vector2 = closed.direction
+		road.end_turn = turn
+		if spur.landing_radius > 0.0:
+			road.landing = spur.landing
+			road.landing_radius = spur.landing_radius
+		if spur.end == &"barrier":
+			road.end_at = Vector2(closed.position.x, closed.position.z)
+		else:
+			road.end_at = spur.landing + turn * (spur.landing_radius + 1.5)
+		out.append(road)
+	return out
 
 
 ## Every road surface: the stage road's edges, then each spur's.
