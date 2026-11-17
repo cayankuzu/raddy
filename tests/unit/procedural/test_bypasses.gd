@@ -38,6 +38,7 @@ func test_black_pine_has_a_shortcut_with_a_price_and_a_long_way() -> void:
 	assert_true(kinds.has(&"shortcut") and kinds.has(&"long"), "one of each")
 	assert_true((kinds[&"shortcut"] as RouteGraph.Bypass).price in RouteValidator.PRICES, "the shortcut has a price")
 	assert_eq(StageCatalog.LAYOUT, 4, "the new roads made old times mean nothing")
+	assert_eq(preload("res://scripts/network/net.gd").JOIN_VERSION % 100, StageCatalog.LAYOUT, "a build on other roads cannot join")
 
 
 func test_along_of_maps_a_bypass_onto_the_stretch_it_replaces() -> void:
@@ -157,7 +158,7 @@ func test_the_navigator_hears_both_ways_and_the_price() -> void:
 	var texts := calls.map(func(n: Dictionary) -> String: return "%s / %s" % [n.tr, n.en])
 	gut.p("%s" % [texts])
 	assert_true(texts.has("Uzun yol solda! / Long way left!"))
-	assert_true(texts.has("Kısayol solda: dere! / Shortcut left: ford!"))
+	assert_true(texts.has("Kısayol düz: dere! / Shortcut straight: ford!"), "it runs on where the stage turns")
 	for bypass in graph.bypasses:
 		var rejoin := notes.filter(func(n: Dictionary) -> bool: return n.junction != "" and absf(float(n.distance) - bypass.rejoin) < 60.0)
 		assert_eq(rejoin.size(), 1, "the rejoin is a junction to get right from the stage")
@@ -239,7 +240,7 @@ func test_recovery_lands_on_the_road_the_car_is_on_facing_forward() -> void:
 			var pose: Dictionary = spot.at
 			var dir: Vector2 = pose.direction
 			var position: Vector3 = pose.position + Vector3(-dir.y, 0.0, dir.x) * rng.randf_range(-3.0, 3.0)
-			var found := RecoveryAnchor.find(graph, position, 3)
+			var found := RecoveryAnchor.find(graph, position, 3, INF, [], int(spot.road))
 			places += 1
 			assert_lt(float(found.distance), 4.0, "back on a road beside it")
 			var ends_near: bool = absf(float(spot.own) - float(found.own)) < 12.0 or found.road != spot.road
@@ -254,6 +255,39 @@ func test_recovery_lands_on_the_road_the_car_is_on_facing_forward() -> void:
 				assert_true(on, "a point of the bypass itself")
 	gut.p("%d recoveries on and round %d bypasses" % [places, graph.bypasses.size()])
 	assert_eq(places, 20, "twenty seeded places")
+
+
+func test_a_car_that_left_the_stage_beside_a_shortcut_is_put_back_on_the_stage() -> void:
+	# Stuck in the open ground between the stage and a bypass, nearer the bypass: the tracker had it on the stage, so the
+	# stage is where it goes back (on a shortcut it would land past the price, its metres worth more of the stage).
+	for i in StageCatalog.count():
+		var graph := StageBuilder.build(StageCatalog.get_stage(i))
+		for bypass in graph.bypasses:
+			for share in [0.3, 0.5, 0.7]:
+				var along: float = lerpf(bypass.at, bypass.rejoin, share)
+				var stage_at: Vector3 = graph.sample(along).position
+				var stray: Vector3 = stage_at.lerp(bypass.pose_at(bypass.length * share).position, 0.6)
+				var found := RecoveryAnchor.find(graph, stray, 99, along)
+				assert_eq(int(found.road), RouteGraph.STAGE, "%s: back on the stage from beside bypass %d" % [graph.stage_id, bypass.id])
+				var on_bypass := RecoveryAnchor.find(graph, stray, 99, along, [], bypass.id)
+				assert_lte(float(on_bypass.along), along + RecoveryAnchor.AHEAD_ALLOWANCE + 0.01, "never ahead of where it got")
+
+
+func test_a_car_beside_a_mouth_stays_on_the_stage() -> void:
+	# Driving the stage on its own surface, on either side: where a bypass leaves or joins the two overlap, and the
+	# tracker keeps the car on the road it is on (another road would cost the car behind it its stones).
+	for i in StageCatalog.count():
+		var graph := StageBuilder.build(StageCatalog.get_stage(i))
+		if graph.bypasses.is_empty():
+			continue
+		var surface := graph.narrowest_width() * 0.5 + RoadBuilder.SHOULDER
+		for lateral in [-surface + 0.3, -1.5, 1.5, surface - 0.3]:
+			var tracker := RouteTracker.new(graph)
+			var changes := 0
+			for p in _drive(graph, [] as Array[int], 1.0, lateral):
+				tracker.update(p)
+				changes += 1 if tracker.road != RouteGraph.STAGE else 0
+			assert_eq(changes, 0, "%s %.1f m off the centre: on the stage all the way" % [graph.stage_id, lateral])
 
 
 func test_a_car_on_another_road_throws_no_stones() -> void:

@@ -144,7 +144,11 @@ func test_redline_takes_away_the_highlighter_and_nothing_of_the_map() -> void:
 func test_scale_bar_contours_and_legend() -> void:
 	for i in StageCatalog.count():
 		var sheet := _sheet(i)
-		assert_lte(sheet.scale_metres * sheet.pixels_per_metre, MapSheet.SCALE_AREA.size.x - 40.0, "the scale bar fits")
+		var bar := sheet.scale_metres * sheet.pixels_per_metre
+		assert_lte(bar, MapSheet.SCALE_ROOM, "the scale bar fits")
+		# MapCanvas._paint_scale: the bar starts 8 px in, its unit 6 px past its end and about 12 px wide.
+		var unit_ends := MapSheet.SCALE_AREA.position.x + 8.0 + bar + 6.0 + 12.0
+		assert_lt(unit_ends, MapSheet.SCALE_AREA.end.x - MapSheet.NORTH_AT - MapSheet.NORTH_REACH, "nothing of it under the north arrow")
 		assert_gt(sheet.scale_metres * sheet.pixels_per_metre, 60.0, "and is long enough to measure with")
 		assert_not_null(sheet.heights)
 		assert_gt(sheet.contour_step, 0.0)

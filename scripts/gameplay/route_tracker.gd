@@ -3,8 +3,8 @@ extends RefCounted
 ## Follows one car along the stage: the nearest point of the road it is on (the stage or a bypass), searched forward
 ## from the last one so the other leg of a hairpin never captures it, with a wider search when the car is far from
 ## where it was (a recovery, a crash off a cliff). Near a junction it also looks at the road that meets its own there
-## (a bypass's first and last metres from the stage, the stage at a bypass's ends) and changes road where the other is
-## clearly nearer. `distance` is how far along the stage the car is (RouteGraph.along_of: on a bypass, the matching
+## (a bypass's first and last metres from the stage, the stage at a bypass's ends) and changes road once the car has left
+## its own road's surface (where the two overlap beside a mouth it stays) and the other is clearly nearer. `distance` is how far along the stage the car is (RouteGraph.along_of: on a bypass, the matching
 ## point of the stretch it replaces; where it changed road, the difference between the two fades over SWITCH_BLEND
 ## metres, so it never jumps), `furthest` the most it has reached; the HUD shows the distance to go and the places,
 ## and the host never recovers a car further than it got.
@@ -56,11 +56,12 @@ func update(position: Vector3) -> void:
 		if d < best_distance:
 			best_distance = d
 			best = i
-	# The road that meets this one near the car.
+	# The road that meets this one near the car, once the car is off its own road's surface and shoulders.
 	var here := float((_roads[_slot].own as PackedFloat32Array)[best])
 	var on := float((_roads[_slot].along as PackedFloat32Array)[best])
+	var leaving := best_distance > float(_roads[_slot].width) * 0.5 + RoadBuilder.SHOULDER
 	for slot in _roads.size():
-		if slot == _slot or (slot != 0 and _slot != 0):
+		if not leaving or slot == _slot or (slot != 0 and _slot != 0):
 			continue
 		var other: Dictionary = _roads[slot]
 		var bypass: Dictionary = other if slot != 0 else _roads[_slot]

@@ -73,7 +73,8 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 	for entry in (catalog if not catalog.is_empty() else RoadsideCatalog.for_biome(biome)):
 		var tuned: Dictionary = entry.duplicate()
 		# Screens are gameplay (Low must not see further): only what hides nothing thins out.
-		if not tuned.has("collision") and not tuned.get("screen", false):
+		if not tuned.has("collision") and not tuned.get("screen", false) and scenery != 1.0:
+			tuned._full_density = float(tuned.get("density", 1.0))
 			tuned.density = float(tuned.get("density", 1.0)) * scenery
 		tuned.range = float(tuned.get("range", 250.0)) * range_scale
 		entries.append(tuned)
@@ -101,25 +102,11 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 		var parts: Array = entry.get("_parts", [])
 		if parts.is_empty():
 			continue
-		var all: Array[Transform3D] = []
-		for edge in rows:
-			var travelled := 0.0
-			for i in range(1, edge.points.size()):
-				travelled += edge.points[i].distance_to(edge.points[i - 1])
-				if travelled < STEP:
-					continue
-				travelled = 0.0
-				var tries := ceili(float(entry.get("density", 1.0)) * STEP / 100.0)
-				for side in [-1.0, 1.0]:
-					for k in tries:
-						var t: Variant = _try_place(entry, context, edge, i, side, k, tries)
-						if t == null:
-							continue
-						var transform: Transform3D = t
-						all.append(transform)
-						_add_to_batches(batches, entry, parts, transform)
-						_add_collision(collisions, entry, transform, shape_cache)
-						placed += 1
+		var all := _place(entry, context, rows)
+		for transform in all:
+			_add_to_batches(batches, entry, parts, transform)
+			_add_collision(collisions, entry, transform, shape_cache)
+		placed += all.size()
 		placements[entry.id] = all
 	_build_batches(root, batches)
 	root.set_meta(&"placed", placed)
@@ -131,10 +118,38 @@ static func dress(graph: RouteGraph, terrain: TerrainField, biome: int, catalog:
 	var rect := Rect2(grid.origin, Vector2(grid.cells) * TerrainField.CELL)
 	var shade := canopy(placements, crowns, rect)
 	SurfaceMaterials.set_canopy(shade, rect)
-	# The map prints the forest from it (MapSheet).
-	root.set_meta(&"canopy", shade)
+	# The map prints the forest from it (MapSheet): every crown the full density places, so the sheet is the same on every
+	# peer whatever its graphics level thinned (what is thinned is never hard, so placing it again sees the same world).
+	var forest := placements
+	if scenery != 1.0:
+		forest = placements.duplicate()
+		for entry in expanded:
+			if entry.has("_full_density") and float(crowns[entry.id]) > 0.0:
+				var full: Dictionary = entry.duplicate()
+				full.density = entry._full_density
+				forest[entry.id] = _place(full, context, rows)
+	root.set_meta(&"canopy", canopy(forest, crowns, rect) if scenery != 1.0 else shade)
 	root.set_meta(&"canopy_rect", rect)
 	return root
+
+
+## Where `entry` stands along `rows` (the roads and the end row).
+static func _place(entry: Dictionary, context: Dictionary, rows: Array) -> Array[Transform3D]:
+	var all: Array[Transform3D] = []
+	for edge in rows:
+		var travelled := 0.0
+		for i in range(1, edge.points.size()):
+			travelled += edge.points[i].distance_to(edge.points[i - 1])
+			if travelled < STEP:
+				continue
+			travelled = 0.0
+			var tries := ceili(float(entry.get("density", 1.0)) * STEP / 100.0)
+			for side in [-1.0, 1.0]:
+				for k in tries:
+					var t: Variant = _try_place(entry, context, edge, i, side, k, tries)
+					if t != null:
+						all.append(t)
+	return all
 
 
 ## The road's end: forest and rocks grow past it too, along a line across it, so a stage does not
@@ -300,6 +315,8 @@ static func _expand_variants(entry: Dictionary) -> Array:
 		var variant := entry.duplicate()
 		variant.id = "%s_v%d" % [entry.id, n]
 		variant.density = float(entry.get("density", 1.0)) / parts.size()
+		if entry.has("_full_density"):
+			variant._full_density = float(entry._full_density) / parts.size()
 		variant._parts = [{"mesh": part.mesh, "transform": recentre * part.transform, "material": part.material}]
 		out.append(variant)
 	return out

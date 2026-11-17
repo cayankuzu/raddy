@@ -15,6 +15,11 @@ const TITLE := Rect2(20.0, 16.0, 1176.0, 112.0)
 const FRAME := Rect2(44.0, 150.0, 1152.0, 822.0)
 const LEGEND := Rect2(150.0, 996.0, 790.0, 136.0)
 const SCALE_AREA := Rect2(956.0, 996.0, 240.0, 136.0)
+## The scale area's right-hand column, where the north arrow turns (MapCanvas: NORTH_AT from its right edge, NORTH_REACH round
+## it); the bar, its last number and its unit stay left of it.
+const NORTH_AT := 34.0
+const NORTH_REACH := 24.0
+const SCALE_ROOM := SCALE_AREA.size.x - 84.0
 ## Paper between the outermost road and the frame.
 const INSET := 36.0
 ## The land's heights are sampled this often (m).
@@ -131,7 +136,7 @@ static func make(route_graph: RouteGraph, terrain: TerrainField, plan: Array[Dic
 		sheet._measure_land(terrain)
 	sheet._add_legend()
 	sheet.grid_step = MapRules.grid_step(sheet.pixels_per_metre, FRAME.size.x)
-	sheet.scale_metres = MapRules.scale_bar(sheet.pixels_per_metre, SCALE_AREA.size.x - 40.0)
+	sheet.scale_metres = MapRules.scale_bar(sheet.pixels_per_metre, SCALE_ROOM)
 	sheet.north = sheet.page_direction(Vector2(0.0, -1.0)).angle()
 	return sheet
 

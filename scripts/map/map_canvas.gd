@@ -669,7 +669,7 @@ func _paint_scale(ci: CanvasItem) -> void:
 		"1 : %s" % _thousands(MapRules.ratio(sheet.pixels_per_metre)), MapPrint.GREY)
 	MapPrint.line_of(ci, MapPrint.font(&"inter", 500), 11, start + Vector2(0.0, 48.0),
 		TranslationServer.translate("MAP_CONTOURS").format({"m": _metres(sheet.contour_step)}), MapPrint.GREY)
-	_paint_north(ci, Vector2(box.end.x - 34.0, box.position.y + 58.0))
+	_paint_north(ci, Vector2(box.end.x - MapSheet.NORTH_AT, box.position.y + 58.0))
 
 
 static func _thousands(value: int) -> String:
@@ -691,7 +691,7 @@ static func _metres(value: float) -> String:
 func _paint_north(ci: CanvasItem, at: Vector2) -> void:
 	var up := Vector2.from_angle(sheet.north)
 	var side := up.orthogonal()
-	var tip := at + up * 24.0
+	var tip := at + up * MapSheet.NORTH_REACH
 	var tail := at - up * 18.0
 	ci.draw_colored_polygon(PackedVector2Array([tip, at - up * 8.0 + side * 9.0, tail]), MapPrint.INK)
 	ci.draw_colored_polygon(PackedVector2Array([tip, tail, at - up * 8.0 - side * 9.0]), MapPrint.PAPER)

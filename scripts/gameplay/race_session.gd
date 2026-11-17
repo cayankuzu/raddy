@@ -442,7 +442,8 @@ func _perform_recovery(team: int, rules: RecoveryRules) -> void:
 	if graph != null:
 		var tracker: RouteTracker = _trackers.get(team)
 		var spot := RecoveryAnchor.find(graph, car.global_position, progress.next_gate(team) if progress != null else 0,
-			tracker.furthest if tracker != null else INF, stage_events.obstacles() if stage_events != null else [])
+			tracker.furthest if tracker != null else INF, stage_events.obstacles() if stage_events != null else [],
+			tracker.road if tracker != null else RouteGraph.STAGE)
 		target = spot.transform.translated(Vector3.UP * 0.6)
 		if tracker != null:
 			tracker.reset_to(spot.road, spot.own)

@@ -17,6 +17,9 @@ signal lobby_settings_changed
 signal peer_loaded(peer_id: int)
 
 const PROTOCOL_VERSION := 3
+## What a joining game must match: the protocol and the stages' roads (StageCatalog.LAYOUT: two builds on different layouts
+## build different roads from the same room settings).
+const JOIN_VERSION := PROTOCOL_VERSION * 100 + StageCatalog.LAYOUT
 const DEFAULT_PORT := 7777
 const MAX_NAME_LENGTH := 16
 ## How long a connected peer may stay silent before the host drops it (no join request).
@@ -231,7 +234,7 @@ func _rpc_request_join(player_name: String, version: int) -> void:
 	if not multiplayer.is_server():
 		return
 	var id := multiplayer.get_remote_sender_id()
-	var reason := "version_mismatch" if version != PROTOCOL_VERSION else RosterRules.can_join(roster)
+	var reason := "version_mismatch" if version != JOIN_VERSION else RosterRules.can_join(roster)
 	if reason == "" and race_running:
 		reason = "race_running"
 	if reason != "":
@@ -297,7 +300,7 @@ func _broadcast_roster() -> void:
 # --- everyone ---
 
 func _on_connected_to_server() -> void:
-	_rpc_request_join.rpc_id(1, local_name, PROTOCOL_VERSION)
+	_rpc_request_join.rpc_id(1, local_name, JOIN_VERSION)
 
 
 @rpc("authority", "call_local", "reliable")

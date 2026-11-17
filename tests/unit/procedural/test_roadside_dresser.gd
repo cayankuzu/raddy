@@ -493,3 +493,19 @@ func test_the_forest_floor_lies_in_the_shade_of_the_crowns() -> void:
 			assert_gt(RoadsideDresser._crown(expanded), 1.5, "%s has a crown" % entry.id)
 		elif entry.id in ["dead_conifer", "fern", "boulder"]:
 			assert_eq(RoadsideDresser._crown(RoadsideDresser._expand_variants(entry)[0]), 0.0, "%s shades nothing" % entry.id)
+
+
+func test_the_map_s_forest_is_the_same_at_every_graphics_level() -> void:
+	# The map prints the forest from the canopy meta: two crews on different graphics levels read the same sheet.
+	var stage := StageCatalog.get_stage(StageCatalog.index_of(&"black_pine"))
+	var graph := StageBuilder.build(stage)
+	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(stage.biome))
+	terrain.set_roads(graph)
+	var low := RoadsideDresser.dress(graph, terrain, stage.biome, [], GraphicsQuality.SCENERY[GraphicsQuality.Level.LOW])
+	var high := RoadsideDresser.dress(graph, terrain, stage.biome, [], GraphicsQuality.SCENERY[GraphicsQuality.Level.HIGH])
+	var a: Image = low.get_meta(&"canopy")
+	var b: Image = high.get_meta(&"canopy")
+	assert_lt(int(low.get_meta(&"placed")), int(high.get_meta(&"placed")), "Low thins what nobody hits")
+	assert_eq(a.get_data(), b.get_data(), "the same forest on the map")
+	low.free()
+	high.free()

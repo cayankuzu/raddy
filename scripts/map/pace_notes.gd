@@ -41,6 +41,10 @@ const JUNCTION_BEFORE := 30.0
 const JUNCTION_LEAD := 15.0
 ## A bypass's mouth is called this far before it: there is a choice to make.
 const BYPASS_LEAD := 40.0
+## A bypass that runs on within this of the stage's heading at its mouth (measured BYPASS_LOOK metres into it) is called
+## straight, whatever side it lies on: the stage is the road that turns there.
+const BYPASS_STRAIGHT := deg_to_rad(20.0)
+const BYPASS_LOOK := 30.0
 const PRICE_WORDS := {"tr": {"ford": "dere", "gate": "kapı", "rough": "bozuk yol", "narrow": "dar yol"},
 	"en": {"ford": "ford", "gate": "gate", "rough": "rough", "narrow": "narrow"}}
 
@@ -73,7 +77,7 @@ static func build(graph: RouteGraph, detail := DETAIL_STANDARD) -> Array[Diction
 		wrong_ways.append({"at": spur.at, "side": String(spur.side)})
 	for bypass in graph.bypasses:
 		wrong_ways.append({"at": bypass.rejoin, "side": "left" if bypass.rejoin_side < 0 else "right"})
-		calls.append({"kind": &"bypass", "distance": bypass.at - BYPASS_LEAD, "side": "left" if bypass.road_side < 0 else "right", "severity": 0,
+		calls.append({"kind": &"bypass", "distance": bypass.at - BYPASS_LEAD, "side": _bypass_side(graph, bypass), "severity": 0,
 			"bypass": String(bypass.kind), "price": String(bypass.price)})
 	for wrong in wrong_ways:
 		var at := float(wrong.at)
@@ -204,6 +208,16 @@ static func _finish_corner(corner: Dictionary) -> Dictionary:
 		"tightens": changes and exit >= entry * CHANGE_RATIO, "opens": changes and entry >= exit * CHANGE_RATIO}
 
 
+## "left" | "right" | "straight": which way a bypass leaves the stage, as the crew sees it at its mouth.
+static func _bypass_side(graph: RouteGraph, bypass: RouteGraph.Bypass) -> String:
+	var mouth: Vector3 = bypass.pose_at(0.0).position
+	var ahead: Vector3 = bypass.pose_at(BYPASS_LOOK).position
+	var heading: Vector2 = graph.sample(bypass.at).direction
+	if absf(heading.angle_to(Vector2(ahead.x - mouth.x, ahead.z - mouth.z))) < BYPASS_STRAIGHT:
+		return "straight"
+	return "left" if bypass.road_side < 0 else "right"
+
+
 static func _dangerous(call: Dictionary) -> bool:
 	if call.get("caution", false) or call.get("hairpin", false) or call.get("junction", "") != "" or call.kind == &"bypass":
 		return true
@@ -249,9 +263,10 @@ static func _text(note: Dictionary, lang: String, detail: int, next_gap: float) 
 		&"junction":
 			text = "Düz" if tr_mode else "Straight"
 		&"bypass":
-			# "Kısayol solda: dere", "Long way right": the other way, where it leaves and what it costs.
+			# "Kısayol solda: dere", "Long way right", "Kısayol düz": the other way, where it leaves and what it costs.
 			if tr_mode:
-				text = "%s %s" % ["Kısayol" if note.bypass == "shortcut" else "Uzun yol", "solda" if note.side == "left" else "sağda"]
+				var where: String = {"left": "solda", "right": "sağda", "straight": "düz"}[note.side]
+				text = "%s %s" % ["Kısayol" if note.bypass == "shortcut" else "Uzun yol", where]
 			else:
 				text = "%s %s" % ["Shortcut" if note.bypass == "shortcut" else "Long way", note.side]
 			if note.price != "":

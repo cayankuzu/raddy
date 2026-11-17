@@ -275,16 +275,17 @@ func along_of(road: int, distance: float) -> float:
 
 ## Every road a car may follow from the start to the finish: {"road": STAGE or a bypass's id, "points" (3D), "own" (metres
 ## along that road of each point), "along" (metres along the stage of each point, along_of), "from" and "to" (the stretch of
-## the stage it covers)}. The stage first.
+## the stage it covers), "width"}. The stage first.
 func followed_roads() -> Array[Dictionary]:
 	var out: Array[Dictionary] = [{"road": STAGE, "points": main_route_points(), "own": route_distances(), "along": route_distances(),
-		"from": 0.0, "to": main_route_length()}]
+		"from": 0.0, "to": main_route_length(), "width": narrowest_width()}]
 	for bypass in bypasses:
 		var own := bypass.distances()
 		var along := PackedFloat32Array()
 		for d in own:
 			along.append(bypass.along_of(d))
-		out.append({"road": bypass.id, "points": bypass.points_3d(), "own": own, "along": along, "from": bypass.at, "to": bypass.rejoin})
+		out.append({"road": bypass.id, "points": bypass.points_3d(), "own": own, "along": along, "from": bypass.at, "to": bypass.rejoin,
+			"width": bypass.edges[0].width})
 	return out
 
 
