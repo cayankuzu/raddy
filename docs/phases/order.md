@@ -550,3 +550,6 @@ The owner plays it alone and with friends. Their notes become phase T.
 - `docs/phases/l2_stages_events.md`: no change; its marshals and boards obey law 10 already.
 - GAME_DESIGN: Direction 3 appended after "Direction 2"; §1 and §8 have one line each pointing to it. CLAUDE.md's line on
   `docs/phases` points to this file.
+
+## Release (A10): the owner's way
+`docs/phases/release_style.md` holds the recipe: itch.io page like Haluk'un 7 Günü's, the portfolio card on fikkis like Merbut's, the browser demo, the GitHub repository (public since 2026-11-17). The owner authorized publishing at release through their Chrome.
