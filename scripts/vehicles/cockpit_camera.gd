@@ -31,6 +31,9 @@ const LOOK_PITCH_DOWN := 55.0
 const LOOK_PITCH_UP := 30.0
 ## Degrees per mouse pixel at sensitivity 0 and 1.
 const LOOK_RATE := Vector2(0.03, 0.32)
+## The most the first mouse motion after the mouse is captured counts (px): capturing can report the cursor's jump to the window's centre
+## as one motion. Every later one counts in full, however fast the hand (a frame's motion comes as one event).
+const CAPTURE_JUMP := 120.0
 ## The driver's head drifts back to the road this long after the mouse rests, at this rate (1/s).
 const RECENTRE_AFTER := 1.1
 const RECENTRE_RATE := 3.5
@@ -61,6 +64,8 @@ var _corner_yaw := 0.0
 var _sensitivity := 0.35
 var _invert := false
 var _recentre := true
+## Whether the mouse was captured at the last motion (and has been since): the next one is not the first after a capture.
+var _was_captured := false
 
 
 func _ready() -> void:
@@ -99,12 +104,18 @@ func _read_settings() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not current or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or not event is InputEventMouseMotion:
 		return
+	var first := not _was_captured
+	_was_captured = true
 	if _map_in_hands():
 		return
+	turn_head((event as InputEventMouseMotion).relative, first)
+
+
+## Turns the head by a mouse motion of `relative` pixels at the player's sensitivity; the `first` after the mouse is captured counts
+## CAPTURE_JUMP at most.
+func turn_head(relative: Vector2, first := false) -> void:
 	var rate := lerpf(LOOK_RATE.x, LOOK_RATE.y, clampf(_sensitivity, 0.0, 1.0))
-	# Capturing the mouse can report one huge jump as the cursor is centred: never turn the head
-	# more than a hand's flick per event.
-	var motion := (event as InputEventMouseMotion).relative.limit_length(120.0)
+	var motion := relative.limit_length(CAPTURE_JUMP) if first else relative
 	look.x = clampf(look.x - motion.x * rate, -LOOK_YAW, LOOK_YAW)
 	look.y = clampf(look.y - motion.y * rate * (-1.0 if _invert else 1.0), -LOOK_PITCH_DOWN, LOOK_PITCH_UP)
 	_since_look = 0.0
@@ -165,7 +176,8 @@ func add_impact(strength: float) -> void:
 func _physics_process(delta: float) -> void:
 	if car == null or delta <= 0.0:
 		return
-	var velocity := car.linear_velocity
+	# What the car does as this peer sees it: a car played back from the driver's snapshots is a frozen body.
+	var velocity := car.seen_velocity()
 	var accel := (velocity - _previous_velocity) / delta
 	_previous_velocity = velocity
 	var local_accel := car.global_basis.inverse() * accel
@@ -189,6 +201,8 @@ func _process(delta: float) -> void:
 		return
 	_time += delta
 	_since_look += delta
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		_was_captured = false
 	if _is_driver_seat():
 		# Into the corner a little, and back to the road once the mouse rests.
 		_corner_yaw = lerpf(_corner_yaw, -rad_to_deg(car.steer_angle) * CORNER_LOOK, 1.0 - exp(-4.0 * delta))

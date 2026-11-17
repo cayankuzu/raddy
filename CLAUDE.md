@@ -526,10 +526,12 @@ No Blender; model in Godot only as a last resort.
   Clients send requests (`request_seat`, `set_ready`); the host validates with `RosterRules` (pure, tested)
   and broadcasts. `Net.start_race()` refuses new connections and emits `race_started` on every peer.
 - Car physics is driver-authoritative: `BodyNetSync` (child of the body, authority = driver peer) sends
-  30 Hz snapshots stamped with its physics time (a tick's delta a tick: a slow frame's ticks keep their moments); other peers freeze the
-  body kinematic and play back 100 ms behind via `SnapshotBuffer.playback`: a clock that moves on by each tick's delta, pulled gently
-  toward the wall clock and never stepped (on the wall clock both ticks of a 60 Hz frame showed one moment: a client navigator's view
-  stuttered), the place and the turn on Hermite curves through the snapshots' velocities and spins (`test_snapshot_buffer.gd`).
+  30 Hz snapshots stamped with its physics tick (`Engine.get_physics_frames()`: a slow frame's ticks keep their moments, exact to the
+  microsecond); other peers freeze the body kinematic and play back 100 ms behind via `SnapshotBuffer.playback`: a clock that moves on by
+  each tick's delta, pulled gently toward the wall clock (at most a quarter faster or slower: it keeps up with a receiver at 12 fps) and
+  never stepped but after a stall (on the wall clock both ticks of a 60 Hz frame showed one moment: a client navigator's view stuttered),
+  the place and the turn on Hermite curves through the snapshots' velocities and spins (`test_snapshot_buffer.gd`). What a seat feels of
+  a copy comes from `RallyCar.seen_velocity()` (`CockpitCamera`'s lean, `CrewSway`).
   Cans are host-simulated (authority 1). `RallyCar.simulated == false` skips all forces.
 - `RaceSession` (node path must match on all peers): host spawns `Cars/Car<team>` and `Props/Can<id>` via
   `authority call_local reliable` RPCs; each peer binds its own seat (camera + `PlayerCarInput`/`CabinInput`).
