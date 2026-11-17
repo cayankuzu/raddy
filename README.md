@@ -120,3 +120,21 @@ Architecture and conventions: `CLAUDE.md`. Plan and status: `docs/DEVELOPMENT_PL
 Networking: player-hosted ENet (host = peer 1, authoritative for the race, cans, cabin state);
 driver-authoritative car physics with 30 Hz snapshots; proximity voice relayed by the host.
 No servers, accounts or secrets: there is nothing to configure (see `.env.example`).
+
+---
+
+## Licence / Lisans
+
+**English.** RADDY is in development. The game's own code, shaders, tools and documents are
+© 2026 Çayan Kuzu, all rights reserved: the source is public to read, not under an open-source
+licence. Third-party assets keep their own licences, listed with their authors in
+`ASSET_LICENSES.md` (CC0, CC BY 4.0 with credit, SIL OFL for the fonts, MIT for the addons). The
+recordings from the Sonniss #GameAudioGDC bundles (`assets/audio/engine/`, `assets/audio/car/horn.wav`,
+`assets/audio/tyres/skid.wav`, `assets/audio/impacts/crash_*.wav`) are part of this game only: they
+may not be extracted, reused or redistributed as sound effects.
+
+**Türkçe.** RADDY geliştirilme aşamasındadır. Oyunun kendi kodu, shader'ları, araçları ve belgeleri
+© 2026 Çayan Kuzu, tüm hakları saklıdır: kaynak kod okunmak için açıktır, açık kaynak lisansıyla
+verilmemiştir. Üçüncü taraf varlıklar kendi lisanslarıyla gelir ve yapımcılarıyla birlikte
+`ASSET_LICENSES.md` dosyasında listelenir. Sonniss #GameAudioGDC kayıtları yalnızca bu oyunun
+parçasıdır; ayrı ses efekti olarak çıkarılamaz, kullanılamaz ya da dağıtılamaz.
