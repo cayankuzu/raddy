@@ -53,6 +53,8 @@ var assist_torque := 0.0
 var tyre_yaw_moment := 0.0
 ## Seconds of "handbrake turn" intent left (refilled while the handbrake is held).
 var _handbrake_intent := 0.0
+## How far the stability assist is back since the handbrake was let go (0..1, config.assist_fade_in).
+var _assist_back := 1.0
 ## Distance between the front and rear axles, from the wheel mounts.
 var wheelbase := 2.5
 ## False on peers that only play back the driver's snapshots (see BodyNetSync): the body is a
@@ -501,7 +503,7 @@ func _apply_anti_roll(state: PhysicsDirectBodyState3D) -> void:
 
 ## ESC-like help for casual drivers. Past a free slip angle it turns the nose back toward the
 ## direction of travel and damps rotation that would widen the slide, so slides stay catchable.
-## Off while the handbrake is held, so handbrake turns still rotate the car.
+## Off while the handbrake is held, so handbrake turns still rotate the car, and back in over config.assist_fade_in after it.
 ## Share of the stability assist that yields while the driver steers into the rotation, for this
 ## long (s) after the handbrake was let go.
 const ASSIST_YIELD := 0.8
@@ -510,6 +512,10 @@ const HANDBRAKE_INTENT := 1.5
 
 func _apply_stability_assist(state: PhysicsDirectBodyState3D) -> void:
 	_handbrake_intent = HANDBRAKE_INTENT if controls.handbrake else maxf(_handbrake_intent - state.step, 0.0)
+	if controls.handbrake:
+		_assist_back = 0.0
+	else:
+		_assist_back = 1.0 if config.assist_fade_in <= 0.0 else minf(_assist_back + state.step / config.assist_fade_in, 1.0)
 	assist_torque = 0.0
 	# Reversing (or travelling backwards after a spin) is not a slide to correct.
 	var assist := config.stability_assist * assist_scale
@@ -533,7 +539,7 @@ func _apply_stability_assist(state: PhysicsDirectBodyState3D) -> void:
 	if yaw_rate * slip < 0.0:  # rotating away from the travel direction: the slide is widening
 		correction -= yaw_rate * assist
 	var yaw_inertia := 1.0 / maxf(state.inverse_inertia.y, 0.000001)
-	assist_torque = correction * yaw_inertia
+	assist_torque = correction * yaw_inertia * _assist_back
 	state.apply_torque(up * assist_torque)
 
 

@@ -155,15 +155,25 @@ func test_handbrake_hairpin() -> void:
 	_car.controls.throttle = 0.7
 	var seconds := 0.6
 	var turned := 0.0
+	var peak := 0.0
+	var jump := 0.0
+	var previous := 0.0
 	while seconds < 6.0:
 		await wait_ticks(1)
 		seconds += 1.0 / TICKS
 		turned = absf(wrapf(_heading() - start_heading, -180.0, 180.0))
+		peak = maxf(peak, absf(_car.assist_torque))
+		if _car.assist_torque != 0.0:  # how it comes in and acts; it lets go at once under its free slip
+			jump = maxf(jump, absf(_car.assist_torque - previous))
+		previous = _car.assist_torque
 		if turned >= 150.0:
 			break
 	_car.controls.clear()
-	gut.p("handbrake hairpin from 45 km/h: 150 deg in %.2f s" % seconds)
+	gut.p("handbrake hairpin from 45 km/h: 150 deg in %.2f s; the assist after it up to %.0f N m, its largest rise in a tick %.0f N m"
+		% [seconds, peak, jump])
 	assert_lt(seconds, 3.2, "turns round quickly")
+	# Phase F: the assist comes back over VehicleConfig.assist_fade_in, not in one tick (A2: 0 to its peak in a tick).
+	assert_lt(jump, peak * 0.2 + 1.0, "the assist fades back in")
 	assert_eq(_car.wheels_in_contact(), 4, "on its wheels")
 
 
