@@ -543,7 +543,8 @@ func _apply_stability_assist(state: PhysicsDirectBodyState3D) -> void:
 	if yaw_rate * slip < 0.0:  # rotating away from the travel direction: the slide is widening
 		correction -= yaw_rate * assist
 	var yaw_inertia := 1.0 / maxf(state.inverse_inertia.y, 0.000001)
-	assist_torque = correction * yaw_inertia * _assist_back
+	var onset := 1.0 if config.assist_onset <= 0.0 else minf(excess / config.assist_onset, 1.0)
+	assist_torque = correction * yaw_inertia * _assist_back * onset
 	if config.assist_cap > 0.0:
 		var most := config.assist_cap * _tyre_grip * wheelbase * 0.5
 		assist_torque = clampf(assist_torque, -most, most)

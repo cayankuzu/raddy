@@ -5,7 +5,7 @@ extends Resource
 
 ## The A2 feel's values of what phase F changed, for the owner's side-by-side drive.
 const FEEL_A2 := {"steer_travel_lock": 0.0, "steer_rate": 2.2, "steer_return_rate": 3.5, "pad_steer_follow": 22.0, "wheel_full_range": false, "assist_fade_in": 0.0, "assist_cap": 0.0,
-	"assist_level_1": 1.0, "pad_counter_steer_level": 2}
+	"assist_level_1": 1.0, "pad_counter_steer_level": 2, "assist_onset": 0.0}
 
 @export_group("Body")
 @export var mass := 1200.0
@@ -55,6 +55,8 @@ const FEEL_A2 := {"steer_travel_lock": 0.0, "steer_rate": 2.2, "steer_return_rat
 @export var stability_assist := 3.0
 ## Slip angle the assist leaves alone, so the car can still drift a little.
 @export_range(0.0, 0.8, 0.01, "radians_as_degrees") var assist_free_slip := deg_to_rad(8.0)
+## The assist takes hold over this much slip past assist_free_slip (0: in full at once, A2: its damping of the yaw came on in one tick).
+@export_range(0.0, 0.3, 0.01, "radians_as_degrees") var assist_onset := deg_to_rad(4.0)
 ## Seconds the assist takes to come back after the handbrake is let go (0: at once, in one tick, A2).
 @export var assist_fade_in := 0.4
 ## The assist's torque at most this share of the tyres' grip times half the wheelbase (what the tyres could turn the car with; about

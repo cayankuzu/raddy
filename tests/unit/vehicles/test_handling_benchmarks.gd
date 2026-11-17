@@ -243,21 +243,30 @@ func test_catch_a_fast_slide_with_the_assist_off() -> void:
 
 ## The assist is a help, never a hand stronger than the car's: at its strongest level (2) in the catch its torque stays within a quarter
 ## of the tyres' grip times half the wheelbase (VehicleConfig.assist_cap; the weight on flat gravel stands for the grip, with room for
-## the load moving about). A2's peaked at 5547 N m in the catch at level 1, three times the tyres' own yaw moment.
+## the load moving about), and takes hold as the slip grows. A2's peaked at 5547 N m in the catch at level 1, three times the tyres' own
+## yaw moment, and came on in full in one tick.
 func test_the_assist_is_capped_by_the_tyres() -> void:
 	var limit := _car.config.assist_cap * _car.mass * GRAVITY * Surface.grip(Surface.GRAVEL) * _car.config.tire_grip * _car.wheelbase * 0.5
 	for level in [1, 2]:
 		var run := FeelRun.new(_car, "catch", Vector3.ZERO, -1, level)
 		var peak := 0.0
+		var rise := 0.0
+		var previous := 0.0
 		var caught := -1.0
 		while not run.done:
 			run.tick(1.0 / TICKS)
 			await wait_ticks(1)
 			peak = maxf(peak, absf(_car.assist_torque))
+			if _car.assist_torque != 0.0 and run.time > FeelScripts.RUN_UP + 2.0 / TICKS:  # the script sets the slide going in a tick
+				rise = maxf(rise, absf(_car.assist_torque - previous))
+			previous = _car.assist_torque
 			if caught < 0.0 and run.time > FeelScripts.RUN_UP + 0.05 and absf(_car.body_slip_angle()) < deg_to_rad(5.0):
 				caught = run.time - FeelScripts.RUN_UP
-		gut.p("catch at assist level %d: the assist's peak %.0f N m (cap about %.0f), under 5 deg at %.2f s" % [level, peak, limit, caught])
+		gut.p("catch at assist level %d: the assist's peak %.0f N m (cap about %.0f), its largest rise in a tick %.0f N m, under 5 deg at %.2f s"
+			% [level, peak, limit, rise, caught])
 		assert_lt(peak, limit * 1.3, "level %d within the cap" % level)
+		if level == 1:  # level 2's damping is strong enough to take hold within three ticks at 100 deg/s of yaw, its 4 degrees of onset
+			assert_lt(rise, limit * 0.25, "takes hold over a few degrees of slip, not in a tick (VehicleConfig.assist_onset)")
 		assert_between(caught, 0.0, 1.5, "level %d still catches it" % level)
 
 
