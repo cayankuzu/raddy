@@ -871,3 +871,58 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   beads. The dials' glow needed nothing more. Seen in two sheets (the four signs of each seat from the other at night, before and after; the
   own hands on the wheel by day and at night): every sign reads, no cap per piece, no dark ring at a joint; from the own seat
   the coloured back runs on over the fingers on the rim (the final check's ragged edge short of the knuckles is gone). GUT 560/560.
+- 2026-11-17: A9a, item 1, where a frame goes: DONE (measured; nothing cut but the probe's own fault).
+  - The first finding was the probe's: it set vsync off on every frame, which rebuilt the swap chain each time (about 10 ms a frame) and left
+    the renderer's GPU stamps at 0. Every older number from `tools\perf.ps1` (30-37 fps on Medium, the 8.5-12 ms "floor", Vulkan's 17 fps) was
+    that. The game itself sets vsync once, when the settings apply. The NVIDIA RTX 5070 Laptop renders (discrete, D3D12 12_0; the game's log and
+    the probe's `ADAPTER` line say so), so Auto picks High on this PC. No hidden cap: `Engine.max_fps` 0, the panel 60 Hz.
+  - The floor (`--scene=look_test`: an empty stage with the race's sky, light and post, Medium, vsync off): windowed 575-665 fps (GPU 1.15 ms),
+    fullscreen 615-625 (1.5 ms), exclusive fullscreen 670-715 (1.3 ms); Vulkan windowed 740-750 (1.0 ms). The present path of the hybrid
+    laptop costs a few tenths of a millisecond at most. Vulkan now runs Black Pine as D3D12 does (69-83 fps on Medium): D3D12 stays pinned.
+  - Baselines, Black Pine, three crews (`-ExtraArgs "--follower=14+28"`), the bot driving, 1080p, twice each (the second time beside another
+    project's headless test run, CPU only; the first beside whatever the owner ran then):
+
+    | Level | fps avg | p95 / p99 ms | over 33 ms | draw calls | primitives | work / draw / GPU ms |
+    |---|---|---|---|---|---|---|
+    | Low | 131.7-140.3 | 8.4-9.0 / 9.3-9.8 | 0 | 683-808 | 2.5-2.8 M | 1.1 / 4.4-5.1 / 6.9-7.5 |
+    | Medium | 77.1-79.6 | 14.0-14.6 / 14.3-15.0 | 0 | 870-910 | 3.1-3.2 M | 1.2 / 8.8-9.6 / 12.4-12.9 |
+    | High | 60.0-60.6 | 18.0-18.6 / 18.6-18.9 | 0 | 1084-1157 | 4.3-4.5 M | 1.2 / 12.0-12.5 / 16.3-16.6 |
+    | Medium, Red Canyon (desert) | 149.2-175.2 | 6.8-8.5 / 7.7-9.7 | 0 | 618-656 | 2.3-2.4 M | 1.2 / 3.4-3.8 / 4.4-5.3 |
+    | Medium, Glacier Ridge (snow) | 124.6-147.4 | 8.2-11.2 / 9.5-13.2 | 0 | 672-674 | 2.7 M | 1.5 / 4.0-4.5 / 5.4-6.9 |
+
+    The phase's targets already hold on this laptop (Medium 60, 75 if the floor allows, p99 under 20; High 45; Low 90). The frame is the
+    GPU's: the main thread's own work is 1.2 ms and a physics tick 1.1-1.5 ms; the draw call waits on the GPU. Black Pine's main view on
+    Medium: opaque pass 3.8-3.9 ms, depth pre-pass 3.5-3.7 (as dear as the opaque pass: the alpha-cut leaves are drawn in both), shadows
+    1.8-1.9, transparent 0.8; on High 4.9 / 4.7 / 3.0 / 0.9. Viewports apart (`VIEWPORT`): the door mirror 0.9-1.3 ms GPU and 0.5 ms CPU a
+    frame on Medium, the open map 0.17 ms GPU and 0.21 CPU, drawn every frame though it seldom changes.
+  - What each thing costs (`--flip-<what>=0.5`, all of them in one run taking turns, two runs in opposite orders; ms of the frame it saves when
+    hidden, each run; by day on Black Pine with three crews; under 0.3 ms is within what the measure wanders by):
+
+    | Thing | Low | Medium | High |
+    |---|---|---|---|
+    | trees (crowns and trunks, by class) | 2.0 / 4.3 | 6.1 / 9.3 | 11.6 / 7.7 |
+    | shadows (every light's) | 1.7 / 1.3 | 1.9 / 1.9 | 6.6 / 2.5 |
+    | backdrop | 0.4 / 0.5 | 1.3 / 1.2 | 2.2 / 1.8 |
+    | mirrors (a new picture) | 0.9 / 0.8 (median) | 1.0 / 1.8 | 1.2 / 2.2 |
+    | SSR | off | 0.5 / 3.3 (median 0.4 / 2.3) | 0.5 / 0.6 |
+    | AA (FXAA; SMAA; MSAA 2x + SMAA) | 0.1 / 0 | 0.3 / 0 | 1.0 / 0.5 |
+    | glow | off | 0.5 / 0 | 0.7 / 0.3 |
+    | low plants | 0.1 / 0.2 | 0.3 / 0.3 | 0.7 / 0.6 |
+    | road fx | 0.5 / 0.3 | 0.2 / 0.6 | 0 / 0.6 |
+    | crowd | 0.2 / 0.2 | 0.3 / 0.2 | 0.5 / 0 |
+    | crews (work before the draw) | 0.1 / 1.7 (0.3) | 0 / 0.3 (0.3) | 0 / 0.5 (0.3-0.4) |
+    | rocks, SSAO, HUD, kit, livery, tyre marks | 0 | 0 | 0-0.2 |
+
+    At night (Medium): the cars' lamps 1.0 / 1.5, the light pods 0.35 / 0.6, shadows 0.4 / 0.5, the mirrors 0.8 / 1.6, the trees 6.8 / 7.6. In
+    fog (Medium) the volumetric fog costs nothing measurable (0 / -0.1); the trees 6.9 / 8.5.
+  - The game's own script work a frame (`--work-top=0.5`, Medium, two runs; the process step / a physics tick): `CrewRig` 0.25-0.44 (six
+    bodies), `CarMirrors` 0.20 / 0.13, `CockpitCamera` 0.10-0.13, `CarCockpit` 0.12, `SpeedBlur` 0-0.10, `PaperMap` 0.04-0.08, `CarLamps`
+    0.07 / 0.07, `Cabin` 0.04-0.22 / 0.08-0.14, `WindshieldGlass` 0.04, `CarAudio` 0.03 / 0.08-0.33; `CarRoadFx` 0.09, `CarDirt` 0.04-0.13 and
+    `CarTyreMarks` 0.02-0.10 a tick. All of it together is about 1.2 ms: no script is worth a cut before the GPU's work.
+  - The separate render thread (`--render-thread separate`, Medium, twice against the default): the same frame (67.0-85.1 fps against
+    67.3-85.8), the GPU stamps unreadable from the main thread and an engine error about an empty image: not kept.
+  - The cuts that should follow, ranked by gain (item 2): far trees as impostors or fewer crowns at range and the leaves out of the depth
+    pre-pass (Medium 6-9 ms); tree LODs per level; shadow casters and splits on High (2.5-6.6 ms) and Medium (1.9); the backdrop as fewer, larger
+    meshes (1.2-2.2); the mirror at half rate or a smaller picture (1-2); MSAA off on High (0.5-1.0); the map's picture drawn only when it changes
+    (0.2 GPU + 0.2 CPU).
+  Verified: `tools\perf.ps1` runs listed above (logs kept out of the repo), the floor in three window modes and in Vulkan; GUT unchanged.

@@ -24,7 +24,7 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | Six players / three crews at once over the internet; latency feel | to do |
 | Driving feel with keyboard and with a gamepad on every stage | to do |
 | Navigator flow: reading the notes, map in hand, guiding a blind driver (bonnet up, mud) | to do |
-| Frame rate on a mid-range desktop GPU and on integrated graphics (Auto → Low) | to do (dev laptop at 1080p with a bot on Kara Çam: Medium 32-35 fps, High 26-34 fps; down to 19-23 and 20-28 fps when other programs load the CPU) |
+| Frame rate on a mid-range desktop GPU and on integrated graphics (Auto → Low) | to do on other PCs (dev laptop, RTX 5070 Laptop, 1080p, a bot and two followers on Kara Çam, A9a's fixed probe: Low 132-140 fps, Medium 77-80, High 60-61, p99 under 19 ms; the older 30-37 fps were the probe's own vsync fault) |
 | Every weather on every compatible stage | screenshots of all reviewed; to do by people at the wheel |
 | Medal times (`StageRecords.MEDAL_SPEEDS`: bots average 15.3-18.5 m/s, gold is 20.5) are hard but reachable for a good crew | to do |
 | Mirrors, dome lamp and sliding windows in a real two-player race, from both seats | to do |
@@ -72,4 +72,4 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 - The trip meter is a black box against the black A pillar until A7 lights its display with numbers.
 - The dev laptop has a ~8 ms per-frame floor even for an empty scene (hybrid graphics); frame
   rates measured there understate other PCs.
-- Vulkan is not usable on the dev laptop (17 fps on an empty scene); the project pins D3D12.
+- The project pins D3D12. Vulkan's 17 fps on an empty scene was the old probe's fault: since A9a it runs as D3D12 does (Black Pine on Medium 69-83 fps).

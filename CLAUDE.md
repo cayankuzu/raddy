@@ -35,14 +35,24 @@ No Blender; model in Godot only as a last resort.
 - `tools\ci.ps1 [-AllStages] [-SkipExport] [-SkipFlow]`: GUT, nettest, flow test (all six with -AllStages), a headless bot
   through every stage event (`tools/list_stage_events.gd`), export; stops at the first failure. Takes longer than one
   foreground call may (about 20 min with -AllStages): run its steps one by one or in the background.
-- `tools\perf.ps1 [-Stage 0] [-Quality 1] [-Seconds 30] [-Start 0] [-ExtraArgs "--a,--b"]`: the bot drives, windowed at 1920x1080, vsync off
-  (`tools/perf_probe.gd`): build ms, then `PERF fps_avg p95_ms p99_ms draw_calls primitives physics_ms` lines; its cpu/gpu render
-  times read 0 here. This PC's fps wander run to run by more than most things cost (alternating runs of two commits told nothing about A5's
-  millisecond): measure a thing inside one run. `--flip-<what>=S` shows and hides it every S seconds (0.5 is good) and prints `FLIP <what> nodes
-  shown_ms hidden_ms cost_ms median_cost_ms work_cost_ms` (the last is the share spent before the draw, in scripts and skeletons, steady to
-  0.03 ms; `cost_ms` wanders by 0.3 ms and more from run to run, so run it twice): `road-fx` (what the cars throw into the air), `marks`, `crew`
-  (the bodies and their rigs), `crew-motion` (the rigs only), `kit`, `livery`, `pod`, `crowd`. The probe is compiled before the autoloads exist:
-  it may name no class of the game that leans on one (`Net`, `Settings`), it finds nodes by `find_children("*", "<class>")`.
+- `tools\perf.ps1 [-Stage 0] [-Quality 1] [-Seconds 30] [-Start 0] [-ExtraArgs "--a,--b"] [-GodotArgs "--render-thread,separate"]`: the bot
+  drives, windowed at 1920x1080, vsync off once, Godot with `--gpu-profile` so the renderer stamps its passes (`tools/perf_probe.gd`, its header
+  says every field). Prints `ADAPTER` (which GPU renders, its type, the API, the window mode, the refresh, `max_fps`), every 5 s `PERF fps_avg
+  p95_ms p99_ms over33 draw_calls primitives work_ms tick_ms draw_ms gpu_ms render_cpu_ms mirrors_gpu_ms map_gpu_ms` (work: the main thread's
+  process step; tick: one physics tick; draw: the draw call on the main thread, which waits on the GPU when it is behind; the engine's
+  `process_max_ms` includes the draw), at the end `GPUPASS <pass> gpu_ms cpu_ms` (the main view) and `VIEWPORT main|mirror|map|other`.
+  Before measuring list the Godot processes (`Get-CimInstance Win32_Process -Filter "Name LIKE 'Godot%'"`): the owner's other projects run
+  tests and shots beside this one; never touch them, say in every number what ran beside it. This PC: the RTX 5070 Laptop renders (Auto is
+  High), the frame is the GPU's (A9a's table in DEVELOPMENT_PLAN), the floor of an empty stage with the race's look is about 1.2 ms
+  (`--scene=look_test`, `--window=fullscreen|exclusive`). Never set the vsync mode every frame: it rebuilds the swap chain (about 10 ms) and
+  the GPU stamps read 0, which every number before A9a was. The fps wander run to run by more than most things cost: measure a thing inside
+  one run. `--flip-<what>=S` shows and hides it every S seconds (0.5 is good); several flips take turns (`--flip-each=T` seconds each) and
+  print `FLIP <what> nodes shown_ms hidden_ms cost_ms median_cost_ms work_cost_ms tick_cost_ms draw_cost_ms gpu_cost_ms render_cpu_cost_ms`
+  (`work_cost_ms` steady to 0.03 ms; `cost_ms` wanders by 0.3 ms and more: run twice, the second time in the reverse order): `road-fx`,
+  `marks`, `crew`, `crew-motion` (the rigs only), `kit`, `livery`, `pod`, `crowd`, `hud`, `trees`, `low`, `backdrop`, `rocks` (the scenery
+  by `RoadsideDresser.scenery_class`), `shadows`, `lamps`, `mirrors`, `ssr`, `ssao`, `glow`, `fog`, `aa`. `--work-top=S` takes turns over
+  every script that processes (`FLIP work:<file>`: its `_process` a frame, its `_physics_process` a tick). The probe is compiled before the
+  autoloads exist: it may name no class of the game that leans on one (`Net`, `Settings`), it finds nodes by `find_children("*", "<class>")`.
 - `tools\fx_probe.ps1 -At "22+30" [-Stage 0] [-Quality 1] [-Weather 0] [-Tag now] [-ExtraArgs "--follower=9,--follower-delay=2,--ride-follower"]`: at those
   seconds of game time the same frame with and without the cloud into `reports\screenshots\fx\<Tag>\`, and `FXPROBE` lines with how much of the road ahead it hides.
   `-ExtraArgs "--glass-dirt=0.35+0.7+1"` measures the windshield's dirt instead (clean glass against each level, `GLASSPROBE` lines; A3's balance and
@@ -63,8 +73,8 @@ No Blender; model in Godot only as a last resort.
   covered (PrintWindow); use it for multi-window visual checks since Beckett sees one game only.
 - `tools\screenshot.ps1 -Scene res://x.tscn -Frames 120 -Out reports\screenshots\x.png [-ExtraArgs "--a,--b"]`:
   Movie Maker capture; open the PNG with Read. The PNG has the project viewport size; `-Resolution` only
-  sizes the window. 60 movie frames = 1 s of game time. A dev scene draws at the player's graphics level, and Auto is Low on this PC
-  (no glow, no SSAO, flat fog): pass `--quality=2` to judge a look.
+  sizes the window. 60 movie frames = 1 s of game time. A dev scene draws at the player's graphics level (Auto is High on this PC, Low on
+  integrated graphics): pass `--quality=2` to judge a look.
 - The main scene is `scenes/ui/main_menu.tscn`. Screenshots of a running room or race: `screenshot.ps1 -Scene
   res://scenes/ui/main_menu.tscn -ExtraArgs "--flow-test,--role=server,--players=1,--autodrive"`.
 - `tools\export_windows.ps1 [-Debug]`: `builds\windows\RADDY.exe` via the "Windows Desktop" preset.
