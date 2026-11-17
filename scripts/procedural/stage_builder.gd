@@ -5,7 +5,8 @@ class_name StageBuilder
 ## on one side, or a different surface or width. The road also gets small natural bumps.
 ## Deterministic: every peer builds the same stage from the same recipe.
 ##
-## Segment keys: "len" (m, required), "turn" (deg, + right / - left), "rise" (m over the segment),
+## Segment keys: "len" (m, required), "turn" (deg, + right / - left), "tightens" / "opens" (true: the turn grows or eases
+## along the segment, its total the same), "rise" (m over the segment),
 ## "crest" / "jump" / "dip" (m), "water" (true), "cliff" / "bank" ("left" | "right" | "both") with "drop" /
 ## "wall" (m), "surface" (Surface id), "width" (m), "caution" (true: a pace-note warning),
 ## "falling_tree" / "rockfall" ("left" | "right": a surprise StageEvents springs on the first crew),
@@ -20,7 +21,12 @@ class_name StageBuilder
 ## road carrying straight on), "hold": m it runs straight at each end, "reach": how far its curve keeps those
 ## headings (a share of the gap between its ends),
 ## "rise": m of hump over its length, "price": "ford" | "gate" | "rough" | "narrow", "price_at": 0..1 along it,
-## "surface", "width" (m)}.
+## "surface", "width" (m)},
+## "gag": a slot where a gag may stand this run (GagDirector draws what): {"slot": "beside" | "across_slow" | "overhead",
+## "side": "left" | "right" (beside), "at": 0..1 along the segment},
+## "signature": the stage's set piece, whose ground the whole segment reserves: {"kind": "barn" | "village" | "bridge",
+## "reach": m of flat, cleared ground past each road edge}.
+## The stage's "rules" (1 or 2) is the edition of StageDesignRules it is built to.
 
 ## The inside of every corner of at least SCREEN_TURN degrees gets a screen (trees, rocks: you
 ## cannot see round it), from SCREEN_LEAD metres before it to as far after, unless that side is a cliff.
@@ -47,6 +53,11 @@ const ROUGH_FREQUENCY := 1.0 / 9.0
 const NARROW_WIDTH := 3.2
 const NARROW_LENGTH := 70.0
 const NARROW_BANK := 1.3
+## A corner that tightens turns (1 - CORNER_CHANGE) times its average at its start and (1 + CORNER_CHANGE) at its end.
+const CORNER_CHANGE := 0.6
+## Gag slots by kind: metres along the road and metres of room past the road's edge (beside: on its side; the others on both).
+const GAG_SLOTS := {&"beside": Vector2(14.0, 10.0), &"across_slow": Vector2(30.0, 12.0), &"overhead": Vector2(10.0, 4.0)}
+const SIGNATURE_REACH := 18.0
 ## Integration step and the spacing of the finished polyline (metres).
 const STEP := 1.0
 const POINT_SPACING := 2.0
@@ -79,6 +90,7 @@ static func build(stage: Dictionary) -> RouteGraph:
 	var graph := RouteGraph.new()
 	graph.seed = int(stage.get("seed", 0))
 	graph.stage_id = StringName(stage.get("id", "stage"))
+	graph.rules = int(stage.get("rules", 1))
 	var biome := int(stage.get("biome", RaceSettings.Biome.FOREST))
 	graph.biome = StringName(RaceSettings.Biome.keys()[clampi(biome, 0, RaceSettings.Biome.size() - 1)].to_lower())
 	var default_width: float = stage.get("width", 4.4)
@@ -105,11 +117,13 @@ static func build(stage: Dictionary) -> RouteGraph:
 		var width: float = segment.get("width", default_width)
 		var surface: StringName = segment.get("surface", default_surface)
 		var from := travelled
+		var change := CORNER_CHANGE if segment.get("tightens", false) else (-CORNER_CHANGE if segment.get("opens", false) else 0.0)
 		for k in steps:
 			# Half the turn before the step and half after keeps arcs exact at any step size.
-			heading += turn / steps * 0.5
+			var rate := turn / steps * (1.0 + change * ((k + 0.5) / steps * 2.0 - 1.0))
+			heading += rate * 0.5
 			position += Vector2(sin(heading), -cos(heading)) * (length / steps)
-			heading += turn / steps * 0.5
+			heading += rate * 0.5
 			climbed += rise / steps
 			travelled += length / steps
 			dense.append(position)
@@ -136,7 +150,7 @@ static func build(stage: Dictionary) -> RouteGraph:
 		var s := along[i]
 		var quiet := minf(smoothstep(0.0, QUIET_ENDS, s), smoothstep(0.0, QUIET_ENDS, travelled - s))
 		for feature in graph.features:
-			if feature.kind in [&"crest", &"jump", &"dip", &"water"] and s > feature.from - 10.0 and s < feature.to + 10.0:
+			if feature.kind in [&"crest", &"jump", &"dip", &"water", &"signature"] and s > feature.from - 10.0 and s < feature.to + 10.0:
 				quiet = 0.0
 		heights[i] += bumps.get_noise_1d(s) * BUMP_AMPLITUDE * bump_scale * quiet * 2.0
 		heights[i] += _feature_height(graph.features, s)
@@ -425,6 +439,17 @@ static func _add_features(graph: RouteGraph, segment: Dictionary, from: float, t
 	if segment.has("spectators"):
 		graph.features.append({"kind": &"spectators", "from": from, "to": to, "at": middle,
 			"side": -1 if segment.spectators == "left" else 1, "value": 0.0})
+	if segment.has("gag"):
+		var gag: Dictionary = segment.gag
+		var slot := StringName(gag.get("slot", "beside"))
+		var size: Vector2 = GAG_SLOTS[slot]
+		var at := lerpf(from, to, float(gag.get("at", 0.5)))
+		graph.features.append({"kind": &"gag", "from": at - size.x * 0.5, "to": at + size.x * 0.5, "at": at, "slot": slot, "value": size.y,
+			"side": (-1 if gag.get("side", "right") == "left" else 1) if slot == &"beside" else 0})
+	if segment.has("signature"):
+		var piece: Dictionary = segment.signature
+		graph.features.append({"kind": &"signature", "from": from, "to": to, "at": middle, "side": 0,
+			"value": float(piece.get("reach", SIGNATURE_REACH)), "set_piece": StringName(piece.get("kind", "village"))})
 	var turn := float(segment.get("turn", 0.0))
 	var cliff := str(segment.get("cliff", ""))
 	var inside := "right" if turn > 0.0 else "left"

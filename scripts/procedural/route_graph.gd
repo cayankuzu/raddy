@@ -151,6 +151,8 @@ class Gate:
 var seed := 0
 var stage_id := &""
 var biome := &"forest"
+## The edition of StageDesignRules the stage is built to (its recipe's "rules").
+var rules := 1
 var nodes: Array[RouteNode] = []
 var edges: Array[RouteEdge] = []
 ## Edge ids from the start to the finish (every edge of the stage, in order).
@@ -162,7 +164,8 @@ var spurs: Array[Spur] = []
 ## The bypasses, in stage order (see Bypass).
 var bypasses: Array[Bypass] = []
 ## Features by distance along the road: {"kind": StringName, "from": m, "to": m, "at": m,
-## "side": -1 left / 1 right / 0, "value": metres (height, depth or drop)}.
+## "side": -1 left / 1 right / 0, "value": metres (height, depth or drop; a gag slot's or the set piece's room past the
+## road's edge)}; a gag slot adds "slot", the set piece ("signature") "set_piece".
 var features: Array[Dictionary] = []
 ## Middle of the stage's bounding box (XZ) and its half size.
 var center := Vector2.ZERO

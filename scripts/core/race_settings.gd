@@ -46,7 +46,7 @@ static func surprise() -> Dictionary:
 
 ## Replaces every Random with a concrete value from `roll` and fixes incompatible pairs (a weather
 ## the stage's biome cannot have is re-rolled among the stage's own). Adds the stage's "biome" and
-## world "seed". A time of day left out is day. Returns a new dictionary; the input is not changed.
+## world "seed", and the room's "gag_seed" (GagDirector: which gags stand in the slots, new every race). A time of day left out is day. Returns a new dictionary; the input is not changed.
 static func resolve(choices: Dictionary, roll: int) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = roll
@@ -69,6 +69,7 @@ static func resolve(choices: Dictionary, roll: int) -> Dictionary:
 	if int(out.get("time", TimeOfDay.DAY)) == RANDOM:
 		out.time = rng.randi_range(0, TimeOfDay.size() - 1)
 	out.time = clampi(int(out.get("time", TimeOfDay.DAY)), 0, TimeOfDay.size() - 1)
+	out.gag_seed = rng.randi()
 	return out
 
 

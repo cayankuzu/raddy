@@ -16,7 +16,7 @@ signal lobby_settings_changed
 ## Host: a player finished loading the race scene (see report_race_loaded).
 signal peer_loaded(peer_id: int)
 
-const PROTOCOL_VERSION := 2
+const PROTOCOL_VERSION := 3
 const DEFAULT_PORT := 7777
 const MAX_NAME_LENGTH := 16
 ## How long a connected peer may stay silent before the host drops it (no join request).

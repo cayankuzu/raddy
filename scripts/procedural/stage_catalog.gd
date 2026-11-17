@@ -3,6 +3,8 @@ class_name StageCatalog
 ## (two per biome). Each recipe is driven by StageBuilder (see there for the segment keys); the
 ## terrain, roadside and pace notes all follow from it, so a stage is the same every time.
 ## Names are translation keys STAGE_<ID> / STAGE_<ID>_DESC in data/locale/strings.csv.
+## "rules" is the edition of StageDesignRules a stage is built to: the second edition's rules judge only the stages
+## that claim it (tests/unit/procedural/test_stage_builder.gd lists the ones still waiting for their redesign).
 
 const FOREST := RaceSettings.Biome.FOREST
 const DESERT := RaceSettings.Biome.DESERT
@@ -53,7 +55,7 @@ static func stages() -> Array[Dictionary]:
 		# Fast, flowing forest gravel: crests you cannot see over, two jumps, a water splash and a
 		# muddy section with a hairpin in the middle; a long way round the first jump, and near the end
 		# the road goes round a field where a farm track fords the creek straight across.
-		{"id": &"black_pine", "biome": FOREST, "seed": 1101, "width": 4.6, "surface": Surface.GRAVEL,
+		{"id": &"black_pine", "rules": 1, "biome": FOREST, "seed": 1101, "width": 4.6, "surface": Surface.GRAVEL,
 			"weathers": [RaceSettings.Weather.CLEAR, RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG],
 			"segments": [
 				{"len": 90}, {"len": 60, "turn": 35}, {"len": 50, "crest": 1.6}, {"len": 48, "turn": -80},
@@ -72,7 +74,7 @@ static func stages() -> Array[Dictionary]:
 				{"len": 70, "turn": 60}, {"len": 50, "dip": 0.6}, {"len": 40, "turn": 35}, {"len": 70, "crest": 1.4}, {"len": 100},
 			]},
 		# Narrow, slippery creek road: four water crossings, tight corners and mud.
-		{"id": &"misty_creek", "biome": FOREST, "seed": 1202, "width": 3.8, "surface": Surface.DIRT, "bumps": 1.3,
+		{"id": &"misty_creek", "rules": 1, "biome": FOREST, "seed": 1202, "width": 3.8, "surface": Surface.DIRT, "bumps": 1.3,
 			"weathers": [RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG, RaceSettings.Weather.CLEAR],
 			"segments": [
 				{"len": 80}, {"len": 40, "turn": -60}, {"len": 50, "water": true, "spectators": "left"}, {"len": 36, "turn": 75},
@@ -92,7 +94,7 @@ static func stages() -> Array[Dictionary]:
 			]},
 		# Desert gravel through a red canyon: long fast straights over yumps, walls on both
 		# sides, cliff edges and the biggest jump in the game.
-		{"id": &"red_canyon", "biome": DESERT, "seed": 2301, "width": 5.0, "surface": Surface.GRAVEL,
+		{"id": &"red_canyon", "rules": 1, "biome": DESERT, "seed": 2301, "width": 5.0, "surface": Surface.GRAVEL,
 			"weathers": [RaceSettings.Weather.CLEAR, RaceSettings.Weather.DUST_STORM, RaceSettings.Weather.FOG],
 			"segments": [
 				{"len": 100}, {"len": 70, "turn": 30}, {"len": 90, "crest": 1.8, "bank": "left", "wall": 12.0},
@@ -110,7 +112,7 @@ static func stages() -> Array[Dictionary]:
 				{"len": 40, "turn": 40}, {"len": 50, "dip": 0.6}, {"len": 70, "crest": 1.4}, {"len": 100},
 			]},
 		# Rolling sand hills: chains of crests, three jumps and a hairpin at the top.
-		{"id": &"scorpion_hills", "biome": DESERT, "seed": 2402, "width": 4.6, "surface": Surface.DIRT, "bumps": 1.2,
+		{"id": &"scorpion_hills", "rules": 1, "biome": DESERT, "seed": 2402, "width": 4.6, "surface": Surface.DIRT, "bumps": 1.2,
 			"weathers": [RaceSettings.Weather.CLEAR, RaceSettings.Weather.DUST_STORM],
 			"segments": [
 				{"len": 90}, {"len": 50, "turn": -40}, {"len": 50, "crest": 1.5}, {"len": 50, "crest": 1.8},
@@ -131,7 +133,7 @@ static func stages() -> Array[Dictionary]:
 		# the outside and rock walls on the inside, then a fast descent with a jump. On a switchback
 		# the next leg is uphill on the side the hairpin turns to, the last one downhill on the
 		# side it came from: banks and cliffs follow that.
-		{"id": &"eagle_nest", "biome": MOUNTAIN, "seed": 3501, "width": 4.0, "surface": Surface.GRAVEL,
+		{"id": &"eagle_nest", "rules": 1, "biome": MOUNTAIN, "seed": 3501, "width": 4.0, "surface": Surface.GRAVEL,
 			"weathers": [RaceSettings.Weather.CLEAR, RaceSettings.Weather.FOG, RaceSettings.Weather.SNOW, RaceSettings.Weather.RAIN],
 			"segments": [
 				{"len": 90}, {"len": 60, "turn": 30, "rise": 3}, {"len": 110, "rise": 9, "cliff": "right", "bank": "left"},
@@ -152,7 +154,7 @@ static func stages() -> Array[Dictionary]:
 				{"len": 70, "crest": 1.4}, {"len": 80},
 			]},
 		# A ridge above the clouds: drops on both sides in turn, fast crests and descents.
-		{"id": &"glacier_ridge", "biome": MOUNTAIN, "seed": 3602, "width": 4.2, "surface": Surface.GRAVEL,
+		{"id": &"glacier_ridge", "rules": 1, "biome": MOUNTAIN, "seed": 3602, "width": 4.2, "surface": Surface.GRAVEL,
 			"weathers": [RaceSettings.Weather.SNOW, RaceSettings.Weather.CLEAR, RaceSettings.Weather.FOG],
 			"segments": [
 				{"len": 90}, {"len": 60, "turn": -30, "decoy": {"side": "left", "len": 70, "end": "barrier"}}, {"len": 90, "crest": 1.6, "cliff": "right"},

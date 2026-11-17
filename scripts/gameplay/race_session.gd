@@ -52,6 +52,8 @@ var settings: Dictionary = {}
 var graph: RouteGraph
 var progress: RaceProgress
 var notes: Array[Dictionary] = []
+## The gags standing in the stage's slots this race (GagDirector, from the settings' "gag_seed"; --gags= for tests).
+var gags: Array[Dictionary] = []
 ## The stage's surprises (falling trees, rockfalls): the host decides, every peer plays them.
 var stage_events: StageEvents
 ## Host: the shock guns' darts and reloads (GAME_DESIGN §6); darts_of() is known on every peer.
@@ -205,12 +207,14 @@ func _build_route() -> void:
 		else:
 			_rpc_request_gate.rpc_id(1, index, rammed))
 	notes = PaceNotes.build(graph, RaceSettings.note_detail(difficulty()))
+	gags = GagDirector.for_run(graph, int(settings.get("gag_seed", 0)), str(Flow.args.get("gags", "")))
 	_map_sheet = MapSheet.of_track(graph, terrain, track, notes, settings)
 	if Net.is_host():
 		progress = RaceProgress.new(graph.checkpoints.size())
 		for gate in track.get_node(^"Checkpoints").get_children():
 			(gate as Checkpoint).passed.connect(_on_gate_passed)
-	print("NET stage %s %.0f m gates %d notes %d built in %d ms" % [graph.stage_id, graph.main_route_length(), graph.checkpoints.size(), notes.size(), Time.get_ticks_msec() - started])
+	print("NET stage %s %.0f m gates %d notes %d gags [%s] built in %d ms" % [graph.stage_id, graph.main_route_length(), graph.checkpoints.size(), notes.size(),
+		GagDirector.describe(gags), Time.get_ticks_msec() - started])
 
 
 func _exit_tree() -> void:

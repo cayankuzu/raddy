@@ -127,7 +127,7 @@ static func plan(graph: RouteGraph, terrain: TerrainField) -> Array[Dictionary]:
 
 
 ## Where the forest stands back (RoadsideDresser plants nothing tall there): a place for the crowd,
-## the road's end and the view onto each board. Capsules in the XZ plane: {"a": Vector2, "b": Vector2,
+## the road's end, the view onto each board, a gag slot's and the set piece's room. Capsules in the XZ plane: {"a": Vector2, "b": Vector2,
 ## "radius": m}; `bare` ones are the footprints of what stands there, where not even grass grows.
 static func clearings(graph: RouteGraph, terrain: TerrainField) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
@@ -143,6 +143,14 @@ static func clearings(graph: RouteGraph, terrain: TerrainField) -> Array[Diction
 		var s := float(zone.from) - Sightline.ZONE_MARGIN
 		while s < float(zone.to) + Sightline.ZONE_MARGIN + CLEARING_RIB:
 			out.append({"a": _beside(graph, s, side, 0.0), "b": _beside(graph, s, side, BACK_EDGE + CLEARING_RIB), "radius": CLEARING_RIB})
+			s += CLEARING_RIB
+	# The room of a gag slot (on its side, or both) and of the set piece: nothing tall stands there.
+	for place in graph.features.filter(func(f: Dictionary) -> bool: return f.kind in [&"gag", &"signature"]):
+		var reach := float(place.value) + CLEARING_RIB
+		var s := float(place.from)
+		while s < float(place.to) + CLEARING_RIB:
+			var from := _beside(graph, s, -1.0, reach) if int(place.side) == 0 else _beside(graph, s, float(place.side), 0.0)
+			out.append({"a": from, "b": _beside(graph, s, 1.0 if int(place.side) >= 0 else -1.0, reach), "radius": CLEARING_RIB})
 			s += CLEARING_RIB
 	var total := graph.main_route_length()
 	var s := total - END_CLEARING

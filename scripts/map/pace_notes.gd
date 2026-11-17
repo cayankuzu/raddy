@@ -1,14 +1,14 @@
 class_name PaceNotes
 ## The navigator's pace notes for a stage (spec §11.4), the way real co-drivers read them: every
 ## corner by direction and severity (1 = slowest .. 6 = nearly flat, "hairpin" for a turn back),
-## "long" for a corner that keeps going, and the hazards on the way: crests (blind when big),
+## "long" for a corner that keeps going, "tightens" / "opens" for one whose exit is not its entry, and the hazards on the way: crests (blind when big),
 ## jumps, dips, water splashes and cliff edges. Numbered in stage order, the same numbers the paper
 ## map prints beside the road. Pure data; every peer builds the same notes from the same graph.
 ##
 ## Each note: {"number": n, "position": Vector2, "distance": m from the start, "fraction": 0..1,
 ##   "kind": &"corner" | &"crest" | &"jump" | &"dip" | &"water" | &"cliff" | &"junction" | &"bypass", "side":
 ##   "left" | "right" | "", "severity": 1..6 (corners; 0 otherwise), "hairpin": bool, "long": bool,
-##   "caution": bool, "junction": "" | "straight" | "left" | "right" (the wrong way there, or a bypass's
+##   "tightens": bool, "opens": bool, "caution": bool, "junction": "" | "straight" | "left" | "right" (the wrong way there, or a bypass's
 ##   rejoin seen from the stage), "bypass": "" | "shortcut" | "long" and "price" (a bypass's mouth: both
 ##   ways are right, the note names the other one and what it costs), "gap": m from the previous note,
 ##   "tr": "...", "en": "..."}
@@ -27,6 +27,10 @@ const SEVERITY_RADII: Array[float] = [22.0, 32.0, 45.0, 65.0, 95.0, 150.0]
 const HAIRPIN_ANGLE := deg_to_rad(135.0)
 ## A corner longer than this (metres of turning) is "long".
 const LONG_CORNER := 60.0
+## A corner at least CHANGE_LENGTH long whose last third turns CHANGE_RATIO times as hard as its first "tightens", the other
+## way round it "opens": the exit is not the entry, the warning a real co-driver never leaves out.
+const CHANGE_LENGTH := 24.0
+const CHANGE_RATIO := 1.5
 ## Crests at least this high are blind.
 const BLIND_CREST := 1.8
 ## Points either side used to measure the curvature (at 2 m spacing: +-6 m).
@@ -43,7 +47,7 @@ const PRICE_WORDS := {"tr": {"ford": "dere", "gate": "kapı", "rough": "bozuk yo
 
 static func build(graph: RouteGraph, detail := DETAIL_STANDARD) -> Array[Dictionary]:
 	var calls: Array[Dictionary] = []
-	calls.append_array(_corners(graph))
+	calls.append_array(corners(graph))
 	for feature in graph.features:
 		match feature.kind:
 			&"crest", &"jump", &"dip", &"water":
@@ -108,6 +112,8 @@ static func build(graph: RouteGraph, detail := DETAIL_STANDARD) -> Array[Diction
 			"severity": call.severity,
 			"hairpin": call.get("hairpin", false),
 			"long": call.get("long", false),
+			"tightens": call.get("tightens", false),
+			"opens": call.get("opens", false),
 			"blind": call.get("blind", false),
 			"caution": call.get("caution", false),
 			"junction": call.get("junction", ""),
@@ -137,8 +143,9 @@ static func number_at(notes: Array[Dictionary], distance: float) -> int:
 
 
 ## Corners from the road's curvature: runs of points turning the same way tighter than the widest
-## called radius, each with its tightest radius, total angle and length.
-static func _corners(graph: RouteGraph) -> Array[Dictionary]:
+## called radius, each {"kind": &"corner", "distance": where it starts, "side", "severity", "length", "radius": its
+## tightest (m), "angle": how far it turns (radians), "hairpin", "long", "tightens", "opens"}.
+static func corners(graph: RouteGraph) -> Array[Dictionary]:
 	var points := graph.main_route_points()
 	var along := graph.route_distances()
 	var n := points.size()
@@ -160,12 +167,14 @@ static func _corners(graph: RouteGraph) -> Array[Dictionary]:
 			current.radius = minf(current.radius, radius)
 			current.end = along[i]
 			current.angle += absf(turn) / SPAN
+			current.rates.append(absf(turn) / SPAN)
 			continue
 		if not current.is_empty():
 			out.append(_finish_corner(current))
 			current = {}
 		if turning:
-			current = {"side": side, "radius": radius, "start": along[i], "end": along[i], "angle": absf(turn) / SPAN}
+			current = {"side": side, "radius": radius, "start": along[i], "end": along[i], "angle": absf(turn) / SPAN,
+				"rates": [absf(turn) / SPAN]}
 	if not current.is_empty():
 		out.append(_finish_corner(current))
 	# Very short wiggles are not corners.
@@ -179,9 +188,20 @@ static func _finish_corner(corner: Dictionary) -> Dictionary:
 			severity = k + 1
 			break
 	var length: float = corner.end - corner.start
+	# How hard its first third turns against its last.
+	var rates: Array = corner.rates
+	var third := rates.size() / 3
+	var entry := 0.0
+	var exit := 0.0
+	for k in third:
+		entry += float(rates[k])
+		exit += float(rates[rates.size() - 1 - k])
+	var changes := length >= CHANGE_LENGTH and third >= 2
 	return {"kind": &"corner", "distance": corner.start, "side": corner.side, "severity": severity, "length": length,
+		"radius": corner.radius, "angle": corner.angle,
 		"hairpin": corner.angle > HAIRPIN_ANGLE and corner.radius < SEVERITY_RADII[1],
-		"long": length > LONG_CORNER and corner.angle <= HAIRPIN_ANGLE}
+		"long": length > LONG_CORNER and corner.angle <= HAIRPIN_ANGLE,
+		"tightens": changes and exit >= entry * CHANGE_RATIO, "opens": changes and entry >= exit * CHANGE_RATIO}
 
 
 static func _dangerous(call: Dictionary) -> bool:
@@ -209,6 +229,10 @@ static func _text(note: Dictionary, lang: String, detail: int, next_gap: float) 
 				text = ("%s %d" % [side_word.capitalize(), note.severity])
 				if note.long:
 					text += " uzun" if tr_mode else " long"
+			if note.tightens:
+				text += " kapanıyor" if tr_mode else " tightens"
+			elif note.opens:
+				text += " açılıyor" if tr_mode else " opens"
 		&"crest":
 			text = ("Kör tepe" if note.blind else "Tepe") if tr_mode else ("Blind crest" if note.blind else "Crest")
 		&"jump":

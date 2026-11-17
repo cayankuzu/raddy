@@ -72,7 +72,25 @@ func test_every_stage_meets_the_design_rules() -> void:
 		var problems := StageDesignRules.check(graph)
 		var junctions := graph.spurs.map(func(s: RouteGraph.Spur) -> String: return "%.0f %s%s" % [s.at, s.side, " closed" if s.end == &"barrier" else ""])
 		gut.p("%s: %.0f m, worst gap between dangers %.0f m, wrong ways: %s" % [graph.stage_id, graph.main_route_length(), StageDesignRules.worst_danger_gap(graph), ", ".join(junctions)])
-		assert_eq(problems, [] as Array[String], "%s meets the design" % graph.stage_id)
+		gut.p(StageDesignRules.summary(graph))
+		assert_eq(problems, [] as Array[String], "%s meets the design of its edition" % graph.stage_id)
+	assert_eq(StageDesignRules.check_catalogue(_stages()), [] as Array[String], "a shortcut and a long way in every biome")
+
+
+## The stages not yet built to StageDesignRules' second edition: a redesigned stage claims it in the catalogue ("rules": 2)
+## and leaves this list; when it is empty the first edition goes (GAME_DESIGN §4).
+const WAITING: Array[String] = ["black_pine", "misty_creek", "red_canyon", "scorpion_hills", "eagle_nest", "glacier_ridge"]
+
+
+func test_the_stages_still_waiting_for_the_second_edition() -> void:
+	var waiting: Array[String] = []
+	for graph in _stages():
+		if graph.rules >= StageDesignRules.EDITION:
+			continue
+		waiting.append(String(graph.stage_id))
+		graph.rules = StageDesignRules.EDITION
+		gut.p("%s waits; the second edition asks: %s" % [graph.stage_id, "; ".join(StageDesignRules.check(graph))])
+	assert_eq(waiting, WAITING, "the list follows the catalogue")
 
 
 func test_a_decoy_never_changes_the_stage_road() -> void:

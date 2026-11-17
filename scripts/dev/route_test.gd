@@ -85,6 +85,7 @@ func _ready() -> void:
 	var problems := RouteValidator.validate(graph)
 	print("ROUTE stage %s length %.0f m edges %d checkpoints %d features %d problems %s" % [
 		graph.stage_id, graph.main_route_length(), graph.edges.size(), graph.checkpoints.size(), graph.features.size(), str(problems)])
+	print("ROUTE gags [%s]" % GagDirector.describe(GagDirector.for_run(graph, 0, str(_args.get("gags", "")))))
 	var started := Time.get_ticks_msec()
 	var terrain := TerrainField.new(graph.seed, BiomeRules.relief(settings.biome))
 	terrain.set_roads(graph)
