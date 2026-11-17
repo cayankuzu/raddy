@@ -1121,3 +1121,5 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   3:03.2; 15.7 and 15.2 m/s).
   Seen (reports/screenshots/l_fix): both map sheets, each bypass on them up close, the mouths and the ford and the lane from the seat.
   Not done: the bypasses' own corners are still uncalled.
+  Final check (2026-11-17, HEAD b923599): GUT 618/618 (41336 asserts), nettest passed (3 clients), flow test on Black Pine passed
+  (2:57.6 / 3:03.2, the client's bot through bypasses 0 and 1; 15.7 and 15.2 m/s), no SCRIPT ERROR or ERROR in any log.
