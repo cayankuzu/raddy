@@ -8,14 +8,16 @@ nobody looks down at 100 km/h. The navigator's free hands are where the joke liv
 
 Read first: CLAUDE.md on the cabin, the seat state and the crew's hands; `scripts/gameplay/cabin.gd`, `cabin_input.gd`, `shock_input.gd`,
 `crew_rules.gd`; `scripts/vehicles/crew_rig.gd`, `cockpit_camera.gd`, `car_cockpit.gd`, `car_rally_kit.gd` (the trip meter); `scripts/map/paper_map.gd`
-(what phase M left: the following view, the wheel and the drag over the sheet); the hint line of `RaceHud`; `Settings` and its key bindings.
+(what phase M2 left: the following view, the wheel and the drag over the sheet); the hint line of `RaceHud`; `Settings` and its key bindings.
 
 ## Deliver
 1. **Hotspots**, pure and tested (`CabinHotspots` or the like): per seat a list of places in car space (a centre, a radius, the job, how it is
    worked: click, hold, drag), picked by the seat camera's view ray: the nearest within the arm's reach and within a small cone of the view's
    centre, no physics query. The places are measured from the car's own parts (the winder on each door, the glove box's lid, the map where it
    lies folded, the dome lamp's switch, the trip meter's button, the handbrake's lever, the wipers' stalk, the wheel's hub for the horn), so a
-   test can ask that each one lies on its part and inside the seat's reach.
+   test can ask that each one lies on its part and inside the seat's reach. Keep the pick rule free of seat-only assumptions (a ray, a
+   list of places, a reach and a cone, in any frame): phase P2's `use` on foot is the same rule over the world's `Interactable`s
+   (Direction 3, `order.md`).
 2. **Using them.** A click sends the request the job's key sends today (nothing new for the host to trust). A hold works a job that takes
    time (the handbrake's lever while held). A drag winds: the window goes with the hand's turning of the winder (mouse travel, not time: a
    frantic hand winds faster, up to the mechanism's limit the host already enforces), the map pans. While a hand holds a hotspot the view

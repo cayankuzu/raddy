@@ -1,5 +1,10 @@
 # Phase A8: network, security, robustness
 
+**Since Direction 3 (2026-11-17, `order.md` phase 18).** Item 1's protocol fingerprint is phase P1's (`p_on_foot_cars.md` step 1), kept
+green by every phase since; items 2 (home routers) and 3 (reconnect and host loss) are phase J's (`j_join.md`). This phase builds the rest
+of item 1 and items 4-7. The RPC table covers everything the game has by then: walkers and their sync (P2), people's life sync (N),
+missions and payouts (Q), the region's roam relay (OW), breakables and debris (X); anti-teleport covers walkers as well as cars.
+
 Read first: CLAUDE.md "Multiplayer", `scripts/network/net.gd`, `body_net_sync.gd`, `scripts/gameplay/race_session.gd`, `cabin.gd`, `scripts/audio/*`, `scripts/core/port_opener*` and `room_code*`, `docs/DEVELOPMENT_PLAN.md` risks. Zero cost: player-hosted only, no paid servers.
 
 Deliver:

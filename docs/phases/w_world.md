@@ -4,6 +4,12 @@ The owner (2026-11-17, four times): "Make the world much richer: houses, people,
 perfect. A real rally's chaos." Today a stage is forest, rock and sand with rally dressing and a few crowds: no village, no farm, no field,
 no one at home. Direction 2 (laws 1, 7, 8) and phase L's signature places and gag slots say where the life goes; this phase builds it.
 
+**Since Direction 3 (2026-11-17, `order.md` phase 8).** `VillagePlan` takes a footprint and a road polyline, not a stage: the region of
+phase OW places villages too. `HouseRules` outputs each house's openings (windows, doors) and door anchors as data for phase I's insides.
+Parked cars are placements phase P2's `VehicleKind` can promote to live cars (an index from the plan, the same on every peer). The marshals
+and every official are the rally's own (law 10: no gendarme, police or soldier), and no place of worship is built anywhere. X, built
+before this phase, gives the village its breakables (crates, fences, the market stall) and the crowd's dive.
+
 Read first: GAME_DESIGN "Direction 2" and §4; CLAUDE.md on `RoadsideDresser`, `RallyDressing`, `RallyProps`, `Spectators` and
 `SpectatorClothes`, `GraphicsQuality`, the frame's cost and the `--flip` method; `docs/phases/downloads.md` (what lies on the disk: the
 Sketchfab village, farm and rally-side models, the Poly Haven props, the ambientCG plaster, brick, tile and plank materials); the A9a section of
@@ -18,7 +24,7 @@ marking, the three cars' and the camera's badges are known to check). Each gets 
 title, the address) and so the credits. A model that does not hold up is left out and the brief's item is built in code.
 
 ## Deliver
-1. **Villages.** `VillagePlan` (pure, tested: from the stage, its signature place and its seed): a village is a street of 6-14 buildings
+1. **Villages.** `VillagePlan` (pure, tested: from a footprint, a road polyline and a seed, which a stage's signature place or the region gives): a village is a street of 6-14 buildings
    along the stage's own road or round a square beside it, with yards, walls and gates, set back so the road keeps its width and its
    sightlines (the judges see a village like any feature). Houses are built in code by a pure `HouseRules` (footprint, one or two storeys,
    a hipped or gabled or flat roof, the walls' material, windows with shutters, a door with steps, a balcony on some, a chimney, a yard wall)

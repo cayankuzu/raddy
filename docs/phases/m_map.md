@@ -16,6 +16,10 @@ share. Today's sheet (`scripts/map/map_canvas.gd`, `pace_notes.gd`, `paper_map.g
 - **It looks like a debug drawing.** Flat pastel blobs, one fat line, plain type; no title, legend, scale or north (and a stage that runs
   north-south is turned sideways without saying so).
 
+**Since Direction 3 (2026-11-17, `order.md`).** Points 1-5, 9 and 10 (the map page) are built (phase M, with phase L). Points 6-8 (the road
+book, the following view, the trip meter) are phase **M2**, built now, before H: H works the sheet that M2 makes follow the car. The audit
+stays with A7 (`a7_ui.md`), as it already says.
+
 Read first: CLAUDE.md "Paper map and pace notes", "Stages" (wrong ways, `RallyDressing.plan`, `Sightline`), GAME_DESIGN §1-§4 and §8, the three
 files above, `scripts/gameplay/cabin.gd` (the map's states), `scripts/vehicles/car_rally_kit.gd` (`trip_display()`), `scripts/core/race_settings.gd`
 (difficulty), `data/locale/strings.csv`.
@@ -74,9 +78,9 @@ Keep what works: the sheet as a 3D object in the hands, lit by the scene; `Cabin
 that takes it, the gesture that folds it; the same sheet on every peer from the stage's seed.
 
 ## Parts
-- **The map page**: points 1-5, 9 and 10, the difficulty rule of point 3, the landmark list of point 5.
-- **The road book, the trip meter and the seat**: points 6-8, the following view, the calls' language, the hint line and the strings.
-- **The audit**: go through every screen and state of the real game the way a new player meets them (main menu, create and join a room, the
+- **The map page** (built): points 1-5, 9 and 10, the difficulty rule of point 3, the landmark list of point 5.
+- **The road book, the trip meter and the seat** (phase M2): points 6-8, the following view, the calls' language, the hint line and the strings.
+- **The audit** (phase A7's since Direction 2): go through every screen and state of the real game the way a new player meets them (main menu, create and join a room, the
   room with seats and settings, loading, the countdown, both seats' HUD, the map, the recovery prompt, pause, settings with every tab, results
   with medals, back to the room; Turkish and English; 1920x1080 and 1280x720; `tools\screenshot.ps1` with `--flow-test` and
   `tools\capture_window.ps1`) and list every error of logic (a label that is not true, a control that does nothing, a state that is not
