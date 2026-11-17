@@ -97,6 +97,7 @@ func _ready() -> void:
 	if config == null:
 		push_error("RallyCar '%s' has no VehicleConfig; it will not drive" % name)
 		return
+	config = config.with_feel(VehicleConfig.preset_from_args())
 	mass = config.mass
 	center_of_mass_mode = CENTER_OF_MASS_MODE_CUSTOM
 	center_of_mass = config.center_of_mass
@@ -230,6 +231,17 @@ func max_steer_angle_at(speed: float) -> float:
 	return lerpf(config.max_steer_angle, config.high_speed_steer_angle, t)
 
 
+## Largest front wheel angle allowed now when steering toward `side` (+1 right, -1 left): the speed's lock round the direction of travel,
+## not the nose (config.steer_travel_lock): steering into a slide adds the body's slip angle, so a fast slide can be caught by hand.
+func steer_lock(side: float) -> float:
+	var lock := max_steer_angle_at(forward_speed)
+	if forward_speed > SLIP_SPEED_FLOOR:
+		var slip := body_slip_angle()
+		if side * slip < 0.0:  # positive slip: the travel lies left of the nose, steering left (negative) is into the slide
+			lock = minf(lock + absf(slip) * config.steer_travel_lock, config.max_steer_angle)
+	return lock
+
+
 ## Angle in radians between where the car points and where it travels (0 = no slide).
 func body_slip_angle() -> float:
 	var velocity := linear_velocity - global_basis.y * linear_velocity.dot(global_basis.y)
@@ -355,7 +367,8 @@ func recover_upright() -> void:
 
 func _update_steering(dt: float) -> void:
 	var pull: float = damage_effects.get("steer_pull", 0.0) if absf(forward_speed) > 2.0 else 0.0
-	var target := clampf(controls.steer + pull, -1.0, 1.0) * max_steer_angle_at(forward_speed)
+	var command := clampf(controls.steer + pull, -1.0, 1.0)
+	var target := command * steer_lock(command)
 	var returning := absf(target) < absf(steer_angle) or target * steer_angle < 0.0
 	var rate := config.steer_return_rate if returning else config.steer_rate
 	steer_angle = move_toward(steer_angle, target, rate * dt)

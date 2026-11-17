@@ -80,8 +80,8 @@ func _physics_process(delta: float) -> void:
 	var one_hand := cabin != null and CrewRules.one_handed(RosterRules.Role.DRIVER, cabin.hands_of(RosterRules.Role.DRIVER))
 	if one_hand:
 		raw *= ONE_HAND_LOCK  # the other hand is busy: less lock, slower hands
-	controls.steer = steering.update(raw, delta * (ONE_HAND_RATE if one_hand else 1.0), car.forward_speed,
-		car.body_slip_angle(), car.max_steer_angle_at(car.forward_speed))
+	var slip := car.body_slip_angle()
+	controls.steer = steering.update(raw, delta * (ONE_HAND_RATE if one_hand else 1.0), car.forward_speed, slip, car.steer_lock(-signf(slip)))
 	controls.handbrake = Input.is_action_pressed(&"drive_handbrake")
 	controls.horn = Input.is_action_pressed(&"car_horn")
 	if local_recovery and car.needs_recovery and Input.is_action_just_pressed(&"vehicle_recover"):

@@ -1,6 +1,10 @@
 class_name VehicleConfig
 extends Resource
 ## Tunables for RallyCar. One .tres per car type; values are SI units (kg, m, N, s).
+## Phase F's feel changes are values here: FEEL_A2 puts back A2's ("driving feel 2.0"), one command-line arg away (--feel-preset=a2).
+
+## The A2 feel's values of what phase F changed, for the owner's side-by-side drive.
+const FEEL_A2 := {"steer_travel_lock": 0.0}
 
 @export_group("Body")
 @export var mass := 1200.0
@@ -56,6 +60,9 @@ extends Resource
 @export_range(0.0, 1.0, 0.01, "radians_as_degrees") var high_speed_steer_angle := deg_to_rad(7.0)
 ## Speed (m/s) at which only high_speed_steer_angle is left.
 @export var steer_speed_reference := 32.0
+## The speed's lock is kept round the direction of travel, not the nose: steering into a slide adds this share of the body's slip angle
+## (up to max_steer_angle), so a fast slide can be caught by hand with the assist off (0: round the nose, A2).
+@export_range(0.0, 1.0) var steer_travel_lock := 1.0
 ## How fast the wheels turn toward the input and back to centre, in rad/s.
 @export var steer_rate := 2.2
 @export var steer_return_rate := 3.5
@@ -68,3 +75,21 @@ extends Resource
 @export var recovery_max_speed := 1.5
 ## Minimum velocity change in one tick, in m/s, reported as an impact.
 @export var impact_min_speed := 3.0
+
+
+## This config with a feel preset's values over it ("a2"), or itself for the measured defaults.
+func with_feel(preset: String) -> VehicleConfig:
+	if preset != "a2":
+		return self
+	var copy := duplicate() as VehicleConfig
+	for key: String in FEEL_A2:
+		copy.set(key, FEEL_A2[key])
+	return copy
+
+
+## The feel preset the command line asks for (--feel-preset=a2), "" for none.
+static func preset_from_args() -> String:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--feel-preset="):
+			return arg.trim_prefix("--feel-preset=")
+	return ""

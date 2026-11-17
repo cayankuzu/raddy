@@ -192,8 +192,7 @@ func _physics_process(delta: float) -> void:
 	_point_ahead(clampf(LOOKAHEAD_MIN + maxf(speed, 0.0) * LOOKAHEAD_PER_SPEED, LOOKAHEAD_MIN, LOOKAHEAD_MAX))
 	var dodge := _dodge()
 	var steering := _steering(position, speed, float(dodge.lateral))
-	var lock := car.max_steer_angle_at(speed)
-	controls.steer = clampf(steering.angle / lock, -1.0, 1.0)
+	controls.steer = clampf(steering.angle / car.steer_lock(signf(steering.angle)), -1.0, 1.0)
 
 	# Speed: the slowest of the corner limits ahead, each relaxed by the braking distance to it.
 	var allowed := minf(top_speed, _corner_speed_limit(speed))

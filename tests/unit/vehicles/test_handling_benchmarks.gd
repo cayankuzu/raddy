@@ -5,6 +5,8 @@ extends PhysicsTestCase
 ## gravel, between arcade and sim (Half Grip's own wording), forgiving enough for a keyboard.
 
 const CAR_SCENE := preload("res://scenes/vehicles/rally_car.tscn")
+const FeelRun := preload("res://tools/feel_run.gd")
+const FeelScripts := preload("res://tools/feel_scripts.gd")
 const TICKS := 120
 const START := Vector3(0.0, 1.0, 0.0)
 const GRAVITY := 9.81
@@ -175,7 +177,49 @@ func test_landing_after_a_drop() -> void:
 	assert_gt(_car.global_basis.y.dot(Vector3.UP), 0.95, "upright")
 
 
+## The feel probe's catch script (tools/feel_scripts.gd): at 100 km/h the car slides 20 degrees and still turns into the slide, and the
+## driver's hands counter-steer (full lock, unwinding as it is caught), the assist off. The lock round the direction of travel
+## (VehicleConfig.steer_travel_lock) catches it: the slip under 5 degrees within a second and a half, never past 30, little the other way.
+## A2's lock round the nose lost it.
+func test_catch_a_fast_slide_with_the_assist_off() -> void:
+	for preset in ["a2", ""]:
+		var figures := await _catch(preset)
+		gut.p("catch at 100 km/h, assist off%s: under 5 deg at %.2f s, worst %.1f deg, then %.1f deg the other way, %.1f deg at the end, %.0f km/h"
+			% [" (A2)" if preset else "", figures.caught, figures.worst, figures.overshoot, figures.end, figures.kmh])
+		if not preset:
+			assert_between(figures.caught, 0.0, 1.5, "caught")
+			assert_lt(figures.worst, 30.0, "never got away")
+			assert_lt(figures.overshoot, 20.0, "no slide the other way it cannot get out of")
+			assert_lt(absf(figures.end), 3.0, "straight again")
+
+
 # --- helpers ---
+
+## The catch script with the assist off on `preset`'s feel: when the slip first falls under 5 degrees (s after the counter-steer, -1
+## never), its worst, the worst the other way after that, the slip and the speed at the end.
+func _catch(preset: String) -> Dictionary:
+	var config := _car.config
+	_car.config = config.with_feel(preset)
+	var run := FeelRun.new(_car, "catch", Vector3.ZERO, -1, 0)
+	var figures := {"caught": -1.0, "worst": 0.0, "overshoot": 0.0, "end": 0.0, "kmh": 0.0}
+	while not run.done:
+		run.tick(1.0 / TICKS)
+		await wait_ticks(1)
+		var t := run.time - FeelScripts.RUN_UP
+		if t <= 0.05:
+			continue
+		var slip := rad_to_deg(_car.body_slip_angle())
+		figures.worst = maxf(figures.worst, slip)
+		if figures.caught < 0.0 and absf(slip) < 5.0:
+			figures.caught = t
+		elif figures.caught >= 0.0:
+			figures.overshoot = maxf(figures.overshoot, -slip)
+	figures.end = rad_to_deg(_car.body_slip_angle())
+	figures.kmh = _car.forward_speed / KMH
+	_car.config = config
+	return figures
+
+
 
 ## Gets the car rolling straight at `speed`, settled.
 func _cruise(speed: float) -> void:

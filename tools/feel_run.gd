@@ -89,12 +89,15 @@ func tick(delta: float) -> void:
 		_start_phase(drive.phases[index])
 	var hands := FeelScripts.inputs(drive, time)
 	var raw: float = hands.steer
+	var slip := car.body_slip_angle()
+	var phase: Dictionary = drive.phases[index]
+	if phase.has("counter"):  # the hands catch a slide
+		raw = clampf(-slip * float(phase.counter) / car.steer_lock(-signf(slip)), -1.0, 1.0)
 	var controls := car.controls
 	controls.throttle = hands.throttle
 	controls.brake = hands.brake
 	controls.handbrake = hands.handbrake
-	controls.steer = raw if device < 0 else _steering.update(raw, delta, car.forward_speed, car.body_slip_angle(),
-		car.max_steer_angle_at(car.forward_speed))
+	controls.steer = raw if device < 0 else _steering.update(raw, delta, car.forward_speed, slip, car.steer_lock(-signf(slip)))
 	var velocity := car.seen_velocity()
 	var accel := car.global_basis.inverse() * (velocity - _previous_velocity) / delta
 	_previous_velocity = velocity

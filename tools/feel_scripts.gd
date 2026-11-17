@@ -6,6 +6,8 @@ extends RefCounted
 ## `seconds` and holds `throttle`, `brake`, `steer` (-1 left .. 1 right; with `steer_hz` it is the amplitude of a sine), `handbrake`;
 ## `speed` (km/h) sets the car going that fast as the phase starts, `slip` (degrees, + the travel left of the nose, as
 ## RallyCar.body_slip_angle) turns that velocity off the nose and `yaw` (degrees a second, + to the left) spins the car: a slide begun.
+## `counter` (a gain) is a driver's hands catching a slide: they steer the front wheels toward the car's way by that many times its slip
+## angle (full lock while it slides far, unwinding as it is caught), whatever the lock allows (RallyCar.steer_lock).
 ## `mouse` is a flick: that many pixels of mouse motion a frame for `frames` frames, to the left when negative.
 
 const NAMES: Array[String] = ["step", "slalom", "liftoff", "trail", "power", "hairpin", "catch", "crash15", "crash45", "crash90", "land",
@@ -39,8 +41,8 @@ static func script(script_name: String) -> Dictionary:
 		"hairpin":  # full lock and a handbrake pull at 45 km/h, then power round (the A2 benchmark's)
 			return _open([_run_up(45.0), {"seconds": 0.6, "speed": 45.0, "steer": 1.0, "handbrake": true},
 				{"seconds": 2.4, "steer": 1.0, "throttle": 0.7}, {"seconds": 1.0, "throttle": 0.4}])
-		"catch":  # at 100 km/h the nose 20 degrees right of the car's way and still turning right, then full counter-steer (left)
-			return _open([_run_up(100.0), {"seconds": 2.5, "speed": 100.0, "slip": 20.0, "yaw": -30.0, "steer": -1.0, "throttle": 0.3},
+		"catch":  # at 100 km/h the nose 20 degrees right of the car's way and still turning right, then full counter-steer (left), unwound
+			return _open([_run_up(100.0), {"seconds": 2.5, "speed": 100.0, "slip": 20.0, "yaw": -30.0, "counter": 2.0, "throttle": 0.3},
 				{"seconds": 1.5, "throttle": 0.3}])
 		"crash15", "crash45", "crash90":  # into a flat wall at 60 km/h
 			return {"ground": "wall", "angle": float(script_name.trim_prefix("crash")),
