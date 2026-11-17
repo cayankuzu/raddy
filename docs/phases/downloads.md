@@ -107,3 +107,35 @@ not unpacked and not installed (sha256 beside each in `RELEASE.txt` there):
 - `netfox.v1.35.3.zip` sha256 `aba89f4e43031cadd643483904dd0844ea89368f72815cad343d02a21f795fb7`
 
 The public noray server and the addon's fit with Godot 4.7.2 are checked when the phase starts; TwoVoIP stays unapproved.
+
+## Direction 3's batches, 2026-11-17 afternoon (approved by the lead, to whom the owner left every decision)
+
+### Batch G: Poly Haven furniture for the insides (CC0) in `raw_assets/downloads/polyhaven/models/<id>/`
+66 models from the furniture catalogue of `i_interiors_destruction.md` item 4, glTF with 1k textures, rows in the same manifest as batch E:
+`ArmChair_01`, `Rockingchair_01`, `WoodenChair_01`, `WoodenTable_02`, `WoodenTable_03`, `dining_table`, `dining_chair_02`, `small_wooden_table_01`, `side_table_01`, `coffee_table_round_01`, `CoffeeTable_01`, `old_bed_frame`, `vintage_day_bed`, `painted_wooden_cabinet`, `painted_wooden_cabinet_02`, `painted_wooden_nightstand`, `painted_wooden_shelves`, `painted_wooden_sofa`, `vintage_cabinet_01`, `vintage_wooden_drawer_01`, `drawer_cabinet`, `wooden_bookshelf_worn`, `wooden_display_shelves_01`, `steel_frame_shelves_01`, `steel_frame_shelves_02`, `Shelf_01`, `plastic_monobloc_chair_01`, `folding_wooden_stool`, `wooden_stool_01`, `wooden_stool_02`, `bar_chair_round_01`, `ornate_mirror_01`, `throw_pillows_01`, `electric_stove`, `CashRegister_01`, `ceiling_fan`, `scandinavian_masonry_heater`, `vintage_electric_kettle`, `wall_clock`, `mantel_clock_01`, `vintage_grandfather_clock_01`, `vintage_microwave`, `jug_01`, `pot_enamel_01`, `brass_pot_01`, `brass_pot_02`, `brass_pan_01`, `ceramic_vase_01`, `ceramic_vase_02`, `ceramic_vase_03`, `ceramic_vase_04`, `wooden_bowl_01`, `wooden_bowl_02`, `carved_wooden_plate`, `potted_plant_01`, `potted_plant_02`, `planter_box_01`, `chess_set`, `hanging_picture_frame_01`, `hanging_picture_frame_02`, `hanging_picture_frame_03`, `standing_picture_frame_01`, `brass_candleholders`, `vintage_suitcase`, `Chandelier_01`, `industrial_wall_sconce`.
+`decorative_book_set_01` is not on the disk: Poly Haven offers it without glTF, and its covers carry text.
+
+### Batch H: Freesound CC0 recordings in `raw_assets/downloads/freesound_x/` (no credit owed; the author is named anyway)
+Each licence was read on its page; nearest matches where Freesound had no exact one (said in the row).
+
+| what | file | length | author | page |
+|---|---|---|---|---|
+| plank/board snap | 400653__lampeight__wood-panel-small-snap-crack-prise.wav | 11.7 s | LampEight | https://freesound.org/people/LampEight/sounds/400653/ |
+| wooden crate smash | 667653__deltacode__wooden-crate-break1.wav | 0.66 s | DeltaCode | https://freesound.org/people/DeltaCode/sounds/667653/ |
+| plastic crate (nearest: handling/stacking, no crack) | 637634__kyles__kitchen-restaurant-plastic-crates-handling-stack.flac | 5.7 s | kyles | https://freesound.org/people/kyles/sounds/637634/ |
+| clay pot breaking ("Clay Pottery Drop 'n' Break") | 399080__kinoton__clay-pottery-drop-n-break.wav | 10.8 s | Kinoton | https://freesound.org/people/Kinoton/sounds/399080/ |
+| tarp/canvas flapping (nearest: "flag_flap_2") | 386797__richiemcmullen__flag_flap_2.wav | 5.0 s | RichieMcMullen | https://freesound.org/people/RichieMcMullen/sounds/386797/ |
+| glass pane shatter | 758207__lukacafuka__glass-panel-shattering.wav | 1.9 s | LukaCafuka | https://freesound.org/people/LukaCafuka/sounds/758207/ |
+| cardboard box crushed ("BoxCrunch-01") | 563736__ravenrio__boxcrunch-01.wav | 0.55 s | ravenrio | https://freesound.org/people/ravenrio/sounds/563736/ |
+| metal trash can hit (no rolling) | 406492__anthousai__hit-metallic-garbage-can-01.wav | 2.1 s | Anthousai | https://freesound.org/people/Anthousai/sounds/406492/ |
+| dog bark | 495658__aunrea__dog-bark.wav | 4.0 s | aunrea | https://freesound.org/people/aunrea/sounds/495658/ |
+| goat bleat ("Single Goat Bleating 2x") | 581240__kinoton__single-goat-bleating-2x.wav | 4.0 s | Kinoton | https://freesound.org/people/Kinoton/sounds/581240/ |
+| chicken clucking | 456803__breviceps__chicken-clucking.wav | 14.95 s | Breviceps | https://freesound.org/people/Breviceps/sounds/456803/ |
+| rooster crow | 435508__benjaminnelan__rooster-crow-1.wav | 2.2 s | BenjaminNelan | https://freesound.org/people/BenjaminNelan/sounds/435508/ |
+
+Not found as CC0: chickens fleeing, a dog barking outdoors, a plastic crate bouncing, a tarp in wind (a flag's flap stands in), a trash can rolling: phase X and N make what they need from these and the pure-Python synthesis tools.
+
+### Batch I: Quaternius's animated animals (CC0) in `raw_assets/downloads/quaternius_animals/`, unopened zips
+- `ultimate_animated_animals_gltf.zip` (7.4 MB): the Ultimate Animated Animal Pack, glTF, twelve animals with a dozen clips each (https://quaternius.com/packs/ultimateanimatedanimals.html).
+- `farm_animals_animated.zip` (7.0 MB): LowPoly Animated Animals, farm set (pig, cow, horse, llama, pug, sheep by its page; FBX, OBJ, Blend: only what Godot imports is used) (https://quaternius.itch.io/lowpoly-animated-animals).
+Which animals each holds is read when phase N unpacks them with a script (names checked first). No free animated goat or chicken was found: phase N builds them with a gait in the shader from a static model, or leaves them as sound only, and says which.
