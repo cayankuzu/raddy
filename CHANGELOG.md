@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased (Phases A0, A2, A3, A4, A5, A5b, A6: solid ground, driving feel, stages 2.0, effects, the crew, the shock gun)
+- Roads that fork: Black Pine now has a long way round its first jump and, near the end, a farm track straight across the field that
+  fords a creek, half the length of the road round it. The navigator hears both ("Uzun yol solda!", "Kısayol solda: dere!") and the
+  map prints them as roads with their price. Shortcuts can also cost a farm gate (ram it at a cost, or stop and hold G for three
+  seconds), a rutted track or a narrow lane between banks. Black Pine's old times are gone: the road changed.
 - **A real map:** the navigator's sheet is now a printed rally map of the place: every road on it, the wrong ways too, each ending
   where it really ends (a turning place and a log pile, or a barrier), the route marked with a highlighter and arrows (not on Redline:
   there you find the stage yourself), start, splits, finish and every km board, contour lines, forest, water, cliffs, banks and guard

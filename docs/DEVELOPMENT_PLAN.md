@@ -938,3 +938,48 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
     meshes (1.2-2.2); the mirror at half rate or a smaller picture (1-2); MSAA off on High (0.5-1.0); the map's picture drawn only when it changes
     (0.2 GPU + 0.2 CPU).
   Verified: `tools\perf.ps1` runs listed above (logs kept out of the repo), the floor in three window modes and in Vulkan; GUT unchanged.
+- 2026-11-17: L, part 1, roads that fork (deliverables 1 and 2 of `docs/phases/l_levels.md`, every trap as a test): DONE.
+  `RouteGraph.Bypass` (a `SideRoad`, like `Spur` now) with `along_of`, `followed_roads`, `path_through`, `edge_by_id`; the recipe key
+  `bypass` (`StageBuilder._add_bypass`: straight out of each junction for `hold`, a cubic between); `RouteValidator._check_bypasses`;
+  junction spacing and the side rule over every junction (`StageDesignRules.junctions_of`); the world (road, ditches closing at both ends,
+  mouths at both ends, walls, the terrain's samples); the prices (`FarmGate` + `GateRules`, the ford's pool, `RoadBuilder._build_banks`,
+  ruts); the notes ("Uzun yol solda!", "Kısayol solda: dere!", the rejoin as a junction call); the map (a road, the ford's water, the price's
+  pictogram; `MapPrint` gate, rough, narrow); protocol 2 (the gate's two RPCs); `cabin_gate` (G). Black Pine: the decoys at 200 and 434 m
+  went (one stood where the long way leaves, one inside its stretch), a long way left round the first jump (283 m for 156 m of stage, a T
+  at both ends) and the field near the end (the road round it, 318 m) with a shortcut straight across that fords a creek (171 m); 2476 m;
+  `StageCatalog.LAYOUT` 3.
+  Every call site that walks the stage or thinks in a distance along it, decided:
+  - follows two roads now: `RouteTracker` (the road the car is on, a change of road faded over 40 m), `RecoveryAnchor` (any followed road,
+    facing its way), `RaceSession._measure_gaps` and so the stone chips' range (only cars on the same road, along it), the bots
+    (`RaceSession`, `route_test`: `path_through` of a seeded choice, `set_slow_places` for the price), `PaceNotes` (mouth and rejoin calls),
+    `MapSheet` (roads, ford, pictograms, ring danger), `StageDesignRules` (junctions, spectators clear of both ends), `RouteValidator`,
+    `TerrainField` (side roads' ditches, base samples, `edge_by_id`), `RoadBuilder`, `TrackFeatures` (walls, the ford's water, the gate),
+    `RallyDressing` (nothing standing in a bypass's mouth or rejoin), `RoadsideDresser` and `BiomeRules.apply_to_graph` (through
+    `road_edges()`), `tools/list_stage_spots.gd` (mouth and rejoin spots).
+  - unchanged, because they read `tracker.distance` (already `along_of`) or a car's place: `RaceSession.distance_of` and the standings,
+    `HudStageBar`, `RaceResults.set_progress` (furthest), `PaperMap`'s marker (the car's position) and its inked progress (the stage's line up
+    to the mapped distance: on a bypass the stretch it replaces fills in as the car goes), `Voice` (seat positions), `RaceProgress` (no gate
+    in a bypassed stretch: the validator).
+  - stage line only, nothing of them stands on a bypass: `Sightline`, `StageEventBuilder`, `GuardRail`, `RallyArch`, `Spectators`,
+    `RallyDressing.plan` (boards, chevrons, tape), `tools/stage_shots.gd`, `tools/fx_probe.gd`.
+  Measured, headless bot (`route_test --autodrive --bypasses=..`, Black Pine from the grid, clear, day; the same on Explore, Rally and
+  Redline to a tenth of a second: the width offsets do not change the bot's line):
+
+  | Way | Explore | Rally | Redline | Recoveries |
+  |---|---|---|---|---|
+  | the stage's own road | 149.8 s | 149.8 s | 149.8 s | 0 |
+  | the long way round the jump | 164.0 s (+14.2) | 164.1 s | 164.1 s | 0 |
+  | the shortcut, ford | 139.4 s (-10.4) | 139.5 s | 139.5 s | 0 |
+  | the shortcut as a gate (rammed), rough, narrow (Rally) | | 136.3 / 137.9 / 137.2 s | | 0 |
+
+  Tests: `test_bypasses.gd` (16: along_of, followed roads, the path, the validator's rules, each price, the notes, the map, the tracker
+  continuous over every mouth and rejoin with the car driven along the line 1.2 m off it, recovery at twenty seeded places on and round the
+  bypasses, stones, the bots' coin), `test_bypass_drive.gd` (a real car through both bypasses: 148 s, 0 recoveries, every gate in order, the
+  tracker never back), `test_farm_gate.gd` (4), the map's truth test extended to the prices. GUT 595/595, nettest, flowtest (host on the
+  stage 2:32.6, the client through both bypasses 2:42.5). Seen: every mouth and rejoin from the seat by day and at night, from above, each
+  price, the map sheet (reports/screenshots/bypass, git-ignored).
+  Decided: rough is ruts on the stage's own surface, not a new `Surface` (a new one needs scans, sounds, dust and a network slot); the
+  gate is opened by a held key without a crew animation (the body's job poses are A6/H's); bots ram the gate; the long way stays as long
+  as the junction rule leaves it (a shorter one ran beside the road); the side rule holds at a rejoin as at a mouth.
+  Not done (later parts): the bypass's own corners are not called and its sightline is not measured; the long way's +14 s for a bot is
+  for the redesign to weigh; deliverables 3-6 (the measures, gag slots, the signature place, the six stages) and Red Canyon's bypasses.

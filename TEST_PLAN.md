@@ -28,6 +28,7 @@ Laptop, Windows 11); manual checks need people and are listed with their state.
 | Every weather on every compatible stage | screenshots of all reviewed; to do by people at the wheel |
 | Medal times (`StageRecords.MEDAL_SPEEDS`: bots average 15.3-18.5 m/s, gold is 20.5) are hard but reachable for a good crew | to do |
 | Mirrors, dome lamp and sliding windows in a real two-player race, from both seats | to do |
+| Bypasses on Black Pine (two people, one crew): is the choice at each junction a real one (does the navigator weigh the long way against the jump, the ford against the field road), is each price fair (the ford, the farm gate rammed or opened with G for 3 s, `route_test --price=gate|rough|narrow`), is the junction readable from the seat in time at the stage's speed by day and at night, is it hard and fun | to do (bots: the long way +14 s, the ford -10 s, the gate -13.5 s, on every difficulty) |
 | How often a stone should mark the windshield with people at the wheel (`StoneChipRules`: a lone bot cracks about one run in ten, following close it is the price of the dust) | to do |
 | Stones pinging under the floor and a stone on the windshield: heard by a person, loud enough and not annoying over the engine | to do |
 | How long a crew can stand the dust behind another car (a follower 2 s behind sees none of the road 30-90 m ahead) | to do |

@@ -51,8 +51,13 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
 - **Sightline budget:** at stage speed the driver sees at most ~80 m of road ahead (corners, crests,
   trees, fog); straights longer than 250 m are broken by a crest or a kink.
 - **Junctions with wrong ways:** 3-6 per stage (farm and logging tracks, a closed road with a
-  barrier, a long track that bends out of sight; loops that rejoin later come when the tracker can follow two roads). Only the
-  map tells which way; a wrong way costs time, never the run (dead ends have room to turn).
+  barrier, a long track that bends out of sight). Only the map tells which way; a wrong way costs time, never the run (dead ends
+  have room to turn).
+- **Bypasses** (law 2 and 3): a road that leaves the stage and joins it again ahead, the navigator's choice. A *shortcut* is at most 70 %
+  of the stretch it replaces and has a price (a ford, a farm gate to ram or open, a rutted track, a narrow lane between banks); a *long
+  way* is at least 115 % of it and goes round a hard piece of the stage (a jump, a ford, a cliff). Each end is a real junction (a fork, a
+  T, a turn off: one branch turns 60 degrees or more), no gate lies on the stretch a bypass replaces, the notes call the mouth with the
+  other way and its price and the rejoin as a junction, the map prints it as a road with its price's pictogram.
 - Corner rhythm: a hairpin or a "danger" every 300-500 m; each stage has 2-3 *signature moments*
   (a jump with spectators, a water splash, a cliff with a rail gap; a wooden bridge and a village street
   come later, with their assets).
@@ -185,7 +190,9 @@ hit, sent flying and honked at; the clock decides the rally, the mayhem makes th
    text never names another game as what this is; the credits thank "Left! Left! LEFT!" for the inspiration and say RADDY is independent.
 2. **One road coordinate.** However many roads a stage has, every follower of the stage (tracker, gates, recovery, gaps, standings, results,
    notes, bots, the map's marker) reads one distance along the stage. A road that leaves the stage and rejoins it (a bypass) maps onto the
-   stretch it replaces through `graph.along_of`; no gate lies inside a bypassed stretch.
+   stretch it replaces through `graph.along_of`, linearly along its own length; no gate lies inside a bypassed stretch. Where a car changes
+   road the tracker fades the difference over 40 m, so its distance never jumps or runs back; what needs two cars on one road (the stones
+   one throws at the next) counts only cars on the same road, along it.
 3. **The navigator chooses.** A bypass has a price that is named in the notes and printed on the map (a ford, a gate, rough ground, a flock):
    shorter and riskier, or longer and safe. The map shows every road as a road.
 4. **Mayhem is something that happens to someone.** What a crew breaks stays broken for the crews behind it; it earns named awards on the
