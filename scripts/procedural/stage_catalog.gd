@@ -11,7 +11,7 @@ const DESERT := RaceSettings.Biome.DESERT
 const MOUNTAIN := RaceSettings.Biome.MOUNTAIN
 ## Bumped when the stages' roads change so much that old times mean nothing (StageRecords keeps
 ## its records per layout).
-const LAYOUT := 3
+const LAYOUT := 4
 
 
 static func count() -> int:
@@ -52,26 +52,31 @@ static func stages() -> Array[Dictionary]:
 	var mud := Surface.MUD
 	var sand := Surface.SAND
 	return [
-		# Fast, flowing forest gravel: crests you cannot see over, two jumps, a water splash and a
-		# muddy section with a hairpin in the middle; a long way round the first jump, and near the end
+		# Fast, flowing forest gravel that never lets go: a long right that tightens, esses, blind crests,
+		# two jumps and a water splash where the crowd stands; a farm in the middle (a muddy yard, a hairpin,
+		# then straight through the barn and up the hill); a long way round the first jump, and near the end
 		# the road goes round a field where a farm track fords the creek straight across.
-		{"id": &"black_pine", "rules": 1, "biome": FOREST, "seed": 1101, "width": 4.6, "surface": Surface.GRAVEL,
+		{"id": &"black_pine", "rules": 2, "biome": FOREST, "seed": 1101, "width": 4.6, "surface": Surface.GRAVEL,
 			"weathers": [RaceSettings.Weather.CLEAR, RaceSettings.Weather.RAIN, RaceSettings.Weather.FOG],
 			"segments": [
-				{"len": 90}, {"len": 60, "turn": 35}, {"len": 50, "crest": 1.6}, {"len": 48, "turn": -80},
+				{"len": 90}, {"len": 60, "turn": 45}, {"len": 50, "crest": 1.6}, {"len": 48, "turn": -80},
 				{"len": 70, "rise": 4, "bypass": {"kind": "long", "side": "left", "at": 0.5, "rejoin": 157, "angle": 85, "join": 85, "reach": 0.5, "hold": 25}},
 				{"len": 40, "turn": 60, "rise": 2}, {"len": 34, "jump": 1.5, "spectators": "right"},
-				{"len": 60, "rise": 2}, {"len": 100, "turn": 75}, {"len": 60, "dip": 0.8}, {"len": 50, "crest": 1.2},
-				{"len": 36, "turn": -100, "caution": true, "decoy": {"side": "straight", "len": 70, "end": "barrier"}}, {"len": 70, "rise": -6}, {"len": 50, "turn": -55},
-				{"len": 44, "water": true, "spectators": "left"}, {"len": 50, "turn": 45}, {"len": 100, "crest": 2.0, "falling_tree": "right"},
-				{"len": 40, "turn": -70}, {"len": 60, "surface": mud, "decoy": {"side": "left", "at": 0.7, "len": 140}}, {"len": 50, "turn": 30, "surface": mud},
+				{"len": 60, "rise": 2}, {"len": 100, "turn": 100, "tightens": true, "gag": {"slot": "beside", "side": "left", "at": 0.35}}, {"len": 60, "dip": 0.8, "turn": -30},
+				{"len": 50, "crest": 1.2},
+				{"len": 36, "turn": -100, "caution": true, "decoy": {"side": "straight", "len": 70, "end": "barrier"}}, {"len": 70, "rise": -6, "turn": 45},
+				{"len": 50, "turn": -60, "opens": true},
+				{"len": 44, "water": true, "spectators": "left"}, {"len": 50, "turn": 55}, {"len": 100, "crest": 2.0, "falling_tree": "right"},
+				{"len": 40, "turn": -70}, {"len": 40, "turn": 55}, {"len": 36, "turn": -60}, {"len": 40, "turn": 40, "gag": {"slot": "across_slow", "at": 0.9}},
+				{"len": 60, "surface": mud, "decoy": {"side": "left", "at": 0.7, "len": 140}}, {"len": 50, "turn": 45, "surface": mud},
 				{"len": 70, "surface": mud, "dip": 0.6, "falling_tree": "left"}, {"len": 40, "turn": 120, "surface": mud, "caution": true},
-				{"len": 60, "rise": 5, "decoy": {"side": "left", "at": 0.7, "len": 140}}, {"len": 100, "rise": 7, "crest": 1.0}, {"len": 34, "turn": -60},
-				{"len": 32, "jump": 1.3, "spectators": "right"}, {"len": 60, "turn": 50}, {"len": 110, "crest": 1.4},
-				{"len": 50, "turn": -45}, {"len": 60, "rise": -5}, {"len": 50, "turn": -70, "caution": true},
+				{"len": 70, "surface": mud, "turn": -20}, {"len": 50, "signature": {"kind": "barn"}}, {"len": 50, "turn": 20},
+				{"len": 60, "rise": 7, "turn": 25, "decoy": {"side": "left", "at": 0.7, "len": 140}}, {"len": 100, "rise": 10, "crest": 1.0, "turn": -30}, {"len": 34, "turn": -60},
+				{"len": 32, "jump": 1.3, "spectators": "right"}, {"len": 60, "turn": 65}, {"len": 110, "crest": 1.4, "rise": -6, "turn": 20, "gag": {"slot": "beside", "side": "left", "at": 0.15}},
+				{"len": 50, "turn": -60, "rise": -4}, {"len": 60, "rise": -8, "turn": 25}, {"len": 50, "turn": -70, "caution": true},
 				{"len": 47, "turn": 90, "bypass": {"kind": "shortcut", "side": "left", "rejoin": 318, "angle": 8, "join": 8, "price": "ford"}},
 				{"len": 40, "dip": 0.6}, {"len": 47, "turn": -90}, {"len": 50, "crest": 1.2}, {"len": 47, "turn": -90}, {"len": 40}, {"len": 47, "turn": 90},
-				{"len": 70, "turn": 60}, {"len": 50, "dip": 0.6}, {"len": 40, "turn": 35}, {"len": 70, "crest": 1.4}, {"len": 100},
+				{"len": 70, "turn": 60, "gag": {"slot": "beside", "side": "right", "at": 0.9}}, {"len": 50, "dip": 0.6, "turn": -25}, {"len": 40, "turn": 50}, {"len": 70, "crest": 1.4, "turn": -25}, {"len": 100},
 			]},
 		# Narrow, slippery creek road: four water crossings, tight corners and mud.
 		{"id": &"misty_creek", "rules": 1, "biome": FOREST, "seed": 1202, "width": 3.8, "surface": Surface.DIRT, "bumps": 1.3,
@@ -92,24 +97,33 @@ static func stages() -> Array[Dictionary]:
 				{"len": 60, "turn": -70}, {"len": 70, "crest": 1.2}, {"len": 50, "turn": 35},
 				{"len": 70, "crest": 1.4}, {"len": 80},
 			]},
-		# Desert gravel through a red canyon: long fast straights over yumps, walls on both
-		# sides, cliff edges and the biggest jump in the game.
-		{"id": &"red_canyon", "rules": 1, "biome": DESERT, "seed": 2301, "width": 5.0, "surface": Surface.GRAVEL,
+		# Desert gravel through a red canyon: walls on both sides, a climb onto the rim with the drop on
+		# the left, the biggest jump in the game, the street of a hamlet of stone houses, a long way inland
+		# round the cliff and its jump, a flat-out run over three yumps into a hairpin where the crowd
+		# waits, and a slot canyon (the narrow shortcut) that cuts off the last loop.
+		{"id": &"red_canyon", "rules": 2, "biome": DESERT, "seed": 2301, "width": 5.0, "surface": Surface.GRAVEL,
 			"weathers": [RaceSettings.Weather.CLEAR, RaceSettings.Weather.DUST_STORM, RaceSettings.Weather.FOG],
 			"segments": [
-				{"len": 100}, {"len": 70, "turn": 30}, {"len": 90, "crest": 1.8, "bank": "left", "wall": 12.0},
-				{"len": 60, "turn": -50, "bank": "right", "wall": 10.0}, {"len": 120, "crest": 2.2, "decoy": {"side": "right", "at": 0.3, "len": 90, "end": "barrier"}},
-				{"len": 50, "turn": 70, "cliff": "left", "drop": 14.0, "caution": true},
-				{"len": 80, "cliff": "left", "drop": 18.0}, {"len": 40, "turn": -40, "cliff": "left", "drop": 14.0},
-				{"len": 40, "jump": 2.0, "spectators": "right"}, {"len": 90, "rise": -6, "decoy": {"side": "left", "angle": 70, "len": 140}}, {"len": 50, "turn": -85},
-				{"len": 70, "surface": sand, "dip": 0.7}, {"len": 50, "turn": 60, "surface": sand},
-				{"len": 100, "crest": 2.0, "bank": "right", "wall": 14.0, "decoy": {"side": "left", "at": 0.3, "len": 70, "end": "barrier"}}, {"len": 60, "turn": 45, "bank": "left"},
-				{"len": 80, "bank": "both", "wall": 12.0, "rockfall": "left"}, {"len": 50, "turn": -95, "caution": true},
-				{"len": 120, "crest": 1.6, "decoy": {"side": "left", "len": 140}}, {"len": 60, "turn": 35}, {"len": 36, "jump": 1.6, "spectators": "left"},
-				{"len": 80, "rise": 5}, {"len": 50, "turn": -50}, {"len": 90, "crest": 2.4}, {"len": 40, "turn": 80},
-				{"len": 120, "crest": 1.5}, {"len": 60, "turn": 60}, {"len": 80, "bank": "left"},
-				{"len": 50, "turn": -70, "cliff": "right", "caution": true}, {"len": 70, "cliff": "right"},
-				{"len": 40, "turn": 40}, {"len": 50, "dip": 0.6}, {"len": 70, "crest": 1.4}, {"len": 100},
+				{"len": 100}, {"len": 70, "turn": 30}, {"len": 56, "crest": 1.8, "bank": "left", "wall": 12.0},
+				{"len": 60, "turn": -55, "tightens": true, "bank": "right", "wall": 10.0}, {"len": 46, "turn": 50, "rise": 3, "gag": {"slot": "beside", "side": "left", "at": 0.3}},
+				{"len": 100, "crest": 2.2, "rise": 5, "decoy": {"side": "right", "at": 0.2, "angle": 45, "len": 70, "end": "barrier"}},
+				{"len": 44, "turn": 80, "caution": true, "cliff": "left", "drop": 14.0, "rise": 3},
+				{"len": 70, "cliff": "left", "drop": 18.0, "rise": 4}, {"len": 40, "turn": -45, "cliff": "left", "drop": 14.0},
+				{"len": 40, "jump": 2.0, "spectators": "right"}, {"len": 90, "rise": -10, "decoy": {"side": "right", "angle": 60, "len": 100}},
+				{"len": 50, "turn": -85, "rise": -6, "opens": true}, {"len": 70, "surface": sand, "dip": 0.7}, {"len": 50, "turn": 60, "surface": sand, "gag": {"slot": "beside", "side": "left", "at": 0.9}},
+				{"len": 60, "turn": 35}, {"len": 60, "turn": -35}, {"len": 60, "signature": {"kind": "village"}}, {"len": 50},
+				{"len": 46, "turn": -70, "crest": 1.2},
+				{"len": 70, "bypass": {"kind": "long", "side": "right", "at": 0.5, "rejoin": 157, "angle": 85, "join": 85, "reach": 0.5, "hold": 25}},
+				{"len": 40, "turn": -60, "cliff": "left", "drop": 16.0}, {"len": 34, "jump": 1.6, "cliff": "left", "drop": 16.0}, {"len": 100},
+				{"len": 50, "turn": 60, "bank": "both", "wall": 12.0}, {"len": 60, "bank": "both", "wall": 12.0, "rockfall": "left"},
+				{"len": 36, "turn": -150, "caution": true}, {"len": 40, "rise": 6},
+				{"len": 50, "turn": 50, "rise": 6, "crest": 1.2}, {"len": 40, "turn": -45, "gag": {"slot": "beside", "side": "right", "at": 0.9}}, {"len": 50, "turn": 40},
+				{"len": 100, "crest": 1.6, "decoy": {"side": "left", "len": 140}}, {"len": 100, "crest": 1.8}, {"len": 100, "crest": 2.0},
+				{"len": 36, "turn": 140, "caution": true, "spectators": "right"}, {"len": 60, "rise": -6, "gag": {"slot": "overhead", "at": 0.2}},
+				{"len": 47, "turn": -90, "bypass": {"kind": "shortcut", "side": "right", "rejoin": 318, "angle": 8, "join": 8, "price": "narrow"}},
+				{"len": 40, "dip": 0.6}, {"len": 47, "turn": 90}, {"len": 50, "crest": 1.2}, {"len": 47, "turn": 90}, {"len": 40}, {"len": 47, "turn": -90},
+				{"len": 50, "turn": -70, "cliff": "right", "caution": true}, {"len": 70, "cliff": "right", "rise": -6},
+				{"len": 40, "turn": 40, "gag": {"slot": "beside", "side": "right", "at": 0.9}}, {"len": 50, "dip": 0.6}, {"len": 70, "crest": 1.4}, {"len": 100},
 			]},
 		# Rolling sand hills: chains of crests, three jumps and a hairpin at the top.
 		{"id": &"scorpion_hills", "rules": 1, "biome": DESERT, "seed": 2402, "width": 4.6, "surface": Surface.DIRT, "bumps": 1.2,

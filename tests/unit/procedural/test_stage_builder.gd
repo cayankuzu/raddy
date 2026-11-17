@@ -79,7 +79,7 @@ func test_every_stage_meets_the_design_rules() -> void:
 
 ## The stages not yet built to StageDesignRules' second edition: a redesigned stage claims it in the catalogue ("rules": 2)
 ## and leaves this list; when it is empty the first edition goes (GAME_DESIGN §4).
-const WAITING: Array[String] = ["black_pine", "misty_creek", "red_canyon", "scorpion_hills", "eagle_nest", "glacier_ridge"]
+const WAITING: Array[String] = ["misty_creek", "scorpion_hills", "eagle_nest", "glacier_ridge"]
 
 
 func test_the_stages_still_waiting_for_the_second_edition() -> void:

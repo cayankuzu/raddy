@@ -37,7 +37,7 @@ func test_black_pine_has_a_shortcut_with_a_price_and_a_long_way() -> void:
 		gut.p("%s %s: %.0f m for %.0f m of stage (%.0f %%)" % [bypass.kind, bypass.price, bypass.length, stretch, bypass.length / stretch * 100.0])
 	assert_true(kinds.has(&"shortcut") and kinds.has(&"long"), "one of each")
 	assert_true((kinds[&"shortcut"] as RouteGraph.Bypass).price in RouteValidator.PRICES, "the shortcut has a price")
-	assert_eq(StageCatalog.LAYOUT, 3, "the new roads made old times mean nothing")
+	assert_eq(StageCatalog.LAYOUT, 4, "the new roads made old times mean nothing")
 
 
 func test_along_of_maps_a_bypass_onto_the_stretch_it_replaces() -> void:

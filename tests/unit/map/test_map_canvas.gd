@@ -49,7 +49,16 @@ func test_zoom_and_pan_stay_on_the_page() -> void:
 
 
 func test_car_marker_follows_the_car_on_a_turned_sheet() -> void:
-	assert_true(_sheet.turned, "Black Pine runs north-south, so the sheet is turned")
+	for i in StageCatalog.count():
+		var graph := StageBuilder.build(StageCatalog.get_stage(i))
+		var notes := PaceNotes.build(graph)
+		_sheet = MapSheet.make(graph, null, [], null, Rect2(), notes, {"stage": i})
+		if _sheet.turned:
+			_canvas = MapCanvas.new()
+			add_child_autofree(_canvas)
+			_canvas.build(_sheet, notes)
+			break
+	assert_true(_sheet.turned, "a stage that runs north-south has its sheet turned")
 	# North (-Z) is to the right on a turned sheet; a car heading north points right.
 	_canvas.set_car(_sheet.center + Vector2(0.0, -10.0), Vector2(0.0, -1.0), true)
 	var marker: Polygon2D = _canvas.get_node(^"Car")
