@@ -3,7 +3,7 @@ extends Node
 ## Keeps one RigidBody3D the same on every peer. Add it as a child of the body and give it the
 ## multiplayer authority of the peer that simulates (the driver for a car, the host for a can).
 ## The authority sends snapshots SEND_RATE times a second; every other peer freezes its copy as
-## a kinematic body and plays the snapshots back INTERPOLATION_DELAY_MS behind.
+## a kinematic body and plays the snapshots back INTERPOLATION_DELAY_MS behind, on SnapshotBuffer's playback clock (a tick's delta a tick).
 ## A body may implement set_simulated(bool), get_net_extra() -> PackedFloat32Array and
 ## apply_net_extra(extra, velocity) to carry extra state (RallyCar: steering and wheels).
 
@@ -18,6 +18,10 @@ var packets_received := 0
 
 var _buffer := SnapshotBuffer.new()
 var _send_accumulator := 0.0
+## The clock a snapshot carries (ms): the sender's physics time, a tick's delta a tick from the wall clock's reading when it starts. A frame
+## that runs several ticks at once (a slow frame) sends snapshots as far apart as the moments they show; on the wall clock they carried one
+## millisecond, the later one was dropped as a duplicate and the copy jumped.
+var _send_clock := -1.0
 
 
 func _ready() -> void:
@@ -38,15 +42,16 @@ func _physics_process(delta: float) -> void:
 	if is_multiplayer_authority():
 		if Net.is_active() and not Net.race_running:
 			return  # the race is over: the others are leaving the scene
+		_send_clock = float(Time.get_ticks_msec()) if _send_clock < 0.0 else _send_clock + delta * 1000.0
 		_send_accumulator += delta
 		if _send_accumulator < 1.0 / SEND_RATE:
 			return
 		_send_accumulator -= 1.0 / SEND_RATE
 		var extra: PackedFloat32Array = body.get_net_extra() if body.has_method(&"get_net_extra") else PackedFloat32Array()
-		_rpc_snapshot.rpc(Time.get_ticks_msec(), body.global_position, body.global_basis.get_rotation_quaternion(),
+		_rpc_snapshot.rpc(roundi(_send_clock), body.global_position, body.global_basis.get_rotation_quaternion(),
 			body.linear_velocity, body.angular_velocity, extra)
 		return
-	var state := _buffer.sample(Time.get_ticks_msec(), INTERPOLATION_DELAY_MS)
+	var state := _buffer.playback(delta, Time.get_ticks_msec(), INTERPOLATION_DELAY_MS)
 	if state.is_empty():
 		return
 	body.global_transform = Transform3D(Basis(state.rotation), state.origin)
