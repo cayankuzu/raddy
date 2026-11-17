@@ -983,3 +983,43 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   as the junction rule leaves it (a shorter one ran beside the road); the side rule holds at a rejoin as at a mouth.
   Not done (later parts): the bypass's own corners are not called and its sightline is not measured; the long way's +14 s for a bot is
   for the redesign to weigh; deliverables 3-6 (the measures, gag slots, the signature place, the six stages) and Red Canyon's bypasses.
+- 2026-11-17: L, part 2, the rules of a real rally road (deliverables 3, 4 and 5 of `docs/phases/l_levels.md`): DONE, no stage redesigned.
+  `StageDesignRules`' second edition: `measures()` (turning per km and over the plainest km, straights between the notes' corners and how
+  each ends, the severities, hairpins and square turns at a junction, linked sequences, corners that tighten or open, crests and jumps in
+  or before a corner, the biggest climb and descent within 500 m, the longest stretch without a crest, jump, dip or water, bypasses, gag
+  slots, the set piece, spectators, the longest stretch without a rhythm moment), `summary()` (one line, printed by
+  `test_every_stage_meets_the_design_rules` and `tools/stage_measures.gd`, which also prints what the second edition still `WANTS`),
+  `check_catalogue()` (a shortcut and a long way in each biome). A stage claims its edition in the catalogue (`rules`, all six 1 for now:
+  `test_stage_builder.gd` `WAITING` lists them); the second edition's rules judge only a stage that claims 2. Recipe keys `tightens` /
+  `opens` (the turn grows or eases, its total the same) and the notes' "kapanıyor" / "açılıyor", "tightens" / "opens"
+  (`PaceNotes.corners`, last third against first, 1.5 times). Gag slots (`gag`: beside, across_slow, overhead) and the set piece
+  (`signature`) as features the judges check whatever the edition (gates, junctions, surprises, a crest's blind side, cliffs and banks,
+  room, in sight from the braking distance of the speed a crew carries there; the set piece's length, bend, approach, exit and what must not
+  be in it). `TerrainField` flattens their room and lays no ditch through the set piece, `RallyDressing.clearings()` keeps them clear.
+  `GagDirector` (pure): three or four of a twelve-gag catalogue (data, no looks) into the slots from the room's `gag_seed`
+  (`RaceSettings.resolve`, new every race) and the stage's seed; `RaceSession.gags` on the `NET stage` line; `--gags=` in `route_test`
+  and the race. Protocol 3 (the new setting).
+  The baseline, today's six stages measured (`tools/stage_measures.gd`; first-edition stages, so none is judged by these yet):
+
+  | Stage | Turning deg/km (plainest km) | Longest straight | Severities | Hairpins + square | Sequences | Tighten/open | Crests in corners | Climb / descent in 500 m | Flat gap | Bypasses | Rhythm gap |
+  |---|---|---|---|---|---|---|---|---|---|---|---|
+  | Black Pine | 570 (460) | 156 m | 1-6 | 4 | 6 | 1 | 4 | 14 / 8 m | 282 m | 2 (1 short, 1 long) | 488 m |
+  | Misty Creek | 623 (533) | 92 m | 1-5 | 3 | 5 | 0 | 3 | 8 / 5 m | 326 m | 0 | 280 m |
+  | Red Canyon | 368 (335) | 148 m | 2-6 | 0 | 0 | 0 | 0 | 8 / 9 m | 385 m | 0 | 445 m |
+  | Scorpion Hills | 478 (402) | 150 m | 1-5 | 2 | 1 | 0 | 6 | 14 / 10 m | 275 m | 0 | 410 m |
+  | Eagle Nest | 575 (468) | 116 m | 1-6 | 3 | 1 | 1 | 3 | 36 / 12 m | 616 m | 0 | 305 m |
+  | Glacier Ridge | 452 (443) | 122 m | 1-6 | 1 | 1 | 0 | 3 | 8 / 13 m | 240 m | 0 | 317 m |
+  | Second edition | >= 700 (500 desert), every km >= 300 | 250 m, one of 450 | 1-6 | >= 2 | >= 3 | >= 2 | >= 2 | >= 15 / 15 m | <= 400 m | 1-3 | <= 600 m |
+
+  None of the six turns enough (Red Canyon least: 368 degrees a km, no hairpin, no linked corners); none climbs and descends 15 m within
+  500 m; only Black Pine has bypasses; no stage has a gag slot or a set piece; the straights are already short (the first edition's
+  sightline budget). Every stage keeps 2-3 places for spectators and danger gaps of 228-396 m.
+  Tests: `test_stage_design_rules.gd` (12: every measure on a road whose answer is known, each rule, the slots, the set piece and its flat
+  ground, the catalogue), `test_gag_director.gd` (4: kinds, none twice, stage order, the same on every peer, `--gags=`, the race's roll),
+  `test_stage_builder.gd` (the summaries, the waiting list, the catalogue). GUT 612/612, nettest (the stage line with its gags).
+  Seen: a set piece's ground tried on Black Pine (not committed): the forest stands back from it (reports/screenshots/sig, git-ignored).
+  Decided: the measures and the second edition judge the stage's own road (a bypass's corners stay unmeasured, as in part 1); a slot's
+  speed comes from the notes' corners (0.7 g in a corner, 2.5 m/s² out of it, 130 km/h at most) and its braking distance (0.5 s, 0.7 g);
+  the set piece's ground is grass, not bare (until phase W builds on it, it reads as a meadow); a gag slot's room widens the flat band too.
+  Not done: the six stages' redesign (part 3, the next agents), so no stage has a slot or a set piece yet and the second edition's numbers
+  are untried at the wheel.

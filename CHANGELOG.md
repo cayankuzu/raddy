@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased (Phases A0, A2, A3, A4, A5, A5b, A6: solid ground, driving feel, stages 2.0, effects, the crew, the shock gun)
+- The navigator now warns of a corner whose exit is not its entry: "Sağ 4 kapanıyor" / "Right 4 tightens" when it closes up,
+  "açılıyor" / "opens" when it lets you go.
 - Roads that fork: Black Pine now has a long way round its first jump and, near the end, a farm track straight across the field that
   fords a creek, half the length of the road round it. The navigator hears both ("Uzun yol solda!", "Kısayol solda: dere!") and the
   map prints them as roads with their price. Shortcuts can also cost a farm gate (ram it at a cost, or stop and hold G for three

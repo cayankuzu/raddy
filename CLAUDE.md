@@ -319,9 +319,9 @@ No Blender; model in Godot only as a last resort.
 
 ## Stages (scripts/procedural)
 - Six named point-to-point stages in `StageCatalog` (two per biome; names `STAGE_<ID>` in strings.csv; `weathers` lists the
-  ones a stage comes in). A recipe is segments (`len`, `turn`, `rise`, `crest`/`jump`/`dip`, `water`, `cliff`/`bank`
-  left|right|both with `drop`/`wall`, `surface`, `caution`, `falling_tree`/`rockfall` left|right, `decoy`, `spectators`
-  left|right); `StageBuilder.build(stage)` → `RouteGraph` (START → WAYPOINT(s) where the surface changes →
+  ones a stage comes in; `rules` the edition of `StageDesignRules` it is built to). A recipe is segments (`len`, `turn`,
+  `tightens`/`opens`, `rise`, `crest`/`jump`/`dip`, `water`, `cliff`/`bank` left|right|both with `drop`/`wall`, `surface`, `caution`,
+  `falling_tree`/`rockfall` left|right, `decoy`, `bypass`, `spectators` left|right, `gag`, `signature`); `StageBuilder.build(stage)` → `RouteGraph` (START → WAYPOINT(s) where the surface changes →
   FINISH, 2 m polylines + heights, `features` by distance, gates: start line at 40 m, two splits, finish 70 m
   before the end). `graph.sample(distance)`, `route_distances()`, `RouteIndex` (nearest road point + distance
   along) and `RouteTracker` (follows a car along the stage; progress counts only within `ON_ROAD` 14 m of it) work in
@@ -330,8 +330,12 @@ No Blender; model in Godot only as a last resort.
   playable: length, radius >= 11 m, grade <= 30 %, no crossing, stretches >= 30 m apart, width >= 3.6 m and never stepping
   along a stage (ditches run unbroken), `_check_spurs`. `StageDesignRules.check()`, a good rally stage (GAME_DESIGN §4): 2-4 km,
   a danger at least every 500 m (`worst_danger_gap`, on the summary notes), the sightline budget, 3-6 junctions 150 m apart and
-  never on the side the road itself turns to, at least 2 places for spectators. When a stage fails, fix the recipe, never the
-  threshold. Width: the stage's own (3.6-5.0 m) + `RaceSettings.WIDTH_OFFSET` (Explore +0.8, Redline -0.2), set by
+  never on the side the road itself turns to, at least 2 places for spectators, every gag slot and the set piece where they may
+  stand (`_check_gag_slots`, `_check_signature`); the second edition (a real rally road in numbers: turning per km, straights, the
+  mix of corners, the land, choices, places, rhythm; `measures()`, `summary()`, `check_catalogue()`) only on a stage whose `rules` is 2.
+  `tools/stage_measures.gd` (`Godot --headless --path . -s res://tools/stage_measures.gd`; the Net compile errors it prints are harmless)
+  prints each stage's `MEASURES` and what the second edition still `WANTS`; `test_stage_builder.gd` `WAITING` lists the stages not yet
+  redesigned. When a stage fails, fix the recipe, never the threshold. Width: the stage's own (3.6-5.0 m) + `RaceSettings.WIDTH_OFFSET` (Explore +0.8, Redline -0.2), set by
   `BiomeRules.apply_to_graph`; one width per stage, a segment's `width` would fail the validator.
 - `Sightline`: how far ahead the road is readable from the eye (`ahead`, `survey`), ended by a crest or a side `screens(graph)`
   calls screened: forest and mountain sides are, desert sides only by a bank or a corner's screen; cliffs and places for the
@@ -447,6 +451,12 @@ No Blender; model in Godot only as a last resort.
   of detail (`ImporterMesh.generate_lods`: 32.8k triangles, 4.1k within 9 mm and 1.0k within 31 mm, the engine picking by the error on the
   screen, under a pixel: a place of eight at 10 m and at 40 m differs from full detail in 0.4 % and 0.8 % of its pixels; a MultiMesh picks one
   for the whole place); baked once a session (0.1-0.3 s); on `FINE_SCENERY_LAYER` (not in the mirrors), drawn to 160 m. `route_test --no-crowd`.
+- Gag slots and the set piece (law 5): a segment's `gag` {`slot` beside|across_slow|overhead, `side`, `at`} is a `gag` feature (its
+  room `StageBuilder.GAG_SLOTS`), `signature` {`kind`, `reach`} a `signature` feature over the whole segment. `TerrainField` widens
+  the flat band to their room (`_max_flat`) and lays no ditch through the set piece; `RallyDressing.clearings()` keeps them clear of
+  anything tall. `GagDirector` (pure): the run's gags from the room's `gag_seed` (`RaceSettings.resolve`, every race) and the stage's
+  seed, three or four, each in a slot of its kind (`CATALOGUE`, data: phase X adds looks); `RaceSession.gags`, printed on the `NET stage`
+  line; `--gags=` (a seed, or names joined by `+`) in `route_test` and the race.
 - Stage events: `StageEventBuilder` (from `TrackFeatures`) puts `Event<n>` bodies with a trigger area
   before the spot (a fir that falls across the road, rocks off a bank); `StageEvents` (child of the race)
   lets the host decide and every peer play it (`_rpc_stage_event`); boulders are host-simulated props like

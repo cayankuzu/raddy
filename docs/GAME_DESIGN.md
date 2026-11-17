@@ -58,9 +58,42 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   way* is at least 115 % of it and goes round a hard piece of the stage (a jump, a ford, a cliff). Each end is a real junction (a fork, a
   T, a turn off: one branch turns 60 degrees or more), no gate lies on the stretch a bypass replaces, the notes call the mouth with the
   other way and its price and the rejoin as a junction, the map prints it as a road with its price's pictogram.
-- Corner rhythm: a hairpin or a "danger" every 300-500 m; each stage has 2-3 *signature moments*
-  (a jump with spectators, a water splash, a cliff with a rail gap; a wooden bridge and a village street
-  come later, with their assets).
+- Corner rhythm: a hairpin or a "danger" every 300-500 m (`worst_danger_gap`, on the Redline notes), places for spectators at the
+  stage's best moments (a jump, a water splash, a cliff with a rail gap).
+- **A real rally road, in numbers** (`StageDesignRules`, second edition, 2026-11-17). Today's six stages were one gently bending line:
+  measured, they turn 368-623 degrees a km, climb 8-36 m, link 0-6 sequences of corners and have at most one corner each that tightens or opens
+  (the baseline table is in DEVELOPMENT_PLAN). A stage names the edition it is built to (its recipe's `rules`); the second edition judges
+  only the stages that claim it, and the first goes when all six do. Measured over the timed stage (start line to finish line) on the
+  stage's own road; each number is a starting value, tuned by driving and never relaxed to let a recipe pass:
+  - *Turning*: the heading changes summed, at least 700 degrees a km in forest and mountain (500 in the desert, whose roads may run
+    longer and faster), and never under 300 over any single km: a real stage is never a motorway, and no km of it is the boring one.
+  - *Straights*: nothing straighter than a "6" for more than 250 m (a straight shows too much, the sightline budget agrees), except one
+    flat-out stretch a stage of up to 450 m that ends in a corner of 3 or tighter or over a crest: the one place the car is let go, and it
+    ends with a question.
+  - *The mix*: every severity from 1 to 6 (a stage that never asks for a 1 or never lets the car run a 6 has one speed); two hairpins or
+    square turns at a junction (where the navigator's call matters most); three linked sequences (corners of opposite sense within 60 m:
+    the rhythm a driver learns to trust the notes for); two corners that tighten or open (the recipe's `tightens`/`opens`, the notes'
+    "kapanıyor"/"açılıyor": the exit is not the entry); two crests or jumps in a corner or within 30 m before one (the car is light when
+    it should turn).
+  - *The land*: a climb and a descent of 15 m within 500 m each (the engine labours, the brakes fade, the view opens and closes); a crest,
+    jump, dip or water at least every 400 m.
+  - *Choices*: one to three bypasses a stage, and in each biome's pair of stages at least one shortcut and one long way.
+  - *Places*: four to eight gag slots at least 250 m apart, one signature place, at least two places for spectators.
+  - *Rhythm*: never more than 600 m without something new: a change of pace (technical corners of 3 and tighter to fast road, a 5, a 6
+    or 150 m of straight, and back), an air moment (a jump or a crest of 1.4 m), water, a place (spectators, a gag slot, the set piece)
+    or a squeeze (a wall or drop on both sides at once).
+  - *Hard and fair*: the first edition's sightline budget and danger spacing stay; the bot finishes clean on every difficulty.
+- **Gag slots** (law 5): a segment's `gag` {`slot`: `beside` (one side), `across_slow` (something that moves off the road, both sides) or
+  `overhead`}. Every slot, whatever the edition, keeps 40 m from a gate, a junction and a surprise, stands neither on a crest's or jump's
+  blind side (its top to 20 m past its end) nor where a cliff or bank takes its room, has no other stretch of road beside it, and is in
+  sight from the braking distance of the speed a crew carries there (a corner's limit at 0.7 g, then 2.5 m/s² gained to at most 130
+  km/h; 0.5 s to react, 0.7 g to stop): a gag is a surprise, never an ambush. Its room is flat and nothing tall grows there. `GagDirector`
+  draws three or four of the catalogue's gags into the slots from the room's `gag_seed` (new every race) and the stage, the same on every
+  peer; phase X gives the catalogue its looks.
+- **The signature place** (law 5): a segment's `signature` {`kind`: barn, village, bridge; `reach`, 18 m of ground past each road edge}:
+  40-200 m long, the road bending at most 45 degrees through it, 60 m of clear approach in sight and 40 m of exit, nothing else in any of
+  them (no gate, junction, jump, crest, dip, water, cliff, bank, surprise, crowd or gag), between the lines, no other road beside it. Its
+  ground lies flat, without ditches, and is cleared; phase W builds what stands there.
 - Dressing that says "rally": km boards, stage start/finish boards, chevrons, marshal tape, hay bales,
   spectators at the signature moments, parked cars, flags. Every flag is the flag of Turkey, in its exact
   geometry and proportions, treated with respect (never on the ground, nothing printed over it).
