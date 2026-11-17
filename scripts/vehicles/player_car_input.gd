@@ -6,8 +6,6 @@ extends Node
 ## Recovery here is the single-player stand-in; the race layer replaces it with the team
 ## confirmation flow (both players press R).
 
-## Assist levels (Settings "driving_assist"): stability help on the car and counter-steer.
-const ASSIST_SCALE := [0.0, 1.0, 1.8]
 ## Gamepad rumble: road roughness (compression speed, m/s summed over the wheels) for full weak
 ## motor, slip angle for full weak motor, impact (m/s) for full strong motor.
 const RUMBLE_ROUGH := 2.0
@@ -24,7 +22,8 @@ const ONE_HAND_RATE := 0.6
 
 var steering := SteeringInput.new()
 var _bound: RallyCar
-var _assist_scale := 1.0
+## Settings "driving_assist" (0-2): the car's stability help (VehicleConfig.assist_scale_at) and the counter-steer.
+var _assist_level := 1
 var _joypad := 0
 var _vibration := 1.0
 var _previous_compression := PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
@@ -39,9 +38,7 @@ func _ready() -> void:
 
 func _read_settings() -> void:
 	var settings := get_node("/root/Settings")
-	var level := clampi(int(settings.get_value("driving_assist")), 0, ASSIST_SCALE.size() - 1)
-	_assist_scale = ASSIST_SCALE[level]
-	steering.counter_steer = level >= 1 if steering.device == SteeringInput.Device.KEYBOARD else level >= 2
+	_assist_level = clampi(int(settings.get_value("driving_assist")), 0, 2)
 	steering.linearity = 1.0 + 1.5 * float(settings.get_value("steer_linearity"))
 	_vibration = float(settings.get_value("vibration"))
 
@@ -67,7 +64,8 @@ func _physics_process(delta: float) -> void:
 		steering.tune(car.config)
 		car.impact.connect(func(strength: float, _direction: Vector3) -> void:
 			_impact_rumble = maxf(_impact_rumble, clampf(strength / RUMBLE_IMPACT, 0.0, 1.0)))
-	car.assist_scale = _assist_scale
+	car.assist_scale = car.config.assist_scale_at(_assist_level)
+	steering.counter_steer = steering.counter_steers_at(_assist_level, car.config)
 	var controls := car.controls
 	var cabin := car.get_node_or_null(^"Cabin") as Cabin
 	if cabin != null and cabin.is_fainted(RosterRules.Role.DRIVER):

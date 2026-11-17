@@ -29,7 +29,7 @@ var drive: Dictionary
 var origin := Vector3.ZERO
 ## The steering's device, or -1 for the raw axis straight into car.controls.
 var device := -1
-## The driver's assist level (PlayerCarInput.ASSIST_SCALE).
+## The driver's assist level (VehicleConfig.assist_scale_at).
 var assist_level := 1
 var rows := PackedStringArray([TICK_HEADER])
 ## The script's time (s), negative while the car settles.
@@ -52,7 +52,7 @@ func _init(on: RallyCar, name: String, pad_origin: Vector3, steering_device := -
 	if device >= 0:
 		_steering.tune(car.config)
 		_steering.device = device as SteeringInput.Device
-		_steering.counter_steer = assist >= 1 if device == SteeringInput.Device.KEYBOARD else assist >= 2
+		_steering.counter_steer = _steering.counter_steers_at(assist, car.config)
 	car.reset_to(start_pose())
 	car.controls.clear()
 	car.impact.connect(_on_impact)
@@ -72,7 +72,7 @@ func start_pose() -> Transform3D:
 func tick(delta: float) -> void:
 	if done:
 		return
-	car.assist_scale = PlayerCarInput.ASSIST_SCALE[clampi(assist_level, 0, PlayerCarInput.ASSIST_SCALE.size() - 1)]
+	car.assist_scale = car.config.assist_scale_at(assist_level)
 	if time < 0.0:
 		time += delta
 		car.controls.clear()

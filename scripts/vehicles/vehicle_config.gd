@@ -5,7 +5,8 @@ extends Resource
 
 ## The A2 feel's values of what phase F changed, for the owner's side-by-side drive.
 const FEEL_A2 := {"steer_travel_lock": 0.0, "steer_rate": 2.2, "steer_return_rate": 3.5, "key_steer_rate_low": 7.0,
-	"key_steer_rate_high": 2.6, "pad_steer_follow": 22.0, "wheel_full_range": false, "assist_fade_in": 0.0, "assist_cap": 0.0}
+	"key_steer_rate_high": 2.6, "pad_steer_follow": 22.0, "wheel_full_range": false, "assist_fade_in": 0.0, "assist_cap": 0.0,
+	"assist_level_1": 1.0, "pad_counter_steer_level": 2}
 
 @export_group("Body")
 @export var mass := 1200.0
@@ -60,6 +61,12 @@ const FEEL_A2 := {"steer_travel_lock": 0.0, "steer_rate": 2.2, "steer_return_rat
 ## The assist's torque at most this share of the tyres' grip times half the wheelbase (what the tyres could turn the car with; about
 ## what an ESC gets by braking one wheel): a help, never a hand stronger than the car's own (0: no cap, A2's was up to 3x the tyres').
 @export_range(0.0, 1.0) var assist_cap := 0.25
+## The stability assist's scale at the driver's assist levels 1 and 2 (Settings "driving_assist"; 0 is off). Level 1 helps more through
+## the steering (SteeringInput's counter-steer, a pad's too from pad_counter_steer_level) than through torque.
+@export var assist_level_1 := 0.6
+@export var assist_level_2 := 1.8
+## The lowest assist level whose counter-steer helps a pad (while the stick is near its centre); a key's helps from level 1.
+@export_range(1, 3) var pad_counter_steer_level := 1
 
 @export_group("Steering")
 @export_range(0.0, 1.0, 0.01, "radians_as_degrees") var max_steer_angle := deg_to_rad(32.0)
@@ -106,3 +113,8 @@ static func preset_from_args() -> String:
 		if arg.begins_with("--feel-preset="):
 			return arg.trim_prefix("--feel-preset=")
 	return ""
+
+
+## The stability assist's scale (RallyCar.assist_scale) at the driver's assist level: 0 off, 1, 2.
+func assist_scale_at(level: int) -> float:
+	return [0.0, assist_level_1, assist_level_2][clampi(level, 0, 2)]

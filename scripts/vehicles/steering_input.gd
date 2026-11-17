@@ -37,6 +37,11 @@ var pad_follow := PAD_FOLLOW
 var value := 0.0
 
 
+## Whether the counter-steer helps at the driver's assist level (0-2): a key's from level 1, a pad's from config.pad_counter_steer_level.
+func counter_steers_at(level: int, config: VehicleConfig) -> bool:
+	return level >= (1 if device == Device.KEYBOARD else config.pad_counter_steer_level)
+
+
 ## The car's own values for the filters (VehicleConfig: a feel preset may change them).
 func tune(config: VehicleConfig) -> void:
 	key_rate_low = config.key_steer_rate_low

@@ -52,9 +52,16 @@ func test_bot_drives_the_stage_through_every_gate_in_order() -> void:
 	var ticks := 0
 	var tick_limit := int(MAX_SECONDS * Engine.physics_ticks_per_second)
 	var airborne := 0
+	var assist := 0.0
+	var acting := 0
 	while not _follower.reached_end and ticks < tick_limit:
-		await wait_ticks(30)
-		ticks += 30
+		_car.assist_scale = _car.config.assist_scale_at(1)  # a player's default level
+		await wait_ticks(1)
+		ticks += 1
+		assist += absf(_car.assist_torque)
+		acting += 1 if _car.assist_torque != 0.0 else 0
+		if ticks % 30 != 0:
+			continue
 		if _car.wheels_in_contact() == 0:
 			airborne += 1
 		if _car.global_position.y < -60.0:
@@ -65,6 +72,12 @@ func test_bot_drives_the_stage_through_every_gate_in_order() -> void:
 		_graph.main_route_length(), seconds, _follower.max_speed_seen, _follower.recoveries, airborne, str(_passed)])
 	assert_true(_follower.reached_end, "reached the end within %d s (at %.0f m)" % [MAX_SECONDS, _follower.progress])
 	assert_eq(_follower.recoveries, 0, "never got stuck")
+	# The stability assist on a clean run (phase F, RallyCar.assist_torque a tick): it acts now and then and is a small hand on average,
+	# against its cap (VehicleConfig.assist_cap of the tyres' grip times half the wheelbase, the weight standing for the grip).
+	var cap := _car.config.assist_cap * _car.mass * 9.81 * Surface.grip(Surface.GRAVEL) * _car.config.tire_grip * _car.wheelbase * 0.5
+	gut.p("the assist on the bot's clean run: acting %.1f %% of the ticks, %.0f N m on average (%.1f %% of its cap)" % [
+		acting * 100.0 / ticks, assist / ticks, assist / ticks * 100.0 / cap])
+	assert_lt(assist / ticks, cap * 0.05, "the assist rests on a clean run")
 	# What RaceProgress would count: each gate once, in order.
 	var counted: Array[int] = []
 	var early: Array[int] = []
