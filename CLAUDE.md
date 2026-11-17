@@ -119,15 +119,23 @@ No Blender; model in Godot only as a last resort.
   oversteer assist, impact and recovery detection. It never reads Input.
 - Whoever owns the car writes `car.controls` (`VehicleControls`) before each tick: `PlayerCarInput` locally,
   later the network layer, and tests. Tunables live in `VehicleConfig` (`data/vehicles/rally_hatch.tres`).
-- Steering (GAME_DESIGN §5): `SteeringInput` (pure, tested) turns the raw axis into the steer command per device: a key
-  ramps in by speed (0.21 s to lock at 20 km/h, 0.33 s at 100 km/h) and comes back faster, with a counter-steer assist while
-  no key is held; a gamepad gets a response curve (`linearity`) and light smoothing; a wheel (`device_for_joypad`, by its
-  name) passes through. `PlayerCarInput` follows the device last touched, sets the assist level (Settings `driving_assist` 0-2 →
-  `RallyCar.assist_scale`, the stability help, which yields after a handbrake pull while the driver steers into the rotation; on
-  a gamepad counter-steer only at level 2), the gamepad's `steer_linearity`, the rumble (`vibration`: road and slides on the
-  weak motor, crashes on the strong one) and one hand on the wheel while the driver aims the shock gun (`ONE_HAND_LOCK`,
-  `ONE_HAND_RATE`). `tests/unit/vehicles/test_handling_benchmarks.gd` pins what a feel change is judged by: 0-100, 100-0,
-  turn-in, keyboard ramp, handbrake hairpin, pulling away on full lock, landing.
+- Steering (GAME_DESIGN §5): `SteeringInput` (pure, tested) turns the raw axis into the steer command per device, the one filter
+  each has: a key ramps in by speed and never faster at the road wheels than A2's rack did (`KEY_WHEEL_RATE`: 0.19-0.21 s to lock
+  at 20 km/h, 0.33 s at 100 km/h) and comes back faster, with a counter-steer assist while no key is held; a gamepad gets a
+  response curve (`linearity`) and light smoothing (`pad_follow`, 90 % of a step in 25 ms); a wheel (`device_for_joypad`, by its
+  name) passes through with full lock at any speed (`VehicleControls.full_lock`). The car's own `steer_rate` is only a fast rack
+  (8 rad/s). `RallyCar.steer_lock(side)` keeps the speed's lock round the direction of travel: steering into a slide adds the
+  slip angle (`steer_travel_lock`), so a fast slide is caught by hand with the assist off; the bot and the counter-steer divide by
+  it. `PlayerCarInput` follows the device last touched, sets the assist level (Settings `driving_assist` 0-2 →
+  `VehicleConfig.assist_scale_at` → `RallyCar.assist_scale`, the stability help: at most `assist_cap` of the tyres' grip times half
+  the wheelbase, taking hold over `assist_onset` of slip, back over `assist_fade_in` after the handbrake, yielding after a pull while
+  the driver steers into the rotation; level 1 is 0.6 of the torque and a pad's counter-steer from `pad_counter_steer_level` 1), the
+  gamepad's `steer_linearity`, the rumble (`vibration`: road and slides on the weak motor, crashes on the strong one) and one hand
+  on the wheel while the driver aims the shock gun (`ONE_HAND_LOCK`, `ONE_HAND_RATE`). Phase F's feel changes are `VehicleConfig`
+  values; `VehicleConfig.FEEL_A2` holds A2's and `--feel-preset=a2` (every car, `RallyCar._ready`) loads them.
+  `tests/unit/vehicles/test_handling_benchmarks.gd` pins what a feel change is judged by: 0-100, 100-0, turn-in, keyboard ramp, pad
+  and wheel at the road wheels, handbrake hairpin (and the assist's fade back), pulling away on full lock, landing, the catch with
+  the assist off, the assist's cap; `test_route_drive.gd` the assist's average on the bot's clean run.
 - Surfaces: colliders set metadata `surface` (see `Surface`); untagged ground is gravel.
 - Dev scene `scenes/dev/vehicle_test_track.tscn` (`--autodrive` user arg circles) for car tuning.
 - What a car throws off the road: `CarRoadFx` (a child of every `RallyCar`, the one owner of it), on every peer from what that peer sees the car do, never sent.

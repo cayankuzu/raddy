@@ -115,6 +115,13 @@ this file records the decisions taken since and the quality bar. `DEVELOPMENT_PL
   gravel that pushes the car wide, a handbrake that pivots the car, landings that do not bounce.
 - Steering: speed-sensitive ratio, self-centring, input smoothing tuned per device (keyboard,
   gamepad, wheel), selectable assists (off / low / high).
+  Phase F's numbers: one filter per device (a key's ramp, full lock in 0.19-0.21 s at 20 km/h and 0.33 s at 100 km/h; a pad's
+  light smoothing, 90 % of a stick step at the road wheels in 25 ms; a wheel untouched, full lock at any speed) before a fast rack
+  (8 rad/s). The speed's lock is kept round the direction of travel: steering into a slide adds the slip angle, so a 20 degree slide
+  at 100 km/h is caught by hand with every assist off (in 0.4 s). The stability assist is a help the tyres could give: at most a
+  quarter of their grip times half the wheelbase, taking hold over 4 degrees of slip past its free 8, back over 0.4 s after the
+  handbrake; level 1 works mostly through the counter-steer (keys and, stick centred, pads), level 2 adds the torque. The A2 feel
+  stays one arg away (`--feel-preset=a2`) for the owner's blind drive.
 - Feedback layers: g-force head motion, surface rumble in the camera and gamepad vibration, tyre and
   gravel sound tied to slip, dashboard needles that match the HUD.
 - **Everything on the car works.** Nothing that looks functional is decoration: three mirrors that truly reflect from

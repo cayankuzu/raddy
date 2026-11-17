@@ -1,6 +1,10 @@
 # Changelog
 
 ## Unreleased (Phases A0, A2, A3, A4, A5, A5b, A6: solid ground, driving feel, stages 2.0, effects, the crew, the shock gun)
+- Steering: a fast slide can now be caught by hand, even with every assist off (steering into a slide gives you the lock you need); a
+  gamepad's stick reaches the front wheels at once; a steering wheel uses its whole range at any speed. The stability assist is a
+  gentler hand: it takes hold smoothly, never stronger than the tyres themselves, and fades back in after a handbrake turn instead of
+  snapping on. On the low assist level it helps mostly by counter-steering for you.
 - The navigator now warns of a corner whose exit is not its entry: "Sağ 4 kapanıyor" / "Right 4 tightens" when it closes up,
   "açılıyor" / "opens" when it lets you go.
 - **Black Pine and Red Canyon rebuilt as real rally roads:** corners that flow into each other, esses, corners that tighten and open,

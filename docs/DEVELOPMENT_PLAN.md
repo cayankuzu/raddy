@@ -1214,3 +1214,44 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   Checks: GUT 632/632, nettest passed (3 clients) at every step with the 100 ms delay and its RPCs as they were (the snapshot's first
   argument is now a tick, still an int), flow test on Black Pine passed (2:57.6 / 3:03.1, the client's bot through both bypasses;
   15.7 and 15.2 m/s, as before).
+- 2026-11-17: Phase F parts 6-7, the steering chain and the assist (Part 1 item 4, item 5's assist), one change a commit, each a
+  `VehicleConfig` value with A2's in `VehicleConfig.FEEL_A2`: `--feel-preset=a2` (route_test, the game, every car) loads them, and the
+  probe's slalom, lift-off and hairpin on it reproduce the baseline's CSV figures to the newton metre.
+  - The lock round the direction of travel (`steer_travel_lock` 1, A2 0; `RallyCar.steer_lock`): steering into a slide adds the slip
+    angle to the speed's lock, up to full lock. The bot and the counter-steer divide by it.
+  - One filter per device: the car's rack 8 rad/s both ways (A2 2.2 / 3.5); a key's ramp in `SteeringInput` alone, A2's road-wheel
+    rates moved into it (`KEY_WHEEL_RATE`); a pad's smoothing at 120/s (A2 22); a wheel's whole range is full lock at any speed
+    (`wheel_full_range`, `VehicleControls.full_lock`). A first cut retuned the key's ramp to 4.37 / 2.75 per second: it held 0.21 s
+    and 0.33 s but was 80 ms slower at 50 km/h, so the next commit put A2's wheel rates into the ramp instead.
+  - The assist: back over 0.4 s after the handbrake (`assist_fade_in`, A2 one tick), at most a quarter of the tyres' grip times half
+    the wheelbase (`assist_cap`, A2 none), taking hold over 4 degrees of slip past its free 8 (`assist_onset`, A2: its yaw damping
+    came on in full in a tick), level 1 at 0.6 of the torque (`assist_level_1`, A2 1) with a pad's counter-steer from level 1
+    (`pad_counter_steer_level`, A2 2). `RallyCar.assist_torque` is the per-tick log (the probe's `assist_nm`).
+  - The catch script's hands now catch like a driver: the front wheels toward the car's way by twice its slip (full lock while it slides
+    far, unwinding as it is caught; `counter` in `tools/feel_scripts.gd`). Held at full lock for 2.5 s, the new car spun the other way
+    after the catch (the hands' fault, a tank-slapper); A2 is judged with the same hands (`reports/feel/a2_a0`).
+
+    | Measure | A2 (baseline, or `--feel-preset=a2`) | Now | Sheet |
+    |---|---|---|---|
+    | Catch at 100 km/h, assist 0, same hands | lost: slip to 38.7 deg, 30.6 at the end, 48 km/h | under 5 deg in 0.40 s, worst 21.6, 12.2 the other way, 0.3 at the end, 96 km/h | f67_a0/vs_a2_a0/catch |
+    | Catch, assist 1 (raw axis) | under 5 deg in 0.60 s, assist peak 5547 N m (4833 with the new hands) | 0.38 s, peak 2261 N m | f67/vs_baseline/catch |
+    | Pad step, half stick at 44 / 72 / 100 km/h, to 90 % (command / road wheels) | 100 / 100, 100 / 100, 100 / 108 ms | 17 / 25 ms at each | f67_pad/vs_baseline_pad/step |
+    | Raw step to the road wheels (90 %) | 83, 67, 42 ms | 25, 17, 17 ms | f67/vs_baseline/step |
+    | Keyboard to full lock, 20 / 50 / 100 km/h (benchmark) | 0.21 / 0.20 / 0.33 s | 0.19 / 0.20 / 0.33 s | f67_key/vs_baseline_key/step |
+    | A wheel's half turn at 100 km/h (benchmark) | 5.2 deg (half the speed's lock) | 16.0 deg (half of full lock) | |
+    | Assist peak, slalom / lift-off / hairpin / step / power (assist 1) | 3764 / 3149 / 4970 / 3977 / 3700 N m | 2630 / 1733 / 1938 / 2081 / 1591 N m | f67/vs_baseline/* |
+    | Assist's median share of the tyres' yaw moment, same scripts | 4.6 / 6.9 / 5.1 / 8.2 / 7.2 | 0.6 / 2.1 / 5.0 / 2.8 / 2.5 | |
+    | Assist's largest rise in a tick, same scripts | its peak (0 to all in one tick) | 205 / 70 / 162 / 111 / 72 N m | |
+    | Assist on the bot's clean run of Black Pine (level 1, test_route_drive) | (not measured) | acting 0.1 % of the ticks, 2 N m on average (0.1 % of its cap; the benchmark holds it under 5 %) | |
+
+    The assist acts in more ticks than before in the raw-axis scripts (slalom 41 to 57 %, step 19 to 39 %): it takes hold gently from
+    its free slip on, where A2's was all or nothing, and the fast rack lets the raw steps slide the car further.
+  A2's benchmarks: 0-100 5.36 s, 100-0 48.0 m, hairpin 2.89 s (2.97), full lock from a standstill 5.0-5.8 s (5.3-6.1), the drop as
+  before. One band moved: the half-lock step at 70 km/h now answers in 0.075 s (A2 0.10 s), under the old band's 0.08: the step goes
+  straight into the controls and the rack no longer takes 67 ms to bring it to the road wheels; the band is 0.05-0.45 s with the
+  reason beside it. `test_steering_input`'s parked ramp band moved from 0.20 to 0.25 s (the ramp now holds A2's rack rate: 0.23 s for
+  0.5 rad of lock). New benchmarks: the catch with the assist off, the pad and the wheel at the road wheels, the assist's fade back
+  (hairpin: at most 75 N m a tick) and its cap (catch at levels 1 and 2), the assist's average on the bot's clean run.
+  Checks: GUT 637/637, nettest passed (the first run beside the other project's GUT failed on voice packets, 94 received; the rerun
+  passed, client navigator 1.06x the driver's turn jerk), flow test on Black Pine passed (2:57.6 / 3:03.1, 15.7 and 15.2 m/s, as
+  before). Plots: `reports/feel/f67*` (windowed Medium; the other project's headless GUT ran beside some of them).
