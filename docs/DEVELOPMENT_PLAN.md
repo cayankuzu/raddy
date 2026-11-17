@@ -1117,5 +1117,7 @@ Downloadable Windows build on itch.io only; no browser build at launch (reasons 
   - The north arrow stood over the scale bar's unit: the bar now keeps `MapSheet.SCALE_ROOM` (156 px) clear of it (tested per stage).
   - `Net.JOIN_VERSION` is the protocol and `StageCatalog.LAYOUT`: a build on other roads is refused as a version mismatch.
   - Red Canyon's narrow lane is a sunken lane between earth banks, as the seat shows: its description says so (no slot canyon).
+  Checks: GUT 618/618, nettest passed, flow test on Black Pine passed (host on the stage 2:57.6, the client through both bypasses
+  3:03.2; 15.7 and 15.2 m/s).
   Seen (reports/screenshots/l_fix): both map sheets, each bypass on them up close, the mouths and the ford and the lane from the seat.
   Not done: the bypasses' own corners are still uncalled.
