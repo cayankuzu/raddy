@@ -11,14 +11,15 @@ extends RefCounted
 
 enum Device { KEYBOARD, GAMEPAD, WHEEL }
 
-## Keyboard: full-scale input per second at a standstill and at KEY_RATE_SPEED (m/s) and above.
-const KEY_RATE_LOW := 7.0
-const KEY_RATE_HIGH := 2.6
+## Keyboard: full-scale input per second at a standstill and at KEY_RATE_SPEED (m/s) and above (key_rate_low, key_rate_high), the only
+## filter a key has: full lock in 0.21 s at 20 km/h, 0.33 s at 100 km/h (GAME_DESIGN §5).
+const KEY_RATE_LOW := 4.37
+const KEY_RATE_HIGH := 2.75
 const KEY_RATE_SPEED := 30.0
 ## Keyboard: back to the centre (or across it) this fast.
 const KEY_RETURN_RATE := 8.0
-## Gamepad: how fast the command follows the stick (1/s), to filter jitter only.
-const PAD_FOLLOW := 22.0
+## Gamepad: how fast the command follows the stick (1/s, pad_follow), to filter jitter only: most of a step within the tick.
+const PAD_FOLLOW := 120.0
 ## Counter-steer assist: share of the slip angle steered into the slide, the slip it leaves
 ## alone, and the speed (m/s) below which it never acts.
 const COUNTER_STEER := 0.85
@@ -30,7 +31,17 @@ var device := Device.KEYBOARD
 var linearity := 1.6
 ## Keyboard counter-steer (assist level 1+), gamepad counter-steer (assist level 2).
 var counter_steer := true
+var key_rate_low := KEY_RATE_LOW
+var key_rate_high := KEY_RATE_HIGH
+var pad_follow := PAD_FOLLOW
 var value := 0.0
+
+
+## The car's own values for the filters (VehicleConfig: a feel preset may change them).
+func tune(config: VehicleConfig) -> void:
+	key_rate_low = config.key_steer_rate_low
+	key_rate_high = config.key_steer_rate_high
+	pad_follow = config.pad_steer_follow
 
 
 ## `raw` is the steering axis (-1 left .. 1 right), `speed` the car's forward speed (m/s),
@@ -44,13 +55,13 @@ func update(raw: float, dt: float, speed: float, slip := 0.0, max_lock := 0.5) -
 			var shaped := signf(raw) * pow(absf(clampf(raw, -1.0, 1.0)), linearity)
 			if counter_steer and absf(raw) < 0.15:
 				shaped = _with_counter_steer(shaped, speed, slip, max_lock)
-			value = lerpf(value, shaped, 1.0 - exp(-PAD_FOLLOW * dt))
+			value = lerpf(value, shaped, 1.0 - exp(-pad_follow * dt))
 		_:
 			var target := signf(raw)
 			if counter_steer and target == 0.0:
 				target = _with_counter_steer(0.0, speed, slip, max_lock)
 			var returning := absf(target) < absf(value) or target * value < 0.0
-			var rate := KEY_RETURN_RATE if returning else lerpf(KEY_RATE_LOW, KEY_RATE_HIGH, clampf(absf(speed) / KEY_RATE_SPEED, 0.0, 1.0))
+			var rate := KEY_RETURN_RATE if returning else lerpf(key_rate_low, key_rate_high, clampf(absf(speed) / KEY_RATE_SPEED, 0.0, 1.0))
 			value = move_toward(value, target, rate * dt)
 	return value
 

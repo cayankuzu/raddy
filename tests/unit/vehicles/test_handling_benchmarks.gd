@@ -77,17 +77,21 @@ func test_turn_in_response_and_cornering_grip() -> void:
 	var lateral_g := settled * maxf(_car.linear_velocity.length(), 0.1) / GRAVITY
 	_car.controls.clear()
 	gut.p("half lock at 70 km/h: yaw answer %.2f s, settled %.1f deg/s, %.2f g sideways" % [response, rad_to_deg(settled), lateral_g])
-	assert_between(response, 0.08, 0.45, "answers the wheel quickly, without snapping")
+	# Band from 0.08 to 0.05 in phase F: the step goes straight into the controls, and the rack no longer takes 67 ms to bring it to the
+	# road wheels (A2 answered in 0.10 s, now 0.075 s): what is left is the car's own answer. A player's step comes through SteeringInput.
+	assert_between(response, 0.05, 0.45, "answers the wheel quickly, without snapping")
 	assert_between(lateral_g, 0.45, 1.1, "gravel grip in a steady corner")
 
 
 ## Keyboard steering (through SteeringInput, as a player drives): full lock is a key press away,
-## quick when slow, gentle at speed so a stab does not spin the car.
+## quick when slow, gentle at speed so a stab does not spin the car. Since phase F the key's ramp is its only filter (the rack is fast):
+## the same 0.21 s at 20 km/h and 0.33 s at 100 km/h as A2's two filters in a row.
 func test_keyboard_lock_comes_in_smoothly() -> void:
 	var times: Array[float] = []
 	for kmh in [20.0, 50.0, 100.0]:
 		await _cruise(kmh * KMH)
 		var steering := SteeringInput.new()
+		steering.tune(_car.config)
 		var target := _car.max_steer_angle_at(_car.forward_speed)
 		var seconds := 0.0
 		while absf(_car.steer_angle) < target * 0.95 and seconds < 2.0:
@@ -102,6 +106,40 @@ func test_keyboard_lock_comes_in_smoothly() -> void:
 	assert_between(times[0], 0.1, 0.3, "quick at low speed")
 	assert_between(times[2], 0.25, 0.6, "gentle at speed")
 	assert_gt(times[2], times[0], "slower at speed than when slow")
+
+
+## A pad (through SteeringInput): a half-stick step reaches the road wheels on the tick it is made, nearly all of it within 50 ms, at 40,
+## 70 and 100 km/h: one filter, the stick's light smoothing, before a fast rack (A2: 83-183 ms to 90 %, its rack slowed the smoothing
+## further; GAME_DESIGN §9: no input lag over a tick). A steering wheel's half turn is half the full lock at any speed.
+func test_pad_and_wheel_reach_the_road_wheels_at_once() -> void:
+	for kmh in [40.0, 70.0, 100.0]:
+		await _cruise(kmh * KMH)
+		var steering := SteeringInput.new()
+		steering.tune(_car.config)
+		steering.device = SteeringInput.Device.GAMEPAD
+		var target := pow(0.5, steering.linearity) * _car.steer_lock(1.0)
+		var first := 0.0
+		var ticks := 0
+		while absf(_car.steer_angle) < target * 0.9 and ticks < TICKS:
+			_car.controls.steer = steering.update(0.5, 1.0 / TICKS, _car.forward_speed, _car.body_slip_angle(), _car.steer_lock(1.0))
+			await wait_ticks(1)
+			ticks += 1
+			if ticks == 1:
+				first = absf(_car.steer_angle) / target
+		gut.p("pad half stick at %.0f km/h: %.0f %% of it at the road wheels in the first tick, 90 %% in %.0f ms (%.1f deg)" % [kmh,
+			first * 100.0, ticks * 1000.0 / TICKS, rad_to_deg(target)])
+		assert_gt(first, 0.3, "%.0f km/h: the wheels answer on the stick's tick" % kmh)
+		assert_lte(ticks, 6, "%.0f km/h: 90 %% within 50 ms" % kmh)
+		_car.controls.clear()
+		_car.reset_to(Transform3D(Basis(), START))
+		await wait_ticks(TICKS)
+	await _cruise(100.0 * KMH)
+	_car.controls.steer = 0.5
+	_car.controls.full_lock = true
+	await wait_ticks(TICKS / 5)
+	gut.p("a wheel's half turn at 100 km/h: %.1f deg" % rad_to_deg(_car.steer_angle))
+	assert_almost_eq(_car.steer_angle, _car.config.max_steer_angle * 0.5, deg_to_rad(0.2), "the wheel's own range")
+	_car.controls.clear()
 
 
 ## Handbrake hairpin: from 45 km/h, full lock with a handbrake pull, then power: the car comes

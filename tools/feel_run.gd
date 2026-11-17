@@ -50,6 +50,7 @@ func _init(on: RallyCar, name: String, pad_origin: Vector3, steering_device := -
 	device = steering_device
 	assist_level = assist
 	if device >= 0:
+		_steering.tune(car.config)
 		_steering.device = device as SteeringInput.Device
 		_steering.counter_steer = assist >= 1 if device == SteeringInput.Device.KEYBOARD else assist >= 2
 	car.reset_to(start_pose())
@@ -97,6 +98,7 @@ func tick(delta: float) -> void:
 	controls.throttle = hands.throttle
 	controls.brake = hands.brake
 	controls.handbrake = hands.handbrake
+	controls.full_lock = device == SteeringInput.Device.WHEEL
 	controls.steer = raw if device < 0 else _steering.update(raw, delta, car.forward_speed, slip, car.steer_lock(-signf(slip)))
 	var velocity := car.seen_velocity()
 	var accel := car.global_basis.inverse() * (velocity - _previous_velocity) / delta

@@ -64,6 +64,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if car != _bound:
 		_bound = car
+		steering.tune(car.config)
 		car.impact.connect(func(strength: float, _direction: Vector3) -> void:
 			_impact_rumble = maxf(_impact_rumble, clampf(strength / RUMBLE_IMPACT, 0.0, 1.0)))
 	car.assist_scale = _assist_scale
@@ -83,6 +84,7 @@ func _physics_process(delta: float) -> void:
 	var slip := car.body_slip_angle()
 	controls.steer = steering.update(raw, delta * (ONE_HAND_RATE if one_hand else 1.0), car.forward_speed, slip, car.steer_lock(-signf(slip)))
 	controls.handbrake = Input.is_action_pressed(&"drive_handbrake")
+	controls.full_lock = steering.device == SteeringInput.Device.WHEEL
 	controls.horn = Input.is_action_pressed(&"car_horn")
 	if local_recovery and car.needs_recovery and Input.is_action_just_pressed(&"vehicle_recover"):
 		car.recover_upright()

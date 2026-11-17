@@ -4,7 +4,8 @@ extends Resource
 ## Phase F's feel changes are values here: FEEL_A2 puts back A2's ("driving feel 2.0"), one command-line arg away (--feel-preset=a2).
 
 ## The A2 feel's values of what phase F changed, for the owner's side-by-side drive.
-const FEEL_A2 := {"steer_travel_lock": 0.0}
+const FEEL_A2 := {"steer_travel_lock": 0.0, "steer_rate": 2.2, "steer_return_rate": 3.5, "key_steer_rate_low": 7.0,
+	"key_steer_rate_high": 2.6, "pad_steer_follow": 22.0, "wheel_full_range": false}
 
 @export_group("Body")
 @export var mass := 1200.0
@@ -63,9 +64,16 @@ const FEEL_A2 := {"steer_travel_lock": 0.0}
 ## The speed's lock is kept round the direction of travel, not the nose: steering into a slide adds this share of the body's slip angle
 ## (up to max_steer_angle), so a fast slide can be caught by hand with the assist off (0: round the nose, A2).
 @export_range(0.0, 1.0) var steer_travel_lock := 1.0
-## How fast the wheels turn toward the input and back to centre, in rad/s.
-@export var steer_rate := 2.2
-@export var steer_return_rate := 3.5
+## The steering rack: how fast the road wheels turn toward the command and back to centre, in rad/s. Fast: the input is shaped once,
+## per device, by SteeringInput (A2 filtered it twice: 2.2 and 3.5 here).
+@export var steer_rate := 8.0
+@export var steer_return_rate := 8.0
+## SteeringInput's filters (it takes them through tune()): a key's ramp per second at a standstill and at speed, a pad's follow (1/s).
+@export var key_steer_rate_low := SteeringInput.KEY_RATE_LOW
+@export var key_steer_rate_high := SteeringInput.KEY_RATE_HIGH
+@export var pad_steer_follow := SteeringInput.PAD_FOLLOW
+## A steering wheel's own range is full lock at any speed (VehicleControls.full_lock): its driver turns it less at speed.
+@export var wheel_full_range := true
 
 @export_group("Recovery and impacts")
 ## Seconds a car must stay overturned, hung up or wedged before recovery is offered.

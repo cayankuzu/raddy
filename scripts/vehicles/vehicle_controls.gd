@@ -7,6 +7,8 @@ var brake := 0.0  ## 0..1; reverses when held at a standstill
 var steer := 0.0  ## -1 (left) .. 1 (right)
 var handbrake := false
 var horn := false
+## The steer comes from a steering wheel: its whole range is full lock at any speed (VehicleConfig.wheel_full_range).
+var full_lock := false
 
 
 func clear() -> void:
@@ -15,3 +17,4 @@ func clear() -> void:
 	steer = 0.0
 	handbrake = false
 	horn = false
+	full_lock = false

@@ -232,8 +232,11 @@ func max_steer_angle_at(speed: float) -> float:
 
 
 ## Largest front wheel angle allowed now when steering toward `side` (+1 right, -1 left): the speed's lock round the direction of travel,
-## not the nose (config.steer_travel_lock): steering into a slide adds the body's slip angle, so a fast slide can be caught by hand.
+## not the nose (config.steer_travel_lock): steering into a slide adds the body's slip angle, so a fast slide can be caught by hand. A
+## steering wheel has full lock at any speed.
 func steer_lock(side: float) -> float:
+	if controls.full_lock and config.wheel_full_range:
+		return config.max_steer_angle
 	var lock := max_steer_angle_at(forward_speed)
 	if forward_speed > SLIP_SPEED_FLOOR:
 		var slip := body_slip_angle()
